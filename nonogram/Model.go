@@ -114,10 +114,10 @@ func (m Model) GetDebugInfo() string {
 			"| Dimensions | [%dx%d] |\n"+
 			"| Hint Render Width | %dr %dc |\n"+
 			"\n"+
-			"Row Tomography\n```%v```\n"+
-			"Row Hints\n```%v```\n\n"+
-			"Col Tomography\n```%v```\n"+
-			"Col Hints\n```%v```\n",
+			"Row Tomography\n\t%v\n"+
+			"Row Hints\n\t\t%v\n\n"+
+			"Col Tomography\n\t%v\n"+
+			"Col Hints\n\t\t%v\n\n",
 		solved,
 		m.cursor.x,
 		m.cursor.y,

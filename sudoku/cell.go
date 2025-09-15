@@ -1,5 +1,7 @@
 package sudoku
 
+import "fmt"
+
 type cell struct {
 	x, y int
 	v    int
@@ -45,4 +47,8 @@ func loadSave(def grid, optionalSave ...string) grid {
 		g = def
 	}
 	return g
+}
+
+func (c cell) String() string {
+	return fmt.Sprintf("r%dc%d=%d", c.x, c.y, c.v)
 }

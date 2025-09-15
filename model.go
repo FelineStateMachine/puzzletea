@@ -5,7 +5,7 @@ import (
 
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/nonogram"
-	"github.com/FelineStateMachine/puzzletea/sudoku"
+	// "github.com/FelineStateMachine/puzzletea/sudoku"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/glamour"
@@ -22,8 +22,9 @@ var (
 		nonogram.NewMode("Hard - 15x15", "A random nonogram on a fifteen by fifteen board.", 15, 15),
 		nonogram.NewMode("Extra - 5x10", "A random nonogram on a five by ten board.", 5, 10),
 
-		sudoku.NewMode("Easy - 38 Provided Cells", "A random sudoku with at least 38 cells provided to start.", 38),
-		sudoku.NewMode("Hard - 26 Provided Cells", "A random sudoku with at least 26 cells provided to start.", 26)}
+		// sudoku.NewMode("Easy - 38 Provided Cells", "A random sudoku with at least 38 cells provided to start.", 38),
+		// sudoku.NewMode("Hard - 26 Provided Cells", "A random sudoku with at least 26 cells provided to start.", 26)
+	}
 )
 
 const (

@@ -100,3 +100,7 @@ func (t TomographyDefinition) equal(o TomographyDefinition) bool {
 	}
 	return true
 }
+
+func (t TomographyDefinition) String() string {
+	return colHintView(t, t.RequiredLen())
+}
