@@ -6,7 +6,7 @@ import (
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/nonogram"
 	"github.com/FelineStateMachine/puzzletea/wordsearch"
-	// "github.com/FelineStateMachine/puzzletea/sudoku"
+	"github.com/FelineStateMachine/puzzletea/sudoku"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/glamour"
@@ -27,8 +27,8 @@ var (
 		wordsearch.NewMode("Word Search Medium - 15x15", "Find 10 words in a 15x15 grid.", 15, 15, 10, 4, 7, []wordsearch.Direction{wordsearch.Right, wordsearch.Down, wordsearch.DownRight, wordsearch.DownLeft, wordsearch.Left, wordsearch.Up}),
 		wordsearch.NewMode("Word Search Hard - 20x20", "Find 15 words in a 20x20 grid.", 20, 20, 15, 5, 10, []wordsearch.Direction{wordsearch.Right, wordsearch.Down, wordsearch.DownRight, wordsearch.DownLeft, wordsearch.Left, wordsearch.Up, wordsearch.UpRight, wordsearch.UpLeft}),
 
-		// sudoku.NewMode("Easy - 38 Provided Cells", "A random sudoku with at least 38 cells provided to start.", 38),
-		// sudoku.NewMode("Hard - 26 Provided Cells", "A random sudoku with at least 26 cells provided to start.", 26)
+		sudoku.NewMode("Easy - 38 Provided Cells", "A random sudoku with at least 38 cells provided to start.", 38),
+		sudoku.NewMode("Hard - 26 Provided Cells", "A random sudoku with at least 26 cells provided to start.", 26),
 	}
 )
 
