@@ -52,3 +52,18 @@ func loadSave(def grid, optionalSave ...string) grid {
 func (c cell) String() string {
 	return fmt.Sprintf("r%dc%d=%d", c.x, c.y, c.v)
 }
+
+func (m Model) isSolved() bool {
+	for y := range GRIDSIZE {
+		for x := range GRIDSIZE {
+			c := m.grid[y][x]
+			if c.v == 0 {
+				return false
+			}
+			if hasConflict(m, c, x, y) {
+				return false
+			}
+		}
+	}
+	return true
+}

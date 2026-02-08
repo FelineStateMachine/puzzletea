@@ -13,12 +13,6 @@ import (
 
 const GRIDSIZE = 9
 
-const (
-	cellBGColor     = lipgloss.Color("249")
-	providedFGColor = lipgloss.Color("229")
-	cursorBGColor   = lipgloss.Color("10")
-)
-
 type cursor struct {
 	x, y int
 }
@@ -28,6 +22,7 @@ type Model struct {
 	grid     grid
 	provided []cell
 	keys     KeyMap
+	modeName string
 }
 
 // New creates a new sudoku game using the provided cell values.
@@ -37,6 +32,7 @@ func New(mode SudokuMode, provided []cell, save ...string) (game.Gamer, error) {
 		grid:     g,
 		provided: provided,
 		keys:     DefaultKeyMap,
+		modeName: mode.title,
 	}
 	return m, nil
 }
@@ -54,6 +50,8 @@ func (m Model) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 		case key.Matches(msg, m.keys.FillValue):
 			val, _ := strconv.Atoi(msg.String())
 			m.updateCell(val)
+		case key.Matches(msg, m.keys.ClearCell):
+			m.updateCell(0)
 		case key.Matches(msg, m.keys.Up):
 			if m.cursor.y > 0 {
 				m.cursor.y--
@@ -80,43 +78,77 @@ func (m Model) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 func (m *Model) updateCell(v int) {
 	c := &m.grid[m.cursor.y][m.cursor.x]
 	if slices.Contains(m.provided, *c) {
-
+		return
 	}
 	c.v = v
 }
 
 // View implements game.Gamer.
 func (m Model) View() string {
-	var rows []string
-	for _, row := range m.grid {
-		var cells []string
-		for _, cell := range row {
+	title := titleBarView(m.modeName, m.isSolved())
+	grid := renderGrid(m)
+	status := statusBarView()
 
-			cellStyle := lipgloss.NewStyle().Background(cellBGColor)
-			if slices.Contains(m.provided, cell) {
-				cellStyle = cellStyle.Foreground(providedFGColor)
-			}
-			if m.cursor.x == cell.x && m.cursor.y == cell.y {
-				cellStyle = cellStyle.Background(cursorBGColor)
-			}
-
-			c := cellStyle.Render(fmt.Sprintf("%d", cell.v))
-			cells = append(cells, c)
-		}
-		r := lipgloss.JoinHorizontal(lipgloss.Right, cells...)
-		rows = append(rows, r)
-	}
-	return lipgloss.JoinVertical(lipgloss.Left, rows...)
+	return lipgloss.JoinVertical(lipgloss.Left, title, grid, status)
 }
 
 // GetDebugInfo implements game.Gamer.
 func (m Model) GetDebugInfo() string {
-	return fmt.Sprintf(`
-# Sudoko
-Cursor (%dx%d)
-Provided Cells: '%v'
-`,
+	cursorCell := m.grid[m.cursor.y][m.cursor.x]
+	isProvided := slices.Contains(m.provided, cursorCell)
+	conflict := hasConflict(m, cursorCell, m.cursor.x, m.cursor.y)
+	solved := m.isSolved()
+
+	filledCount := 0
+	conflictCount := 0
+	for y := range GRIDSIZE {
+		for x := range GRIDSIZE {
+			c := m.grid[y][x]
+			if c.v != 0 {
+				filledCount++
+			}
+			if c.v != 0 && hasConflict(m, c, x, y) {
+				conflictCount++
+			}
+		}
+	}
+
+	status := "In Progress"
+	if solved {
+		status = "Solved"
+	}
+
+	s := fmt.Sprintf(
+		"# Sudoku\n\n"+
+			"## Game State\n\n"+
+			"| Property | Value |\n"+
+			"| :--- | :--- |\n"+
+			"| Status | %s |\n"+
+			"| Cursor | (%d, %d) |\n"+
+			"| Cell Value | %s |\n"+
+			"| Is Provided | %v |\n"+
+			"| Has Conflict | %v |\n"+
+			"| Cells Filled | %d / 81 |\n"+
+			"| Conflict Count | %d |\n"+
+			"| Provided Count | %d |\n",
+		status,
 		m.cursor.x, m.cursor.y,
-		m.provided,
+		cellContent(cursorCell),
+		isProvided,
+		conflict,
+		filledCount,
+		conflictCount,
+		len(m.provided),
 	)
+
+	if len(m.provided) > 0 {
+		s += "\n## Provided Cells\n\n"
+		s += "| Row | Col | Value |\n"
+		s += "| :--- | :--- | :--- |\n"
+		for _, p := range m.provided {
+			s += fmt.Sprintf("| %d | %d | %d |\n", p.y, p.x, p.v)
+		}
+	}
+
+	return s
 }

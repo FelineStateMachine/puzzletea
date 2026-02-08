@@ -68,5 +68,8 @@ func (m Model) IsProvidedCell() bool {
 
 // GetFullHelp implements game.Gamer.
 func (m Model) GetFullHelp() [][]key.Binding {
-	panic("unimplemented")
+	return [][]key.Binding{
+		{m.keys.Up, m.keys.Down, m.keys.Left, m.keys.Right},
+		{m.keys.FillValue, m.keys.ClearCell},
+	}
 }

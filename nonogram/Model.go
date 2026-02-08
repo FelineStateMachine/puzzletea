@@ -26,6 +26,7 @@ type Model struct {
 	cursor        cursor
 	grid          grid
 	keys          KeyMap
+	modeName      string
 }
 
 func New(mode NonogramMode, hints Hints, save ...string) (game.Gamer, error) {
@@ -45,6 +46,7 @@ func New(mode NonogramMode, hints Hints, save ...string) (game.Gamer, error) {
 		colHints: c,
 		grid:     newGrid(s),
 		keys:     DefaultKeyMap,
+		modeName: mode.title,
 	}
 
 	return m, nil
@@ -88,50 +90,99 @@ func (m Model) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 }
 
 func (m Model) View() string {
+	curr := generateTomography(m.grid)
+	solved := curr.rows.equal(m.rowHints) && curr.cols.equal(m.colHints)
+
 	maxWidth, maxHeight := m.rowHints.RequiredLen()*cellWidth, m.colHints.RequiredLen()
-	g := gridView(m.grid, m.cursor)
-	r := rowHintView(m.rowHints, maxWidth)
-	c := colHintView(m.colHints, maxHeight)
+
+	title := nonoTitleBarView(m.modeName, solved)
+	g := gridView(m.grid, m.cursor, solved)
+	r := rowHintView(m.rowHints, maxWidth, curr.rows)
+	c := colHintView(m.colHints, maxHeight, curr.cols)
 	spacer := baseStyle.Width(maxWidth).Height(maxHeight).Render("")
+	status := nonoStatusBarView(m.keys)
 
 	s1 := lipgloss.JoinHorizontal(lipgloss.Bottom, spacer, c)
 	s2 := lipgloss.JoinHorizontal(lipgloss.Top, r, g)
 
-	s := lipgloss.JoinVertical(lipgloss.Left, s1, s2)
+	grid := lipgloss.JoinVertical(lipgloss.Left, s1, s2)
 
-	return s
+	return lipgloss.JoinVertical(lipgloss.Left, title, grid, status)
 }
 
 func (m Model) GetDebugInfo() string {
 	curr := generateTomography(m.grid)
 	solved := curr.rows.equal(m.rowHints) && curr.cols.equal(m.colHints)
+
+	status := "In Progress"
+	if solved {
+		status = "Solved"
+	}
+
 	s := fmt.Sprintf(
-		"# Nonogram - Dev Info\n"+
-			"| Property          | Value   |\n"+
-			"| :----- | :---- |\n"+
-			"| Solved | %v |\n"+
-			"| Cursor | (%d,%d) |\n"+
-			"| Dimensions | [%dx%d] |\n"+
-			"| Hint Render Width | %dr %dc |\n"+
-			"\n"+
-			"Row Tomography\n\t%v\n"+
-			"Row Hints\n\t\t%v\n\n"+
-			"Col Tomography\n\t%v\n"+
-			"Col Hints\n\t\t%v\n\n",
-		solved,
-		m.cursor.x,
-		m.cursor.y,
-		m.width,
-		m.height,
-		m.rowHints.RequiredLen()*cellWidth,
-		m.colHints.RequiredLen(),
-		curr.rows,
-		m.rowHints,
-		curr.cols,
-		m.colHints,
+		"# Nonogram\n\n"+
+			"## Game State\n\n"+
+			"| Property | Value |\n"+
+			"| :--- | :--- |\n"+
+			"| Status | %s |\n"+
+			"| Cursor | (%d, %d) |\n"+
+			"| Grid Size | %d x %d |\n"+
+			"| Hint Widths | row: %d, col: %d |\n",
+		status,
+		m.cursor.x, m.cursor.y,
+		m.width, m.height,
+		m.rowHints.RequiredLen()*cellWidth, m.colHints.RequiredLen(),
 	)
 
+	s += "\n## Row Tomography\n\n"
+	s += "| Row | Hint | Current | Match |\n"
+	s += "| :--- | :--- | :--- | :--- |\n"
+	for i, hint := range m.rowHints {
+		var currStr string
+		match := false
+		if i < len(curr.rows) {
+			currStr = intSliceStr(curr.rows[i])
+			match = intSliceEqual(hint, curr.rows[i])
+		}
+		matchStr := "No"
+		if match {
+			matchStr = "Yes"
+		}
+		s += fmt.Sprintf("| %d | %s | %s | %s |\n", i, intSliceStr(hint), currStr, matchStr)
+	}
+
+	s += "\n## Column Tomography\n\n"
+	s += "| Col | Hint | Current | Match |\n"
+	s += "| :--- | :--- | :--- | :--- |\n"
+	for i, hint := range m.colHints {
+		var currStr string
+		match := false
+		if i < len(curr.cols) {
+			currStr = intSliceStr(curr.cols[i])
+			match = intSliceEqual(hint, curr.cols[i])
+		}
+		matchStr := "No"
+		if match {
+			matchStr = "Yes"
+		}
+		s += fmt.Sprintf("| %d | %s | %s | %s |\n", i, intSliceStr(hint), currStr, matchStr)
+	}
+
 	return s
+}
+
+func intSliceStr(s []int) string {
+	if len(s) == 0 {
+		return "[]"
+	}
+	result := ""
+	for i, v := range s {
+		if i > 0 {
+			result += ", "
+		}
+		result += fmt.Sprintf("%d", v)
+	}
+	return result
 }
 
 func (m *Model) updateTile(r rune) {

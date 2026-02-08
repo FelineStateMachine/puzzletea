@@ -3,24 +3,22 @@ package wordsearch
 import (
 	"math/rand"
 	"strings"
-	"time"
 )
 
 // Word list organized by length for difficulty filtering
 var wordsByLength = map[int][]string{
-	3: {"CAT", "DOG", "SUN", "HAT", "BAT", "RUN", "FUN", "HOT", "TOP", "BOX"},
-	4: {"TREE", "BIRD", "FISH", "MOON", "STAR", "WIND", "RAIN", "SNOW", "BLUE", "JUMP", "PLAY", "SWIM", "WALK", "TALK", "BOOK", "DOOR", "FIRE", "GOLD", "HAND", "KING"},
-	5: {"HAPPY", "WATER", "LIGHT", "BROWN", "GREEN", "HOUSE", "MUSIC", "OCEAN", "PLANT", "QUICK", "RIVER", "SMILE", "TIGER", "UNDER", "WATCH", "YOUTH", "ZEBRA", "APPLE", "BEACH", "CLOUD"},
-	6: {"FRIEND", "GARDEN", "JUNGLE", "KITTEN", "LAPTOP", "MONKEY", "ORANGE", "PENCIL", "PUZZLE", "QUEEN", "RABBIT", "SCHOOL", "TRAVEL", "WINTER", "YELLOW", "ANIMAL", "BASKET", "CASTLE", "DRAGON", "FOREST"},
-	7: {"ABILITY", "BALANCE", "CAPTAIN", "DIAMOND", "ELECTRIC", "FREEDOM", "GIRAFFE", "HARMONY", "JOURNEY", "KITCHEN", "LIBRARY", "MONSTER", "MYSTERY", "PICTURE", "QUALITY", "RAINBOW", "SUCCESS", "THUNDER", "VICTORY", "WEATHER"},
-	8: {"ADVENTURE", "BIRTHDAY", "CALENDAR", "DAUGHTER", "ELEPHANT", "FOOTBALL", "GIGANTIC", "HOSPITAL", "INFINITY", "KANGAROO", "LANGUAGE", "MOUNTAIN", "NEIGHBOR", "PARADISE", "QUESTION", "SANDWICH", "TREASURE", "UNIVERSE", "VACATION", "WILDLIFE"},
-	9: {"AMBITIOUS", "BEAUTIFUL", "CHALLENGE", "DANGEROUS", "EDUCATION", "FANTASTIC", "GENERATOR", "HALLOWEEN", "IMPORTANT", "KNOWLEDGE", "LANDSCAPE", "MEMORABLE", "NECESSARY", "CHOCOLATE", "PINEAPPLE", "RASPBERRY", "SUBMARINE", "TELEPHONE", "CROCODILE", "BUTTERFLY"},
+	3:  {"CAT", "DOG", "SUN", "HAT", "BAT", "RUN", "FUN", "HOT", "TOP", "BOX"},
+	4:  {"TREE", "BIRD", "FISH", "MOON", "STAR", "WIND", "RAIN", "SNOW", "BLUE", "JUMP", "PLAY", "SWIM", "WALK", "TALK", "BOOK", "DOOR", "FIRE", "GOLD", "HAND", "KING"},
+	5:  {"HAPPY", "WATER", "LIGHT", "BROWN", "GREEN", "HOUSE", "MUSIC", "OCEAN", "PLANT", "QUICK", "RIVER", "SMILE", "TIGER", "UNDER", "WATCH", "YOUTH", "ZEBRA", "APPLE", "BEACH", "CLOUD"},
+	6:  {"FRIEND", "GARDEN", "JUNGLE", "KITTEN", "LAPTOP", "MONKEY", "ORANGE", "PENCIL", "PUZZLE", "QUEEN", "RABBIT", "SCHOOL", "TRAVEL", "WINTER", "YELLOW", "ANIMAL", "BASKET", "CASTLE", "DRAGON", "FOREST"},
+	7:  {"ABILITY", "BALANCE", "CAPTAIN", "DIAMOND", "ELECTRIC", "FREEDOM", "GIRAFFE", "HARMONY", "JOURNEY", "KITCHEN", "LIBRARY", "MONSTER", "MYSTERY", "PICTURE", "QUALITY", "RAINBOW", "SUCCESS", "THUNDER", "VICTORY", "WEATHER"},
+	8:  {"ADVENTURE", "BIRTHDAY", "CALENDAR", "DAUGHTER", "ELEPHANT", "FOOTBALL", "GIGANTIC", "HOSPITAL", "INFINITY", "KANGAROO", "LANGUAGE", "MOUNTAIN", "NEIGHBOR", "PARADISE", "QUESTION", "SANDWICH", "TREASURE", "UNIVERSE", "VACATION", "WILDLIFE"},
+	9:  {"AMBITIOUS", "BEAUTIFUL", "CHALLENGE", "DANGEROUS", "EDUCATION", "FANTASTIC", "GENERATOR", "HALLOWEEN", "IMPORTANT", "KNOWLEDGE", "LANDSCAPE", "MEMORABLE", "NECESSARY", "CHOCOLATE", "PINEAPPLE", "RASPBERRY", "SUBMARINE", "TELEPHONE", "CROCODILE", "BUTTERFLY"},
 	10: {"ACCOMPLISH", "BACKGROUND", "BASKETBALL", "CELEBRATION", "DELIGHTFUL", "EVERYTHING", "GENERATION", "JAVASCRIPT", "MOTIVATION", "WATERMELON", "STRAWBERRY", "TRAMPOLINE", "SKATEBOARD", "GREENHOUSE", "UNDERSTAND", "California", "GIRLFRIEND", "TOURNAMENT", "PLAYGROUND", "REVOLUTION"},
 }
 
 // GenerateWordSearch creates a new word search grid with the specified parameters
 func GenerateWordSearch(width, height, wordCount, minLen, maxLen int, allowedDirs []Direction) (grid, []Word) {
-	rand.Seed(time.Now().UnixNano())
 
 	g := createEmptyGrid(height, width)
 	words := selectWords(wordCount, minLen, maxLen)
@@ -68,7 +66,7 @@ func tryPlaceWord(g grid, text string, allowedDirs []Direction, maxAttempts int)
 	height := len(g)
 	width := len(g[0])
 
-	for attempt := 0; attempt < maxAttempts; attempt++ {
+	for range maxAttempts {
 		// Random starting position
 		x := rand.Intn(width)
 		y := rand.Intn(height)
@@ -87,7 +85,7 @@ func tryPlaceWord(g grid, text string, allowedDirs []Direction, maxAttempts int)
 
 		// Check if placement is valid (no conflicts, allow letter overlap)
 		valid := true
-		for i := 0; i < len(text); i++ {
+		for i := range len(text) {
 			cx := x + dx*i
 			cy := y + dy*i
 			existing := g.Get(cx, cy)
@@ -103,7 +101,7 @@ func tryPlaceWord(g grid, text string, allowedDirs []Direction, maxAttempts int)
 		}
 
 		// Place the word
-		for i := 0; i < len(text); i++ {
+		for i := range len(text) {
 			cx := x + dx*i
 			cy := y + dy*i
 			g.Set(cx, cy, rune(text[i]))
