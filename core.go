@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/FelineStateMachine/puzzletea/game"
+	"github.com/FelineStateMachine/puzzletea/hashiwokakero"
 	"github.com/FelineStateMachine/puzzletea/sudoku"
 
 	// Implementations of the Gamer interface should interface here.
@@ -21,6 +22,9 @@ func (m model) SpawnGame(mode game.Mode) (game.Gamer, error) {
 	case wordsearch.WordSearchMode:
 		grid, words := wordsearch.GenerateWordSearch(mode.Width, mode.Height, mode.WordCount, mode.MinWordLen, mode.MaxWordLen, mode.AllowedDirs)
 		return wordsearch.New(mode, grid, words), nil
+	case hashiwokakero.HashiMode:
+		puzzle := hashiwokakero.GeneratePuzzle(mode)
+		return hashiwokakero.New(mode, puzzle), nil
 	default:
 		return nil, fmt.Errorf("Faled to create game.\nUnimplemented game type `%v`.", mode)
 	}

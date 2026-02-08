@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/FelineStateMachine/puzzletea/game"
+	"github.com/FelineStateMachine/puzzletea/hashiwokakero"
 	"github.com/FelineStateMachine/puzzletea/nonogram"
 	"github.com/FelineStateMachine/puzzletea/sudoku"
 	"github.com/FelineStateMachine/puzzletea/wordsearch"
@@ -29,6 +30,10 @@ var (
 
 		sudoku.NewMode("Easy - 38 Provided Cells", "A random sudoku with at least 38 cells provided to start.", 38),
 		sudoku.NewMode("Hard - 26 Provided Cells", "A random sudoku with at least 26 cells provided to start.", 26),
+
+		hashiwokakero.NewMode("Easy - 7x7", "Connect islands with bridges on a 7x7 grid.", 7, 7, 6, 8),
+		hashiwokakero.NewMode("Medium - 9x9", "Connect islands with bridges on a 9x9 grid.", 9, 9, 10, 14),
+		hashiwokakero.NewMode("Hard - 13x13", "Connect islands with bridges on a 13x13 grid.", 13, 13, 18, 24),
 	}
 )
 

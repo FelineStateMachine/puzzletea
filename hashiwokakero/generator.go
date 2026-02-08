@@ -1,0 +1,321 @@
+package hashiwokakero
+
+import (
+	"math/rand"
+	"sort"
+)
+
+// GeneratePuzzle creates a solvable hashiwokakero puzzle for the given mode.
+func GeneratePuzzle(mode HashiMode) Puzzle {
+	islandCount := mode.MinIslands + rand.Intn(mode.MaxIslands-mode.MinIslands+1)
+
+	for {
+		p := tryGenerate(mode.Width, mode.Height, islandCount)
+		if p != nil {
+			return *p
+		}
+	}
+}
+
+func tryGenerate(width, height, islandCount int) *Puzzle {
+	islands := placeIslands(width, height, islandCount)
+	if islands == nil {
+		return nil
+	}
+
+	p := &Puzzle{
+		Width:   width,
+		Height:  height,
+		Islands: islands,
+	}
+
+	// Build a spanning tree to ensure connectivity
+	if !buildSpanningTree(p) {
+		return nil
+	}
+
+	// Add extra bridges for complexity
+	addExtraBridges(p)
+
+	// Set required counts from the solution
+	for i := range p.Islands {
+		p.Islands[i].Required = p.BridgeCount(p.Islands[i].ID)
+	}
+
+	// Verify all islands have Required >= 1
+	for _, isl := range p.Islands {
+		if isl.Required < 1 {
+			return nil
+		}
+	}
+
+	// Clear bridges — player starts with none
+	p.Bridges = nil
+
+	return p
+}
+
+// placeIslands randomly places islands on the grid.
+// Islands must share rows or columns with at least one other island to allow bridges.
+func placeIslands(width, height, count int) []Island {
+	if count <= 0 {
+		return nil
+	}
+
+	type pos struct{ x, y int }
+	occupied := make(map[pos]bool)
+	islands := make([]Island, 0, count)
+
+	for i := 0; i < count; i++ {
+		placed := false
+		for attempts := 0; attempts < 200; attempts++ {
+			x := rand.Intn(width)
+			y := rand.Intn(height)
+			p := pos{x, y}
+
+			if occupied[p] {
+				continue
+			}
+
+			// Ensure minimum spacing of 2 cells from existing islands
+			// (unless they share a row/column, which is required for bridges)
+			tooClose := false
+			for _, other := range islands {
+				dx := abs(x - other.X)
+				dy := abs(y - other.Y)
+				// Adjacent diagonal — too close and can't bridge
+				if dx <= 1 && dy <= 1 && !(dx == 0 || dy == 0) {
+					tooClose = true
+					break
+				}
+				// Same position as existing (already checked by occupied map)
+			}
+			if tooClose {
+				continue
+			}
+
+			occupied[p] = true
+			islands = append(islands, Island{ID: i, X: x, Y: y})
+			placed = true
+			break
+		}
+		if !placed {
+			return nil // couldn't place enough islands
+		}
+	}
+
+	return islands
+}
+
+// buildSpanningTree connects all islands using a randomized approach.
+// Returns false if unable to connect all islands.
+func buildSpanningTree(p *Puzzle) bool {
+	if len(p.Islands) <= 1 {
+		return true
+	}
+
+	// Find all valid pairs (share row or column, no island in between)
+	type pair struct{ id1, id2 int }
+	var pairs []pair
+
+	for i := 0; i < len(p.Islands); i++ {
+		for j := i + 1; j < len(p.Islands); j++ {
+			a := p.Islands[i]
+			b := p.Islands[j]
+
+			if a.X != b.X && a.Y != b.Y {
+				continue // not aligned
+			}
+
+			// Check no island in between
+			if isDirectlyConnectable(p, a, b) {
+				pairs = append(pairs, pair{a.ID, b.ID})
+			}
+		}
+	}
+
+	// Shuffle pairs for randomness
+	rand.Shuffle(len(pairs), func(i, j int) {
+		pairs[i], pairs[j] = pairs[j], pairs[i]
+	})
+
+	// Union-Find to build spanning tree
+	parent := make(map[int]int)
+	rank := make(map[int]int)
+	for _, isl := range p.Islands {
+		parent[isl.ID] = isl.ID
+	}
+
+	var find func(int) int
+	find = func(x int) int {
+		if parent[x] != x {
+			parent[x] = find(parent[x])
+		}
+		return parent[x]
+	}
+	union := func(a, b int) bool {
+		ra, rb := find(a), find(b)
+		if ra == rb {
+			return false
+		}
+		if rank[ra] < rank[rb] {
+			ra, rb = rb, ra
+		}
+		parent[rb] = ra
+		if rank[ra] == rank[rb] {
+			rank[ra]++
+		}
+		return true
+	}
+
+	edgesAdded := 0
+	for _, pr := range pairs {
+		if find(pr.id1) == find(pr.id2) {
+			continue
+		}
+		// Check if this bridge would cross existing ones
+		if p.WouldCross(pr.id1, pr.id2) {
+			continue
+		}
+		count := 1 + rand.Intn(2) // 1 or 2 bridges
+		p.SetBridge(pr.id1, pr.id2, count)
+		union(pr.id1, pr.id2)
+		edgesAdded++
+		if edgesAdded == len(p.Islands)-1 {
+			break
+		}
+	}
+
+	return p.IsConnected()
+}
+
+// addExtraBridges adds additional bridges beyond the spanning tree for complexity.
+func addExtraBridges(p *Puzzle) {
+	var pairs []struct{ id1, id2 int }
+
+	for i := 0; i < len(p.Islands); i++ {
+		for j := i + 1; j < len(p.Islands); j++ {
+			a := p.Islands[i]
+			b := p.Islands[j]
+
+			if a.X != b.X && a.Y != b.Y {
+				continue
+			}
+
+			if !isDirectlyConnectable(p, a, b) {
+				continue
+			}
+
+			existing := p.GetBridge(a.ID, b.ID)
+			if existing != nil && existing.Count >= 2 {
+				continue // already maxed
+			}
+
+			pairs = append(pairs, struct{ id1, id2 int }{a.ID, b.ID})
+		}
+	}
+
+	rand.Shuffle(len(pairs), func(i, j int) {
+		pairs[i], pairs[j] = pairs[j], pairs[i]
+	})
+
+	// Add bridges to ~30% of eligible pairs
+	limit := len(pairs) / 3
+	added := 0
+	for _, pr := range pairs {
+		if added >= limit {
+			break
+		}
+
+		existing := p.GetBridge(pr.id1, pr.id2)
+		if existing != nil && existing.Count >= 2 {
+			continue
+		}
+
+		if existing == nil && p.WouldCross(pr.id1, pr.id2) {
+			continue
+		}
+
+		newCount := 1
+		if existing != nil {
+			newCount = existing.Count + 1
+		}
+
+		// Don't let any island exceed 8 bridges
+		isl1 := p.FindIslandByID(pr.id1)
+		isl2 := p.FindIslandByID(pr.id2)
+		addAmount := newCount
+		if existing != nil {
+			addAmount = newCount - existing.Count
+		}
+		if p.BridgeCount(pr.id1)+addAmount > 8 || p.BridgeCount(pr.id2)+addAmount > 8 {
+			continue
+		}
+		_ = isl1
+		_ = isl2
+
+		p.SetBridge(pr.id1, pr.id2, newCount)
+		added++
+	}
+}
+
+// isDirectlyConnectable checks if two aligned islands can be connected
+// (no other island sits between them).
+func isDirectlyConnectable(p *Puzzle, a, b Island) bool {
+	if a.X == b.X {
+		// Vertical alignment
+		minY, maxY := a.Y, b.Y
+		if minY > maxY {
+			minY, maxY = maxY, minY
+		}
+		for _, isl := range p.Islands {
+			if isl.X == a.X && isl.Y > minY && isl.Y < maxY {
+				return false
+			}
+		}
+		return true
+	}
+	if a.Y == b.Y {
+		// Horizontal alignment
+		minX, maxX := a.X, b.X
+		if minX > maxX {
+			minX, maxX = maxX, minX
+		}
+		for _, isl := range p.Islands {
+			if isl.Y == a.Y && isl.X > minX && isl.X < maxX {
+				return false
+			}
+		}
+		return true
+	}
+	return false
+}
+
+// abs returns the absolute value of an integer.
+func abs(x int) int {
+	if x < 0 {
+		return -x
+	}
+	return x
+}
+
+// sortedPair returns (a,b) with a <= b.
+func sortedPair(a, b int) (int, int) {
+	if a > b {
+		return b, a
+	}
+	return a, b
+}
+
+// islandsByRow sorts islands by Y then X for consistent ordering.
+func islandsByRow(islands []Island) []Island {
+	sorted := make([]Island, len(islands))
+	copy(sorted, islands)
+	sort.Slice(sorted, func(i, j int) bool {
+		if sorted[i].Y != sorted[j].Y {
+			return sorted[i].Y < sorted[j].Y
+		}
+		return sorted[i].X < sorted[j].X
+	})
+	return sorted
+}
