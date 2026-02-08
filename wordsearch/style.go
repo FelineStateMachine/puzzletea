@@ -42,6 +42,10 @@ var (
 			Padding(1, 2).
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color("#00ff00"))
+
+	statusBarStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#888888")).
+			MarginTop(1)
 )
 
 func renderView(m Model) string {
@@ -52,13 +56,19 @@ func renderView(m Model) string {
 	spacer := strings.Repeat(" ", 4)
 	mainView := lipgloss.JoinHorizontal(lipgloss.Top, gridView, spacer, wordListView)
 
+	status := statusBarView()
+
 	// Add win message if won
 	if m.won {
 		winMsg := winMessageStyle.Render("🎉 Congratulations! You found all the words! 🎉")
-		return lipgloss.JoinVertical(lipgloss.Left, mainView, "\n", winMsg)
+		return lipgloss.JoinVertical(lipgloss.Left, mainView, "\n", winMsg, status)
 	}
 
-	return mainView
+	return lipgloss.JoinVertical(lipgloss.Left, mainView, status)
+}
+
+func statusBarView() string {
+	return statusBarStyle.Render("arrows/wasd: move  enter/space: select  esc: cancel  ctrl+n: menu  ctrl+e: debug")
 }
 
 func renderGrid(m Model) string {

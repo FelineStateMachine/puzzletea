@@ -9,19 +9,6 @@ type cell struct {
 
 type grid = [9][9]cell
 
-func GenerateProvidedCells(m SudokuMode) []cell {
-	// TODO: implement
-	cells := []cell{
-		{1, 2, 3},
-		{3, 4, 5},
-	}
-	//create solved board
-	// iteratively remove cells and ensure only 1 solution
-	// backtrack if not unique
-	// return known values
-	return cells
-}
-
 func newGrid(provided []cell) grid {
 	var g grid
 	for i := range GRIDSIZE {
