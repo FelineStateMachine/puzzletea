@@ -27,15 +27,6 @@ func NewMode(title, description string, width, height, wordCount, minLen, maxLen
 		AllowedDirs: allowedDirs,
 	}
 }
-
-func (m WordSearchMode) Title() string {
-	return m.title
-}
-
-func (m WordSearchMode) Description() string {
-	return m.description
-}
-
-func (m WordSearchMode) FilterValue() string {
-	return m.title
-}
+func (n WordSearchMode) Title() string       { return "word search\t" + n.title }
+func (n WordSearchMode) Description() string { return n.description }
+func (n WordSearchMode) FilterValue() string { return "word search " + n.title + " " + n.description }
