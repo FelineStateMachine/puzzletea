@@ -2,24 +2,29 @@ package sudoku
 
 import (
 	"github.com/FelineStateMachine/puzzletea/game"
+	"github.com/charmbracelet/bubbles/list"
 )
 
 type SudokuMode struct {
-	title         string
-	description   string
+	game.BaseMode
 	ProvidedCount int
 }
 
-var _ game.Mode = SudokuMode{} // Verify that T implements I.
-
-func (n SudokuMode) Title() string       { return "sudoku\t" + n.title }
-func (n SudokuMode) Description() string { return n.description }
-func (n SudokuMode) FilterValue() string { return "sudoku " + n.title + " " + n.description }
+var _ game.Mode = SudokuMode{}    // compile-time interface check
+var _ game.Spawner = SudokuMode{} // compile-time interface check
 
 func NewMode(title, description string, providedCount int) SudokuMode {
 	return SudokuMode{
-		title:         title,
-		description:   description,
+		BaseMode:      game.NewBaseMode(title, description),
 		ProvidedCount: providedCount,
 	}
+}
+
+func (s SudokuMode) Spawn() (game.Gamer, error) {
+	return New(s, GenerateProvidedCells(s))
+}
+
+var Modes = []list.Item{
+	NewMode("Easy - 38 Provided Cells", "A random sudoku with at least 38 cells provided to start.", 38),
+	NewMode("Hard - 26 Provided Cells", "A random sudoku with at least 26 cells provided to start.", 26),
 }

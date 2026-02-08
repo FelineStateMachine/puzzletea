@@ -46,7 +46,7 @@ func New(mode NonogramMode, hints Hints, save ...string) (game.Gamer, error) {
 		colHints: c,
 		grid:     newGrid(s),
 		keys:     DefaultKeyMap,
-		modeName: mode.title,
+		modeName: mode.Title(),
 	}
 
 	return m, nil

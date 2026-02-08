@@ -32,7 +32,7 @@ func New(mode SudokuMode, provided []cell, save ...string) (game.Gamer, error) {
 		grid:     g,
 		provided: provided,
 		keys:     DefaultKeyMap,
-		modeName: mode.title,
+		modeName: mode.Title(),
 	}
 	return m, nil
 }

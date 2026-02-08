@@ -26,7 +26,7 @@ func New(mode HashiMode, puzzle Puzzle) game.Gamer {
 		puzzle:       puzzle,
 		cursorIsland: cursorID,
 		keys:         DefaultKeyMap,
-		modeName:     mode.title,
+		modeName:     mode.Title(),
 	}
 }
 

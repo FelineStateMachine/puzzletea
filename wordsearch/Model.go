@@ -32,15 +32,10 @@ type Model struct {
 }
 
 // New creates a new word search game
-func New(mode game.Mode, g grid, words []Word) *Model {
-	wsMode, ok := mode.(WordSearchMode)
-	if !ok {
-		return nil
-	}
-
+func New(mode WordSearchMode, g grid, words []Word) *Model {
 	return &Model{
-		width:     wsMode.Width,
-		height:    wsMode.Height,
+		width:     mode.Width,
+		height:    mode.Height,
 		grid:      g,
 		words:     words,
 		cursor:    cursor{x: 0, y: 0},

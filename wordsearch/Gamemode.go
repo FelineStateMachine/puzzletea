@@ -1,11 +1,13 @@
 package wordsearch
 
-import "github.com/FelineStateMachine/puzzletea/game"
+import (
+	"github.com/FelineStateMachine/puzzletea/game"
+	"github.com/charmbracelet/bubbles/list"
+)
 
 // WordSearchMode implements game.Mode for word search puzzles
 type WordSearchMode struct {
-	title       string
-	description string
+	game.BaseMode
 	Width       int
 	Height      int
 	WordCount   int
@@ -14,11 +16,13 @@ type WordSearchMode struct {
 	AllowedDirs []Direction
 }
 
+var _ game.Mode = WordSearchMode{}    // compile-time interface check
+var _ game.Spawner = WordSearchMode{} // compile-time interface check
+
 // NewMode creates a new WordSearchMode with the given parameters
-func NewMode(title, description string, width, height, wordCount, minLen, maxLen int, allowedDirs []Direction) game.Mode {
+func NewMode(title, description string, width, height, wordCount, minLen, maxLen int, allowedDirs []Direction) WordSearchMode {
 	return WordSearchMode{
-		title:       title,
-		description: description,
+		BaseMode:    game.NewBaseMode(title, description),
 		Width:       width,
 		Height:      height,
 		WordCount:   wordCount,
@@ -27,6 +31,14 @@ func NewMode(title, description string, width, height, wordCount, minLen, maxLen
 		AllowedDirs: allowedDirs,
 	}
 }
-func (n WordSearchMode) Title() string       { return "word search\t" + n.title }
-func (n WordSearchMode) Description() string { return n.description }
-func (n WordSearchMode) FilterValue() string { return "word search " + n.title + " " + n.description }
+
+func (w WordSearchMode) Spawn() (game.Gamer, error) {
+	grid, words := GenerateWordSearch(w.Width, w.Height, w.WordCount, w.MinWordLen, w.MaxWordLen, w.AllowedDirs)
+	return New(w, grid, words), nil
+}
+
+var Modes = []list.Item{
+	NewMode("Easy - 10x10", "Find 6 words in a 10x10 grid.", 10, 10, 6, 3, 5, []Direction{Right, Down, DownRight}),
+	NewMode("Medium - 15x15", "Find 10 words in a 15x15 grid.", 15, 15, 10, 4, 7, []Direction{Right, Down, DownRight, DownLeft, Left, Up}),
+	NewMode("Hard - 20x20", "Find 15 words in a 20x20 grid.", 20, 20, 15, 5, 10, []Direction{Right, Down, DownRight, DownLeft, Left, Up, UpRight, UpLeft}),
+}

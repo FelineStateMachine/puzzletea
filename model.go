@@ -18,34 +18,26 @@ var (
 	rootStyle  = lipgloss.NewStyle().Margin(1, 2)
 	debugStyle = lipgloss.NewStyle().Border(lipgloss.RoundedBorder(), true).BorderForeground(lipgloss.Color("124"))
 
-	GameModes = []list.Item{
-		nonogram.NewMode("Easy - 5x5", "A random nonogram on a five by five board.", 5, 5),
-		nonogram.NewMode("Medium - 10x10", "A random nonogram on a ten by ten board.", 10, 10),
-		nonogram.NewMode("Hard - 15x15", "A random nonogram on a fifteen by fifteen board.", 15, 15),
-		nonogram.NewMode("Extra - 5x10", "A random nonogram on a five by ten board.", 5, 10),
-
-		wordsearch.NewMode("Easy - 10x10", "Find 6 words in a 10x10 grid.", 10, 10, 6, 3, 5, []wordsearch.Direction{wordsearch.Right, wordsearch.Down, wordsearch.DownRight}),
-		wordsearch.NewMode("Medium - 15x15", "Find 10 words in a 15x15 grid.", 15, 15, 10, 4, 7, []wordsearch.Direction{wordsearch.Right, wordsearch.Down, wordsearch.DownRight, wordsearch.DownLeft, wordsearch.Left, wordsearch.Up}),
-		wordsearch.NewMode("Hard - 20x20", "Find 15 words in a 20x20 grid.", 20, 20, 15, 5, 10, []wordsearch.Direction{wordsearch.Right, wordsearch.Down, wordsearch.DownRight, wordsearch.DownLeft, wordsearch.Left, wordsearch.Up, wordsearch.UpRight, wordsearch.UpLeft}),
-
-		sudoku.NewMode("Easy - 38 Provided Cells", "A random sudoku with at least 38 cells provided to start.", 38),
-		sudoku.NewMode("Hard - 26 Provided Cells", "A random sudoku with at least 26 cells provided to start.", 26),
-
-		hashiwokakero.NewMode("Easy - 7x7", "Connect islands with bridges on a 7x7 grid.", 7, 7, 6, 8),
-		hashiwokakero.NewMode("Medium - 9x9", "Connect islands with bridges on a 9x9 grid.", 9, 9, 10, 14),
-		hashiwokakero.NewMode("Hard - 13x13", "Connect islands with bridges on a 13x13 grid.", 13, 13, 18, 24),
+	GameCategories = []list.Item{
+		game.Category{Name: "Nonogram", Desc: "Fill cells to match row and column hints.", Modes: nonogram.Modes},
+		game.Category{Name: "Word Search", Desc: "Find hidden words in a letter grid.", Modes: wordsearch.Modes},
+		game.Category{Name: "Sudoku", Desc: "Fill the 9x9 grid following sudoku rules.", Modes: sudoku.Modes},
+		game.Category{Name: "Hashiwokakero", Desc: "Connect islands with bridges.", Modes: hashiwokakero.Modes},
 	}
 )
 
 const (
-	menuView = iota
+	gameSelectView = iota
+	modeSelectView
 	gameView
 )
 
 type model struct {
 	state int
 
-	gamemodesList list.Model
+	gameSelectList   list.Model
+	modeSelectList   list.Model
+	selectedCategory game.Category
 
 	mode game.Mode
 	game game.Gamer
@@ -57,10 +49,10 @@ type model struct {
 
 func initialModel() model {
 	r := initDebugRenderer()
-	l := initGameModeList()
+	l := initGameSelectList()
 	return model{
-		debugRenderer: r,
-		gamemodesList: l,
+		debugRenderer:  r,
+		gameSelectList: l,
 	}
 }
 
@@ -74,18 +66,38 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		h, v := rootStyle.GetFrameSize()
-		m.gamemodesList.SetSize(msg.Width-h, msg.Height-v)
+		w, ht := msg.Width-h, msg.Height-v
+		m.gameSelectList.SetSize(w, ht)
+		if m.state == modeSelectView {
+			m.modeSelectList.SetSize(w, ht)
+		}
 
 	case tea.KeyMsg:
 		switch msg.Type {
 		case tea.KeyCtrlN:
-			m.state = menuView
+			m.state = gameSelectView
 			m.debug = false
 		case tea.KeyEnter:
-			if m.state == menuView {
-				m.mode, _ = m.gamemodesList.SelectedItem().(game.Mode)
-				m.game, _ = m.SpawnGame(m.mode)
+			if m.state == gameSelectView {
+				cat, ok := m.gameSelectList.SelectedItem().(game.Category)
+				if !ok {
+					return m, nil
+				}
+				m.selectedCategory = cat
+				m.modeSelectList = initModeSelectList(cat)
+				m.modeSelectList.SetSize(m.gameSelectList.Width(), m.gameSelectList.Height())
+				m.state = modeSelectView
+				return m, nil
+			}
+			if m.state == modeSelectView {
+				m.mode, _ = m.modeSelectList.SelectedItem().(game.Mode)
+				m.game, _ = m.mode.(game.Spawner).Spawn()
 				m.state = gameView
+				return m, nil
+			}
+		case tea.KeyEscape:
+			if m.state == modeSelectView {
+				m.state = gameSelectView
 				return m, nil
 			}
 		case tea.KeyCtrlC:
@@ -101,8 +113,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.debug {
 			m.debuginfo = m.renderDebugInfo()
 		}
-	case menuView:
-		m.gamemodesList, cmd = m.gamemodesList.Update(msg)
+	case gameSelectView:
+		m.gameSelectList, cmd = m.gameSelectList.Update(msg)
+	case modeSelectView:
+		m.modeSelectList, cmd = m.modeSelectList.Update(msg)
 	}
 
 	return m, cmd
@@ -112,8 +126,11 @@ func (m model) View() string {
 	var s string
 
 	switch m.state {
-	case menuView:
-		s = rootStyle.Render(m.gamemodesList.View())
+	case gameSelectView:
+		s = rootStyle.Render(m.gameSelectList.View())
+		return s
+	case modeSelectView:
+		s = rootStyle.Render(m.modeSelectList.View())
 		return s
 	case gameView:
 		var debugInfo string
@@ -132,13 +149,21 @@ func (m model) View() string {
 	return rootStyle.Render(s)
 }
 
-func initGameModeList() list.Model {
-	gamemodes := list.New(GameModes, list.NewDefaultDelegate(), 64, 64)
-	gamemodes.Title = "Select Gamemode"
-	gamemodes.DisableQuitKeybindings()
-	gamemodes.SetFilteringEnabled(false)
-	gamemodes.SetShowHelp(false)
-	return gamemodes
+func initList(items []list.Item, title string) list.Model {
+	l := list.New(items, list.NewDefaultDelegate(), 64, 64)
+	l.Title = title
+	l.DisableQuitKeybindings()
+	l.SetFilteringEnabled(false)
+	l.SetShowHelp(false)
+	return l
+}
+
+func initGameSelectList() list.Model {
+	return initList(GameCategories, "Select Game")
+}
+
+func initModeSelectList(cat game.Category) list.Model {
+	return initList(cat.Modes, cat.Name+" - Select Mode")
 }
 
 func initDebugRenderer() *glamour.TermRenderer {
