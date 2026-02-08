@@ -60,7 +60,7 @@ var (
 	}
 
 	renderRuneMap = map[rune]string{
-		filledTile: "███",
+		filledTile: "▐█",
 		markedTile: "✕",
 		emptyTile:  " ",
 	}
@@ -164,9 +164,7 @@ func tileView(val rune, isCursor, inCursorRow, inCursorCol, solved bool) string 
 
 	if solved {
 		// Brighten filled tiles when solved
-		if val == filledTile {
-			s = s.Background(lipgloss.Color("#2a6a2a"))
-		}
+		s = s.Background(lipgloss.Color("#2a6a2a"))
 	}
 
 	r, ok := renderRuneMap[val]

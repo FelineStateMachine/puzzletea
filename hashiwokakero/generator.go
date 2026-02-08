@@ -66,9 +66,9 @@ func placeIslands(width, height, count int) []Island {
 	occupied := make(map[pos]bool)
 	islands := make([]Island, 0, count)
 
-	for i := 0; i < count; i++ {
+	for i := range count {
 		placed := false
-		for attempts := 0; attempts < 200; attempts++ {
+		for range 200 {
 			x := rand.Intn(width)
 			y := rand.Intn(height)
 			p := pos{x, y}
@@ -118,7 +118,7 @@ func buildSpanningTree(p *Puzzle) bool {
 	type pair struct{ id1, id2 int }
 	var pairs []pair
 
-	for i := 0; i < len(p.Islands); i++ {
+	for i := range len(p.Islands) {
 		for j := i + 1; j < len(p.Islands); j++ {
 			a := p.Islands[i]
 			b := p.Islands[j]

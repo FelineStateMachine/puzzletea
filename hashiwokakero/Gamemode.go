@@ -33,7 +33,7 @@ func (h HashiMode) Spawn() (game.Gamer, error) {
 }
 
 var Modes = []list.Item{
-	NewMode("Easy - 7x7", "Connect islands with bridges on a 7x7 grid.", 7, 7, 6, 8),
-	NewMode("Medium - 9x9", "Connect islands with bridges on a 9x9 grid.", 9, 9, 10, 14),
-	NewMode("Hard - 13x13", "Connect islands with bridges on a 13x13 grid.", 13, 13, 18, 24),
+	NewMode("Easy - 7x7", "Connect islands with bridges on a 7x7 grid.", 7, 7, 8, 12),
+	NewMode("Medium - 9x9", "Connect islands with bridges on a 9x9 grid.", 9, 9, 12, 16),
+	NewMode("Hard - 13x13", "Connect islands with bridges on a 13x13 grid.", 13, 13, 20, 26),
 }

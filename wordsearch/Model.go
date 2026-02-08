@@ -5,8 +5,8 @@ import (
 	"strings"
 
 	"github.com/FelineStateMachine/puzzletea/game"
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/bubbles/key"
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 type selectionState int
@@ -202,7 +202,7 @@ func (m Model) GetDebugInfo() string {
 	for _, word := range m.words {
 		found := "❌"
 		if word.Found {
-			found = "✅"
+			found = "✓"
 		}
 		sb.WriteString(fmt.Sprintf("| %s | %s | (%d,%d) | (%d,%d) | %d |\n",
 			word.Text, found, word.Start.X, word.Start.Y, word.End.X, word.End.Y, word.Direction))
