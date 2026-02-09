@@ -109,6 +109,10 @@ Puzzle implementations use a similar grid pattern:
 
 Hashiwokakero uses a different approach with `Island` and `Bridge` structs rather than a 2D grid.
 
+### Color Convention
+
+All colors should use `lipgloss.AdaptiveColor{Light: "X", Dark: "Y"}` with ANSI 256 palette numbers to support both light and dark terminals. Avoid raw hex colors (`#rrggbb`) as they require true-color support and don't adapt to terminal background.
+
 ## Module Information
 
 - **Module path**: `github.com/FelineStateMachine/puzzletea`

@@ -5,13 +5,13 @@ import "github.com/charmbracelet/lipgloss"
 var (
 	titleStyle = lipgloss.NewStyle().
 			Bold(true).
-			Foreground(lipgloss.Color("#ffffff")).
-			Background(lipgloss.Color("#7B2FBE")).
+			Foreground(lipgloss.AdaptiveColor{Light: "255", Dark: "255"}).
+			Background(lipgloss.AdaptiveColor{Light: "55", Dark: "134"}).
 			Padding(0, 1)
 
 	solvedBadgeStyle = lipgloss.NewStyle().
 				Bold(true).
-				Foreground(lipgloss.Color("#00ff00"))
+				Foreground(lipgloss.AdaptiveColor{Light: "28", Dark: "78"})
 )
 
 // TitleBarView renders a title bar with the game name, mode name, and optional solved badge.

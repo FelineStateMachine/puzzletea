@@ -10,35 +10,35 @@ import (
 
 var (
 	normalStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#1a1a1a")).
-			Background(lipgloss.Color("#ffffff"))
+			Foreground(lipgloss.AdaptiveColor{Light: "236", Dark: "252"}).
+			Background(lipgloss.AdaptiveColor{Light: "254", Dark: "236"})
 
 	cursorStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#ffffff")).
-			Background(lipgloss.Color("#ff00ff"))
+			Foreground(lipgloss.AdaptiveColor{Light: "255", Dark: "235"}).
+			Background(lipgloss.AdaptiveColor{Light: "30", Dark: "38"})
 
 	selectionStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#1a1a1a")).
-			Background(lipgloss.Color("#ffff00"))
+			Foreground(lipgloss.AdaptiveColor{Light: "235", Dark: "235"}).
+			Background(lipgloss.AdaptiveColor{Light: "172", Dark: "179"})
 
 	foundStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#ffffff")).
-			Background(lipgloss.Color("#00ff00"))
+			Foreground(lipgloss.AdaptiveColor{Light: "22", Dark: "151"}).
+			Background(lipgloss.AdaptiveColor{Light: "194", Dark: "237"})
 
 	wordListHeaderStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("#00ffff")).
+				Foreground(lipgloss.AdaptiveColor{Light: "30", Dark: "38"}).
 				Bold(true).
 				Underline(true)
 
 	foundWordStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#00ff00")).
+			Foreground(lipgloss.AdaptiveColor{Light: "28", Dark: "115"}).
 			Strikethrough(true)
 
 	unfoundWordStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("#888888"))
+				Foreground(lipgloss.AdaptiveColor{Light: "103", Dark: "103"})
 
 	statusBarStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#888888")).
+			Foreground(lipgloss.AdaptiveColor{Light: "103", Dark: "103"}).
 			MarginTop(1)
 )
 

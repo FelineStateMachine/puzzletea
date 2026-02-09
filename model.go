@@ -20,6 +20,14 @@ import (
 )
 
 var (
+	// Purple palette for menus — ANSI 256 colors with light/dark adaptivity.
+	menuAccent      = lipgloss.AdaptiveColor{Light: "55", Dark: "134"}
+	menuAccentLight = lipgloss.AdaptiveColor{Light: "97", Dark: "140"}
+	menuText        = lipgloss.AdaptiveColor{Light: "235", Dark: "252"}
+	menuTextDim     = lipgloss.AdaptiveColor{Light: "243", Dark: "243"}
+	menuDim         = lipgloss.AdaptiveColor{Light: "250", Dark: "238"}
+	menuTableHeader = lipgloss.AdaptiveColor{Light: "55", Dark: "183"}
+
 	rootStyle  = lipgloss.NewStyle().Margin(1, 2)
 	debugStyle = lipgloss.NewStyle().Border(lipgloss.RoundedBorder(), true).BorderForeground(lipgloss.Color("124"))
 
@@ -263,7 +271,13 @@ func (m model) View() string {
 		if len(m.continueGames) == 0 {
 			return rootStyle.Render("No saved games yet.\n\nPress Escape to return.")
 		}
-		return rootStyle.Render(m.continueTable.View())
+		title := lipgloss.NewStyle().
+			Bold(true).
+			Foreground(lipgloss.AdaptiveColor{Light: "255", Dark: "255"}).
+			Background(menuAccent).
+			Padding(0, 1).
+			Render("Saved Games")
+		return rootStyle.Render(lipgloss.JoinVertical(lipgloss.Left, title, "", m.continueTable.View()))
 	case gameView:
 		if m.game == nil {
 			return ""
@@ -285,8 +299,25 @@ func (m model) View() string {
 }
 
 func initList(items []list.Item, title string) list.Model {
-	l := list.New(items, list.NewDefaultDelegate(), 64, 64)
+	d := list.NewDefaultDelegate()
+	d.Styles.SelectedTitle = d.Styles.SelectedTitle.
+		Foreground(menuAccent).
+		BorderLeftForeground(menuAccent)
+	d.Styles.SelectedDesc = d.Styles.SelectedDesc.
+		Foreground(menuAccentLight).
+		BorderLeftForeground(menuAccent)
+	d.Styles.NormalTitle = d.Styles.NormalTitle.
+		Foreground(menuText)
+	d.Styles.NormalDesc = d.Styles.NormalDesc.
+		Foreground(menuTextDim)
+
+	l := list.New(items, d, 64, 64)
 	l.Title = title
+	l.Styles.Title = lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.AdaptiveColor{Light: "255", Dark: "255"}).
+		Background(menuAccent).
+		Padding(0, 1)
 	l.DisableQuitKeybindings()
 	l.SetFilteringEnabled(false)
 	l.SetShowHelp(false)
@@ -338,6 +369,22 @@ func (m *model) initContinueTable() {
 		table.WithFocused(true),
 		table.WithHeight(10),
 	)
+
+	s := table.DefaultStyles()
+	s.Header = s.Header.
+		Bold(true).
+		Foreground(menuTableHeader).
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderBottom(true).
+		BorderForeground(menuDim)
+	s.Selected = s.Selected.
+		Foreground(lipgloss.AdaptiveColor{Light: "255", Dark: "255"}).
+		Background(menuAccent).
+		Bold(true)
+	s.Cell = s.Cell.
+		Foreground(menuText)
+	t.SetStyles(s)
+
 	m.continueTable = t
 }
 
