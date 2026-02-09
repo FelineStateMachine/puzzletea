@@ -1,6 +1,7 @@
 package wordsearch
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -40,7 +41,7 @@ func New(mode WordSearchMode, g grid, words []Word) *Model {
 		words:     words,
 		cursor:    cursor{x: 0, y: 0},
 		selection: noSelection,
-		keys:      newKeyMap(),
+		keys:      DefaultKeyMap,
 		won:       false,
 	}
 }
@@ -216,7 +217,19 @@ func (m Model) GetFullHelp() [][]key.Binding {
 }
 
 func (m Model) GetSave() ([]byte, error) {
-	return exportModel(m)
+	data := Save{
+		Width:      m.width,
+		Height:     m.height,
+		Grid:       m.grid.String(),
+		Words:      m.words,
+		CursorX:    m.cursor.x,
+		CursorY:    m.cursor.y,
+		Selection:  int(m.selection),
+		SelectionX: m.selectionStart.x,
+		SelectionY: m.selectionStart.y,
+		Won:        m.won,
+	}
+	return json.Marshal(data)
 }
 
 func (m Model) countFoundWords() int {

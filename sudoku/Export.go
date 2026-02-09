@@ -31,7 +31,37 @@ func gridToString(g grid) string {
 	return b.String()
 }
 
-// GetSave implements game.Gamer.
+func ImportModel(data []byte) (*Model, error) {
+	var save Save
+	if err := json.Unmarshal(data, &save); err != nil {
+		return nil, err
+	}
+
+	provided := make([]cell, len(save.Provided))
+	for i, ec := range save.Provided {
+		provided[i] = cell{x: ec.X, y: ec.Y, v: ec.V}
+	}
+
+	g := newGrid(provided)
+
+	// Parse save.Grid to restore user-entered values.
+	rows := strings.Split(save.Grid, "\n")
+	for y := 0; y < GRIDSIZE && y < len(rows); y++ {
+		for x := 0; x < GRIDSIZE && x < len(rows[y]); x++ {
+			v := int(rows[y][x] - '0')
+			if v != 0 {
+				g[y][x].v = v
+			}
+		}
+	}
+
+	return &Model{
+		grid:     g,
+		provided: provided,
+		keys:     DefaultKeyMap,
+	}, nil
+}
+
 func (m Model) GetSave() ([]byte, error) {
 	provided := make([]exportCell, len(m.provided))
 	for i, c := range m.provided {

@@ -14,6 +14,7 @@ import (
 	"github.com/FelineStateMachine/puzzletea/sudoku"
 	"github.com/FelineStateMachine/puzzletea/wordsearch"
 	"github.com/charmbracelet/bubbles/list"
+	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/lipgloss"
@@ -32,17 +33,39 @@ var (
 )
 
 const (
-	gameSelectView = iota
+	mainMenuView = iota
+	gameSelectView
 	modeSelectView
 	gameView
+	continueView
 )
+
+// menuItem satisfies list.Item for the main menu.
+type menuItem struct {
+	title string
+	desc  string
+}
+
+func (i menuItem) Title() string       { return i.title }
+func (i menuItem) Description() string { return i.desc }
+func (i menuItem) FilterValue() string { return i.title }
+
+var mainMenuItems = []list.Item{
+	menuItem{title: "Daily Puzzle", desc: "A new puzzle every day."},
+	menuItem{title: "New Puzzle", desc: "Start a new puzzle game."},
+	menuItem{title: "Continue", desc: "Resume a saved game."},
+}
 
 type model struct {
 	state int
 
+	mainMenuList     list.Model
 	gameSelectList   list.Model
 	modeSelectList   list.Model
 	selectedCategory game.Category
+
+	continueTable table.Model
+	continueGames []store.GameRecord
 
 	mode game.Mode
 	game game.Gamer
@@ -59,9 +82,12 @@ type model struct {
 func initialModel(s *store.Store) model {
 	r := initDebugRenderer()
 	l := initGameSelectList()
+	ml := initMainMenuList()
 	return model{
-		debugRenderer: r,
+		state:          mainMenuView,
+		debugRenderer:  r,
 		gameSelectList: l,
+		mainMenuList:   ml,
 		store:          s,
 	}
 }
@@ -77,18 +103,37 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		h, v := rootStyle.GetFrameSize()
 		w, ht := msg.Width-h, msg.Height-v
+		m.mainMenuList.SetSize(w, ht)
 		m.gameSelectList.SetSize(w, ht)
 		if m.state == modeSelectView {
 			m.modeSelectList.SetSize(w, ht)
+		}
+		if m.state == continueView {
+			m.continueTable.SetWidth(w)
+			m.continueTable.SetHeight(ht)
 		}
 
 	case tea.KeyMsg:
 		switch msg.Type {
 		case tea.KeyCtrlN:
 			m = saveCurrentGame(m, store.StatusInProgress)
-			m.state = gameSelectView
+			m.state = mainMenuView
 			m.debug = false
 		case tea.KeyEnter:
+			if m.state == mainMenuView {
+				item, ok := m.mainMenuList.SelectedItem().(menuItem)
+				if !ok {
+					return m, nil
+				}
+				switch item.title {
+				case "New Puzzle":
+					m.state = gameSelectView
+				case "Continue":
+					m.initContinueTable()
+					m.state = continueView
+				}
+				return m, nil
+			}
 			if m.state == gameSelectView {
 				cat, ok := m.gameSelectList.SelectedItem().(game.Category)
 				if !ok {
@@ -132,9 +177,43 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				return m, nil
 			}
+			if m.state == continueView {
+				idx := m.continueTable.Cursor()
+				if idx < 0 || idx >= len(m.continueGames) {
+					return m, nil
+				}
+				rec := m.continueGames[idx]
+				var g game.Gamer
+				var err error
+				switch rec.GameType {
+				case "Nonogram":
+					g, err = nonogram.ImportModel([]byte(rec.SaveState))
+				case "Word Search":
+					g, err = wordsearch.ImportModel([]byte(rec.SaveState))
+				case "Sudoku":
+					g, err = sudoku.ImportModel([]byte(rec.SaveState))
+				case "Hashiwokakero":
+					g, err = hashiwokakero.ImportModel([]byte(rec.SaveState))
+				default:
+					return m, nil
+				}
+				if err != nil {
+					log.Printf("failed to import game: %v", err)
+					return m, nil
+				}
+				m.game = g
+				m.activeGameID = rec.ID
+				m.state = gameView
+				m.completionSaved = rec.Status == store.StatusCompleted
+				return m, nil
+			}
 		case tea.KeyEscape:
 			if m.state == modeSelectView {
 				m.state = gameSelectView
+				return m, nil
+			}
+			if m.state == gameSelectView || m.state == continueView {
+				m.state = mainMenuView
 				return m, nil
 			}
 		case tea.KeyCtrlC:
@@ -146,6 +225,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	switch m.state {
+	case mainMenuView:
+		m.mainMenuList, cmd = m.mainMenuList.Update(msg)
 	case gameView:
 		m.game, cmd = m.game.Update(msg)
 		if m.debug {
@@ -163,6 +244,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.gameSelectList, cmd = m.gameSelectList.Update(msg)
 	case modeSelectView:
 		m.modeSelectList, cmd = m.modeSelectList.Update(msg)
+	case continueView:
+		m.continueTable, cmd = m.continueTable.Update(msg)
 	}
 
 	return m, cmd
@@ -172,12 +255,17 @@ func (m model) View() string {
 	var s string
 
 	switch m.state {
+	case mainMenuView:
+		return rootStyle.Render(m.mainMenuList.View())
 	case gameSelectView:
-		s = rootStyle.Render(m.gameSelectList.View())
-		return s
+		return rootStyle.Render(m.gameSelectList.View())
 	case modeSelectView:
-		s = rootStyle.Render(m.modeSelectList.View())
-		return s
+		return rootStyle.Render(m.modeSelectList.View())
+	case continueView:
+		if len(m.continueGames) == 0 {
+			return rootStyle.Render("No saved games yet.\n\nPress Escape to return.")
+		}
+		return rootStyle.Render(m.continueTable.View())
 	case gameView:
 		var debugInfo string
 		if m.debug {
@@ -204,12 +292,65 @@ func initList(items []list.Item, title string) list.Model {
 	return l
 }
 
+func initMainMenuList() list.Model {
+	return initList(mainMenuItems, "PuzzleTea")
+}
+
 func initGameSelectList() list.Model {
 	return initList(GameCategories, "Select Game")
 }
 
 func initModeSelectList(cat game.Category) list.Model {
 	return initList(cat.Modes, cat.Name+" - Select Mode")
+}
+
+func (m *model) initContinueTable() {
+	games, err := m.store.ListGames()
+	if err != nil {
+		log.Printf("failed to list games: %v", err)
+		games = nil
+	}
+	m.continueGames = games
+
+	columns := []table.Column{
+		{Title: "Name", Width: 20},
+		{Title: "Game", Width: 15},
+		{Title: "Mode", Width: 15},
+		{Title: "Status", Width: 12},
+		{Title: "Last Updated", Width: 20},
+	}
+
+	rows := make([]table.Row, len(games))
+	for i, g := range games {
+		rows[i] = table.Row{
+			g.Name,
+			g.GameType,
+			g.Mode,
+			formatStatus(g.Status),
+			g.UpdatedAt.Local().Format("Jan 02 15:04"),
+		}
+	}
+
+	t := table.New(
+		table.WithColumns(columns),
+		table.WithRows(rows),
+		table.WithFocused(true),
+		table.WithHeight(10),
+	)
+	m.continueTable = t
+}
+
+func formatStatus(s store.GameStatus) string {
+	switch s {
+	case store.StatusNew:
+		return "New"
+	case store.StatusInProgress:
+		return "In Progress"
+	case store.StatusCompleted:
+		return "Completed"
+	default:
+		return string(s)
+	}
 }
 
 func initDebugRenderer() *glamour.TermRenderer {

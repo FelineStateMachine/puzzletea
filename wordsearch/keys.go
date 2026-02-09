@@ -13,8 +13,7 @@ type KeyMap struct {
 	Help   key.Binding
 }
 
-func newKeyMap() KeyMap {
-	return KeyMap{
+var DefaultKeyMap = KeyMap{
 		Up: key.NewBinding(
 			key.WithKeys("up", "k", "w"),
 			key.WithHelp("↑/k/w", "move up"),
@@ -47,7 +46,6 @@ func newKeyMap() KeyMap {
 			key.WithKeys("?"),
 			key.WithHelp("?", "toggle help"),
 		),
-	}
 }
 
 func (k KeyMap) ShortHelp() []key.Binding {

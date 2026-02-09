@@ -35,6 +35,21 @@ func (m Model) GetSave() ([]byte, error) {
 	return jsonData, nil
 }
 
+func ImportModel(data []byte) (*Model, error) {
+	var save Save
+	if err := json.Unmarshal(data, &save); err != nil {
+		return nil, err
+	}
+	return &Model{
+		width:    save.Width,
+		height:   save.Height,
+		rowHints: save.RowHints,
+		colHints: save.ColHints,
+		grid:     newGrid(state(save.State)),
+		keys:     DefaultKeyMap,
+	}, nil
+}
+
 func (m Model) GetTomography() Hints {
 	return generateTomography(m.grid)
 }

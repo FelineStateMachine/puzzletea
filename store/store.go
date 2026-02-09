@@ -115,6 +115,40 @@ func (s *Store) NameExists(name string) (bool, error) {
 	return count > 0, nil
 }
 
+// ListGames returns all non-abandoned games ordered by most recently updated.
+func (s *Store) ListGames() ([]GameRecord, error) {
+	rows, err := s.db.Query(
+		`SELECT id, name, game_type, mode, initial_state, save_state, status,
+		        created_at, updated_at, completed_at
+		 FROM games
+		 WHERE status != ?
+		 ORDER BY updated_at DESC`,
+		StatusAbandoned,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("querying games: %w", err)
+	}
+	defer rows.Close()
+
+	var games []GameRecord
+	for rows.Next() {
+		var g GameRecord
+		var completedAt sql.NullTime
+		if err := rows.Scan(
+			&g.ID, &g.Name, &g.GameType, &g.Mode,
+			&g.InitialState, &g.SaveState, &g.Status,
+			&g.CreatedAt, &g.UpdatedAt, &completedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scanning game row: %w", err)
+		}
+		if completedAt.Valid {
+			g.CompletedAt = &completedAt.Time
+		}
+		games = append(games, g)
+	}
+	return games, rows.Err()
+}
+
 // Close closes the database connection.
 func (s *Store) Close() error {
 	return s.db.Close()
