@@ -79,7 +79,7 @@ func (m *Model) updateCell(v int) {
 
 // View implements game.Gamer.
 func (m Model) View() string {
-	title := titleBarView(m.modeTitle, m.isSolved())
+	title := game.TitleBarView("Sudoku", m.modeTitle, m.isSolved())
 	grid := renderGrid(m)
 	status := statusBarView(m.showFullHelp)
 

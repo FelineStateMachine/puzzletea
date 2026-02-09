@@ -5,47 +5,46 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/charmbracelet/lipgloss"
 )
 
 var (
 	emptyCellStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#555555")).
-			Background(lipgloss.Color("#1a1a1a"))
+			Foreground(lipgloss.AdaptiveColor{Light: "250", Dark: "240"}).
+			Background(lipgloss.AdaptiveColor{Light: "254", Dark: "235"})
 
 	providedCellStyle = lipgloss.NewStyle().
 				Bold(true).
-				Foreground(lipgloss.Color("#FFD700")).
-				Background(lipgloss.Color("#1a1a1a"))
+				Foreground(lipgloss.AdaptiveColor{Light: "130", Dark: "179"}).
+				Background(lipgloss.AdaptiveColor{Light: "254", Dark: "235"})
 
 	userCellStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#ffffff")).
-			Background(lipgloss.Color("#1a1a1a"))
+			Foreground(lipgloss.AdaptiveColor{Light: "236", Dark: "187"}).
+			Background(lipgloss.AdaptiveColor{Light: "254", Dark: "235"})
 
 	cursorCellStyle = lipgloss.NewStyle().
 			Bold(true).
-			Foreground(lipgloss.Color("#ffffff")).
-			Background(lipgloss.Color("#ff00ff"))
+			Foreground(lipgloss.AdaptiveColor{Light: "255", Dark: "235"}).
+			Background(lipgloss.AdaptiveColor{Light: "130", Dark: "173"})
 
 	conflictCellStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("#ff4444")).
-				Background(lipgloss.Color("#3a1111"))
+				Foreground(lipgloss.AdaptiveColor{Light: "160", Dark: "167"}).
+				Background(lipgloss.AdaptiveColor{Light: "224", Dark: "52"})
 
-	crosshairBG = lipgloss.Color("#2a2a2a")
+	crosshairBG = lipgloss.AdaptiveColor{Light: "254", Dark: "237"}
 
-	boxBorderFG = lipgloss.Color("#555555")
+	boxBorderFG = lipgloss.AdaptiveColor{Light: "250", Dark: "240"}
 
 	gridBorderStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("#555555"))
+			BorderForeground(lipgloss.AdaptiveColor{Light: "250", Dark: "240"})
 
 	gridBorderSolvedStyle = lipgloss.NewStyle().
 				Border(lipgloss.RoundedBorder()).
-				BorderForeground(lipgloss.Color("#00ff00"))
+				BorderForeground(lipgloss.AdaptiveColor{Light: "22", Dark: "149"})
 
 	statusBarStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#888888")).
+			Foreground(lipgloss.AdaptiveColor{Light: "137", Dark: "137"}).
 			MarginTop(1)
 
 	sudokuCellWidth = 2
@@ -172,10 +171,6 @@ func hasConflict(m Model, c cell, x, y int) bool {
 	}
 
 	return false
-}
-
-func titleBarView(modeTitle string, solved bool) string {
-	return game.TitleBarView("Sudoku", modeTitle, solved)
 }
 
 func statusBarView(showFullHelp bool) string {

@@ -124,7 +124,7 @@ func (m Model) cycleBridge(dx, dy int) Model {
 func (m Model) View() string {
 	solved := m.puzzle.IsSolved()
 
-	title := titleBarView(m.modeTitle, solved)
+	title := game.TitleBarView("Hashiwokakero", m.modeTitle, solved)
 	grid := gridView(m)
 	info := infoView(&m.puzzle)
 	status := statusBarView(m.selectedIsland != nil, m.showFullHelp)

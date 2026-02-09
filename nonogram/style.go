@@ -12,32 +12,32 @@ var (
 	baseStyle = lipgloss.NewStyle()
 
 	filledStyle = baseStyle.
-			Foreground(lipgloss.Color("#ffd599")).
-			Background(lipgloss.Color("#3d2e1a"))
+			Foreground(lipgloss.AdaptiveColor{Light: "130", Dark: "222"}).
+			Background(lipgloss.AdaptiveColor{Light: "223", Dark: "58"})
 
 	markedStyle = baseStyle.
-			Foreground(lipgloss.Color("#c97b5a")).
-			Background(lipgloss.Color("#2a1f17"))
+			Foreground(lipgloss.AdaptiveColor{Light: "131", Dark: "173"}).
+			Background(lipgloss.AdaptiveColor{Light: "224", Dark: "236"})
 
 	emptyStyle = baseStyle.
-			Foreground(lipgloss.Color("#4a3f35")).
-			Background(lipgloss.Color("#1e1a16"))
+			Foreground(lipgloss.AdaptiveColor{Light: "250", Dark: "240"}).
+			Background(lipgloss.AdaptiveColor{Light: "254", Dark: "235"})
 
 	cursorStyle = baseStyle.
 			Bold(true).
-			Foreground(lipgloss.Color("#1e1a16")).
-			Background(lipgloss.Color("#f0a84a"))
+			Foreground(lipgloss.AdaptiveColor{Light: "255", Dark: "235"}).
+			Background(lipgloss.AdaptiveColor{Light: "130", Dark: "214"})
 
-	crosshairBG = lipgloss.Color("#2a2520")
+	crosshairBG = lipgloss.AdaptiveColor{Light: "254", Dark: "237"}
 
 	hintStyle = baseStyle.
-			Foreground(lipgloss.Color("#8a7e72"))
+			Foreground(lipgloss.AdaptiveColor{Light: "137", Dark: "137"})
 
 	hintSatisfiedStyle = baseStyle.
-				Foreground(lipgloss.Color("#b8d46a"))
+				Foreground(lipgloss.AdaptiveColor{Light: "22", Dark: "149"})
 
 	nonoStatusBarStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("#888888")).
+				Foreground(lipgloss.AdaptiveColor{Light: "244", Dark: "244"}).
 				MarginTop(1)
 
 	cellWidth = 3
@@ -155,7 +155,7 @@ func tileView(val rune, isCursor, inCursorRow, inCursorCol, solved bool) string 
 
 	if solved {
 		// Brighten filled tiles when solved
-		s = s.Background(lipgloss.Color("#2a6a2a"))
+		s = s.Background(lipgloss.AdaptiveColor{Light: "151", Dark: "22"})
 	}
 
 	r, ok := renderRuneMap[val]
@@ -163,10 +163,6 @@ func tileView(val rune, isCursor, inCursorRow, inCursorCol, solved bool) string 
 		r = renderRuneMap[emptyTile]
 	}
 	return s.Width(cellWidth).AlignHorizontal(lipgloss.Center).Render(r)
-}
-
-func nonoTitleBarView(modeTitle string, solved bool) string {
-	return game.TitleBarView("Nonogram", modeTitle, solved)
 }
 
 func nonoStatusBarView(showFullHelp bool) string {

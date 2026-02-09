@@ -6,7 +6,7 @@ var (
 	titleStyle = lipgloss.NewStyle().
 			Bold(true).
 			Foreground(lipgloss.AdaptiveColor{Light: "255", Dark: "255"}).
-			Background(lipgloss.AdaptiveColor{Light: "55", Dark: "134"}).
+			Background(lipgloss.AdaptiveColor{Light: "130", Dark: "173"}).
 			Padding(0, 1)
 
 	solvedBadgeStyle = lipgloss.NewStyle().

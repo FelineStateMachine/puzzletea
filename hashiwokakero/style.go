@@ -4,83 +4,82 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/charmbracelet/lipgloss"
 )
 
 const cellWidth = 3
 
-// Color palette — cool ocean/slate theme
-const (
-	colorIslandFg      = "#e0e6ed"
-	colorIslandBg      = "#3a4555"
-	colorSatisfiedFg   = "#7dcea0"
-	colorSatisfiedBg   = "#1a3330"
-	colorOverFg        = "#e07070"
-	colorOverBg        = "#3a1a1e"
-	colorCursorFg      = "#1a1e24"
-	colorCursorBg      = "#5dade2"
-	colorSelectedFg    = "#1a1e24"
-	colorSelectedBg    = "#f5b041"
-	colorAdjacentBg    = "#2e3a48"
-	colorBridge        = "#5a7a8a"
-	colorBridgeSolved  = "#7dcea0"
-	colorEmptyDot      = "#2e3640"
-	colorEmptySolved   = "#4a6a5a"
-	colorInfoSatisfied = "#7dcea0"
-	colorInfoText      = "#8a9aaa"
+// Color palette — warm earth-tone theme (ANSI 256, adaptive for light/dark terminals)
+var (
+	colorIslandFg      = lipgloss.AdaptiveColor{Light: "236", Dark: "187"}
+	colorIslandBg      = lipgloss.AdaptiveColor{Light: "187", Dark: "58"}
+	colorSatisfiedFg   = lipgloss.AdaptiveColor{Light: "22", Dark: "149"}
+	colorSatisfiedBg   = lipgloss.AdaptiveColor{Light: "194", Dark: "236"}
+	colorOverFg        = lipgloss.AdaptiveColor{Light: "160", Dark: "167"}
+	colorOverBg        = lipgloss.AdaptiveColor{Light: "224", Dark: "52"}
+	colorCursorFg      = lipgloss.AdaptiveColor{Light: "255", Dark: "235"}
+	colorCursorBg      = lipgloss.AdaptiveColor{Light: "130", Dark: "173"}
+	colorSelectedFg    = lipgloss.AdaptiveColor{Light: "255", Dark: "235"}
+	colorSelectedBg    = lipgloss.AdaptiveColor{Light: "172", Dark: "179"}
+	colorAdjacentBg    = lipgloss.AdaptiveColor{Light: "223", Dark: "58"}
+	colorBridge        = lipgloss.AdaptiveColor{Light: "137", Dark: "137"}
+	colorBridgeSolved  = lipgloss.AdaptiveColor{Light: "22", Dark: "149"}
+	colorEmptyDot      = lipgloss.AdaptiveColor{Light: "252", Dark: "239"}
+	colorEmptySolved   = lipgloss.AdaptiveColor{Light: "151", Dark: "107"}
+	colorInfoSatisfied = lipgloss.AdaptiveColor{Light: "22", Dark: "149"}
+	colorInfoText      = lipgloss.AdaptiveColor{Light: "137", Dark: "137"}
 )
 
 var (
 	baseStyle = lipgloss.NewStyle()
 
 	islandDefaultStyle = baseStyle.
-				Foreground(lipgloss.Color(colorIslandFg)).
-				Background(lipgloss.Color(colorIslandBg)).
+				Foreground(colorIslandFg).
+				Background(colorIslandBg).
 				Bold(true)
 
 	islandSatisfiedStyle = baseStyle.
-				Foreground(lipgloss.Color(colorSatisfiedFg)).
-				Background(lipgloss.Color(colorSatisfiedBg)).
+				Foreground(colorSatisfiedFg).
+				Background(colorSatisfiedBg).
 				Bold(true)
 
 	islandOverStyle = baseStyle.
-			Foreground(lipgloss.Color(colorOverFg)).
-			Background(lipgloss.Color(colorOverBg)).
+			Foreground(colorOverFg).
+			Background(colorOverBg).
 			Bold(true)
 
 	islandCursorStyle = baseStyle.
-				Foreground(lipgloss.Color(colorCursorFg)).
-				Background(lipgloss.Color(colorCursorBg)).
+				Foreground(colorCursorFg).
+				Background(colorCursorBg).
 				Bold(true)
 
 	islandSelectedStyle = baseStyle.
-				Foreground(lipgloss.Color(colorSelectedFg)).
-				Background(lipgloss.Color(colorSelectedBg)).
+				Foreground(colorSelectedFg).
+				Background(colorSelectedBg).
 				Bold(true)
 
 	islandAdjacentStyle = baseStyle.
-				Foreground(lipgloss.Color(colorIslandFg)).
-				Background(lipgloss.Color(colorAdjacentBg)).
+				Foreground(colorIslandFg).
+				Background(colorAdjacentBg).
 				Bold(true)
 
 	bridgeHStyle = baseStyle.
-			Foreground(lipgloss.Color(colorBridge))
+			Foreground(colorBridge)
 
 	bridgeVStyle = baseStyle.
-			Foreground(lipgloss.Color(colorBridge))
+			Foreground(colorBridge)
 
 	bridgeHSolvedStyle = baseStyle.
-				Foreground(lipgloss.Color(colorBridgeSolved))
+				Foreground(colorBridgeSolved)
 
 	bridgeVSolvedStyle = baseStyle.
-				Foreground(lipgloss.Color(colorBridgeSolved))
+				Foreground(colorBridgeSolved)
 
 	emptyStyle = baseStyle.
-			Foreground(lipgloss.Color(colorEmptyDot))
+			Foreground(colorEmptyDot)
 
 	statusBarStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color(colorInfoText)).
+			Foreground(colorInfoText).
 			MarginTop(1)
 )
 
@@ -107,7 +106,7 @@ func isHighlightedNeighbor(m Model, islandID int) bool {
 func emptyCellView(solved bool) string {
 	s := emptyStyle
 	if solved {
-		s = s.Foreground(lipgloss.Color(colorEmptySolved))
+		s = s.Foreground(colorEmptySolved)
 	}
 	return s.Width(cellWidth).AlignHorizontal(lipgloss.Center).Render("·")
 }
@@ -265,10 +264,6 @@ func bridgeVView(count int, solved bool) string {
 	return s.Width(cellWidth).AlignHorizontal(lipgloss.Center).Render(r)
 }
 
-func titleBarView(modeTitle string, solved bool) string {
-	return game.TitleBarView("Hashiwokakero", modeTitle, solved)
-}
-
 func statusBarView(selected, showFullHelp bool) string {
 	if selected {
 		if showFullHelp {
@@ -291,8 +286,8 @@ func infoView(p *Puzzle) string {
 		}
 	}
 
-	satisfiedStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(colorInfoSatisfied))
-	infoStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(colorInfoText))
+	satisfiedStyle := lipgloss.NewStyle().Foreground(colorInfoSatisfied)
+	infoStyle := lipgloss.NewStyle().Foreground(colorInfoText)
 
 	var sb strings.Builder
 	sb.WriteString(infoStyle.Render("Islands: "))

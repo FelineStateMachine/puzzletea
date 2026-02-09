@@ -23,9 +23,9 @@ var DefaultKeyMap = KeyMap{
 	),
 }
 
-func (k KeyMap) FullHelp() [][]key.Binding {
+func (m Model) GetFullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.Up, k.Down, k.Left, k.Right},
-		{k.Select, k.Cancel},
+		{m.keys.Up, m.keys.Down, m.keys.Left, m.keys.Right},
+		{m.keys.Select, m.keys.Cancel},
 	}
 }

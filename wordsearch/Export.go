@@ -37,3 +37,19 @@ func ImportModel(data []byte) (*Model, error) {
 		solved:         exported.Solved,
 	}, nil
 }
+
+func (m Model) GetSave() ([]byte, error) {
+	data := Save{
+		Width:      m.width,
+		Height:     m.height,
+		Grid:       m.grid.String(),
+		Words:      m.words,
+		CursorX:    m.cursor.X,
+		CursorY:    m.cursor.Y,
+		Selection:  int(m.selection),
+		SelectionX: m.selectionStart.X,
+		SelectionY: m.selectionStart.Y,
+		Solved:     m.solved,
+	}
+	return json.Marshal(data)
+}

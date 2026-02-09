@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"strconv"
+	"time"
 
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/hashiwokakero"
@@ -20,13 +21,13 @@ import (
 )
 
 var (
-	// Purple palette for menus — ANSI 256 colors with light/dark adaptivity.
-	menuAccent      = lipgloss.AdaptiveColor{Light: "55", Dark: "134"}
-	menuAccentLight = lipgloss.AdaptiveColor{Light: "97", Dark: "140"}
+	// Earth-tone palette for menus — ANSI 256 colors with light/dark adaptivity.
+	menuAccent      = lipgloss.AdaptiveColor{Light: "130", Dark: "173"}
+	menuAccentLight = lipgloss.AdaptiveColor{Light: "137", Dark: "180"}
 	menuText        = lipgloss.AdaptiveColor{Light: "235", Dark: "252"}
 	menuTextDim     = lipgloss.AdaptiveColor{Light: "243", Dark: "243"}
 	menuDim         = lipgloss.AdaptiveColor{Light: "250", Dark: "238"}
-	menuTableHeader = lipgloss.AdaptiveColor{Light: "55", Dark: "183"}
+	menuTableHeader = lipgloss.AdaptiveColor{Light: "130", Dark: "180"}
 
 	rootStyle  = lipgloss.NewStyle().Margin(1, 2)
 	debugStyle = lipgloss.NewStyle().Border(lipgloss.RoundedBorder(), true).BorderForeground(lipgloss.Color("124"))
@@ -58,9 +59,9 @@ func (i menuItem) Description() string { return i.desc }
 func (i menuItem) FilterValue() string { return i.title }
 
 var mainMenuItems = []list.Item{
-	menuItem{title: "Daily Puzzle", desc: "A new puzzle every day."},
-	menuItem{title: "New Puzzle", desc: "Start a new puzzle game."},
-	menuItem{title: "Continue", desc: "Resume a saved game."},
+	menuItem{title: "Daily Puzzle", desc: time.Now().Format("Jan _2 06")},
+	menuItem{title: "Generate", desc: "a new puzzle."},
+	menuItem{title: "Continue", desc: "a previous puzzle."},
 }
 
 type model struct {

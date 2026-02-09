@@ -80,7 +80,7 @@ func (m Model) View() string {
 
 	maxWidth, maxHeight := m.rowHints.RequiredLen()*cellWidth, m.colHints.RequiredLen()
 
-	title := nonoTitleBarView(m.modeTitle, solved)
+	title := game.TitleBarView("Nonogram", m.modeTitle, solved)
 	g := gridView(m.grid, m.cursor, solved)
 	r := rowHintView(m.rowHints, maxWidth, curr.rows)
 	c := colHintView(m.colHints, maxHeight, curr.cols)

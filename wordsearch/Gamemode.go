@@ -40,7 +40,7 @@ func NewMode(title, description string, width, height, wordCount, minLen, maxLen
 
 func (w WordSearchMode) Spawn() (game.Gamer, error) {
 	grid, words := GenerateWordSearch(w.Width, w.Height, w.WordCount, w.MinWordLen, w.MaxWordLen, w.AllowedDirs)
-	return New(w, grid, words), nil
+	return New(w, grid, words)
 }
 
 var Modes = []list.Item{

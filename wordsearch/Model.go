@@ -1,7 +1,6 @@
 package wordsearch
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -31,7 +30,7 @@ type Model struct {
 }
 
 // New creates a new word search game
-func New(mode WordSearchMode, g grid, words []Word) *Model {
+func New(mode WordSearchMode, g grid, words []Word) (game.Gamer, error) {
 	return &Model{
 		width:     mode.Width,
 		height:    mode.Height,
@@ -41,7 +40,7 @@ func New(mode WordSearchMode, g grid, words []Word) *Model {
 		keys:      DefaultKeyMap,
 		modeTitle: mode.Title(),
 		solved:    false,
-	}
+	}, nil
 }
 
 func (m Model) Init() tea.Cmd {
@@ -196,26 +195,6 @@ func (m Model) GetDebugInfo() string {
 	}
 
 	return sb.String()
-}
-
-func (m Model) GetFullHelp() [][]key.Binding {
-	return m.keys.FullHelp()
-}
-
-func (m Model) GetSave() ([]byte, error) {
-	data := Save{
-		Width:      m.width,
-		Height:     m.height,
-		Grid:       m.grid.String(),
-		Words:      m.words,
-		CursorX:    m.cursor.X,
-		CursorY:    m.cursor.Y,
-		Selection:  int(m.selection),
-		SelectionX: m.selectionStart.X,
-		SelectionY: m.selectionStart.Y,
-		Solved:     m.solved,
-	}
-	return json.Marshal(data)
 }
 
 func (m Model) SetTitle(t string) game.Gamer {
