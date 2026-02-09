@@ -22,8 +22,10 @@ type WordSearchMode struct {
 	AllowedDirs []Direction
 }
 
-var _ game.Mode = WordSearchMode{}    // compile-time interface check
-var _ game.Spawner = WordSearchMode{} // compile-time interface check
+var (
+	_ game.Mode    = WordSearchMode{} // compile-time interface check
+	_ game.Spawner = WordSearchMode{} // compile-time interface check
+)
 
 // NewMode creates a new WordSearchMode with the given parameters
 func NewMode(title, description string, width, height, wordCount, minLen, maxLen int, allowedDirs []Direction) WordSearchMode {

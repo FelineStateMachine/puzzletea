@@ -102,6 +102,24 @@ func initialModel(s *store.Store) model {
 	}
 }
 
+// initialModelWithGame creates a model that starts directly in gameView,
+// bypassing the menu. Used by CLI flags (--new, --continue).
+func initialModelWithGame(s *store.Store, g game.Gamer, activeGameID int64, completionSaved bool) model {
+	r := initDebugRenderer()
+	l := initGameSelectList()
+	ml := initMainMenuList()
+	return model{
+		state:           gameView,
+		debugRenderer:   r,
+		gameSelectList:  l,
+		mainMenuList:    ml,
+		store:           s,
+		game:            g,
+		activeGameID:    activeGameID,
+		completionSaved: completionSaved,
+	}
+}
+
 func (m model) Init() tea.Cmd {
 	return nil
 }

@@ -150,6 +150,66 @@ func (s *Store) ListGames() ([]GameRecord, error) {
 	return games, rows.Err()
 }
 
+// GetGameByName looks up a single non-abandoned game by its unique name.
+// Returns nil, nil if no matching game is found.
+func (s *Store) GetGameByName(name string) (*GameRecord, error) {
+	var g GameRecord
+	var completedAt sql.NullTime
+	err := s.db.QueryRow(
+		`SELECT id, name, game_type, mode, initial_state, save_state, status,
+		        created_at, updated_at, completed_at
+		 FROM games
+		 WHERE name = ? AND status != ?`,
+		name, StatusAbandoned,
+	).Scan(
+		&g.ID, &g.Name, &g.GameType, &g.Mode,
+		&g.InitialState, &g.SaveState, &g.Status,
+		&g.CreatedAt, &g.UpdatedAt, &completedAt,
+	)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("querying game by name: %w", err)
+	}
+	if completedAt.Valid {
+		g.CompletedAt = &completedAt.Time
+	}
+	return &g, nil
+}
+
+// ListAllGames returns all games (including abandoned) ordered by most recently updated.
+func (s *Store) ListAllGames() ([]GameRecord, error) {
+	rows, err := s.db.Query(
+		`SELECT id, name, game_type, mode, initial_state, save_state, status,
+		        created_at, updated_at, completed_at
+		 FROM games
+		 ORDER BY updated_at DESC`,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("querying games: %w", err)
+	}
+	defer rows.Close()
+
+	var games []GameRecord
+	for rows.Next() {
+		var g GameRecord
+		var completedAt sql.NullTime
+		if err := rows.Scan(
+			&g.ID, &g.Name, &g.GameType, &g.Mode,
+			&g.InitialState, &g.SaveState, &g.Status,
+			&g.CreatedAt, &g.UpdatedAt, &completedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scanning game row: %w", err)
+		}
+		if completedAt.Valid {
+			g.CompletedAt = &completedAt.Time
+		}
+		games = append(games, g)
+	}
+	return games, rows.Err()
+}
+
 // Close closes the database connection.
 func (s *Store) Close() error {
 	return s.db.Close()

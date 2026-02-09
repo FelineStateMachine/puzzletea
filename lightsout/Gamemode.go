@@ -19,8 +19,10 @@ type Mode struct {
 }
 
 // Compile-time assertions
-var _ game.Mode = Mode{}
-var _ game.Spawner = Mode{}
+var (
+	_ game.Mode    = Mode{}
+	_ game.Spawner = Mode{}
+)
 
 // NewMode creates a new game mode.
 func NewMode(title, desc string, w, h int) Mode {

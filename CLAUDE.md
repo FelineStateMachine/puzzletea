@@ -8,15 +8,37 @@ PuzzleTea is a terminal-based puzzle game framework built with the Bubble Tea TU
 
 ### Building and Running
 ```bash
-go run .
-go build -o puzzletea
-go mod tidy
+just              # build with version from git tags
+just run          # build and run
+just install      # install to $GOPATH/bin
+just clean        # remove binary and dist/
 ```
 
-### Testing
+Or without just:
 ```bash
-go test ./...
-go test ./nonogram
+go build -ldflags "-X main.version=$(git describe --tags --always --dirty)" -o puzzletea
+```
+
+### CLI Usage
+```bash
+puzzletea                          # launch TUI menu (default)
+puzzletea new <game> [mode]        # start a new game directly
+puzzletea new nonogram medium      # example: new nonogram, medium mode
+puzzletea new lights-out           # hyphenated names, default (first) mode
+puzzletea new hashi                # aliases: hashi, bridges, lights, ws, words
+puzzletea continue <name>          # resume a saved game by its unique name
+puzzletea list                     # print saved games table to stdout
+puzzletea list --all               # include abandoned games
+puzzletea --new nonogram:medium    # flag alias (colon-separated game:mode)
+puzzletea --continue <name>        # flag alias
+```
+
+### Testing and Quality
+```bash
+just test         # go test ./...
+just lint         # golangci-lint run ./...
+just fmt          # gofumpt -w .
+just tidy         # go mod tidy
 ```
 
 ## Architecture
@@ -25,7 +47,9 @@ go test ./nonogram
 
 The application follows a **plugin-based architecture** where puzzle games implement the `game.Gamer` interface.
 
-- **`main.go`**: Initializes store and Bubble Tea program.
+- **`main.go`**: Entry point; calls `rootCmd.Execute()` (Cobra).
+- **`cmd.go`**: Cobra command definitions (`rootCmd`, `newCmd`, `continueCmd`, `listCmd`) and root-level `--new`/`--continue` flag aliases. Contains `launchNewGame()` and `continueGame()` helpers that open the store, resolve names, spawn/import the game, and launch the TUI in `gameView` state.
+- **`resolve.go`**: Case-insensitive, hyphen/underscore-tolerant game and mode name resolution. `resolveCategory(name)` matches against `GameCategories` with alias support (e.g. `hashi` → Hashiwokakero, `ws` → Word Search). `resolveMode(cat, name)` matches mode titles; defaults to first mode when name is empty.
 - **`model.go`**: Root model managing application state across five views:
   - `mainMenuView`: Top-level menu (Daily Puzzle, Generate, Continue)
   - `gameSelectView`: Category selection
@@ -111,6 +135,14 @@ Grid-based games (nonogram, wordsearch, sudoku) use:
 
 Hashiwokakero uses `Island` and `Bridge` structs instead of a 2D grid. Lights Out uses `[][]bool` directly.
 
+### Versioning
+
+Version is injected at build time via `-ldflags "-X main.version=..."`. The `version` variable lives in `cmd.go` and defaults to `"dev"`. The justfile derives it from `git describe --tags`. GoReleaser (`.goreleaser.yml`) handles cross-platform release builds and injects the tag version automatically.
+
+### Formatting and Linting
+
+All Go code must pass `gofumpt` (strict superset of `gofmt`) and `golangci-lint` with the project's `.golangci.yml` config. Enabled linters: gofumpt, govet, errcheck, staticcheck, unused, gosimple, ineffassign, misspell. Run `just fmt` and `just lint` before committing.
+
 ### Color Convention
 
 All colors must use `lipgloss.AdaptiveColor{Light: "X", Dark: "Y"}` with ANSI 256 palette numbers. Avoid hex colors (`#rrggbb`) — they require true-color support and don't adapt to terminal background.
@@ -124,4 +156,5 @@ All colors must use `lipgloss.AdaptiveColor{Light: "X", Dark: "Y"}` with ANSI 25
   - `github.com/charmbracelet/bubbles`: TUI components (list, table)
   - `github.com/charmbracelet/lipgloss`: Terminal styling
   - `github.com/charmbracelet/glamour`: Markdown rendering (debug view)
+  - `github.com/spf13/cobra`: CLI command/flag management
   - `modernc.org/sqlite`: Pure-Go SQLite driver (game persistence)

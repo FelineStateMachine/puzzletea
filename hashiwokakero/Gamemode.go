@@ -20,8 +20,10 @@ type HashiMode struct {
 	MaxIslands int
 }
 
-var _ game.Mode = HashiMode{}    // compile-time interface check
-var _ game.Spawner = HashiMode{} // compile-time interface check
+var (
+	_ game.Mode    = HashiMode{} // compile-time interface check
+	_ game.Spawner = HashiMode{} // compile-time interface check
+)
 
 func NewMode(title, description string, width, height, minIslands, maxIslands int) HashiMode {
 	return HashiMode{

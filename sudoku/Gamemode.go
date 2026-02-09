@@ -16,8 +16,10 @@ type SudokuMode struct {
 	ProvidedCount int
 }
 
-var _ game.Mode = SudokuMode{}    // compile-time interface check
-var _ game.Spawner = SudokuMode{} // compile-time interface check
+var (
+	_ game.Mode    = SudokuMode{} // compile-time interface check
+	_ game.Spawner = SudokuMode{} // compile-time interface check
+)
 
 func NewMode(title, description string, providedCount int) SudokuMode {
 	return SudokuMode{

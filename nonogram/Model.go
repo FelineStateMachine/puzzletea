@@ -117,7 +117,7 @@ func (m Model) GetDebugInfo() string {
 	return s
 }
 
-func tomoDebugTable(heading, label string, hints TomographyDefinition, current TomographyDefinition) string {
+func tomoDebugTable(heading, label string, hints, current TomographyDefinition) string {
 	var rows [][]string
 	for i, hint := range hints {
 		var currStr string

@@ -16,8 +16,10 @@ type NonogramMode struct {
 	Height, Width int
 }
 
-var _ game.Mode = NonogramMode{}    // compile-time interface check
-var _ game.Spawner = NonogramMode{} // compile-time interface check
+var (
+	_ game.Mode    = NonogramMode{} // compile-time interface check
+	_ game.Spawner = NonogramMode{} // compile-time interface check
+)
 
 func NewMode(title, description string, Height, Width int) NonogramMode {
 	return NonogramMode{

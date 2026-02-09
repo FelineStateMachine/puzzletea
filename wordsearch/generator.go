@@ -5,11 +5,8 @@ import (
 	"strings"
 )
 
-
-
 // GenerateWordSearch creates a new word search grid with the specified parameters
 func GenerateWordSearch(width, height, wordCount, minLen, maxLen int, allowedDirs []Direction) (grid, []Word) {
-
 	g := createEmptyGrid(height, width)
 	words := selectWords(wordCount, minLen, maxLen)
 	placedWords := make([]Word, 0, len(words))

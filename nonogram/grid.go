@@ -4,8 +4,10 @@ import (
 	"strings"
 )
 
-type grid [][]rune
-type state string
+type (
+	grid  [][]rune
+	state string
+)
 
 func newGrid(s state) grid {
 	rows := strings.Split(string(s), "\n")
