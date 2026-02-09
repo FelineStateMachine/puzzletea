@@ -102,49 +102,13 @@ func getCellStyle(m Model, x, y int) lipgloss.Style {
 }
 
 func isInSelection(m Model, x, y int) bool {
-	// Check if (x, y) is on the line from selectionStart to cursor
-	start := m.selectionStart
-	end := m.cursor
-
-	// Calculate direction
-	dx := 0
-	dy := 0
-
-	if end.X > start.X {
-		dx = 1
-	} else if end.X < start.X {
-		dx = -1
-	}
-
-	if end.Y > start.Y {
-		dy = 1
-	} else if end.Y < start.Y {
-		dy = -1
-	}
-
-	// Verify it's a valid straight line before walking
-	distX := abs(end.X - start.X)
-	distY := abs(end.Y - start.Y)
-	if dx != 0 && dy != 0 && distX != distY {
-		return false // Not a valid diagonal, skip to avoid infinite loop
-	}
-
-	// Check all positions along the line
-	cx, cy := start.X, start.Y
-	for {
+	found := false
+	walkLine(m.selectionStart, m.cursor, func(cx, cy int) {
 		if cx == x && cy == y {
-			return true
+			found = true
 		}
-
-		if cx == end.X && cy == end.Y {
-			break
-		}
-
-		cx += dx
-		cy += dy
-	}
-
-	return false
+	})
+	return found
 }
 
 func renderWordList(m Model) string {
@@ -163,7 +127,7 @@ func renderWordList(m Model) string {
 	}
 
 	sb.WriteString("\n")
-	sb.WriteString(fmt.Sprintf("Found: %d/%d", m.countFoundWords(), len(m.words)))
+	fmt.Fprintf(&sb, "Found: %d/%d", m.countFoundWords(), len(m.words))
 
 	return sb.String()
 }

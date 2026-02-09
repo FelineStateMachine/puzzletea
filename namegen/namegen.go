@@ -1,3 +1,4 @@
+// Package namegen generates random human-readable names for saved games.
 package namegen
 
 import "math/rand/v2"

@@ -1,3 +1,4 @@
+// Package hashiwokakero implements the bridge-connecting puzzle game.
 package hashiwokakero
 
 import (
@@ -155,34 +156,22 @@ func (m Model) GetDebugInfo() string {
 		connStr = "Yes"
 	}
 
-	s := fmt.Sprintf(
-		"# Hashiwokakero\n\n"+
-			"## Game State\n\n"+
-			"| Property | Value |\n"+
-			"| :--- | :--- |\n"+
-			"| Status | %s |\n"+
-			"| Grid Size | %dx%d |\n"+
-			"| Islands | %d |\n"+
-			"| Bridges | %d |\n"+
-			"| Connected | %s |\n"+
-			"| Cursor Island | %d |\n",
-		status,
-		m.puzzle.Width, m.puzzle.Height,
-		len(m.puzzle.Islands),
-		len(m.puzzle.Bridges),
-		connStr,
-		m.cursorIsland,
-	)
-
 	selectedStr := "None"
 	if m.selectedIsland != nil {
 		selectedStr = fmt.Sprintf("%d", *m.selectedIsland)
 	}
-	s += fmt.Sprintf("| Selected Island | %s |\n", selectedStr)
 
-	s += "\n## Islands\n\n"
-	s += "| ID | Pos | Required | Current | Status |\n"
-	s += "| :--- | :--- | :--- | :--- | :--- |\n"
+	s := game.DebugHeader("Hashiwokakero", [][2]string{
+		{"Status", status},
+		{"Grid Size", fmt.Sprintf("%dx%d", m.puzzle.Width, m.puzzle.Height)},
+		{"Islands", fmt.Sprintf("%d", len(m.puzzle.Islands))},
+		{"Bridges", fmt.Sprintf("%d", len(m.puzzle.Bridges))},
+		{"Connected", connStr},
+		{"Cursor Island", fmt.Sprintf("%d", m.cursorIsland)},
+		{"Selected Island", selectedStr},
+	})
+
+	var rows [][]string
 	for _, isl := range m.puzzle.Islands {
 		current := m.puzzle.BridgeCount(isl.ID)
 		islStatus := "Unsatisfied"
@@ -191,9 +180,15 @@ func (m Model) GetDebugInfo() string {
 		} else if current > isl.Required {
 			islStatus = "Over"
 		}
-		s += fmt.Sprintf("| %d | (%d,%d) | %d | %d | %s |\n",
-			isl.ID, isl.X, isl.Y, isl.Required, current, islStatus)
+		rows = append(rows, []string{
+			fmt.Sprintf("%d", isl.ID),
+			fmt.Sprintf("(%d,%d)", isl.X, isl.Y),
+			fmt.Sprintf("%d", isl.Required),
+			fmt.Sprintf("%d", current),
+			islStatus,
+		})
 	}
+	s += game.DebugTable("Islands", []string{"ID", "Pos", "Required", "Current", "Status"}, rows)
 
 	return s
 }

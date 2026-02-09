@@ -1,3 +1,4 @@
+// Package game defines the plugin interface for puzzle games.
 package game
 
 import (

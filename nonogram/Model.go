@@ -1,3 +1,4 @@
+// Package nonogram implements the grid-based picture logic puzzle.
 package nonogram
 
 import (
@@ -25,26 +26,31 @@ type Model struct {
 	keys          KeyMap
 	modeTitle     string
 	showFullHelp  bool
+	currentHints  Hints // cached tomography of the current grid
+	solved        bool  // cached solved state
 }
 
-func New(mode NonogramMode, hints Hints, save ...string) (game.Gamer, error) {
+func New(mode NonogramMode, hints Hints) (game.Gamer, error) {
 	h, w := mode.Height, mode.Width
 	r, c := hints.rows, hints.cols
 	if w < r.RequiredLen() {
-		return Model{}, errors.New("Puzzle width does not support row tomography definition.")
+		return Model{}, errors.New("puzzle width does not support row tomography definition")
 	}
 	if h < c.RequiredLen() {
-		return Model{}, errors.New("Puzzle height does not support column tomography definition.")
+		return Model{}, errors.New("puzzle height does not support column tomography definition")
 	}
-	s := loadSave(createEmptyState(h, w), save...)
+	g := newGrid(createEmptyState(h, w))
+	curr := generateTomography(g)
 	m := Model{
-		width:     w,
-		height:    h,
-		rowHints:  r,
-		colHints:  c,
-		grid:      newGrid(s),
-		keys:      DefaultKeyMap,
-		modeTitle: mode.Title(),
+		width:        w,
+		height:       h,
+		rowHints:     r,
+		colHints:     c,
+		grid:         g,
+		keys:         DefaultKeyMap,
+		modeTitle:    mode.Title(),
+		currentHints: curr,
+		solved:       curr.rows.equal(r) && curr.cols.equal(c),
 	}
 
 	return m, nil
@@ -75,15 +81,12 @@ func (m Model) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 }
 
 func (m Model) View() string {
-	curr := generateTomography(m.grid)
-	solved := curr.rows.equal(m.rowHints) && curr.cols.equal(m.colHints)
-
 	maxWidth, maxHeight := m.rowHints.RequiredLen()*cellWidth, m.colHints.RequiredLen()
 
-	title := game.TitleBarView("Nonogram", m.modeTitle, solved)
-	g := gridView(m.grid, m.cursor, solved)
-	r := rowHintView(m.rowHints, maxWidth, curr.rows)
-	c := colHintView(m.colHints, maxHeight, curr.cols)
+	title := game.TitleBarView("Nonogram", m.modeTitle, m.solved)
+	g := gridView(m.grid, m.cursor, m.solved)
+	r := rowHintView(m.rowHints, maxWidth, m.currentHints.rows)
+	c := colHintView(m.colHints, maxHeight, m.currentHints.cols)
 	spacer := baseStyle.Width(maxWidth).Height(maxHeight).Render("")
 	status := nonoStatusBarView(m.showFullHelp)
 
@@ -96,64 +99,40 @@ func (m Model) View() string {
 }
 
 func (m Model) GetDebugInfo() string {
-	curr := generateTomography(m.grid)
-	solved := curr.rows.equal(m.rowHints) && curr.cols.equal(m.colHints)
-
 	status := "In Progress"
-	if solved {
+	if m.solved {
 		status = "Solved"
 	}
 
-	s := fmt.Sprintf(
-		"# Nonogram\n\n"+
-			"## Game State\n\n"+
-			"| Property | Value |\n"+
-			"| :--- | :--- |\n"+
-			"| Status | %s |\n"+
-			"| Cursor | (%d, %d) |\n"+
-			"| Grid Size | %d x %d |\n"+
-			"| Hint Widths | row: %d, col: %d |\n",
-		status,
-		m.cursor.X, m.cursor.Y,
-		m.width, m.height,
-		m.rowHints.RequiredLen()*cellWidth, m.colHints.RequiredLen(),
-	)
+	s := game.DebugHeader("Nonogram", [][2]string{
+		{"Status", status},
+		{"Cursor", fmt.Sprintf("(%d, %d)", m.cursor.X, m.cursor.Y)},
+		{"Grid Size", fmt.Sprintf("%d x %d", m.width, m.height)},
+		{"Hint Widths", fmt.Sprintf("row: %d, col: %d", m.rowHints.RequiredLen()*cellWidth, m.colHints.RequiredLen())},
+	})
 
-	s += "\n## Row Tomography\n\n"
-	s += "| Row | Hint | Current | Match |\n"
-	s += "| :--- | :--- | :--- | :--- |\n"
-	for i, hint := range m.rowHints {
-		var currStr string
-		match := false
-		if i < len(curr.rows) {
-			currStr = intSliceStr(curr.rows[i])
-			match = intSliceEqual(hint, curr.rows[i])
-		}
-		matchStr := "No"
-		if match {
-			matchStr = "Yes"
-		}
-		s += fmt.Sprintf("| %d | %s | %s | %s |\n", i, intSliceStr(hint), currStr, matchStr)
-	}
-
-	s += "\n## Column Tomography\n\n"
-	s += "| Col | Hint | Current | Match |\n"
-	s += "| :--- | :--- | :--- | :--- |\n"
-	for i, hint := range m.colHints {
-		var currStr string
-		match := false
-		if i < len(curr.cols) {
-			currStr = intSliceStr(curr.cols[i])
-			match = intSliceEqual(hint, curr.cols[i])
-		}
-		matchStr := "No"
-		if match {
-			matchStr = "Yes"
-		}
-		s += fmt.Sprintf("| %d | %s | %s | %s |\n", i, intSliceStr(hint), currStr, matchStr)
-	}
+	s += tomoDebugTable("Row Tomography", "Row", m.rowHints, m.currentHints.rows)
+	s += tomoDebugTable("Column Tomography", "Col", m.colHints, m.currentHints.cols)
 
 	return s
+}
+
+func tomoDebugTable(heading, label string, hints TomographyDefinition, current TomographyDefinition) string {
+	var rows [][]string
+	for i, hint := range hints {
+		var currStr string
+		match := false
+		if i < len(current) {
+			currStr = intSliceStr(current[i])
+			match = intSliceEqual(hint, current[i])
+		}
+		matchStr := "No"
+		if match {
+			matchStr = "Yes"
+		}
+		rows = append(rows, []string{fmt.Sprintf("%d", i), intSliceStr(hint), currStr, matchStr})
+	}
+	return game.DebugTable(heading, []string{label, "Hint", "Current", "Match"}, rows)
 }
 
 func intSliceStr(s []int) string {
@@ -176,10 +155,11 @@ func (m Model) SetTitle(t string) game.Gamer {
 }
 
 func (m Model) IsSolved() bool {
-	curr := generateTomography(m.grid)
-	return curr.rows.equal(m.rowHints) && curr.cols.equal(m.colHints)
+	return m.solved
 }
 
 func (m *Model) updateTile(r rune) {
 	m.grid[m.cursor.Y][m.cursor.X] = r
+	m.currentHints = generateTomography(m.grid)
+	m.solved = m.currentHints.rows.equal(m.rowHints) && m.currentHints.cols.equal(m.colHints)
 }

@@ -49,15 +49,3 @@ func createEmptyState(h, w int) state {
 
 	return state(b.String())
 }
-
-// loadSave - Parses optional param save. If none, uses default.
-func loadSave(def state, optionalSave ...string) state {
-	var s state
-	//TODO: use default state as state and layer save runes onto it. this would allow save strings to be malformed a bit.
-	if len(optionalSave) > 0 {
-		s = state(optionalSave[0])
-	} else {
-		s = def
-	}
-	return s
-}

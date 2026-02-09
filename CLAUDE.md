@@ -1,31 +1,21 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
 ## Project Overview
 
-PuzzleTea is a terminal-based puzzle game framework built with the Bubble Tea TUI library. It provides a plugin architecture for different puzzle types with a shared menu system and debug interface.
+PuzzleTea is a terminal-based puzzle game framework built with the Bubble Tea TUI library. It provides a plugin architecture for different puzzle types with a shared menu system, save/load persistence, and debug interface.
 
 ## Commands
 
 ### Building and Running
 ```bash
-# Run the application
 go run .
-
-# Build the binary
 go build -o puzzletea
-
-# Update dependencies
 go mod tidy
 ```
 
 ### Testing
 ```bash
-# Run all tests (no tests exist yet)
 go test ./...
-
-# Run tests for a specific package
 go test ./nonogram
 ```
 
@@ -33,85 +23,97 @@ go test ./nonogram
 
 ### Core Application Structure
 
-The application follows a **plugin-based architecture** where puzzle games implement the `game.Gamer` interface:
+The application follows a **plugin-based architecture** where puzzle games implement the `game.Gamer` interface.
 
-- **Main entry point** (`main.go`): Initializes the Bubble Tea program
-- **Root model** (`model.go`): Manages application state with three views:
-  - `gameSelectView`: Category selection (Nonogram, Word Search, Sudoku, Hashiwokakero)
+- **`main.go`**: Initializes store and Bubble Tea program.
+- **`model.go`**: Root model managing application state across five views:
+  - `mainMenuView`: Top-level menu (Daily Puzzle, Generate, Continue)
+  - `gameSelectView`: Category selection
   - `modeSelectView`: Difficulty/mode selection within a category
   - `gameView`: Active game instance
+  - `continueView`: Saved game browser (table)
 
-Navigation flow: select a game category → select a mode/difficulty → play the game. `Escape` returns from mode select to game select, `Ctrl+N` returns to game select from anywhere.
+Navigation: main menu → select category → select mode → play. `Escape` goes back one level, `Ctrl+N` returns to main menu from anywhere.
 
-### Plugin Interface (`game/gamer.go`)
+In `model.go`, key events are handled in a single `switch msg.Type` block. Each key type (e.g. `tea.KeyEnter`) has **one `case`** with an if-chain that checks `m.state`. Never add a duplicate `case` for the same key type.
+
+### Plugin Interface (`game/`)
 
 All puzzle games must implement:
 
-1. **`game.Gamer`** - The active game instance (Init, Update, View, GetDebugInfo, GetFullHelp, GetSave)
-2. **`game.Spawner`** - Creates a new game instance: `Spawn() (Gamer, error)`
-3. **`game.BaseMode`** - Embed this in your mode struct to get `Title()`, `Description()`, and `FilterValue()` for free
-4. **`game.Category`** - Groups related modes under a heading in the menu; satisfies `Mode` but not `Spawner`
+1. **`game.Gamer`** — Active game instance: `Init`, `Update`, `View`, `GetDebugInfo`, `GetFullHelp`, `GetSave`, `IsSolved`, `SetTitle`
+2. **`game.Spawner`** — Creates a new game: `Spawn() (Gamer, error)`
+3. **`game.BaseMode`** — Embed in mode structs for free `Title()`, `Description()`, `FilterValue()`
+4. **`game.Category`** — Groups modes under a heading; satisfies `Mode` but not `Spawner`
+
+Shared utilities in `game/`:
+- **`cursor.go`**: `Cursor` type with `Move()` for grid-based navigation
+- **`keys.go`**: `CursorKeyMap` and `DefaultCursorKeyMap` for shared arrow/WASD/vim bindings
+- **`style.go`**: `TitleBarView()`, `DebugHeader()`, `DebugTable()` for consistent rendering
+
+Save/load uses `game.Registry` — each package registers its import function via `init()` calling `game.Register(name, fn)`.
 
 ### Adding a New Puzzle Type
 
 1. Create a new package under the project root (e.g., `mypuzzle/`)
-2. Define a mode struct that embeds `game.BaseMode` and implements `game.Spawner`
-3. Use compile-time interface checks: `var _ game.Mode = MyMode{}` and `var _ game.Spawner = MyMode{}`
+2. Define a mode struct embedding `game.BaseMode` that implements `game.Spawner`
+3. Add compile-time checks: `var _ game.Mode = MyMode{}` and `var _ game.Spawner = MyMode{}`
 4. Export a `Modes` variable (`[]list.Item`) listing available difficulties
 5. Implement `game.Gamer` on a `Model` struct
-6. Register the category in `model.go`'s `GameCategories` slice
+6. Register the import function in an `init()`: `game.Register("My Puzzle", func(data []byte) (game.Gamer, error) { ... })`
+7. Add the category to `GameCategories` in `model.go`
 
 Each package follows a consistent file structure:
-- `Gamemode.go`: Mode struct, `NewMode()`, `Spawn()`, `Modes` var
+- `Gamemode.go`: Mode struct, `NewMode()`, `Spawn()`, `Modes` var, `init()` with `game.Register()`
 - `Model.go`: `Model` struct implementing `game.Gamer`
-- `Export.go`: Exported `Save` struct, `GetSave()` method (on Model), `ImportModel([]byte) (*Model, error)` function
-- `keys.go`: `KeyMap` struct with game-specific keybindings, `var DefaultKeyMap = KeyMap{...}`
+- `Export.go`: `Save` struct, `GetSave()`, `ImportModel([]byte)` function
+- `keys.go`: `KeyMap` struct with game-specific keybindings
 - `style.go`: lipgloss styling definitions
 - `generator.go`: Puzzle generation logic (where applicable)
+- `grid.go`: Grid type, serialization, and helpers (for grid-based games)
 
 ### Current Implementations
 
-**Nonogram** (`nonogram/`): Grid-based puzzle with row/column hints. Three tile states: filled (`.`), marked (`-`), empty (` `). Victory when current grid tomography matches hint tomography.
+- **Nonogram** (`nonogram/`): Fill cells to match row/column hints. Three tile states: filled, marked, empty. Victory when grid tomography matches hint tomography.
+- **Word Search** (`wordsearch/`): Find hidden words in a letter grid. Supports 8 directions with configurable subsets per difficulty.
+- **Sudoku** (`sudoku/`): Classic 9x9 with configurable provided cells. Uses `cell` type with provided/user-entered distinction.
+- **Hashiwokakero** (`hashiwokakero/`): Connect islands with bridges (1 or 2). Navigation mode and bridge mode. Victory requires all islands satisfied and connected.
+- **Lights Out** (`lightsout/`): Toggle lights in a cross pattern to turn all off. Grid sizes from 3x3 to 9x9.
 
-**Word Search** (`wordsearch/`): Find hidden words in a letter grid. Select start and end positions to highlight words. Supports 8 directions (Right, Down, DownRight, DownLeft, Left, Up, UpRight, UpLeft) with configurable subsets per difficulty.
+### Supporting Packages
 
-**Sudoku** (`sudoku/`): Classic 9x9 sudoku with configurable number of provided cells. Uses `cell` type with provided/user-entered distinction.
-
-**Hashiwokakero** (`hashiwokakero/`): Connect islands with bridges (1 or 2). Two input modes: navigation mode (move cursor between islands) and bridge mode (select an island, then cycle bridges in a direction). Victory requires all islands satisfied and connected. Uses `Island`, `Bridge`, `Puzzle` types.
+- **`store/`**: SQLite-based persistence (via `modernc.org/sqlite`). Stores game records with status tracking (new, in_progress, completed, abandoned). DB at `~/.puzzletea/history.db`.
+- **`namegen/`**: Generates unique adjective-noun names for saved games.
 
 ### Global Keybindings
 
-Handled by root model:
-- `Ctrl+N`: Return to game select from any view
-- `Ctrl+C`: Quit application
+- `Ctrl+N`: Return to main menu
+- `Ctrl+C`: Quit (saves current game as abandoned)
 - `Ctrl+E`: Toggle debug overlay
-- `Enter`: Select item in menus
-- `Escape`: Return from mode select to game select
-
-Individual games handle their own gameplay keybindings via `KeyMap` types in `keys.go`.
-
-In `model.go`, key events are handled in a single `switch msg.Type` block. Each key type (e.g. `tea.KeyEnter`) has **one `case`** with an if-chain that checks `m.state` to determine per-view behavior. Never add a duplicate `case` for the same key type — add new state checks within the existing case.
+- `Ctrl+H`: Toggle full help display
+- `Enter`: Select in menus
+- `Escape`: Go back one level
 
 ### Continue View
 
-The continue view (`continueView`) displays saved games in a `table.Model`. Game records are cached in `m.continueGames` (populated by `initContinueTable()` each time the user navigates to the view). Use this slice directly by index to look up a selected game — no need to re-query the store. Pressing Enter on a row calls the matching package's `ImportModel()` to restore the game.
+Displays saved games in a `table.Model`. Records cached in `m.continueGames` (populated by `initContinueTable()`). Use this slice by index — no need to re-query the store. Enter calls the matching package's `ImportModel()`.
 
 ### Debug System
 
-The debug overlay (`Ctrl+E`) displays game-specific markdown rendered via `glamour`. Each game provides debug info via `GetDebugInfo()` — typically cursor position, dimensions, solved state, and game-specific details.
+Debug overlay (`Ctrl+E`) renders game-specific markdown via `glamour`. Games provide info via `GetDebugInfo()` using `game.DebugHeader()` and `game.DebugTable()` helpers.
 
 ### Grid System Pattern
 
-Puzzle implementations use a similar grid pattern:
-- Internal grid type: 2D slice (`[][]rune` for nonogram/wordsearch, `[][]cell` for sudoku)
+Grid-based games (nonogram, wordsearch, sudoku) use:
+- Internal grid type: 2D slice (`[][]rune`, `[9][9]cell`, etc.)
 - `state` type: String serialization for save/load
-- Conversion functions: `newGrid(state)` and `grid.String()`
+- `newGrid(state)` and `grid.String()` conversion functions
 
-Hashiwokakero uses a different approach with `Island` and `Bridge` structs rather than a 2D grid.
+Hashiwokakero uses `Island` and `Bridge` structs instead of a 2D grid. Lights Out uses `[][]bool` directly.
 
 ### Color Convention
 
-All colors should use `lipgloss.AdaptiveColor{Light: "X", Dark: "Y"}` with ANSI 256 palette numbers to support both light and dark terminals. Avoid raw hex colors (`#rrggbb`) as they require true-color support and don't adapt to terminal background.
+All colors must use `lipgloss.AdaptiveColor{Light: "X", Dark: "Y"}` with ANSI 256 palette numbers. Avoid hex colors (`#rrggbb`) — they require true-color support and don't adapt to terminal background.
 
 ## Module Information
 
@@ -119,6 +121,7 @@ All colors should use `lipgloss.AdaptiveColor{Light: "X", Dark: "Y"}` with ANSI 
 - **Go version**: 1.24.5
 - **Key dependencies**:
   - `github.com/charmbracelet/bubbletea`: TUI framework
-  - `github.com/charmbracelet/bubbles`: TUI components (list)
+  - `github.com/charmbracelet/bubbles`: TUI components (list, table)
   - `github.com/charmbracelet/lipgloss`: Terminal styling
   - `github.com/charmbracelet/glamour`: Markdown rendering (debug view)
+  - `modernc.org/sqlite`: Pure-Go SQLite driver (game persistence)

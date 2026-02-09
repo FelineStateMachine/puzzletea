@@ -1,3 +1,4 @@
+// Package store provides persistent storage for saved games.
 package store
 
 import (

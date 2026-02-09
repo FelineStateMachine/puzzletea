@@ -2,7 +2,6 @@ package hashiwokakero
 
 import (
 	"math/rand"
-	"sort"
 )
 
 // GeneratePuzzle creates a solvable hashiwokakero puzzle for the given mode.
@@ -51,6 +50,7 @@ func tryGenerate(width, height, islandCount int) *Puzzle {
 
 	// Clear bridges — player starts with none
 	p.Bridges = nil
+	p.invalidateCache()
 
 	return p
 }
@@ -297,25 +297,4 @@ func abs(x int) int {
 		return -x
 	}
 	return x
-}
-
-// sortedPair returns (a,b) with a <= b.
-func sortedPair(a, b int) (int, int) {
-	if a > b {
-		return b, a
-	}
-	return a, b
-}
-
-// islandsByRow sorts islands by Y then X for consistent ordering.
-func islandsByRow(islands []Island) []Island {
-	sorted := make([]Island, len(islands))
-	copy(sorted, islands)
-	sort.Slice(sorted, func(i, j int) bool {
-		if sorted[i].Y != sorted[j].Y {
-			return sorted[i].Y < sorted[j].Y
-		}
-		return sorted[i].X < sorted[j].X
-	})
-	return sorted
 }

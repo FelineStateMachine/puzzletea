@@ -1,3 +1,4 @@
+// Package sudoku implements the classic number-placement puzzle.
 package sudoku
 
 import (
@@ -22,9 +23,8 @@ type Model struct {
 	showFullHelp bool
 }
 
-// New creates a new sudoku game using the provided cell values.
-func New(mode SudokuMode, provided []cell, save ...string) (game.Gamer, error) {
-	g := loadSave(newGrid(provided), save...)
+func New(mode SudokuMode, provided []cell) (game.Gamer, error) {
+	g := newGrid(provided)
 	m := Model{
 		grid:      g,
 		provided:  provided,
@@ -88,20 +88,20 @@ func (m Model) View() string {
 
 // GetDebugInfo implements game.Gamer.
 func (m Model) GetDebugInfo() string {
+	conflicts := computeConflicts(m.grid)
 	cursorCell := m.grid[m.cursor.Y][m.cursor.X]
 	isProvided := slices.Contains(m.provided, cursorCell)
-	conflict := hasConflict(m, cursorCell, m.cursor.X, m.cursor.Y)
+	conflict := conflicts[m.cursor.Y][m.cursor.X]
 	solved := m.isSolved()
 
 	filledCount := 0
 	conflictCount := 0
 	for y := range gridSize {
 		for x := range gridSize {
-			c := m.grid[y][x]
-			if c.v != 0 {
+			if m.grid[y][x].v != 0 {
 				filledCount++
 			}
-			if c.v != 0 && hasConflict(m, c, x, y) {
+			if conflicts[y][x] {
 				conflictCount++
 			}
 		}
@@ -112,36 +112,27 @@ func (m Model) GetDebugInfo() string {
 		status = "Solved"
 	}
 
-	s := fmt.Sprintf(
-		"# Sudoku\n\n"+
-			"## Game State\n\n"+
-			"| Property | Value |\n"+
-			"| :--- | :--- |\n"+
-			"| Status | %s |\n"+
-			"| Cursor | (%d, %d) |\n"+
-			"| Cell Value | %s |\n"+
-			"| Is Provided | %v |\n"+
-			"| Has Conflict | %v |\n"+
-			"| Cells Filled | %d / 81 |\n"+
-			"| Conflict Count | %d |\n"+
-			"| Provided Count | %d |\n",
-		status,
-		m.cursor.X, m.cursor.Y,
-		cellContent(cursorCell),
-		isProvided,
-		conflict,
-		filledCount,
-		conflictCount,
-		len(m.provided),
-	)
+	s := game.DebugHeader("Sudoku", [][2]string{
+		{"Status", status},
+		{"Cursor", fmt.Sprintf("(%d, %d)", m.cursor.X, m.cursor.Y)},
+		{"Cell Value", cellContent(cursorCell)},
+		{"Is Provided", fmt.Sprintf("%v", isProvided)},
+		{"Has Conflict", fmt.Sprintf("%v", conflict)},
+		{"Cells Filled", fmt.Sprintf("%d / 81", filledCount)},
+		{"Conflict Count", fmt.Sprintf("%d", conflictCount)},
+		{"Provided Count", fmt.Sprintf("%d", len(m.provided))},
+	})
 
 	if len(m.provided) > 0 {
-		s += "\n## Provided Cells\n\n"
-		s += "| Row | Col | Value |\n"
-		s += "| :--- | :--- | :--- |\n"
+		var rows [][]string
 		for _, p := range m.provided {
-			s += fmt.Sprintf("| %d | %d | %d |\n", p.y, p.x, p.v)
+			rows = append(rows, []string{
+				fmt.Sprintf("%d", p.y),
+				fmt.Sprintf("%d", p.x),
+				fmt.Sprintf("%d", p.v),
+			})
 		}
+		s += game.DebugTable("Provided Cells", []string{"Row", "Col", "Value"}, rows)
 	}
 
 	return s

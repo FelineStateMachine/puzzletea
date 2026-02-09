@@ -8,6 +8,7 @@ import (
 
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/hashiwokakero"
+	"github.com/FelineStateMachine/puzzletea/lightsout"
 	"github.com/FelineStateMachine/puzzletea/namegen"
 	"github.com/FelineStateMachine/puzzletea/nonogram"
 	"github.com/FelineStateMachine/puzzletea/store"
@@ -34,6 +35,7 @@ var (
 
 	GameCategories = []list.Item{
 		game.Category{Name: "Hashiwokakero", Desc: "Connect islands with bridges.", Modes: hashiwokakero.Modes},
+		game.Category{Name: "Lights Out", Desc: "Turn off all the lights.", Modes: lightsout.Modes},
 		game.Category{Name: "Nonogram", Desc: "Fill cells to match row and column hints.", Modes: nonogram.Modes},
 		game.Category{Name: "Sudoku", Desc: "Fill the 9x9 grid following sudoku rules.", Modes: sudoku.Modes},
 		game.Category{Name: "Word Search", Desc: "Find hidden words in a letter grid.", Modes: wordsearch.Modes},
@@ -48,7 +50,6 @@ const (
 	continueView
 )
 
-// menuItem satisfies list.Item for the main menu.
 type menuItem struct {
 	title string
 	desc  string
@@ -129,95 +130,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.state = mainMenuView
 			m.debug = false
 		case tea.KeyEnter:
-			if m.state == mainMenuView {
-				item, ok := m.mainMenuList.SelectedItem().(menuItem)
-				if !ok {
-					return m, nil
-				}
-				switch item.title {
-				case "New Puzzle":
-					m.state = gameSelectView
-				case "Continue":
-					m.initContinueTable()
-					m.state = continueView
-				}
-				return m, nil
-			}
-			if m.state == gameSelectView {
-				cat, ok := m.gameSelectList.SelectedItem().(game.Category)
-				if !ok {
-					return m, nil
-				}
-				m.selectedCategory = cat
-				m.modeSelectList = initModeSelectList(cat)
-				m.modeSelectList.SetSize(m.gameSelectList.Width(), m.gameSelectList.Height())
-				m.state = modeSelectView
-				return m, nil
-			}
-			if m.state == modeSelectView {
-				m.mode, _ = m.modeSelectList.SelectedItem().(game.Mode)
-				g, err := m.mode.(game.Spawner).Spawn()
-				if err != nil {
-					return m, nil
-				}
-				name := generateUniqueName(m.store)
-				m.game = g.SetTitle(name)
-				m.game, _ = m.game.Update(game.HelpToggleMsg{Show: m.showFullHelp})
-				m.state = gameView
-				m.completionSaved = false
-
-				// Capture initial state and create DB record.
-				initialState, err := m.game.GetSave()
-				if err != nil {
-					log.Printf("failed to get initial save: %v", err)
-					return m, nil
-				}
-				rec := &store.GameRecord{
-					Name:         name,
-					GameType:     m.selectedCategory.Name,
-					Mode:         m.mode.Title(),
-					InitialState: string(initialState),
-					SaveState:    string(initialState),
-					Status:       store.StatusNew,
-				}
-				if err := m.store.CreateGame(rec); err != nil {
-					log.Printf("failed to create game record: %v", err)
-				} else {
-					m.activeGameID = rec.ID
-				}
-				return m, nil
-			}
-			if m.state == continueView {
-				idx := m.continueTable.Cursor()
-				if idx < 0 || idx >= len(m.continueGames) {
-					return m, nil
-				}
-				rec := m.continueGames[idx]
-				importFn, ok := game.Registry[rec.GameType]
-				if !ok {
-					return m, nil
-				}
-				g, err := importFn([]byte(rec.SaveState))
-				if err != nil {
-					log.Printf("failed to import game: %v", err)
-					return m, nil
-				}
-				m.game = g.SetTitle(rec.Name)
-				m.game, _ = m.game.Update(game.HelpToggleMsg{Show: m.showFullHelp})
-				m.activeGameID = rec.ID
-				m.state = gameView
-				m.completionSaved = rec.Status == store.StatusCompleted
-				return m, nil
+			if m.state != gameView {
+				return m.handleEnter()
 			}
 		case tea.KeyEscape:
-			if m.state == modeSelectView {
-				m.state = gameSelectView
-				return m, nil
-			}
-			if m.state == gameSelectView || m.state == continueView {
-				m.state = mainMenuView
-				return m, nil
-			}
+			return m.handleEscape()
 		case tea.KeyCtrlC:
 			m = saveCurrentGame(m, store.StatusAbandoned)
 			return m, tea.Quit
@@ -256,6 +173,114 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	return m, cmd
+}
+
+func (m model) handleEnter() (tea.Model, tea.Cmd) {
+	switch m.state {
+	case mainMenuView:
+		return m.handleMainMenuEnter()
+	case gameSelectView:
+		return m.handleGameSelectEnter()
+	case modeSelectView:
+		return m.handleModeSelectEnter()
+	case continueView:
+		return m.handleContinueEnter()
+	}
+	return m, nil
+}
+
+func (m model) handleMainMenuEnter() (tea.Model, tea.Cmd) {
+	item, ok := m.mainMenuList.SelectedItem().(menuItem)
+	if !ok {
+		return m, nil
+	}
+	switch item.title {
+	case "Generate":
+		m.state = gameSelectView
+	case "Continue":
+		m.initContinueTable()
+		m.state = continueView
+	}
+	return m, nil
+}
+
+func (m model) handleGameSelectEnter() (tea.Model, tea.Cmd) {
+	cat, ok := m.gameSelectList.SelectedItem().(game.Category)
+	if !ok {
+		return m, nil
+	}
+	m.selectedCategory = cat
+	m.modeSelectList = initModeSelectList(cat)
+	m.modeSelectList.SetSize(m.gameSelectList.Width(), m.gameSelectList.Height())
+	m.state = modeSelectView
+	return m, nil
+}
+
+func (m model) handleModeSelectEnter() (tea.Model, tea.Cmd) {
+	m.mode, _ = m.modeSelectList.SelectedItem().(game.Mode)
+	g, err := m.mode.(game.Spawner).Spawn()
+	if err != nil {
+		return m, nil
+	}
+	name := generateUniqueName(m.store)
+	m.game = g.SetTitle(name)
+	m.game, _ = m.game.Update(game.HelpToggleMsg{Show: m.showFullHelp})
+	m.state = gameView
+	m.completionSaved = false
+
+	// Capture initial state and create DB record.
+	initialState, err := m.game.GetSave()
+	if err != nil {
+		log.Printf("failed to get initial save: %v", err)
+		return m, nil
+	}
+	rec := &store.GameRecord{
+		Name:         name,
+		GameType:     m.selectedCategory.Name,
+		Mode:         m.mode.Title(),
+		InitialState: string(initialState),
+		SaveState:    string(initialState),
+		Status:       store.StatusNew,
+	}
+	if err := m.store.CreateGame(rec); err != nil {
+		log.Printf("failed to create game record: %v", err)
+	} else {
+		m.activeGameID = rec.ID
+	}
+	return m, nil
+}
+
+func (m model) handleContinueEnter() (tea.Model, tea.Cmd) {
+	idx := m.continueTable.Cursor()
+	if idx < 0 || idx >= len(m.continueGames) {
+		return m, nil
+	}
+	rec := m.continueGames[idx]
+	importFn, ok := game.Registry[rec.GameType]
+	if !ok {
+		return m, nil
+	}
+	g, err := importFn([]byte(rec.SaveState))
+	if err != nil {
+		log.Printf("failed to import game: %v", err)
+		return m, nil
+	}
+	m.game = g.SetTitle(rec.Name)
+	m.game, _ = m.game.Update(game.HelpToggleMsg{Show: m.showFullHelp})
+	m.activeGameID = rec.ID
+	m.state = gameView
+	m.completionSaved = rec.Status == store.StatusCompleted
+	return m, nil
+}
+
+func (m model) handleEscape() (tea.Model, tea.Cmd) {
+	switch m.state {
+	case modeSelectView:
+		m.state = gameSelectView
+	case gameSelectView, continueView:
+		m.state = mainMenuView
+	}
+	return m, nil
 }
 
 func (m model) View() string {
@@ -330,7 +355,7 @@ func initMainMenuList() list.Model {
 }
 
 func initGameSelectList() list.Model {
-	return initList(GameCategories, "Select Game")
+	return initList(GameCategories, "Select Category")
 }
 
 func initModeSelectList(cat game.Category) list.Model {

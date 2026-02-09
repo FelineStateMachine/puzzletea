@@ -36,6 +36,7 @@ type Puzzle struct {
 	Width, Height int
 	Islands       []Island
 	Bridges       []Bridge
+	cellCache     [][]cellInfo // lazily built, invalidated on bridge changes
 }
 
 // FindIslandAt returns the island at (x,y), or nil.
@@ -162,6 +163,8 @@ func (p *Puzzle) SetBridge(id1, id2, count int) {
 		a, b = b, a
 	}
 
+	p.invalidateCache()
+
 	if count == 0 {
 		// Remove bridge
 		for i := range p.Bridges {
@@ -183,16 +186,25 @@ func (p *Puzzle) SetBridge(id1, id2, count int) {
 	p.Bridges = append(p.Bridges, Bridge{Island1: a, Island2: b, Count: count})
 }
 
-// CellContent returns what occupies the given grid cell.
+// CellContent returns what occupies the given grid cell, using a lazily-built cache.
 func (p *Puzzle) CellContent(x, y int) cellInfo {
-	// Check islands first
-	for _, isl := range p.Islands {
-		if isl.X == x && isl.Y == y {
-			return cellInfo{Kind: cellIsland, IslandID: isl.ID}
-		}
+	if p.cellCache == nil {
+		p.rebuildCellCache()
+	}
+	return p.cellCache[y][x]
+}
+
+// rebuildCellCache recomputes the full cell grid from islands and bridges.
+func (p *Puzzle) rebuildCellCache() {
+	cache := make([][]cellInfo, p.Height)
+	for y := range cache {
+		cache[y] = make([]cellInfo, p.Width)
 	}
 
-	// Check bridges
+	for _, isl := range p.Islands {
+		cache[isl.Y][isl.X] = cellInfo{Kind: cellIsland, IslandID: isl.ID}
+	}
+
 	for i, b := range p.Bridges {
 		isl1 := p.FindIslandByID(b.Island1)
 		isl2 := p.FindIslandByID(b.Island2)
@@ -200,28 +212,33 @@ func (p *Puzzle) CellContent(x, y int) cellInfo {
 			continue
 		}
 
-		if isl1.Y == isl2.Y && y == isl1.Y {
+		if isl1.Y == isl2.Y {
 			// Horizontal bridge
 			minX, maxX := isl1.X, isl2.X
 			if minX > maxX {
 				minX, maxX = maxX, minX
 			}
-			if x > minX && x < maxX {
-				return cellInfo{Kind: cellBridgeH, BridgeIdx: i, BridgeCount: b.Count}
+			for x := minX + 1; x < maxX; x++ {
+				cache[isl1.Y][x] = cellInfo{Kind: cellBridgeH, BridgeIdx: i, BridgeCount: b.Count}
 			}
-		} else if isl1.X == isl2.X && x == isl1.X {
+		} else if isl1.X == isl2.X {
 			// Vertical bridge
 			minY, maxY := isl1.Y, isl2.Y
 			if minY > maxY {
 				minY, maxY = maxY, minY
 			}
-			if y > minY && y < maxY {
-				return cellInfo{Kind: cellBridgeV, BridgeIdx: i, BridgeCount: b.Count}
+			for y := minY + 1; y < maxY; y++ {
+				cache[y][isl1.X] = cellInfo{Kind: cellBridgeV, BridgeIdx: i, BridgeCount: b.Count}
 			}
 		}
 	}
 
-	return cellInfo{Kind: cellEmpty}
+	p.cellCache = cache
+}
+
+// invalidateCache marks the cell cache as stale.
+func (p *Puzzle) invalidateCache() {
+	p.cellCache = nil
 }
 
 // IsConnected checks if all islands form a single connected component via bridges.

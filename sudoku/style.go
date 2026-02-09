@@ -51,13 +51,14 @@ var (
 )
 
 func renderGrid(m Model) string {
+	conflicts := computeConflicts(m.grid)
 	var rows []string
 
 	for y := range gridSize {
 		var cells []string
 		for x := range gridSize {
 			c := m.grid[y][x]
-			style := getCellStyle(m, c, x, y)
+			style := getCellStyle(m, c, x, y, conflicts[y][x])
 			content := cellContent(c)
 			rendered := style.Width(sudokuCellWidth).Align(lipgloss.Center).Render(content)
 			cells = append(cells, rendered)
@@ -94,13 +95,13 @@ func renderGrid(m Model) string {
 	return gridBorderStyle.Render(grid)
 }
 
-func getCellStyle(m Model, c cell, x, y int) lipgloss.Style {
+func getCellStyle(m Model, c cell, x, y int, conflict bool) lipgloss.Style {
 	// Priority: cursor > conflict > provided > user > empty
 	if m.cursor.X == x && m.cursor.Y == y {
 		return cursorCellStyle
 	}
 
-	if c.v != 0 && hasConflict(m, c, x, y) {
+	if conflict {
 		return conflictCellStyle
 	}
 
@@ -140,37 +141,72 @@ func cellContent(c cell) string {
 	return fmt.Sprintf("%d", c.v)
 }
 
-func hasConflict(m Model, c cell, x, y int) bool {
-	if c.v == 0 {
-		return false
-	}
+// computeConflicts returns a grid of booleans indicating which cells have conflicts.
+// A cell has a conflict if its value appears more than once in its row, column, or 3x3 box.
+func computeConflicts(g grid) [gridSize][gridSize]bool {
+	var conflicts [gridSize][gridSize]bool
 
-	// Check row
-	for cx := range gridSize {
-		if cx != x && m.grid[y][cx].v == c.v {
-			return true
+	// Check rows
+	for y := range gridSize {
+		var seen [10][]int // value → list of x positions
+		for x := range gridSize {
+			v := g[y][x].v
+			if v != 0 {
+				seen[v] = append(seen[v], x)
+			}
 		}
-	}
-
-	// Check column
-	for cy := range gridSize {
-		if cy != y && m.grid[cy][x].v == c.v {
-			return true
-		}
-	}
-
-	// Check 3x3 box
-	boxStartX := (x / 3) * 3
-	boxStartY := (y / 3) * 3
-	for by := boxStartY; by < boxStartY+3; by++ {
-		for bx := boxStartX; bx < boxStartX+3; bx++ {
-			if (bx != x || by != y) && m.grid[by][bx].v == c.v {
-				return true
+		for v := 1; v <= 9; v++ {
+			if len(seen[v]) > 1 {
+				for _, x := range seen[v] {
+					conflicts[y][x] = true
+				}
 			}
 		}
 	}
 
-	return false
+	// Check columns
+	for x := range gridSize {
+		var seen [10][]int
+		for y := range gridSize {
+			v := g[y][x].v
+			if v != 0 {
+				seen[v] = append(seen[v], y)
+			}
+		}
+		for v := 1; v <= 9; v++ {
+			if len(seen[v]) > 1 {
+				for _, y := range seen[v] {
+					conflicts[y][x] = true
+				}
+			}
+		}
+	}
+
+	// Check 3x3 boxes
+	for boxY := range 3 {
+		for boxX := range 3 {
+			type pos struct{ y, x int }
+			var seen [10][]pos
+			for dy := range 3 {
+				for dx := range 3 {
+					y, x := boxY*3+dy, boxX*3+dx
+					v := g[y][x].v
+					if v != 0 {
+						seen[v] = append(seen[v], pos{y, x})
+					}
+				}
+			}
+			for v := 1; v <= 9; v++ {
+				if len(seen[v]) > 1 {
+					for _, p := range seen[v] {
+						conflicts[p.y][p.x] = true
+					}
+				}
+			}
+		}
+	}
+
+	return conflicts
 }
 
 func statusBarView(showFullHelp bool) string {

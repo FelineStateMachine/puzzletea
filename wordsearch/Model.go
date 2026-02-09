@@ -1,3 +1,4 @@
+// Package wordsearch implements the word-finding grid puzzle.
 package wordsearch
 
 import (
@@ -83,72 +84,27 @@ func (m *Model) handleSelect() {
 }
 
 func (m *Model) validateSelection() {
-	start := m.selectionStart
-	end := m.cursor
-
-	// Calculate direction
-	dx := 0
-	dy := 0
-
-	if end.X > start.X {
-		dx = 1
-	} else if end.X < start.X {
-		dx = -1
+	var letters strings.Builder
+	valid := walkLine(m.selectionStart, m.cursor, func(x, y int) {
+		letters.WriteRune(m.grid.Get(x, y))
+	})
+	if !valid {
+		return
 	}
 
-	if end.Y > start.Y {
-		dy = 1
-	} else if end.Y < start.Y {
-		dy = -1
-	}
+	word := letters.String()
+	wordReverse := reverseString(word)
 
-	// Must be a valid line (horizontal, vertical, or diagonal)
-	if dx == 0 && dy == 0 {
-		return // Same position
-	}
-
-	// Verify it's a straight line
-	distX := abs(end.X - start.X)
-	distY := abs(end.Y - start.Y)
-
-	if dx != 0 && dy != 0 && distX != distY {
-		return // Not a valid diagonal
-	}
-
-	// Extract letters along the selection
-	letters := m.extractLetters(start, end, dx, dy)
-	lettersReverse := reverseString(letters)
-
-	// Check against all unfound words
 	for i := range m.words {
 		if m.words[i].Found {
 			continue
 		}
-
-		if m.words[i].Text == letters || m.words[i].Text == lettersReverse {
+		if m.words[i].Text == word || m.words[i].Text == wordReverse {
 			m.words[i].Found = true
 			m.checkWin()
 			return
 		}
 	}
-}
-
-func (m *Model) extractLetters(start, end game.Cursor, dx, dy int) string {
-	var letters strings.Builder
-	x, y := start.X, start.Y
-
-	for {
-		letters.WriteRune(m.grid.Get(x, y))
-
-		if x == end.X && y == end.Y {
-			break
-		}
-
-		x += dx
-		y += dy
-	}
-
-	return letters.String()
 }
 
 func (m *Model) checkWin() {
@@ -167,34 +123,37 @@ func (m Model) View() string {
 }
 
 func (m Model) GetDebugInfo() string {
-	var sb strings.Builder
-
-	sb.WriteString("# Word Search Debug\n\n")
-	sb.WriteString(fmt.Sprintf("**Grid Size:** %dx%d\n\n", m.width, m.height))
-	sb.WriteString(fmt.Sprintf("**Cursor:** (%d, %d)\n\n", m.cursor.X, m.cursor.Y))
-	sb.WriteString(fmt.Sprintf("**Selection State:** %v\n\n", m.selection))
-
+	rows := [][2]string{
+		{"Grid Size", fmt.Sprintf("%dx%d", m.width, m.height)},
+		{"Cursor", fmt.Sprintf("(%d, %d)", m.cursor.X, m.cursor.Y)},
+		{"Selection State", fmt.Sprintf("%v", m.selection)},
+	}
 	if m.selection == startSelected {
-		sb.WriteString(fmt.Sprintf("**Selection Start:** (%d, %d)\n\n", m.selectionStart.X, m.selectionStart.Y))
+		rows = append(rows, [2]string{"Selection Start", fmt.Sprintf("(%d, %d)", m.selectionStart.X, m.selectionStart.Y)})
 	}
+	rows = append(rows,
+		[2]string{"Words Found", fmt.Sprintf("%d/%d", m.countFoundWords(), len(m.words))},
+		[2]string{"Won", fmt.Sprintf("%v", m.solved)},
+	)
 
-	sb.WriteString(fmt.Sprintf("**Words Found:** %d/%d\n\n", m.countFoundWords(), len(m.words)))
-	sb.WriteString(fmt.Sprintf("**Won:** %v\n\n", m.solved))
+	s := game.DebugHeader("Word Search", rows)
 
-	sb.WriteString("## Words\n\n")
-	sb.WriteString("| Word | Found | Start | End | Direction |\n")
-	sb.WriteString("|------|-------|-------|-----|----------|\n")
-
+	var tableRows [][]string
 	for _, word := range m.words {
-		found := "❌"
+		found := "No"
 		if word.Found {
-			found = "✓"
+			found = "Yes"
 		}
-		sb.WriteString(fmt.Sprintf("| %s | %s | (%d,%d) | (%d,%d) | %d |\n",
-			word.Text, found, word.Start.X, word.Start.Y, word.End.X, word.End.Y, word.Direction))
+		tableRows = append(tableRows, []string{
+			word.Text, found,
+			fmt.Sprintf("(%d,%d)", word.Start.X, word.Start.Y),
+			fmt.Sprintf("(%d,%d)", word.End.X, word.End.Y),
+			fmt.Sprintf("%d", word.Direction),
+		})
 	}
+	s += game.DebugTable("Words", []string{"Word", "Found", "Start", "End", "Direction"}, tableRows)
 
-	return sb.String()
+	return s
 }
 
 func (m Model) SetTitle(t string) game.Gamer {
@@ -214,6 +173,54 @@ func (m Model) countFoundWords() int {
 		}
 	}
 	return count
+}
+
+// lineDirection returns the unit direction vector from start to end
+// and whether the line is valid (horizontal, vertical, or diagonal).
+func lineDirection(start, end game.Cursor) (dx, dy int, valid bool) {
+	if start.X == end.X && start.Y == end.Y {
+		return 0, 0, false
+	}
+
+	if end.X > start.X {
+		dx = 1
+	} else if end.X < start.X {
+		dx = -1
+	}
+
+	if end.Y > start.Y {
+		dy = 1
+	} else if end.Y < start.Y {
+		dy = -1
+	}
+
+	distX := abs(end.X - start.X)
+	distY := abs(end.Y - start.Y)
+	if dx != 0 && dy != 0 && distX != distY {
+		return 0, 0, false
+	}
+
+	return dx, dy, true
+}
+
+// walkLine calls fn for each cell on the line from start to end.
+// Returns false if the line is not valid.
+func walkLine(start, end game.Cursor, fn func(x, y int)) bool {
+	dx, dy, valid := lineDirection(start, end)
+	if !valid {
+		return false
+	}
+
+	x, y := start.X, start.Y
+	for {
+		fn(x, y)
+		if x == end.X && y == end.Y {
+			break
+		}
+		x += dx
+		y += dy
+	}
+	return true
 }
 
 func abs(x int) int {

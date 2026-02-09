@@ -31,6 +31,10 @@ func (s SudokuMode) Spawn() (game.Gamer, error) {
 }
 
 var Modes = []list.Item{
-	NewMode("Easy - 38 Provided Cells", "A random sudoku with at least 38 cells provided to start.", 38),
-	NewMode("Hard - 26 Provided Cells", "A random sudoku with at least 26 cells provided to start.", 26),
+	NewMode("Beginner", "45–52 clues. Single Candidate / Scanning.", 45),
+	NewMode("Easy", "38–44 clues. Naked Singles.", 38),
+	NewMode("Medium", "32–37 clues. Hidden Pairs / Pointing.", 32),
+	NewMode("Hard", "27–31 clues. Box-Line Reduction / Triples.", 27),
+	NewMode("Expert", "22–26 clues. X-Wing / Y-Wing.", 22),
+	NewMode("Diabolical", "17–21 clues. Swordfish / XY-Chains.", 17),
 }
