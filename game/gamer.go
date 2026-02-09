@@ -13,6 +13,7 @@ type Gamer interface {
 
 	GetSave() ([]byte, error)
 	IsSolved() bool
+	SetTitle(string) Gamer
 
 	Init() tea.Cmd
 	View() string
@@ -60,6 +61,10 @@ type Category struct {
 func (c Category) Title() string       { return c.Name }
 func (c Category) Description() string { return c.Desc }
 func (c Category) FilterValue() string { return c.Name }
+
+// HelpToggleMsg is sent from the root model to games when the user toggles
+// the full help display with Ctrl+H.
+type HelpToggleMsg struct{ Show bool }
 
 // Registry maps game type names to their import functions.
 var Registry = map[string]func([]byte) (Gamer, error){}

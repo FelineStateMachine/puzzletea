@@ -174,10 +174,13 @@ func hasConflict(m Model, c cell, x, y int) bool {
 	return false
 }
 
-func titleBarView(modeName string, solved bool) string {
-	return game.TitleBarView("Sudoku", modeName, solved)
+func titleBarView(modeTitle string, solved bool) string {
+	return game.TitleBarView("Sudoku", modeTitle, solved)
 }
 
-func statusBarView() string {
-	return statusBarStyle.Render("arrows/wasd: move  1-9: fill  bkspc: clear  ctrl+n: menu  ctrl+e: debug")
+func statusBarView(showFullHelp bool) string {
+	if showFullHelp {
+		return statusBarStyle.Render("arrows/wasd: move  1-9: fill  bkspc: clear  ctrl+n: menu  ctrl+h: help")
+	}
+	return statusBarStyle.Render("1-9: fill  bkspc: clear")
 }

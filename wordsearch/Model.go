@@ -25,8 +25,9 @@ type Model struct {
 	selection      selectionState
 	selectionStart game.Cursor
 	keys           KeyMap
-	modeName       string
+	modeTitle      string
 	solved         bool
+	showFullHelp   bool
 }
 
 // New creates a new word search game
@@ -38,7 +39,7 @@ func New(mode WordSearchMode, g grid, words []Word) *Model {
 		words:     words,
 		selection: noSelection,
 		keys:      DefaultKeyMap,
-		modeName:  mode.Title(),
+		modeTitle: mode.Title(),
 		solved:    false,
 	}
 }
@@ -49,6 +50,8 @@ func (m Model) Init() tea.Cmd {
 
 func (m Model) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 	switch msg := msg.(type) {
+	case game.HelpToggleMsg:
+		m.showFullHelp = msg.Show
 	case tea.KeyMsg:
 		return m.handleKeyPress(msg)
 	}
@@ -213,6 +216,11 @@ func (m Model) GetSave() ([]byte, error) {
 		Solved:     m.solved,
 	}
 	return json.Marshal(data)
+}
+
+func (m Model) SetTitle(t string) game.Gamer {
+	m.modeTitle = t
+	return m
 }
 
 func (m Model) IsSolved() bool {

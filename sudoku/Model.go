@@ -14,21 +14,22 @@ import (
 const gridSize = 9
 
 type Model struct {
-	cursor   game.Cursor
-	grid     grid
-	provided []cell
-	keys     KeyMap
-	modeName string
+	cursor       game.Cursor
+	grid         grid
+	provided     []cell
+	keys         KeyMap
+	modeTitle    string
+	showFullHelp bool
 }
 
 // New creates a new sudoku game using the provided cell values.
 func New(mode SudokuMode, provided []cell, save ...string) (game.Gamer, error) {
 	g := loadSave(newGrid(provided), save...)
 	m := Model{
-		grid:     g,
-		provided: provided,
-		keys:     DefaultKeyMap,
-		modeName: mode.Title(),
+		grid:      g,
+		provided:  provided,
+		keys:      DefaultKeyMap,
+		modeTitle: mode.Title(),
 	}
 	return m, nil
 }
@@ -41,6 +42,8 @@ func (m Model) Init() tea.Cmd {
 // Update implements game.Gamer.
 func (m Model) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 	switch msg := msg.(type) {
+	case game.HelpToggleMsg:
+		m.showFullHelp = msg.Show
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, m.keys.FillValue):
@@ -54,6 +57,11 @@ func (m Model) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 	}
 	m.updateKeyBindings()
 	return m, nil
+}
+
+func (m Model) SetTitle(t string) game.Gamer {
+	m.modeTitle = t
+	return m
 }
 
 // IsSolved implements game.Gamer.
@@ -71,9 +79,9 @@ func (m *Model) updateCell(v int) {
 
 // View implements game.Gamer.
 func (m Model) View() string {
-	title := titleBarView(m.modeName, m.isSolved())
+	title := titleBarView(m.modeTitle, m.isSolved())
 	grid := renderGrid(m)
-	status := statusBarView()
+	status := statusBarView(m.showFullHelp)
 
 	return lipgloss.JoinVertical(lipgloss.Left, title, grid, status)
 }

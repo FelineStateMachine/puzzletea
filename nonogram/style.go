@@ -12,29 +12,29 @@ var (
 	baseStyle = lipgloss.NewStyle()
 
 	filledStyle = baseStyle.
-			Foreground(lipgloss.Color("#ffffff")).
-			Background(lipgloss.Color("#4a4a4a"))
+			Foreground(lipgloss.Color("#ffd599")).
+			Background(lipgloss.Color("#3d2e1a"))
 
 	markedStyle = baseStyle.
-			Foreground(lipgloss.Color("#ff6b6b")).
-			Background(lipgloss.Color("#2a1a1a"))
+			Foreground(lipgloss.Color("#c97b5a")).
+			Background(lipgloss.Color("#2a1f17"))
 
 	emptyStyle = baseStyle.
-			Foreground(lipgloss.Color("#333333")).
-			Background(lipgloss.Color("#1a1a1a"))
+			Foreground(lipgloss.Color("#4a3f35")).
+			Background(lipgloss.Color("#1e1a16"))
 
 	cursorStyle = baseStyle.
 			Bold(true).
-			Foreground(lipgloss.Color("#ffffff")).
-			Background(lipgloss.Color("#ff00ff"))
+			Foreground(lipgloss.Color("#1e1a16")).
+			Background(lipgloss.Color("#f0a84a"))
 
-	crosshairBG = lipgloss.Color("#252525")
+	crosshairBG = lipgloss.Color("#2a2520")
 
 	hintStyle = baseStyle.
-			Foreground(lipgloss.Color("#888888"))
+			Foreground(lipgloss.Color("#8a7e72"))
 
 	hintSatisfiedStyle = baseStyle.
-				Foreground(lipgloss.Color("#00ff00"))
+				Foreground(lipgloss.Color("#b8d46a"))
 
 	nonoStatusBarStyle = lipgloss.NewStyle().
 				Foreground(lipgloss.Color("#888888")).
@@ -51,9 +51,9 @@ var (
 	}
 
 	renderRuneMap = map[rune]string{
-		filledTile: "▐█",
-		markedTile: "✕",
-		emptyTile:  " ",
+		filledTile: " ■ ",
+		markedTile: " ✕ ",
+		emptyTile:  " · ",
 	}
 )
 
@@ -165,12 +165,15 @@ func tileView(val rune, isCursor, inCursorRow, inCursorCol, solved bool) string 
 	return s.Width(cellWidth).AlignHorizontal(lipgloss.Center).Render(r)
 }
 
-func nonoTitleBarView(modeName string, solved bool) string {
-	return game.TitleBarView("Nonogram", modeName, solved)
+func nonoTitleBarView(modeTitle string, solved bool) string {
+	return game.TitleBarView("Nonogram", modeTitle, solved)
 }
 
-func nonoStatusBarView(_ KeyMap) string {
-	return nonoStatusBarStyle.Render("arrows/wasd: move  z: fill  x: mark  bkspc: clear  ctrl+n: menu  ctrl+e: debug")
+func nonoStatusBarView(showFullHelp bool) string {
+	if showFullHelp {
+		return nonoStatusBarStyle.Render("arrows/wasd: move  z: fill  x: mark  bkspc: clear  ctrl+n: menu  ctrl+h: help")
+	}
+	return nonoStatusBarStyle.Render("z: fill  x: mark  bkspc: clear")
 }
 
 func intSliceEqual(a, b []int) bool {

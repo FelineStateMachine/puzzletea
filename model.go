@@ -72,6 +72,7 @@ type model struct {
 	debug         bool
 	debugRenderer *glamour.TermRenderer
 	debuginfo     string
+	showFullHelp  bool
 
 	store           *store.Store
 	activeGameID    int64
@@ -150,7 +151,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if err != nil {
 					return m, nil
 				}
-				m.game = g
+				name := generateUniqueName(m.store)
+				m.game = g.SetTitle(name)
+				m.game, _ = m.game.Update(game.HelpToggleMsg{Show: m.showFullHelp})
 				m.state = gameView
 				m.completionSaved = false
 
@@ -160,7 +163,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					log.Printf("failed to get initial save: %v", err)
 					return m, nil
 				}
-				name := generateUniqueName(m.store)
 				rec := &store.GameRecord{
 					Name:         name,
 					GameType:     m.selectedCategory.Name,
@@ -191,7 +193,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					log.Printf("failed to import game: %v", err)
 					return m, nil
 				}
-				m.game = g
+				m.game = g.SetTitle(rec.Name)
+				m.game, _ = m.game.Update(game.HelpToggleMsg{Show: m.showFullHelp})
 				m.activeGameID = rec.ID
 				m.state = gameView
 				m.completionSaved = rec.Status == store.StatusCompleted
@@ -211,6 +214,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		case tea.KeyCtrlE:
 			m.debug = !m.debug
+		case tea.KeyCtrlH:
+			m.showFullHelp = !m.showFullHelp
+			if m.state == gameView && m.game != nil {
+				m.game, _ = m.game.Update(game.HelpToggleMsg{Show: m.showFullHelp})
+			}
 		}
 	}
 

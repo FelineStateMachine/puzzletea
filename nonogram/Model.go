@@ -23,7 +23,8 @@ type Model struct {
 	cursor        game.Cursor
 	grid          grid
 	keys          KeyMap
-	modeName      string
+	modeTitle     string
+	showFullHelp  bool
 }
 
 func New(mode NonogramMode, hints Hints, save ...string) (game.Gamer, error) {
@@ -37,13 +38,13 @@ func New(mode NonogramMode, hints Hints, save ...string) (game.Gamer, error) {
 	}
 	s := loadSave(createEmptyState(h, w), save...)
 	m := Model{
-		width:    w,
-		height:   h,
-		rowHints: r,
-		colHints: c,
-		grid:     newGrid(s),
-		keys:     DefaultKeyMap,
-		modeName: mode.Title(),
+		width:     w,
+		height:    h,
+		rowHints:  r,
+		colHints:  c,
+		grid:      newGrid(s),
+		keys:      DefaultKeyMap,
+		modeTitle: mode.Title(),
 	}
 
 	return m, nil
@@ -55,6 +56,8 @@ func (m Model) Init() tea.Cmd {
 
 func (m Model) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 	switch msg := msg.(type) {
+	case game.HelpToggleMsg:
+		m.showFullHelp = msg.Show
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, m.keys.FillTile):
@@ -77,12 +80,12 @@ func (m Model) View() string {
 
 	maxWidth, maxHeight := m.rowHints.RequiredLen()*cellWidth, m.colHints.RequiredLen()
 
-	title := nonoTitleBarView(m.modeName, solved)
+	title := nonoTitleBarView(m.modeTitle, solved)
 	g := gridView(m.grid, m.cursor, solved)
 	r := rowHintView(m.rowHints, maxWidth, curr.rows)
 	c := colHintView(m.colHints, maxHeight, curr.cols)
 	spacer := baseStyle.Width(maxWidth).Height(maxHeight).Render("")
-	status := nonoStatusBarView(m.keys)
+	status := nonoStatusBarView(m.showFullHelp)
 
 	s1 := lipgloss.JoinHorizontal(lipgloss.Bottom, spacer, c)
 	s2 := lipgloss.JoinHorizontal(lipgloss.Top, r, g)
@@ -165,6 +168,11 @@ func intSliceStr(s []int) string {
 		result += fmt.Sprintf("%d", v)
 	}
 	return result
+}
+
+func (m Model) SetTitle(t string) game.Gamer {
+	m.modeTitle = t
+	return m
 }
 
 func (m Model) IsSolved() bool {

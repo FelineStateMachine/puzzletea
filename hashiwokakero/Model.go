@@ -14,7 +14,8 @@ type Model struct {
 	cursorIsland   int  // ID of island the cursor is on
 	selectedIsland *int // ID of island selected for bridge building, nil if none
 	keys           KeyMap
-	modeName       string
+	modeTitle      string
+	showFullHelp   bool
 }
 
 func New(mode HashiMode, puzzle Puzzle) game.Gamer {
@@ -26,7 +27,7 @@ func New(mode HashiMode, puzzle Puzzle) game.Gamer {
 		puzzle:       puzzle,
 		cursorIsland: cursorID,
 		keys:         DefaultKeyMap,
-		modeName:     mode.Title(),
+		modeTitle:    mode.Title(),
 	}
 }
 
@@ -36,6 +37,8 @@ func (m Model) Init() tea.Cmd {
 
 func (m Model) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 	switch msg := msg.(type) {
+	case game.HelpToggleMsg:
+		m.showFullHelp = msg.Show
 	case tea.KeyMsg:
 		if m.selectedIsland != nil {
 			m = m.handleBridgeMode(msg)
@@ -121,12 +124,17 @@ func (m Model) cycleBridge(dx, dy int) Model {
 func (m Model) View() string {
 	solved := m.puzzle.IsSolved()
 
-	title := titleBarView(m.modeName, solved)
+	title := titleBarView(m.modeTitle, solved)
 	grid := gridView(m)
 	info := infoView(&m.puzzle)
-	status := statusBarView(m.selectedIsland != nil)
+	status := statusBarView(m.selectedIsland != nil, m.showFullHelp)
 
 	return lipgloss.JoinVertical(lipgloss.Left, title, grid, info, status)
+}
+
+func (m Model) SetTitle(t string) game.Gamer {
+	m.modeTitle = t
+	return m
 }
 
 func (m Model) IsSolved() bool {

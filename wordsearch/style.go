@@ -43,7 +43,7 @@ var (
 )
 
 func renderView(m Model) string {
-	title := game.TitleBarView("Word Search", m.modeName, m.solved)
+	title := game.TitleBarView("Word Search", m.modeTitle, m.solved)
 	gridView := renderGrid(m)
 	wordListView := renderWordList(m)
 
@@ -51,13 +51,16 @@ func renderView(m Model) string {
 	spacer := strings.Repeat(" ", 4)
 	mainView := lipgloss.JoinHorizontal(lipgloss.Top, gridView, spacer, wordListView)
 
-	status := statusBarView()
+	status := statusBarView(m.showFullHelp)
 
 	return lipgloss.JoinVertical(lipgloss.Left, title, mainView, status)
 }
 
-func statusBarView() string {
-	return statusBarStyle.Render("arrows/wasd: move  enter/space: select  esc: cancel  ctrl+n: menu  ctrl+e: debug")
+func statusBarView(showFullHelp bool) string {
+	if showFullHelp {
+		return statusBarStyle.Render("arrows/wasd: move  enter/space: select  esc: cancel  ctrl+n: menu  ctrl+h: help")
+	}
+	return statusBarStyle.Render("enter/space: select  esc: cancel")
 }
 
 func renderGrid(m Model) string {
