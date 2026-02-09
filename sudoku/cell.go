@@ -11,10 +11,10 @@ type grid = [9][9]cell
 
 func newGrid(provided []cell) grid {
 	var g grid
-	for i := range GRIDSIZE {
-		g[i] = [GRIDSIZE]cell{}
+	for i := range gridSize {
+		g[i] = [gridSize]cell{}
 
-		for j := range GRIDSIZE {
+		for j := range gridSize {
 			g[i][j].x = j
 			g[i][j].y = i
 		}
@@ -41,8 +41,8 @@ func (c cell) String() string {
 }
 
 func (m Model) isSolved() bool {
-	for y := range GRIDSIZE {
-		for x := range GRIDSIZE {
+	for y := range gridSize {
+		for x := range gridSize {
 			c := m.grid[y][x]
 			if c.v == 0 {
 				return false

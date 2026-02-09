@@ -11,14 +11,10 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-const GRIDSIZE = 9
-
-type cursor struct {
-	x, y int
-}
+const gridSize = 9
 
 type Model struct {
-	cursor   cursor
+	cursor   game.Cursor
 	grid     grid
 	provided []cell
 	keys     KeyMap
@@ -52,31 +48,21 @@ func (m Model) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 			m.updateCell(val)
 		case key.Matches(msg, m.keys.ClearCell):
 			m.updateCell(0)
-		case key.Matches(msg, m.keys.Up):
-			if m.cursor.y > 0 {
-				m.cursor.y--
-			}
-		case key.Matches(msg, m.keys.Down):
-			if m.cursor.y < GRIDSIZE-1 {
-				m.cursor.y++
-			}
-		case key.Matches(msg, m.keys.Left):
-			if m.cursor.x > 0 {
-				m.cursor.x--
-			}
-		case key.Matches(msg, m.keys.Right):
-			if m.cursor.x < GRIDSIZE-1 {
-				m.cursor.x++
-			}
+		default:
+			m.cursor.Move(m.keys.CursorKeyMap, msg, gridSize-1, gridSize-1)
 		}
-
 	}
-	m.updateKeyBindinds()
+	m.updateKeyBindings()
 	return m, nil
 }
 
+// IsSolved implements game.Gamer.
+func (m Model) IsSolved() bool {
+	return m.isSolved()
+}
+
 func (m *Model) updateCell(v int) {
-	c := &m.grid[m.cursor.y][m.cursor.x]
+	c := &m.grid[m.cursor.Y][m.cursor.X]
 	if slices.Contains(m.provided, *c) {
 		return
 	}
@@ -94,15 +80,15 @@ func (m Model) View() string {
 
 // GetDebugInfo implements game.Gamer.
 func (m Model) GetDebugInfo() string {
-	cursorCell := m.grid[m.cursor.y][m.cursor.x]
+	cursorCell := m.grid[m.cursor.Y][m.cursor.X]
 	isProvided := slices.Contains(m.provided, cursorCell)
-	conflict := hasConflict(m, cursorCell, m.cursor.x, m.cursor.y)
+	conflict := hasConflict(m, cursorCell, m.cursor.X, m.cursor.Y)
 	solved := m.isSolved()
 
 	filledCount := 0
 	conflictCount := 0
-	for y := range GRIDSIZE {
-		for x := range GRIDSIZE {
+	for y := range gridSize {
+		for x := range gridSize {
 			c := m.grid[y][x]
 			if c.v != 0 {
 				filledCount++
@@ -132,7 +118,7 @@ func (m Model) GetDebugInfo() string {
 			"| Conflict Count | %d |\n"+
 			"| Provided Count | %d |\n",
 		status,
-		m.cursor.x, m.cursor.y,
+		m.cursor.X, m.cursor.Y,
 		cellContent(cursorCell),
 		isProvided,
 		conflict,

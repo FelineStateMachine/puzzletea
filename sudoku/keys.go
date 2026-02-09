@@ -1,41 +1,18 @@
 package sudoku
 
 import (
+	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/charmbracelet/bubbles/key"
 )
 
-type CursorKeyMap struct {
-	Up    key.Binding
-	Down  key.Binding
-	Left  key.Binding
-	Right key.Binding
-}
-
 type KeyMap struct {
-	CursorKeyMap
+	game.CursorKeyMap
 	FillValue key.Binding
 	ClearCell key.Binding
 }
 
 var DefaultKeyMap = KeyMap{
-	CursorKeyMap: CursorKeyMap{
-		Up: key.NewBinding(
-			key.WithKeys("k", "up", "w"),
-			key.WithHelp("↑/w/k", "Up"),
-		),
-		Down: key.NewBinding(
-			key.WithKeys("j", "down", "s"),
-			key.WithHelp("↓/s/j", "Down"),
-		),
-		Left: key.NewBinding(
-			key.WithKeys("h", "left", "a"),
-			key.WithHelp("←/a/h", "Left"),
-		),
-		Right: key.NewBinding(
-			key.WithKeys("l", "right", "d"),
-			key.WithHelp("→/d/l", "Right"),
-		),
-	},
+	CursorKeyMap: game.DefaultCursorKeyMap,
 	FillValue: key.NewBinding(
 		key.WithKeys("1", "2", "3", "4", "5", "6", "7", "8", "9"),
 		key.WithHelp("[1-9]", "Fill Cell"),
@@ -46,11 +23,11 @@ var DefaultKeyMap = KeyMap{
 	),
 }
 
-func (m *Model) updateKeyBindinds() {
-	m.keys.Up.SetEnabled(m.cursor.y > 0)
-	m.keys.Down.SetEnabled(m.cursor.y < 8)
-	m.keys.Left.SetEnabled(m.cursor.x > 0)
-	m.keys.Right.SetEnabled(m.cursor.x < 8)
+func (m *Model) updateKeyBindings() {
+	m.keys.Up.SetEnabled(m.cursor.Y > 0)
+	m.keys.Down.SetEnabled(m.cursor.Y < 8)
+	m.keys.Left.SetEnabled(m.cursor.X > 0)
+	m.keys.Right.SetEnabled(m.cursor.X < 8)
 	allowInteraction := !m.IsProvidedCell()
 	m.keys.FillValue.SetEnabled(allowInteraction)
 	m.keys.ClearCell.SetEnabled(allowInteraction)
@@ -59,7 +36,7 @@ func (m *Model) updateKeyBindinds() {
 func (m Model) IsProvidedCell() bool {
 	v := false
 	for _, hint := range m.provided {
-		if m.cursor.x == hint.x && m.cursor.y == hint.y {
+		if m.cursor.X == hint.x && m.cursor.Y == hint.y {
 			v = true
 		}
 	}

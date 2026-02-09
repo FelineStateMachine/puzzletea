@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -45,16 +46,6 @@ var (
 
 	emptyStyle = baseStyle.
 			Foreground(lipgloss.Color("#333333"))
-
-	titleStyle = lipgloss.NewStyle().
-			Bold(true).
-			Foreground(lipgloss.Color("#ffffff")).
-			Background(lipgloss.Color("#7B2FBE")).
-			Padding(0, 1)
-
-	solvedBadgeStyle = lipgloss.NewStyle().
-				Bold(true).
-				Foreground(lipgloss.Color("#00ff00"))
 
 	statusBarStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#888888")).
@@ -205,12 +196,7 @@ func bridgeVView(count int) string {
 }
 
 func titleBarView(modeName string, solved bool) string {
-	title := titleStyle.Render("Hashiwokakero  " + modeName)
-	if solved {
-		badge := solvedBadgeStyle.Render("  SOLVED")
-		return title + badge
-	}
-	return title
+	return game.TitleBarView("Hashiwokakero", modeName, solved)
 }
 
 func statusBarView(selected bool) string {

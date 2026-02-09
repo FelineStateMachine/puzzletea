@@ -129,6 +129,10 @@ func (m Model) View() string {
 	return lipgloss.JoinVertical(lipgloss.Left, title, grid, info, status)
 }
 
+func (m Model) IsSolved() bool {
+	return m.puzzle.IsSolved()
+}
+
 func (m Model) GetDebugInfo() string {
 	solved := m.puzzle.IsSolved()
 	connected := m.puzzle.IsConnected()

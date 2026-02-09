@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -36,19 +37,13 @@ var (
 	unfoundWordStyle = lipgloss.NewStyle().
 				Foreground(lipgloss.Color("#888888"))
 
-	winMessageStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#00ff00")).
-			Bold(true).
-			Padding(1, 2).
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("#00ff00"))
-
 	statusBarStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#888888")).
 			MarginTop(1)
 )
 
 func renderView(m Model) string {
+	title := game.TitleBarView("Word Search", m.modeName, m.solved)
 	gridView := renderGrid(m)
 	wordListView := renderWordList(m)
 
@@ -58,13 +53,7 @@ func renderView(m Model) string {
 
 	status := statusBarView()
 
-	// Add win message if won
-	if m.won {
-		winMsg := winMessageStyle.Render("🎉 Congratulations! You found all the words! 🎉")
-		return lipgloss.JoinVertical(lipgloss.Left, mainView, "\n", winMsg, status)
-	}
-
-	return lipgloss.JoinVertical(lipgloss.Left, mainView, status)
+	return lipgloss.JoinVertical(lipgloss.Left, title, mainView, status)
 }
 
 func statusBarView() string {
@@ -90,7 +79,7 @@ func getCellStyle(m Model, x, y int) lipgloss.Style {
 	// Priority order: cursor > selection > found word > normal
 
 	// Check if cursor position
-	if m.cursor.x == x && m.cursor.y == y {
+	if m.cursor.X == x && m.cursor.Y == y {
 		return cursorStyle
 	}
 
@@ -118,33 +107,33 @@ func isInSelection(m Model, x, y int) bool {
 	dx := 0
 	dy := 0
 
-	if end.x > start.x {
+	if end.X > start.X {
 		dx = 1
-	} else if end.x < start.x {
+	} else if end.X < start.X {
 		dx = -1
 	}
 
-	if end.y > start.y {
+	if end.Y > start.Y {
 		dy = 1
-	} else if end.y < start.y {
+	} else if end.Y < start.Y {
 		dy = -1
 	}
 
 	// Verify it's a valid straight line before walking
-	distX := abs(end.x - start.x)
-	distY := abs(end.y - start.y)
+	distX := abs(end.X - start.X)
+	distY := abs(end.Y - start.Y)
 	if dx != 0 && dy != 0 && distX != distY {
 		return false // Not a valid diagonal, skip to avoid infinite loop
 	}
 
 	// Check all positions along the line
-	cx, cy := start.x, start.y
+	cx, cy := start.X, start.Y
 	for {
 		if cx == x && cy == y {
 			return true
 		}
 
-		if cx == end.x && cy == end.y {
+		if cx == end.X && cy == end.Y {
 			break
 		}
 

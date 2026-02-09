@@ -5,20 +5,11 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/charmbracelet/lipgloss"
 )
 
 var (
-	titleStyle = lipgloss.NewStyle().
-			Bold(true).
-			Foreground(lipgloss.Color("#ffffff")).
-			Background(lipgloss.Color("#2E86AB")).
-			Padding(0, 1)
-
-	solvedBadgeStyle = lipgloss.NewStyle().
-				Bold(true).
-				Foreground(lipgloss.Color("#00ff00"))
-
 	emptyCellStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#555555")).
 			Background(lipgloss.Color("#1a1a1a"))
@@ -63,9 +54,9 @@ var (
 func renderGrid(m Model) string {
 	var rows []string
 
-	for y := range GRIDSIZE {
+	for y := range gridSize {
 		var cells []string
-		for x := range GRIDSIZE {
+		for x := range gridSize {
 			c := m.grid[y][x]
 			style := getCellStyle(m, c, x, y)
 			content := cellContent(c)
@@ -85,7 +76,7 @@ func renderGrid(m Model) string {
 		if y == 2 || y == 5 {
 			sepLine := strings.Repeat("─", sudokuCellWidth)
 			var sepParts []string
-			for x := range GRIDSIZE {
+			for x := range gridSize {
 				sepParts = append(sepParts, sepLine)
 				if x == 2 || x == 5 {
 					sepParts = append(sepParts, "┼")
@@ -106,7 +97,7 @@ func renderGrid(m Model) string {
 
 func getCellStyle(m Model, c cell, x, y int) lipgloss.Style {
 	// Priority: cursor > conflict > provided > user > empty
-	if m.cursor.x == x && m.cursor.y == y {
+	if m.cursor.X == x && m.cursor.Y == y {
 		return cursorCellStyle
 	}
 
@@ -115,9 +106,9 @@ func getCellStyle(m Model, c cell, x, y int) lipgloss.Style {
 	}
 
 	isProvided := slices.Contains(m.provided, c)
-	inCursorRow := m.cursor.y == y
-	inCursorCol := m.cursor.x == x
-	inCursorBox := (x/3 == m.cursor.x/3) && (y/3 == m.cursor.y/3)
+	inCursorRow := m.cursor.Y == y
+	inCursorCol := m.cursor.X == x
+	inCursorBox := (x/3 == m.cursor.X/3) && (y/3 == m.cursor.Y/3)
 	inCrosshair := inCursorRow || inCursorCol || inCursorBox
 
 	if isProvided {
@@ -156,14 +147,14 @@ func hasConflict(m Model, c cell, x, y int) bool {
 	}
 
 	// Check row
-	for cx := range GRIDSIZE {
+	for cx := range gridSize {
 		if cx != x && m.grid[y][cx].v == c.v {
 			return true
 		}
 	}
 
 	// Check column
-	for cy := range GRIDSIZE {
+	for cy := range gridSize {
 		if cy != y && m.grid[cy][x].v == c.v {
 			return true
 		}
@@ -184,12 +175,7 @@ func hasConflict(m Model, c cell, x, y int) bool {
 }
 
 func titleBarView(modeName string, solved bool) string {
-	title := titleStyle.Render("Sudoku  " + modeName)
-	if solved {
-		badge := solvedBadgeStyle.Render("  SOLVED")
-		return title + badge
-	}
-	return title
+	return game.TitleBarView("Sudoku", modeName, solved)
 }
 
 func statusBarView() string {

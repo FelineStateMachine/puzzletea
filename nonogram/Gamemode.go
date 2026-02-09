@@ -5,6 +5,12 @@ import (
 	"github.com/charmbracelet/bubbles/list"
 )
 
+func init() {
+	game.Register("Nonogram", func(data []byte) (game.Gamer, error) {
+		return ImportModel(data)
+	})
+}
+
 type NonogramMode struct {
 	game.BaseMode
 	Height, Width int

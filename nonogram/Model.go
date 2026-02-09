@@ -3,6 +3,7 @@ package nonogram
 import (
 	"errors"
 	"fmt"
+
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
@@ -15,15 +16,11 @@ const (
 	emptyTile  = ' '
 )
 
-type cursor struct {
-	x, y int
-}
-
 type Model struct {
 	width, height int
 	rowHints      TomographyDefinition
 	colHints      TomographyDefinition
-	cursor        cursor
+	cursor        game.Cursor
 	grid          grid
 	keys          KeyMap
 	modeName      string
@@ -66,26 +63,11 @@ func (m Model) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 			m.updateTile(markedTile)
 		case key.Matches(msg, m.keys.ClearTile):
 			m.updateTile(emptyTile)
-		case key.Matches(msg, m.keys.Up):
-			if m.cursor.y > 0 {
-				m.cursor.y--
-			}
-		case key.Matches(msg, m.keys.Down):
-			if m.cursor.y < m.height-1 {
-				m.cursor.y++
-			}
-		case key.Matches(msg, m.keys.Left):
-			if m.cursor.x > 0 {
-				m.cursor.x--
-			}
-		case key.Matches(msg, m.keys.Right):
-			if m.cursor.x < m.width-1 {
-				m.cursor.x++
-			}
+		default:
+			m.cursor.Move(m.keys.CursorKeyMap, msg, m.width-1, m.height-1)
 		}
-
 	}
-	m.updateKeyBindinds()
+	m.updateKeyBindings()
 	return m, nil
 }
 
@@ -129,7 +111,7 @@ func (m Model) GetDebugInfo() string {
 			"| Grid Size | %d x %d |\n"+
 			"| Hint Widths | row: %d, col: %d |\n",
 		status,
-		m.cursor.x, m.cursor.y,
+		m.cursor.X, m.cursor.Y,
 		m.width, m.height,
 		m.rowHints.RequiredLen()*cellWidth, m.colHints.RequiredLen(),
 	)
@@ -185,6 +167,11 @@ func intSliceStr(s []int) string {
 	return result
 }
 
+func (m Model) IsSolved() bool {
+	curr := generateTomography(m.grid)
+	return curr.rows.equal(m.rowHints) && curr.cols.equal(m.colHints)
+}
+
 func (m *Model) updateTile(r rune) {
-	m.grid[m.cursor.y][m.cursor.x] = r
+	m.grid[m.cursor.Y][m.cursor.X] = r
 }

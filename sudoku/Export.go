@@ -20,11 +20,11 @@ type Save struct {
 
 func gridToString(g grid) string {
 	var b strings.Builder
-	for y := range GRIDSIZE {
-		for x := range GRIDSIZE {
+	for y := range gridSize {
+		for x := range gridSize {
 			b.WriteByte(byte('0' + g[y][x].v))
 		}
-		if y < GRIDSIZE-1 {
+		if y < gridSize-1 {
 			b.WriteByte('\n')
 		}
 	}
@@ -46,8 +46,8 @@ func ImportModel(data []byte) (*Model, error) {
 
 	// Parse save.Grid to restore user-entered values.
 	rows := strings.Split(save.Grid, "\n")
-	for y := 0; y < GRIDSIZE && y < len(rows); y++ {
-		for x := 0; x < GRIDSIZE && x < len(rows[y]); x++ {
+	for y := 0; y < gridSize && y < len(rows); y++ {
+		for x := 0; x < gridSize && x < len(rows[y]); x++ {
 			v := int(rows[y][x] - '0')
 			if v != 0 {
 				g[y][x].v = v

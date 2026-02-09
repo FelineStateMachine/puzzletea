@@ -5,6 +5,12 @@ import (
 	"github.com/charmbracelet/bubbles/list"
 )
 
+func init() {
+	game.Register("Hashiwokakero", func(data []byte) (game.Gamer, error) {
+		return ImportModel(data)
+	})
+}
+
 // HashiMode defines a hashiwokakero difficulty/configuration.
 type HashiMode struct {
 	game.BaseMode

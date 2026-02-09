@@ -1,35 +1,18 @@
 package hashiwokakero
 
 import (
+	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/charmbracelet/bubbles/key"
 )
 
 type KeyMap struct {
-	Up     key.Binding
-	Down   key.Binding
-	Left   key.Binding
-	Right  key.Binding
+	game.CursorKeyMap
 	Select key.Binding
 	Cancel key.Binding
 }
 
 var DefaultKeyMap = KeyMap{
-	Up: key.NewBinding(
-		key.WithKeys("k", "up", "w"),
-		key.WithHelp("↑/w/k", "Up"),
-	),
-	Down: key.NewBinding(
-		key.WithKeys("j", "down", "s"),
-		key.WithHelp("↓/s/j", "Down"),
-	),
-	Left: key.NewBinding(
-		key.WithKeys("h", "left", "a"),
-		key.WithHelp("←/a/h", "Left"),
-	),
-	Right: key.NewBinding(
-		key.WithKeys("l", "right", "d"),
-		key.WithHelp("→/d/l", "Right"),
-	),
+	CursorKeyMap: game.DefaultCursorKeyMap,
 	Select: key.NewBinding(
 		key.WithKeys("enter", " "),
 		key.WithHelp("enter/space", "Select"),

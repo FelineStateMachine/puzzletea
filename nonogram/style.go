@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -33,16 +34,6 @@ var (
 			Foreground(lipgloss.Color("#888888"))
 
 	hintSatisfiedStyle = baseStyle.
-				Foreground(lipgloss.Color("#00ff00"))
-
-	nonoTitleStyle = lipgloss.NewStyle().
-			Bold(true).
-			Foreground(lipgloss.Color("#ffffff")).
-			Background(lipgloss.Color("#7B2FBE")).
-			Padding(0, 1)
-
-	nonoSolvedBadgeStyle = lipgloss.NewStyle().
-				Bold(true).
 				Foreground(lipgloss.Color("#00ff00"))
 
 	nonoStatusBarStyle = lipgloss.NewStyle().
@@ -131,14 +122,14 @@ func rowHintView(r TomographyDefinition, width int, current ...TomographyDefinit
 	return s
 }
 
-func gridView(g grid, c cursor, solved bool) string {
+func gridView(g grid, c game.Cursor, solved bool) string {
 	var rows []string
 	for y, row := range g {
 		var rowBuilder []string
 		for x, cell := range row {
-			isCursor := x == c.x && y == c.y
-			inCursorRow := y == c.y
-			inCursorCol := x == c.x
+			isCursor := x == c.X && y == c.Y
+			inCursorRow := y == c.Y
+			inCursorCol := x == c.X
 			cell := tileView(cell, isCursor, inCursorRow, inCursorCol, solved)
 			rowBuilder = append(rowBuilder, cell)
 		}
@@ -175,12 +166,7 @@ func tileView(val rune, isCursor, inCursorRow, inCursorCol, solved bool) string 
 }
 
 func nonoTitleBarView(modeName string, solved bool) string {
-	title := nonoTitleStyle.Render("Nonogram  " + modeName)
-	if solved {
-		badge := nonoSolvedBadgeStyle.Render("  SOLVED")
-		return title + badge
-	}
-	return title
+	return game.TitleBarView("Nonogram", modeName, solved)
 }
 
 func nonoStatusBarView(_ KeyMap) string {

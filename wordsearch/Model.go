@@ -17,19 +17,16 @@ const (
 	startSelected
 )
 
-type cursor struct {
-	x, y int
-}
-
 type Model struct {
 	width, height  int
 	grid           grid
 	words          []Word
-	cursor         cursor
+	cursor         game.Cursor
 	selection      selectionState
-	selectionStart cursor
+	selectionStart game.Cursor
 	keys           KeyMap
-	won            bool
+	modeName       string
+	solved         bool
 }
 
 // New creates a new word search game
@@ -39,10 +36,10 @@ func New(mode WordSearchMode, g grid, words []Word) *Model {
 		height:    mode.Height,
 		grid:      g,
 		words:     words,
-		cursor:    cursor{x: 0, y: 0},
 		selection: noSelection,
 		keys:      DefaultKeyMap,
-		won:       false,
+		modeName:  mode.Title(),
+		solved:    false,
 	}
 }
 
@@ -60,26 +57,12 @@ func (m Model) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 
 func (m Model) handleKeyPress(msg tea.KeyMsg) (game.Gamer, tea.Cmd) {
 	switch {
-	case key.Matches(msg, m.keys.Up):
-		if m.cursor.y > 0 {
-			m.cursor.y--
-		}
-	case key.Matches(msg, m.keys.Down):
-		if m.cursor.y < m.height-1 {
-			m.cursor.y++
-		}
-	case key.Matches(msg, m.keys.Left):
-		if m.cursor.x > 0 {
-			m.cursor.x--
-		}
-	case key.Matches(msg, m.keys.Right):
-		if m.cursor.x < m.width-1 {
-			m.cursor.x++
-		}
 	case key.Matches(msg, m.keys.Select):
 		m.handleSelect()
 	case key.Matches(msg, m.keys.Cancel):
 		m.selection = noSelection
+	default:
+		m.cursor.Move(m.keys.CursorKeyMap, msg, m.width-1, m.height-1)
 	}
 
 	return m, nil
@@ -105,15 +88,15 @@ func (m *Model) validateSelection() {
 	dx := 0
 	dy := 0
 
-	if end.x > start.x {
+	if end.X > start.X {
 		dx = 1
-	} else if end.x < start.x {
+	} else if end.X < start.X {
 		dx = -1
 	}
 
-	if end.y > start.y {
+	if end.Y > start.Y {
 		dy = 1
-	} else if end.y < start.y {
+	} else if end.Y < start.Y {
 		dy = -1
 	}
 
@@ -123,8 +106,8 @@ func (m *Model) validateSelection() {
 	}
 
 	// Verify it's a straight line
-	distX := abs(end.x - start.x)
-	distY := abs(end.y - start.y)
+	distX := abs(end.X - start.X)
+	distY := abs(end.Y - start.Y)
 
 	if dx != 0 && dy != 0 && distX != distY {
 		return // Not a valid diagonal
@@ -148,14 +131,14 @@ func (m *Model) validateSelection() {
 	}
 }
 
-func (m *Model) extractLetters(start, end cursor, dx, dy int) string {
+func (m *Model) extractLetters(start, end game.Cursor, dx, dy int) string {
 	var letters strings.Builder
-	x, y := start.x, start.y
+	x, y := start.X, start.Y
 
 	for {
 		letters.WriteRune(m.grid.Get(x, y))
 
-		if x == end.x && y == end.y {
+		if x == end.X && y == end.Y {
 			break
 		}
 
@@ -174,7 +157,7 @@ func (m *Model) checkWin() {
 			break
 		}
 	}
-	m.won = allFound
+	m.solved = allFound
 }
 
 func (m Model) View() string {
@@ -186,15 +169,15 @@ func (m Model) GetDebugInfo() string {
 
 	sb.WriteString("# Word Search Debug\n\n")
 	sb.WriteString(fmt.Sprintf("**Grid Size:** %dx%d\n\n", m.width, m.height))
-	sb.WriteString(fmt.Sprintf("**Cursor:** (%d, %d)\n\n", m.cursor.x, m.cursor.y))
+	sb.WriteString(fmt.Sprintf("**Cursor:** (%d, %d)\n\n", m.cursor.X, m.cursor.Y))
 	sb.WriteString(fmt.Sprintf("**Selection State:** %v\n\n", m.selection))
 
 	if m.selection == startSelected {
-		sb.WriteString(fmt.Sprintf("**Selection Start:** (%d, %d)\n\n", m.selectionStart.x, m.selectionStart.y))
+		sb.WriteString(fmt.Sprintf("**Selection Start:** (%d, %d)\n\n", m.selectionStart.X, m.selectionStart.Y))
 	}
 
 	sb.WriteString(fmt.Sprintf("**Words Found:** %d/%d\n\n", m.countFoundWords(), len(m.words)))
-	sb.WriteString(fmt.Sprintf("**Won:** %v\n\n", m.won))
+	sb.WriteString(fmt.Sprintf("**Won:** %v\n\n", m.solved))
 
 	sb.WriteString("## Words\n\n")
 	sb.WriteString("| Word | Found | Start | End | Direction |\n")
@@ -222,14 +205,18 @@ func (m Model) GetSave() ([]byte, error) {
 		Height:     m.height,
 		Grid:       m.grid.String(),
 		Words:      m.words,
-		CursorX:    m.cursor.x,
-		CursorY:    m.cursor.y,
+		CursorX:    m.cursor.X,
+		CursorY:    m.cursor.Y,
 		Selection:  int(m.selection),
-		SelectionX: m.selectionStart.x,
-		SelectionY: m.selectionStart.y,
-		Won:        m.won,
+		SelectionX: m.selectionStart.X,
+		SelectionY: m.selectionStart.Y,
+		Solved:     m.solved,
 	}
 	return json.Marshal(data)
+}
+
+func (m Model) IsSolved() bool {
+	return m.solved
 }
 
 func (m Model) countFoundWords() int {

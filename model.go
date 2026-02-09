@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"strconv"
@@ -183,20 +182,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return m, nil
 				}
 				rec := m.continueGames[idx]
-				var g game.Gamer
-				var err error
-				switch rec.GameType {
-				case "Nonogram":
-					g, err = nonogram.ImportModel([]byte(rec.SaveState))
-				case "Word Search":
-					g, err = wordsearch.ImportModel([]byte(rec.SaveState))
-				case "Sudoku":
-					g, err = sudoku.ImportModel([]byte(rec.SaveState))
-				case "Hashiwokakero":
-					g, err = hashiwokakero.ImportModel([]byte(rec.SaveState))
-				default:
+				importFn, ok := game.Registry[rec.GameType]
+				if !ok {
 					return m, nil
 				}
+				g, err := importFn([]byte(rec.SaveState))
 				if err != nil {
 					log.Printf("failed to import game: %v", err)
 					return m, nil
@@ -232,7 +222,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.debug {
 			m.debuginfo = m.renderDebugInfo()
 		}
-		if !m.completionSaved && isSolvedFromSave(m.game) {
+		if !m.completionSaved && m.game.IsSolved() {
 			m.completionSaved = true
 			saveData, err := m.game.GetSave()
 			if err == nil {
@@ -267,6 +257,9 @@ func (m model) View() string {
 		}
 		return rootStyle.Render(m.continueTable.View())
 	case gameView:
+		if m.game == nil {
+			return ""
+		}
 		var debugInfo string
 		if m.debug {
 			debugInfo = debugStyle.Render(m.debuginfo)
@@ -411,27 +404,4 @@ func generateUniqueName(s *store.Store) string {
 			return name
 		}
 	}
-}
-
-// isSolvedFromSave checks whether the game's save data indicates a solved/won state.
-func isSolvedFromSave(g game.Gamer) bool {
-	data, err := g.GetSave()
-	if err != nil {
-		return false
-	}
-	var fields map[string]json.RawMessage
-	if err := json.Unmarshal(data, &fields); err != nil {
-		return false
-	}
-	for _, key := range []string{"solved", "won"} {
-		raw, ok := fields[key]
-		if !ok {
-			continue
-		}
-		var val bool
-		if json.Unmarshal(raw, &val) == nil && val {
-			return true
-		}
-	}
-	return false
 }

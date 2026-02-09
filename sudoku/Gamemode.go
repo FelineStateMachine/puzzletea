@@ -5,6 +5,12 @@ import (
 	"github.com/charmbracelet/bubbles/list"
 )
 
+func init() {
+	game.Register("Sudoku", func(data []byte) (game.Gamer, error) {
+		return ImportModel(data)
+	})
+}
+
 type SudokuMode struct {
 	game.BaseMode
 	ProvidedCount int

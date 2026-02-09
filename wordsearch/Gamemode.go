@@ -5,6 +5,12 @@ import (
 	"github.com/charmbracelet/bubbles/list"
 )
 
+func init() {
+	game.Register("Word Search", func(data []byte) (game.Gamer, error) {
+		return ImportModel(data)
+	})
+}
+
 // WordSearchMode implements game.Mode for word search puzzles
 type WordSearchMode struct {
 	game.BaseMode

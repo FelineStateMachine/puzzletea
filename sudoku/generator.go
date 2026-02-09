@@ -4,7 +4,7 @@ import "math/rand/v2"
 
 // isValid checks whether placing val at (x, y) in the grid is valid.
 func isValid(g *grid, val, x, y int) bool {
-	for i := range GRIDSIZE {
+	for i := range gridSize {
 		if i != x && g[y][i].v == val {
 			return false
 		}
@@ -25,10 +25,10 @@ func isValid(g *grid, val, x, y int) bool {
 
 // fillGrid fills an empty grid with a random valid sudoku solution using backtracking.
 func fillGrid(g *grid) bool {
-	for y := range GRIDSIZE {
-		for x := range GRIDSIZE {
+	for y := range gridSize {
+		for x := range gridSize {
 			if g[y][x].v == 0 {
-				order := rand.Perm(GRIDSIZE)
+				order := rand.Perm(gridSize)
 				for _, i := range order {
 					val := i + 1
 					if isValid(g, val, x, y) {
@@ -48,11 +48,11 @@ func fillGrid(g *grid) bool {
 
 // countSolutions counts solutions of the grid up to limit using backtracking.
 func countSolutions(g *grid, limit int) int {
-	for y := range GRIDSIZE {
-		for x := range GRIDSIZE {
+	for y := range gridSize {
+		for x := range gridSize {
 			if g[y][x].v == 0 {
 				count := 0
-				for val := 1; val <= GRIDSIZE; val++ {
+				for val := 1; val <= gridSize; val++ {
 					if isValid(g, val, x, y) {
 						g[y][x].v = val
 						count += countSolutions(g, limit-count)
@@ -77,9 +77,9 @@ func GenerateProvidedCells(m SudokuMode) []cell {
 
 	// Build shuffled list of all positions
 	type pos struct{ x, y int }
-	positions := make([]pos, 0, GRIDSIZE*GRIDSIZE)
-	for y := range GRIDSIZE {
-		for x := range GRIDSIZE {
+	positions := make([]pos, 0, gridSize*gridSize)
+	for y := range gridSize {
+		for x := range gridSize {
 			positions = append(positions, pos{x, y})
 		}
 	}
@@ -88,7 +88,7 @@ func GenerateProvidedCells(m SudokuMode) []cell {
 	})
 
 	// Iteratively remove cells, ensuring unique solution
-	filled := GRIDSIZE * GRIDSIZE
+	filled := gridSize * gridSize
 	for _, p := range positions {
 		if filled <= m.ProvidedCount {
 			break
@@ -104,8 +104,8 @@ func GenerateProvidedCells(m SudokuMode) []cell {
 
 	// Collect remaining filled cells as provided hints
 	var cells []cell
-	for y := range GRIDSIZE {
-		for x := range GRIDSIZE {
+	for y := range gridSize {
+		for x := range gridSize {
 			if g[y][x].v != 0 {
 				cells = append(cells, g[y][x])
 			}

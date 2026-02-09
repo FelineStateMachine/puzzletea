@@ -12,6 +12,7 @@ type Gamer interface {
 	GetFullHelp() [][]key.Binding
 
 	GetSave() ([]byte, error)
+	IsSolved() bool
 
 	Init() tea.Cmd
 	View() string
@@ -59,3 +60,11 @@ type Category struct {
 func (c Category) Title() string       { return c.Name }
 func (c Category) Description() string { return c.Desc }
 func (c Category) FilterValue() string { return c.Name }
+
+// Registry maps game type names to their import functions.
+var Registry = map[string]func([]byte) (Gamer, error){}
+
+// Register adds an import function for a game type to the registry.
+func Register(name string, fn func([]byte) (Gamer, error)) {
+	Registry[name] = fn
+}

@@ -1,42 +1,19 @@
 package nonogram
 
 import (
+	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/charmbracelet/bubbles/key"
 )
 
-type CursorKeyMap struct {
-	Up    key.Binding
-	Down  key.Binding
-	Left  key.Binding
-	Right key.Binding
-}
-
 type KeyMap struct {
-	CursorKeyMap
+	game.CursorKeyMap
 	FillTile  key.Binding
 	MarkTile  key.Binding
 	ClearTile key.Binding
 }
 
 var DefaultKeyMap = KeyMap{
-	CursorKeyMap: CursorKeyMap{
-		Up: key.NewBinding(
-			key.WithKeys("k", "up", "w"),
-			key.WithHelp("↑/w/k", "Up"),
-		),
-		Down: key.NewBinding(
-			key.WithKeys("j", "down", "s"),
-			key.WithHelp("↓/s/j", "Down"),
-		),
-		Left: key.NewBinding(
-			key.WithKeys("h", "left", "a"),
-			key.WithHelp("←/a/h", "Left"),
-		),
-		Right: key.NewBinding(
-			key.WithKeys("l", "right", "d"),
-			key.WithHelp("→/d/l", "Right"),
-		),
-	},
+	CursorKeyMap: game.DefaultCursorKeyMap,
 
 	FillTile: key.NewBinding(
 		key.WithKeys("z"),
@@ -52,13 +29,13 @@ var DefaultKeyMap = KeyMap{
 	),
 }
 
-func (m *Model) updateKeyBindinds() {
-	m.keys.Up.SetEnabled(m.cursor.y > 0)
-	m.keys.Down.SetEnabled(m.cursor.y < m.height-1)
-	m.keys.Left.SetEnabled(m.cursor.x > 0)
-	m.keys.Right.SetEnabled(m.cursor.x < m.width-1)
+func (m *Model) updateKeyBindings() {
+	m.keys.Up.SetEnabled(m.cursor.Y > 0)
+	m.keys.Down.SetEnabled(m.cursor.Y < m.height-1)
+	m.keys.Left.SetEnabled(m.cursor.X > 0)
+	m.keys.Right.SetEnabled(m.cursor.X < m.width-1)
 
-	cursorVal := m.grid[m.cursor.y][m.cursor.x]
+	cursorVal := m.grid[m.cursor.Y][m.cursor.X]
 	switch cursorVal {
 	case filledTile:
 		m.keys.FillTile.SetEnabled(false)
