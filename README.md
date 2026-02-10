@@ -8,13 +8,25 @@ Five puzzle types, multiple difficulty modes, save/load persistence, and a plugi
 
 | Game | Description | Modes |
 |------|-------------|-------|
-| **Nonogram** | Fill cells to match row and column hints | Easy (5x5), Medium (10x10), Hard (15x15), Extra (5x10) |
+| **Nonogram** | Fill cells to match row and column hints | Easy/Medium/Hard across 5x5, 10x10, 15x15, 20x20 |
 | **Sudoku** | Classic 9x9 grid | Beginner, Easy, Medium, Hard, Expert, Diabolical |
 | **Word Search** | Find hidden words in a letter grid | Easy, Medium, Hard (3-8 directions) |
 | **Hashiwokakero** | Connect islands with bridges | 12 modes across 7x7 to 13x13 grids |
 | **Lights Out** | Toggle lights to turn all off | Easy (3x3) to Extreme (9x9) |
 
 ## Install
+
+### Homebrew (macOS / Linux)
+
+```bash
+brew install FelineStateMachine/homebrew-tap/puzzletea
+```
+
+### WinGet (Windows)
+
+```powershell
+winget install FelineStateMachine.puzzletea
+```
 
 ### From release binaries
 
