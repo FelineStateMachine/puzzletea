@@ -35,6 +35,7 @@ func fillGrid(g grid, size int) bool {
 }
 
 // canPlace checks whether placing val at (x,y) would violate Takuzu constraints.
+// It temporarily mutates g[y][x] to test row/column uniqueness, then restores it.
 func canPlace(g grid, size, x, y int, val rune) bool {
 	// Check no three consecutive in row.
 	if x >= 2 && g[y][x-1] == val && g[y][x-2] == val {
@@ -195,6 +196,42 @@ func countSolutions(g grid, size, limit int) int {
 	return 0
 }
 
+// checkConstraints verifies no-triples and equal-count rules for every row and column.
+func checkConstraints(g grid, size int) bool {
+	half := size / 2
+	for i := range size {
+		zeroRow, oneRow := 0, 0
+		zeroCol, oneCol := 0, 0
+		for j := range size {
+			switch g[i][j] {
+			case zeroCell:
+				zeroRow++
+			case oneCell:
+				oneRow++
+			}
+			switch g[j][i] {
+			case zeroCell:
+				zeroCol++
+			case oneCell:
+				oneCol++
+			}
+			if j >= 2 && g[i][j] == g[i][j-1] && g[i][j] == g[i][j-2] {
+				return false
+			}
+			if j >= 2 && g[j][i] == g[j-1][i] && g[j][i] == g[j-2][i] {
+				return false
+			}
+		}
+		if zeroRow != half || oneRow != half {
+			return false
+		}
+		if zeroCol != half || oneCol != half {
+			return false
+		}
+	}
+	return true
+}
+
 // hasUniqueLines checks that all rows are unique and all columns are unique.
 func hasUniqueLines(g grid, size int) bool {
 	// Check rows.
@@ -217,6 +254,9 @@ func hasUniqueLines(g grid, size int) bool {
 }
 
 func rowEqual(a, b []rune) bool {
+	if len(a) != len(b) {
+		return false
+	}
 	for i := range a {
 		if a[i] != b[i] {
 			return false

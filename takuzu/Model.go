@@ -88,56 +88,15 @@ func (m Model) IsSolved() bool {
 }
 
 func (m Model) checkSolved() bool {
-	size := m.size
-	half := size / 2
-
 	// All cells must be filled.
-	for y := range size {
-		for x := range size {
+	for y := range m.size {
+		for x := range m.size {
 			if m.grid[y][x] == emptyCell {
 				return false
 			}
 		}
 	}
-
-	for i := range size {
-		zeroRow, oneRow := 0, 0
-		zeroCol, oneCol := 0, 0
-		for j := range size {
-			// Count in row.
-			switch m.grid[i][j] {
-			case zeroCell:
-				zeroRow++
-			case oneCell:
-				oneRow++
-			}
-			// Count in column.
-			switch m.grid[j][i] {
-			case zeroCell:
-				zeroCol++
-			case oneCell:
-				oneCol++
-			}
-
-			// Check no three consecutive in row.
-			if j >= 2 && m.grid[i][j] == m.grid[i][j-1] && m.grid[i][j] == m.grid[i][j-2] {
-				return false
-			}
-			// Check no three consecutive in column.
-			if j >= 2 && m.grid[j][i] == m.grid[j-1][i] && m.grid[j][i] == m.grid[j-2][i] {
-				return false
-			}
-		}
-		if zeroRow != half || oneRow != half {
-			return false
-		}
-		if zeroCol != half || oneCol != half {
-			return false
-		}
-	}
-
-	// Unique rows and columns.
-	return hasUniqueLines(m.grid, size)
+	return checkConstraints(m.grid, m.size) && hasUniqueLines(m.grid, m.size)
 }
 
 func (m Model) GetDebugInfo() string {
