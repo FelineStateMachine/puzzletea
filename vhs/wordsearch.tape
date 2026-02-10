@@ -5,6 +5,8 @@ Set Width 854
 Set Height 480
 Set Padding 40
 
+Env COLORTERM "truecolor"
+
 Hide
 Type "go build -o puzzletea"
 Enter
