@@ -36,21 +36,35 @@ type Puzzle struct {
 	Width, Height int
 	Islands       []Island
 	Bridges       []Bridge
-	cellCache     [][]cellInfo // lazily built, invalidated on bridge changes
+	cellCache     [][]cellInfo   // lazily built, invalidated on bridge changes
+	posIndex      map[[2]int]int // (x,y) → island slice index; lazily built
+	bridgeCounts  []int          // per-island bridge count; lazily built
 }
 
 // FindIslandAt returns the island at (x,y), or nil.
 func (p *Puzzle) FindIslandAt(x, y int) *Island {
-	for i := range p.Islands {
-		if p.Islands[i].X == x && p.Islands[i].Y == y {
-			return &p.Islands[i]
-		}
+	if p.posIndex == nil {
+		p.buildPosIndex()
+	}
+	if idx, ok := p.posIndex[[2]int{x, y}]; ok {
+		return &p.Islands[idx]
 	}
 	return nil
 }
 
+func (p *Puzzle) buildPosIndex() {
+	p.posIndex = make(map[[2]int]int, len(p.Islands))
+	for i, isl := range p.Islands {
+		p.posIndex[[2]int{isl.X, isl.Y}] = i
+	}
+}
+
 // FindIslandByID returns the island with the given ID, or nil.
 func (p *Puzzle) FindIslandByID(id int) *Island {
+	if id >= 0 && id < len(p.Islands) && p.Islands[id].ID == id {
+		return &p.Islands[id]
+	}
+	// Fallback for non-sequential IDs
 	for i := range p.Islands {
 		if p.Islands[i].ID == id {
 			return &p.Islands[i]
@@ -75,13 +89,25 @@ func (p *Puzzle) GetBridge(id1, id2 int) *Bridge {
 
 // BridgeCount returns the total number of bridges connected to an island.
 func (p *Puzzle) BridgeCount(islandID int) int {
-	count := 0
+	if p.bridgeCounts == nil {
+		p.buildBridgeCounts()
+	}
+	if islandID >= 0 && islandID < len(p.bridgeCounts) {
+		return p.bridgeCounts[islandID]
+	}
+	return 0
+}
+
+func (p *Puzzle) buildBridgeCounts() {
+	p.bridgeCounts = make([]int, len(p.Islands))
 	for _, b := range p.Bridges {
-		if b.Island1 == islandID || b.Island2 == islandID {
-			count += b.Count
+		if b.Island1 >= 0 && b.Island1 < len(p.bridgeCounts) {
+			p.bridgeCounts[b.Island1] += b.Count
+		}
+		if b.Island2 >= 0 && b.Island2 < len(p.bridgeCounts) {
+			p.bridgeCounts[b.Island2] += b.Count
 		}
 	}
-	return count
 }
 
 // FindAdjacentIsland casts a ray from the island at fromID in direction (dx,dy)
@@ -236,42 +262,48 @@ func (p *Puzzle) rebuildCellCache() {
 	p.cellCache = cache
 }
 
-// invalidateCache marks the cell cache as stale.
+// invalidateCache marks all lazy caches as stale.
 func (p *Puzzle) invalidateCache() {
 	p.cellCache = nil
+	p.posIndex = nil
+	p.bridgeCounts = nil
 }
 
 // IsConnected checks if all islands form a single connected component via bridges.
 func (p *Puzzle) IsConnected() bool {
-	if len(p.Islands) <= 1 {
+	n := len(p.Islands)
+	if n <= 1 {
 		return true
 	}
 	if len(p.Bridges) == 0 {
 		return false
 	}
 
-	visited := make(map[int]bool)
+	// Build adjacency list from bridges
+	adj := make(map[int][]int, n)
+	for _, b := range p.Bridges {
+		adj[b.Island1] = append(adj[b.Island1], b.Island2)
+		adj[b.Island2] = append(adj[b.Island2], b.Island1)
+	}
+
+	visited := make([]bool, n)
 	queue := []int{p.Islands[0].ID}
+	visited[p.Islands[0].ID] = true
+	count := 1
 
 	for len(queue) > 0 {
 		cur := queue[0]
 		queue = queue[1:]
-		if visited[cur] {
-			continue
-		}
-		visited[cur] = true
-
-		for _, b := range p.Bridges {
-			if b.Island1 == cur && !visited[b.Island2] {
-				queue = append(queue, b.Island2)
-			}
-			if b.Island2 == cur && !visited[b.Island1] {
-				queue = append(queue, b.Island1)
+		for _, nb := range adj[cur] {
+			if !visited[nb] {
+				visited[nb] = true
+				count++
+				queue = append(queue, nb)
 			}
 		}
 	}
 
-	return len(visited) == len(p.Islands)
+	return count == n
 }
 
 // IsSolved returns true if the puzzle is completely and correctly solved.

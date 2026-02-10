@@ -12,7 +12,6 @@ type Save struct {
 	CursorX   int      `json:"cx"`
 	CursorY   int      `json:"cy"`
 	ModeTitle string   `json:"mode_title"`
-	Solved    bool     `json:"solved"`
 }
 
 func (m Model) GetSave() ([]byte, error) {
@@ -21,7 +20,6 @@ func (m Model) GetSave() ([]byte, error) {
 		CursorX:   m.cursor.X,
 		CursorY:   m.cursor.Y,
 		ModeTitle: m.modeTitle,
-		Solved:    m.IsSolved(),
 	}
 	jsonData, err := json.Marshal(save)
 	if err != nil {

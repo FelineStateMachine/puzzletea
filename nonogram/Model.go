@@ -17,6 +17,8 @@ const (
 	emptyTile  = ' '
 )
 
+var _ game.Gamer = Model{}
+
 type Model struct {
 	width, height int
 	rowHints      TomographyDefinition

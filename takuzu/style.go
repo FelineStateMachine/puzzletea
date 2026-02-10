@@ -26,6 +26,7 @@ var (
 			Background(lipgloss.AdaptiveColor{Light: "130", Dark: "214"})
 
 	crosshairBG = lipgloss.AdaptiveColor{Light: "254", Dark: "237"}
+	solvedBG    = lipgloss.AdaptiveColor{Light: "151", Dark: "22"}
 
 	gridBorderStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
@@ -38,9 +39,11 @@ var (
 	statusBarStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.AdaptiveColor{Light: "244", Dark: "244"}).
 			MarginTop(1)
+)
 
-	cellWidth = 3
+const cellWidth = 3
 
+var (
 	renderStyleMap = map[rune]lipgloss.Style{
 		zeroCell:  zeroStyle,
 		oneCell:   oneStyle,
@@ -71,7 +74,7 @@ func cellView(val rune, isProvided, isCursor, inCursorRow, inCursorCol, solved b
 	}
 
 	if solved {
-		s = s.Background(lipgloss.AdaptiveColor{Light: "151", Dark: "22"})
+		s = s.Background(solvedBG)
 	}
 
 	r, ok := renderRuneMap[val]

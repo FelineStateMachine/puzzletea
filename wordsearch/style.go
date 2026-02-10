@@ -92,10 +92,8 @@ func getCellStyle(m Model, x, y int) lipgloss.Style {
 	}
 
 	// Check if part of found word
-	for _, word := range m.words {
-		if word.Found && word.Contains(Position{X: x, Y: y}) {
-			return foundStyle
-		}
+	if m.foundCells[y][x] {
+		return foundStyle
 	}
 
 	return normalStyle

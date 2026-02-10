@@ -38,7 +38,9 @@ var (
 	statusBarStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.AdaptiveColor{Light: "244", Dark: "244"}).
 			MarginTop(1)
+)
 
+const (
 	cellWidth  = 4
 	cellHeight = 2
 )

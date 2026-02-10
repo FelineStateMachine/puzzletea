@@ -6,7 +6,6 @@ import (
 )
 
 type Save struct {
-	Solved  bool     `json:"solved"`
 	Width   int      `json:"width"`
 	Height  int      `json:"height"`
 	Islands []Island `json:"islands"`
@@ -38,7 +37,6 @@ func ImportModel(data []byte) (*Model, error) {
 
 func (m Model) GetSave() ([]byte, error) {
 	save := Save{
-		Solved:  m.puzzle.IsSolved(),
 		Width:   m.puzzle.Width,
 		Height:  m.puzzle.Height,
 		Islands: m.puzzle.Islands,
@@ -46,7 +44,7 @@ func (m Model) GetSave() ([]byte, error) {
 	}
 	jsonData, err := json.Marshal(save)
 	if err != nil {
-		return nil, fmt.Errorf("unable to marshal save data: %v", err)
+		return nil, fmt.Errorf("unable to marshal save data: %w", err)
 	}
 	return jsonData, nil
 }

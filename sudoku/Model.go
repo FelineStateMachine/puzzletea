@@ -3,7 +3,6 @@ package sudoku
 
 import (
 	"fmt"
-	"slices"
 	"strconv"
 
 	"github.com/FelineStateMachine/puzzletea/game"
@@ -14,22 +13,34 @@ import (
 
 const gridSize = 9
 
+var _ game.Gamer = Model{}
+
 type Model struct {
 	cursor       game.Cursor
 	grid         grid
 	provided     []cell
+	providedGrid [gridSize][gridSize]bool
 	keys         KeyMap
 	modeTitle    string
 	showFullHelp bool
 }
 
+func buildProvidedGrid(provided []cell) [gridSize][gridSize]bool {
+	var pg [gridSize][gridSize]bool
+	for _, c := range provided {
+		pg[c.y][c.x] = true
+	}
+	return pg
+}
+
 func New(mode SudokuMode, provided []cell) (game.Gamer, error) {
 	g := newGrid(provided)
 	m := Model{
-		grid:      g,
-		provided:  provided,
-		keys:      DefaultKeyMap,
-		modeTitle: mode.Title(),
+		grid:         g,
+		provided:     provided,
+		providedGrid: buildProvidedGrid(provided),
+		keys:         DefaultKeyMap,
+		modeTitle:    mode.Title(),
 	}
 	return m, nil
 }
@@ -70,17 +81,18 @@ func (m Model) IsSolved() bool {
 }
 
 func (m *Model) updateCell(v int) {
-	c := &m.grid[m.cursor.Y][m.cursor.X]
-	if slices.Contains(m.provided, *c) {
+	if m.providedGrid[m.cursor.Y][m.cursor.X] {
 		return
 	}
-	c.v = v
+	m.grid[m.cursor.Y][m.cursor.X].v = v
 }
 
 // View implements game.Gamer.
 func (m Model) View() string {
-	title := game.TitleBarView("Sudoku", m.modeTitle, m.isSolved())
-	grid := renderGrid(m)
+	conflicts := computeConflicts(m.grid)
+	solved := isSolvedWith(m.grid, conflicts)
+	title := game.TitleBarView("Sudoku", m.modeTitle, solved)
+	grid := renderGrid(m, solved, conflicts)
 	status := statusBarView(m.showFullHelp)
 
 	return lipgloss.JoinVertical(lipgloss.Left, title, grid, status)
@@ -90,7 +102,7 @@ func (m Model) View() string {
 func (m Model) GetDebugInfo() string {
 	conflicts := computeConflicts(m.grid)
 	cursorCell := m.grid[m.cursor.Y][m.cursor.X]
-	isProvided := slices.Contains(m.provided, cursorCell)
+	isProvided := m.providedGrid[m.cursor.Y][m.cursor.X]
 	conflict := conflicts[m.cursor.Y][m.cursor.X]
 	solved := m.isSolved()
 

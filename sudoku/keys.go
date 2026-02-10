@@ -34,13 +34,7 @@ func (m *Model) updateKeyBindings() {
 }
 
 func (m Model) IsProvidedCell() bool {
-	v := false
-	for _, hint := range m.provided {
-		if m.cursor.X == hint.x && m.cursor.Y == hint.y {
-			v = true
-		}
-	}
-	return v
+	return m.providedGrid[m.cursor.Y][m.cursor.X]
 }
 
 // GetFullHelp implements game.Gamer.

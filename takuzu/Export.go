@@ -14,7 +14,6 @@ type Save struct {
 	State     string `json:"state"`
 	Provided  string `json:"provided"`
 	ModeTitle string `json:"mode_title"`
-	Solved    bool   `json:"solved"`
 }
 
 func (m Model) GetSave() ([]byte, error) {
@@ -23,7 +22,6 @@ func (m Model) GetSave() ([]byte, error) {
 		State:     m.grid.String(),
 		Provided:  serializeProvided(m.provided),
 		ModeTitle: m.modeTitle,
-		Solved:    m.solved,
 	}
 	data, err := json.Marshal(save)
 	if err != nil {
