@@ -22,6 +22,12 @@ Five puzzle types, multiple difficulty modes, save/load persistence, and a plugi
 brew install FelineStateMachine/homebrew-tap/puzzletea
 ```
 
+### AUR (Arch Linux)
+
+```bash
+yay -S puzzletea
+```
+
 ### WinGet (Windows)
 
 ```powershell
