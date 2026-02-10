@@ -15,6 +15,7 @@ Five puzzle types, multiple difficulty modes, save/load persistence, and a plugi
 | **Word Search** | Find hidden words in a letter grid | Easy, Medium, Hard (3-8 directions) |
 | **Hashiwokakero** | Connect islands with bridges | 12 modes across 7x7 to 13x13 grids |
 | **Lights Out** | Toggle lights to turn all off | Easy (3x3) to Extreme (9x9) |
+| **Takuzu** | Fill grid with two symbols (●/○) | 7 modes from 6x6 to 14x14 |
 
 ## Previews
 
@@ -52,6 +53,13 @@ Toggle lights to turn all off.
 ![Lights Out](vhs/lightsout.gif)
 
 [Game details and controls](lightsout/README.md)
+
+### Takuzu
+Fill the grid with two symbols following three simple rules.
+
+![Takuzu](vhs/takuzu.gif)
+
+[Game details and controls](takuzu/README.md)
 
 ## Install
 
