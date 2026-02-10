@@ -81,6 +81,46 @@ func canPlace(g grid, size, x, y int, val rune) bool {
 		return false
 	}
 
+	// If this placement would complete the row, check uniqueness against other complete rows.
+	g[y][x] = val
+	if rowFilled(g, y, size) {
+		for other := range size {
+			if other != y && rowFilled(g, other, size) && rowEqual(g[y], g[other]) {
+				g[y][x] = emptyCell
+				return false
+			}
+		}
+	}
+
+	// If this placement would complete the column, check uniqueness against other complete columns.
+	if colFilled(g, x, size) {
+		for other := range size {
+			if other != x && colFilled(g, other, size) && colEqual(g, size, x, other) {
+				g[y][x] = emptyCell
+				return false
+			}
+		}
+	}
+	g[y][x] = emptyCell
+
+	return true
+}
+
+func rowFilled(g grid, y, size int) bool {
+	for x := range size {
+		if g[y][x] == emptyCell {
+			return false
+		}
+	}
+	return true
+}
+
+func colFilled(g grid, x, size int) bool {
+	for y := range size {
+		if g[y][x] == emptyCell {
+			return false
+		}
+	}
 	return true
 }
 
