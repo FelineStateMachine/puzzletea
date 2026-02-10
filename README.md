@@ -4,6 +4,8 @@ A terminal-based puzzle game collection built with [Bubble Tea](https://github.c
 
 Five puzzle types, multiple difficulty modes, save/load persistence, and a plugin architecture for adding new games.
 
+![PuzzleTea menu](vhs/menu.gif)
+
 ## Games
 
 | Game | Description | Modes |
@@ -13,6 +15,43 @@ Five puzzle types, multiple difficulty modes, save/load persistence, and a plugi
 | **Word Search** | Find hidden words in a letter grid | Easy, Medium, Hard (3-8 directions) |
 | **Hashiwokakero** | Connect islands with bridges | 12 modes across 7x7 to 13x13 grids |
 | **Lights Out** | Toggle lights to turn all off | Easy (3x3) to Extreme (9x9) |
+
+## Previews
+
+### Nonogram
+Fill cells to match row and column hints.
+
+![Nonogram](vhs/nonogram.gif)
+
+[Game details and controls](nonogram/README.md)
+
+### Sudoku
+Classic 9x9 number placement puzzle.
+
+![Sudoku](vhs/sudoku.gif)
+
+[Game details and controls](sudoku/README.md)
+
+### Word Search
+Find hidden words in a letter grid.
+
+![Word Search](vhs/wordsearch.gif)
+
+[Game details and controls](wordsearch/README.md)
+
+### Hashiwokakero
+Connect islands with bridges.
+
+![Hashiwokakero](vhs/hashiwokakero.gif)
+
+[Game details and controls](hashiwokakero/README.md)
+
+### Lights Out
+Toggle lights to turn all off.
+
+![Lights Out](vhs/lightsout.gif)
+
+[Game details and controls](lightsout/README.md)
 
 ## Install
 
