@@ -40,9 +40,16 @@ func (t TakuzuMode) Spawn() (game.Gamer, error) {
 }
 
 // Modes defines the available difficulty levels.
+// Difficulty is controlled by two axes: grid size and clue density.
+// Smaller grids with more clues need only basic pattern recognition (doubles,
+// sandwich patterns). Larger grids with fewer clues require counting, uniqueness
+// elimination, and deeper chains of deduction.
 var Modes = []list.Item{
-	NewMode("Easy", "6×6 grid, ~50% clues.", 6, 0.50),
-	NewMode("Medium", "8×8 grid, ~40% clues.", 8, 0.40),
-	NewMode("Hard", "10×10 grid, ~35% clues.", 10, 0.35),
-	NewMode("Expert", "12×12 grid, ~30% clues.", 12, 0.30),
+	NewMode("Beginner", "6×6 grid, ~50% clues. Doubles and sandwich patterns.", 6, 0.50),
+	NewMode("Easy", "6×6 grid, ~40% clues. Counting required.", 6, 0.40),
+	NewMode("Medium", "8×8 grid, ~40% clues. Larger grid, moderate deduction.", 8, 0.40),
+	NewMode("Tricky", "10×10 grid, ~38% clues. Uniqueness rule needed.", 10, 0.38),
+	NewMode("Hard", "10×10 grid, ~32% clues. Long deduction chains.", 10, 0.32),
+	NewMode("Very Hard", "12×12 grid, ~30% clues. Deep logic required.", 12, 0.30),
+	NewMode("Extreme", "14×14 grid, ~28% clues. Maximum challenge.", 14, 0.28),
 }
