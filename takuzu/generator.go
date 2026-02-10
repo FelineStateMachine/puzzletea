@@ -35,7 +35,6 @@ func fillGrid(g grid, size int) bool {
 }
 
 // canPlace checks whether placing val at (x,y) would violate Takuzu constraints.
-// It temporarily mutates g[y][x] to test row/column uniqueness, then restores it.
 func canPlace(g grid, size, x, y int, val rune) bool {
 	// Check no three consecutive in row.
 	if x >= 2 && g[y][x-1] == val && g[y][x-2] == val {
@@ -83,27 +82,75 @@ func canPlace(g grid, size, x, y int, val rune) bool {
 	}
 
 	// If this placement would complete the row, check uniqueness against other complete rows.
-	g[y][x] = val
-	if rowFilled(g, y, size) {
+	// The cell at (x,y) is empty, so the row is complete iff every other cell is filled.
+	if rowFilledExcept(g, y, x, size) {
 		for other := range size {
-			if other != y && rowFilled(g, other, size) && rowEqual(g[y], g[other]) {
-				g[y][x] = emptyCell
+			if other != y && rowFilled(g, other, size) && rowEqualWith(g[y], g[other], x, val) {
 				return false
 			}
 		}
 	}
 
 	// If this placement would complete the column, check uniqueness against other complete columns.
-	if colFilled(g, x, size) {
+	if colFilledExcept(g, x, y, size) {
 		for other := range size {
-			if other != x && colFilled(g, other, size) && colEqual(g, size, x, other) {
-				g[y][x] = emptyCell
+			if other != x && colFilled(g, other, size) && colEqualWith(g, size, x, other, y, val) {
 				return false
 			}
 		}
 	}
-	g[y][x] = emptyCell
 
+	return true
+}
+
+// rowFilledExcept returns true if every cell in row y is filled except column skip.
+func rowFilledExcept(g grid, y, skip, size int) bool {
+	for x := range size {
+		if x != skip && g[y][x] == emptyCell {
+			return false
+		}
+	}
+	return true
+}
+
+// colFilledExcept returns true if every cell in column x is filled except row skip.
+func colFilledExcept(g grid, x, skip, size int) bool {
+	for y := range size {
+		if y != skip && g[y][x] == emptyCell {
+			return false
+		}
+	}
+	return true
+}
+
+// rowEqualWith compares rows a and b, treating a[overrideIdx] as overrideVal.
+func rowEqualWith(a, b []rune, overrideIdx int, overrideVal rune) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		av := a[i]
+		if i == overrideIdx {
+			av = overrideVal
+		}
+		if av != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// colEqualWith compares columns c1 and c2, treating g[overrideRow][c1] as overrideVal.
+func colEqualWith(g grid, size, c1, c2, overrideRow int, overrideVal rune) bool {
+	for r := range size {
+		v1 := g[r][c1]
+		if r == overrideRow {
+			v1 = overrideVal
+		}
+		if v1 != g[r][c2] {
+			return false
+		}
+	}
 	return true
 }
 
