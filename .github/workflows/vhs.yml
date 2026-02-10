@@ -1,0 +1,63 @@
+name: VHS GIFs
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "vhs/*.tape"
+
+permissions:
+  contents: write
+
+jobs:
+  generate-gifs:
+    name: Generate GIFs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+
+      - name: Build binary
+        run: go build -ldflags "-X main.version=${{ github.ref_name }}" -o puzzletea
+
+      - uses: charmbracelet/vhs-action@v2
+        with:
+          path: "vhs/menu.tape"
+
+      - uses: charmbracelet/vhs-action@v2
+        with:
+          path: "vhs/nonogram.tape"
+
+      - uses: charmbracelet/vhs-action@v2
+        with:
+          path: "vhs/sudoku.tape"
+
+      - uses: charmbracelet/vhs-action@v2
+        with:
+          path: "vhs/wordsearch.tape"
+
+      - uses: charmbracelet/vhs-action@v2
+        with:
+          path: "vhs/hashiwokakero.tape"
+
+      - uses: charmbracelet/vhs-action@v2
+        with:
+          path: "vhs/lightsout.tape"
+
+      - name: Commit updated GIFs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add vhs/*.gif
+          if git diff --cached --quiet; then
+            echo "No GIF changes to commit"
+          else
+            git commit -m "chore: regenerate VHS GIFs"
+            git push
+          fi

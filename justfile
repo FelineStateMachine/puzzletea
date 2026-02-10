@@ -33,3 +33,12 @@ install:
 clean:
     rm -f puzzletea
     rm -rf dist
+
+# Generate VHS GIFs (requires vhs: https://github.com/charmbracelet/vhs).
+vhs: build
+    vhs vhs/menu.tape
+    vhs vhs/nonogram.tape
+    vhs vhs/sudoku.tape
+    vhs vhs/wordsearch.tape
+    vhs vhs/hashiwokakero.tape
+    vhs vhs/lightsout.tape
