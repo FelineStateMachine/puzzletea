@@ -6,6 +6,7 @@ Set Height 480
 Set Padding 40
 
 Env COLORTERM "truecolor"
+Env CLICOLOR_FORCE "1"
 
 Hide
 Type "go build -o puzzletea"
