@@ -18,13 +18,14 @@ func normalize(s string) string {
 
 // categoryAliases maps short or alternate names to canonical category names.
 var categoryAliases = map[string]string{
-	"hashi":    "hashiwokakero",
-	"bridges":  "hashiwokakero",
-	"lights":   "lights out",
-	"nonogram": "nonogram",
-	"sudoku":   "sudoku",
-	"words":    "word search",
-	"ws":       "word search",
+	"hashi":      "hashiwokakero",
+	"bridges":    "hashiwokakero",
+	"lights":     "lights out",
+	"nonogram":   "nonogram",
+	"sudoku":     "sudoku",
+	"words":      "word search",
+	"wordsearch": "word search",
+	"ws":         "word search",
 }
 
 // resolveCategory finds a game category by name (case-insensitive,

@@ -17,7 +17,7 @@ Sleep 2s
 Ctrl+L
 Show
 
-Type "./puzzletea new wordsearch easy-10x10"
+Type "./puzzletea new word-search easy-10x10"
 Sleep 500ms
 Enter
 Sleep 2s

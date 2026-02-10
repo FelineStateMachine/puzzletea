@@ -37,7 +37,7 @@ The puzzle is solved when all words are found.
 ## Quick Start
 
 ```bash
-puzzletea new wordsearch easy-10x10
-puzzletea new wordsearch medium-15x15
-puzzletea new wordsearch hard-20x20
+puzzletea new word-search easy-10x10
+puzzletea new word-search medium-15x15
+puzzletea new word-search hard-20x20
 ```
