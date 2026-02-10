@@ -4,6 +4,7 @@ Set FontSize 13
 Set Width 854
 Set Height 480
 Set Padding 40
+Set Theme "Catppuccin Mocha"
 
 Env COLORTERM "truecolor"
 Env CLICOLOR_FORCE "1"
