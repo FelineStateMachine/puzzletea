@@ -13,6 +13,7 @@ import (
 	"github.com/FelineStateMachine/puzzletea/nonogram"
 	"github.com/FelineStateMachine/puzzletea/store"
 	"github.com/FelineStateMachine/puzzletea/sudoku"
+	"github.com/FelineStateMachine/puzzletea/takuzu"
 	"github.com/FelineStateMachine/puzzletea/wordsearch"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/table"
@@ -38,6 +39,7 @@ var (
 		game.Category{Name: "Lights Out", Desc: "Turn off all the lights.", Modes: lightsout.Modes},
 		game.Category{Name: "Nonogram", Desc: "Fill cells to match row and column hints.", Modes: nonogram.Modes},
 		game.Category{Name: "Sudoku", Desc: "Fill the 9x9 grid following sudoku rules.", Modes: sudoku.Modes},
+		game.Category{Name: "Takuzu", Desc: "Fill the grid with ● and ○.", Modes: takuzu.Modes},
 		game.Category{Name: "Word Search", Desc: "Find hidden words in a letter grid.", Modes: wordsearch.Modes},
 	}
 )
