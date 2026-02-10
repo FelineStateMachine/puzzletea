@@ -91,7 +91,11 @@ Save/load uses `game.Registry` — each package registers its import function vi
 4. Export a `Modes` variable (`[]list.Item`) listing available difficulties
 5. Implement `game.Gamer` on a `Model` struct
 6. Register the import function in an `init()`: `game.Register("My Puzzle", func(data []byte) (game.Gamer, error) { ... })`
-7. Add the category to `GameCategories` in `model.go`
+7. Add the category to `GameCategories` in `model.go` (maintain alphabetical order)
+8. Add aliases to `categoryAliases` in `resolve.go`
+9. Create a `README.md` in the package directory (see existing games for format)
+10. Create a VHS tape file in `vhs/<game>.tape` (see VHS Tape Files section)
+11. Add a one-line entry to "Current Implementations" below
 
 Each package follows a consistent file structure:
 - `Gamemode.go`: Mode struct, `NewMode()`, `Spawn()`, `Modes` var, `init()` with `game.Register()`
@@ -109,6 +113,7 @@ Each package follows a consistent file structure:
 - **Sudoku** (`sudoku/`): Classic 9x9 with configurable provided cells. Uses `cell` type with provided/user-entered distinction.
 - **Hashiwokakero** (`hashiwokakero/`): Connect islands with bridges (1 or 2). Navigation mode and bridge mode. Victory requires all islands satisfied and connected.
 - **Lights Out** (`lightsout/`): Toggle lights in a cross pattern to turn all off. Grid sizes from 3x3 to 9x9.
+- **Takuzu** (`takuzu/`): Fill grid with two symbols (● and ○). No triples, equal counts, unique lines. Grid sizes from 6x6 to 14x14.
 
 ### Supporting Packages
 

@@ -13,6 +13,7 @@ import (
 	"github.com/FelineStateMachine/puzzletea/nonogram"
 	"github.com/FelineStateMachine/puzzletea/store"
 	"github.com/FelineStateMachine/puzzletea/sudoku"
+	"github.com/FelineStateMachine/puzzletea/takuzu"
 	"github.com/FelineStateMachine/puzzletea/wordsearch"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/table"
@@ -38,6 +39,7 @@ var (
 		game.Category{Name: "Lights Out", Desc: "Turn off all the lights.", Modes: lightsout.Modes},
 		game.Category{Name: "Nonogram", Desc: "Fill cells to match row and column hints.", Modes: nonogram.Modes},
 		game.Category{Name: "Sudoku", Desc: "Fill the 9x9 grid following sudoku rules.", Modes: sudoku.Modes},
+		game.Category{Name: "Takuzu", Desc: "Fill the grid with ● and ○.", Modes: takuzu.Modes},
 		game.Category{Name: "Word Search", Desc: "Find hidden words in a letter grid.", Modes: wordsearch.Modes},
 	}
 )
@@ -78,6 +80,9 @@ type model struct {
 
 	mode game.Mode
 	game game.Gamer
+
+	width  int // available content width (terminal - rootStyle frame)
+	height int // available content height (terminal - rootStyle frame)
 
 	debug         bool
 	debugRenderer *glamour.TermRenderer
@@ -131,10 +136,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		h, v := rootStyle.GetFrameSize()
 		w, ht := msg.Width-h, msg.Height-v
-		m.mainMenuList.SetSize(w, ht)
-		m.gameSelectList.SetSize(w, ht)
+		m.width = w
+		m.height = ht
+		menuW, menuH := min(w, 64), min(ht, 24)
+		m.mainMenuList.SetSize(menuW, menuH)
+		m.gameSelectList.SetSize(menuW, menuH)
 		if m.state == modeSelectView {
-			m.modeSelectList.SetSize(w, ht)
+			m.modeSelectList.SetSize(menuW, menuH)
 		}
 		if m.state == continueView {
 			m.continueTable.SetWidth(w)
@@ -302,26 +310,27 @@ func (m model) handleEscape() (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() string {
-	var s string
-
 	switch m.state {
 	case mainMenuView:
-		return rootStyle.Render(m.mainMenuList.View())
+		return rootStyle.Render(lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, m.mainMenuList.View()))
 	case gameSelectView:
-		return rootStyle.Render(m.gameSelectList.View())
+		return rootStyle.Render(lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, m.gameSelectList.View()))
 	case modeSelectView:
-		return rootStyle.Render(m.modeSelectList.View())
+		return rootStyle.Render(lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, m.modeSelectList.View()))
 	case continueView:
+		var s string
 		if len(m.continueGames) == 0 {
-			return rootStyle.Render("No saved games yet.\n\nPress Escape to return.")
+			s = "No saved games yet.\n\nPress Escape to return."
+		} else {
+			title := lipgloss.NewStyle().
+				Bold(true).
+				Foreground(lipgloss.AdaptiveColor{Light: "255", Dark: "255"}).
+				Background(menuAccent).
+				Padding(0, 1).
+				Render("Saved Games")
+			s = lipgloss.JoinVertical(lipgloss.Left, title, "", m.continueTable.View())
 		}
-		title := lipgloss.NewStyle().
-			Bold(true).
-			Foreground(lipgloss.AdaptiveColor{Light: "255", Dark: "255"}).
-			Background(menuAccent).
-			Padding(0, 1).
-			Render("Saved Games")
-		return rootStyle.Render(lipgloss.JoinVertical(lipgloss.Left, title, "", m.continueTable.View()))
+		return rootStyle.Render(lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, s))
 	case gameView:
 		if m.game == nil {
 			return ""
@@ -330,16 +339,15 @@ func (m model) View() string {
 		if m.debug {
 			debugInfo = debugStyle.Render(m.debuginfo)
 		}
-		s = lipgloss.JoinVertical(lipgloss.Left,
+		s := lipgloss.JoinVertical(lipgloss.Left,
 			m.game.View(),
 			debugInfo,
 		)
+		return rootStyle.Render(lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, s))
 	default:
-		s = fmt.Sprintf("unknown state: %d", m.state)
+		s := fmt.Sprintf("unknown state: %d", m.state)
 		panic(s)
 	}
-
-	return rootStyle.Render(s)
 }
 
 func initList(items []list.Item, title string) list.Model {
