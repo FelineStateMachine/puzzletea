@@ -26,29 +26,20 @@ jobs:
       - name: Build binary
         run: go build -ldflags "-X main.version=${{ github.ref_name }}" -o puzzletea
 
-      - uses: charmbracelet/vhs-action@v2
-        with:
-          path: "vhs/menu.tape"
+      - name: Install VHS and dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg ttyd
+          go install github.com/charmbracelet/vhs@latest
 
-      - uses: charmbracelet/vhs-action@v2
-        with:
-          path: "vhs/nonogram.tape"
-
-      - uses: charmbracelet/vhs-action@v2
-        with:
-          path: "vhs/sudoku.tape"
-
-      - uses: charmbracelet/vhs-action@v2
-        with:
-          path: "vhs/wordsearch.tape"
-
-      - uses: charmbracelet/vhs-action@v2
-        with:
-          path: "vhs/hashiwokakero.tape"
-
-      - uses: charmbracelet/vhs-action@v2
-        with:
-          path: "vhs/lightsout.tape"
+      - name: Generate GIFs
+        run: |
+          vhs vhs/menu.tape
+          vhs vhs/nonogram.tape
+          vhs vhs/sudoku.tape
+          vhs vhs/wordsearch.tape
+          vhs vhs/hashiwokakero.tape
+          vhs vhs/lightsout.tape
 
       - name: Commit updated GIFs
         run: |
