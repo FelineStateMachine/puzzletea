@@ -13,7 +13,8 @@ func init() {
 
 type NonogramMode struct {
 	game.BaseMode
-	Height, Width int
+	Width, Height int
+	Density       float64 // target fill percentage, 0.0–1.0
 }
 
 var (
@@ -21,11 +22,12 @@ var (
 	_ game.Spawner = NonogramMode{} // compile-time interface check
 )
 
-func NewMode(title, description string, Height, Width int) NonogramMode {
+func NewMode(title, description string, width, height int, density float64) NonogramMode {
 	return NonogramMode{
 		BaseMode: game.NewBaseMode(title, description),
-		Height:   Height,
-		Width:    Width,
+		Width:    width,
+		Height:   height,
+		Density:  density,
 	}
 }
 
@@ -35,8 +37,20 @@ func (n NonogramMode) Spawn() (game.Gamer, error) {
 }
 
 var Modes = []list.Item{
-	NewMode("Easy - 5x5", "A random nonogram on a five by five board.", 5, 5),
-	NewMode("Medium - 10x10", "A random nonogram on a ten by ten board.", 10, 10),
-	NewMode("Hard - 15x15", "A random nonogram on a fifteen by fifteen board.", 15, 15),
-	NewMode("Extra - 5x10", "A random nonogram on a five by ten board.", 5, 10),
+	// 5x5
+	NewMode("Easy 5x5", "5x5 grid, ~35% filled. Simple hints.", 5, 5, 0.35),
+	NewMode("Medium 5x5", "5x5 grid, ~50% filled. Balanced challenge.", 5, 5, 0.50),
+	NewMode("Hard 5x5", "5x5 grid, ~65% filled. Dense hints.", 5, 5, 0.65),
+	// 10x10
+	NewMode("Easy 10x10", "10x10 grid, ~35% filled. Simple hints.", 10, 10, 0.35),
+	NewMode("Medium 10x10", "10x10 grid, ~50% filled. Balanced challenge.", 10, 10, 0.50),
+	NewMode("Hard 10x10", "10x10 grid, ~65% filled. Dense hints.", 10, 10, 0.65),
+	// 15x15
+	NewMode("Easy 15x15", "15x15 grid, ~35% filled. Simple hints.", 15, 15, 0.35),
+	NewMode("Medium 15x15", "15x15 grid, ~50% filled. Balanced challenge.", 15, 15, 0.50),
+	NewMode("Hard 15x15", "15x15 grid, ~65% filled. Dense hints.", 15, 15, 0.65),
+	// 20x20
+	NewMode("Easy 20x20", "20x20 grid, ~35% filled. Simple hints.", 20, 20, 0.35),
+	NewMode("Medium 20x20", "20x20 grid, ~50% filled. Balanced challenge.", 20, 20, 0.50),
+	NewMode("Hard 20x20", "20x20 grid, ~65% filled. Dense hints.", 20, 20, 0.65),
 }
