@@ -10,6 +10,8 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+var _ game.Gamer = Model{}
+
 type Model struct {
 	puzzle         Puzzle
 	cursorIsland   int  // ID of island the cursor is on
@@ -126,11 +128,11 @@ func (m Model) View() string {
 	solved := m.puzzle.IsSolved()
 
 	title := game.TitleBarView("Hashiwokakero", m.modeTitle, solved)
-	grid := gridView(m)
+	grid := gridView(m, solved)
 	info := infoView(&m.puzzle)
 	status := statusBarView(m.selectedIsland != nil, m.showFullHelp)
 
-	return lipgloss.JoinVertical(lipgloss.Left, title, grid, info, status)
+	return lipgloss.JoinVertical(lipgloss.Center, title, grid, info, status)
 }
 
 func (m Model) SetTitle(t string) game.Gamer {

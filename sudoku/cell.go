@@ -26,14 +26,18 @@ func newGrid(provided []cell) grid {
 }
 
 func (c cell) String() string {
-	return fmt.Sprintf("r%dc%d=%d", c.x, c.y, c.v)
+	return fmt.Sprintf("r%dc%d=%d", c.y, c.x, c.v)
 }
 
 func (m Model) isSolved() bool {
 	conflicts := computeConflicts(m.grid)
+	return isSolvedWith(m.grid, conflicts)
+}
+
+func isSolvedWith(g grid, conflicts [gridSize][gridSize]bool) bool {
 	for y := range gridSize {
 		for x := range gridSize {
-			if m.grid[y][x].v == 0 || conflicts[y][x] {
+			if g[y][x].v == 0 || conflicts[y][x] {
 				return false
 			}
 		}

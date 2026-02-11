@@ -29,6 +29,7 @@ var (
 			Background(lipgloss.AdaptiveColor{Light: "130", Dark: "214"})
 
 	crosshairBG = lipgloss.AdaptiveColor{Light: "254", Dark: "237"}
+	solvedBG    = lipgloss.AdaptiveColor{Light: "151", Dark: "22"}
 
 	hintStyle = baseStyle.
 			Foreground(lipgloss.AdaptiveColor{Light: "137", Dark: "137"})
@@ -39,9 +40,11 @@ var (
 	nonoStatusBarStyle = lipgloss.NewStyle().
 				Foreground(lipgloss.AdaptiveColor{Light: "244", Dark: "244"}).
 				MarginTop(1)
+)
 
-	cellWidth = 3
+const cellWidth = 3
 
+var (
 	hintCellStyle = baseStyle.Width(cellWidth)
 
 	renderStyleMap = map[rune]lipgloss.Style{
@@ -155,7 +158,7 @@ func tileView(val rune, isCursor, inCursorRow, inCursorCol, solved bool) string 
 
 	if solved {
 		// Brighten filled tiles when solved
-		s = s.Background(lipgloss.AdaptiveColor{Light: "151", Dark: "22"})
+		s = s.Background(solvedBG)
 	}
 
 	r, ok := renderRuneMap[val]

@@ -35,6 +35,7 @@ func ImportModel(data []byte) (*Model, error) {
 		selectionStart: game.Cursor{X: exported.SelectionX, Y: exported.SelectionY},
 		keys:           DefaultKeyMap,
 		solved:         exported.Solved,
+		foundCells:     buildFoundCells(exported.Width, exported.Height, exported.Words),
 	}, nil
 }
 

@@ -17,6 +17,8 @@ const (
 	startSelected
 )
 
+var _ game.Gamer = Model{}
+
 type Model struct {
 	width, height  int
 	grid           grid
@@ -28,19 +30,36 @@ type Model struct {
 	modeTitle      string
 	solved         bool
 	showFullHelp   bool
+	foundCells     [][]bool
+}
+
+func buildFoundCells(width, height int, words []Word) [][]bool {
+	fc := make([][]bool, height)
+	for y := range fc {
+		fc[y] = make([]bool, width)
+	}
+	for i := range words {
+		if words[i].Found {
+			for _, pos := range words[i].Positions() {
+				fc[pos.Y][pos.X] = true
+			}
+		}
+	}
+	return fc
 }
 
 // New creates a new word search game
 func New(mode WordSearchMode, g grid, words []Word) (game.Gamer, error) {
 	return &Model{
-		width:     mode.Width,
-		height:    mode.Height,
-		grid:      g,
-		words:     words,
-		selection: noSelection,
-		keys:      DefaultKeyMap,
-		modeTitle: mode.Title(),
-		solved:    false,
+		width:      mode.Width,
+		height:     mode.Height,
+		grid:       g,
+		words:      words,
+		selection:  noSelection,
+		keys:       DefaultKeyMap,
+		modeTitle:  mode.Title(),
+		solved:     false,
+		foundCells: buildFoundCells(mode.Width, mode.Height, words),
 	}, nil
 }
 
@@ -101,6 +120,9 @@ func (m *Model) validateSelection() {
 		}
 		if m.words[i].Text == word || m.words[i].Text == wordReverse {
 			m.words[i].Found = true
+			for _, pos := range m.words[i].Positions() {
+				m.foundCells[pos.Y][pos.X] = true
+			}
 			m.checkWin()
 			return
 		}

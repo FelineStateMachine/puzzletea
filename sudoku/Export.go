@@ -13,7 +13,6 @@ type exportCell struct {
 }
 
 type Save struct {
-	Solved   bool         `json:"solved"`
 	Grid     string       `json:"grid"`
 	Provided []exportCell `json:"provided"`
 }
@@ -56,9 +55,10 @@ func ImportModel(data []byte) (*Model, error) {
 	}
 
 	return &Model{
-		grid:     g,
-		provided: provided,
-		keys:     DefaultKeyMap,
+		grid:         g,
+		provided:     provided,
+		providedGrid: buildProvidedGrid(provided),
+		keys:         DefaultKeyMap,
 	}, nil
 }
 
@@ -68,13 +68,12 @@ func (m Model) GetSave() ([]byte, error) {
 		provided[i] = exportCell{X: c.x, Y: c.y, V: c.v}
 	}
 	save := Save{
-		Solved:   m.isSolved(),
 		Grid:     gridToString(m.grid),
 		Provided: provided,
 	}
 	jsonData, err := json.Marshal(save)
 	if err != nil {
-		return nil, fmt.Errorf("unable to marshal save data: %v", err)
+		return nil, fmt.Errorf("unable to marshal save data: %w", err)
 	}
 	return jsonData, nil
 }

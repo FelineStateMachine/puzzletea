@@ -115,8 +115,7 @@ func emptyCellView(solved bool) string {
 // logical cells so that bridges between directly adjacent islands are visible.
 // Display grid is (2*width-1) x (2*height-1): even coords are logical cells,
 // odd coords are gap cells showing bridge connectors.
-func gridView(m Model) string {
-	solved := m.puzzle.IsSolved()
+func gridView(m Model, solved bool) string {
 	dispW := 2*m.puzzle.Width - 1
 	dispH := 2*m.puzzle.Height - 1
 

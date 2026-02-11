@@ -75,7 +75,7 @@ func (m Model) View() string {
 	title := game.TitleBarView("Takuzu", m.modeTitle, m.solved)
 	grid := gridView(m.grid, m.provided, m.cursor, m.solved)
 	status := statusBarView(m.showFullHelp)
-	return lipgloss.JoinVertical(lipgloss.Left, title, grid, status)
+	return lipgloss.JoinVertical(lipgloss.Center, title, grid, status)
 }
 
 func (m Model) SetTitle(t string) game.Gamer {

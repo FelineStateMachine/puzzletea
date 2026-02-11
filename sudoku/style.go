@@ -2,7 +2,6 @@ package sudoku
 
 import (
 	"fmt"
-	"slices"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -50,8 +49,7 @@ var (
 	sudokuCellWidth = 2
 )
 
-func renderGrid(m Model) string {
-	conflicts := computeConflicts(m.grid)
+func renderGrid(m Model, solved bool, conflicts [gridSize][gridSize]bool) string {
 	var rows []string
 
 	for y := range gridSize {
@@ -89,7 +87,7 @@ func renderGrid(m Model) string {
 
 	grid := lipgloss.JoinVertical(lipgloss.Left, rows...)
 
-	if m.isSolved() {
+	if solved {
 		return gridBorderSolvedStyle.Render(grid)
 	}
 	return gridBorderStyle.Render(grid)
@@ -105,7 +103,7 @@ func getCellStyle(m Model, c cell, x, y int, conflict bool) lipgloss.Style {
 		return conflictCellStyle
 	}
 
-	isProvided := slices.Contains(m.provided, c)
+	isProvided := m.providedGrid[y][x]
 	inCursorRow := m.cursor.Y == y
 	inCursorCol := m.cursor.X == x
 	inCursorBox := (x/3 == m.cursor.X/3) && (y/3 == m.cursor.Y/3)

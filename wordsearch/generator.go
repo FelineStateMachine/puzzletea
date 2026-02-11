@@ -1,7 +1,7 @@
 package wordsearch
 
 import (
-	"math/rand"
+	"math/rand/v2"
 	"strings"
 )
 
@@ -55,11 +55,11 @@ func tryPlaceWord(g grid, text string, allowedDirs []Direction, maxAttempts int)
 
 	for range maxAttempts {
 		// Random starting position
-		x := rand.Intn(width)
-		y := rand.Intn(height)
+		x := rand.IntN(width)
+		y := rand.IntN(height)
 
 		// Random direction
-		dir := allowedDirs[rand.Intn(len(allowedDirs))]
+		dir := allowedDirs[rand.IntN(len(allowedDirs))]
 		dx, dy := dir.Vector()
 
 		// Check if word fits in this direction
@@ -113,7 +113,7 @@ func fillEmptyCells(g grid) {
 	for y := range g {
 		for x := range g[y] {
 			if g[y][x] == ' ' {
-				g[y][x] = rune(letters[rand.Intn(len(letters))])
+				g[y][x] = rune(letters[rand.IntN(len(letters))])
 			}
 		}
 	}

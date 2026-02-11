@@ -1,12 +1,12 @@
 package hashiwokakero
 
 import (
-	"math/rand"
+	"math/rand/v2"
 )
 
 // GeneratePuzzle creates a solvable hashiwokakero puzzle for the given mode.
 func GeneratePuzzle(mode HashiMode) Puzzle {
-	islandCount := mode.MinIslands + rand.Intn(mode.MaxIslands-mode.MinIslands+1)
+	islandCount := mode.MinIslands + rand.IntN(mode.MaxIslands-mode.MinIslands+1)
 
 	for {
 		p := tryGenerate(mode.Width, mode.Height, islandCount)
@@ -69,8 +69,8 @@ func placeIslands(width, height, count int) []Island {
 	for i := range count {
 		placed := false
 		for range 200 {
-			x := rand.Intn(width)
-			y := rand.Intn(height)
+			x := rand.IntN(width)
+			y := rand.IntN(height)
 			p := pos{x, y}
 
 			if occupied[p] {
@@ -177,7 +177,7 @@ func buildSpanningTree(p *Puzzle) bool {
 		if p.WouldCross(pr.id1, pr.id2) {
 			continue
 		}
-		count := 1 + rand.Intn(2) // 1 or 2 bridges
+		count := 1 + rand.IntN(2) // 1 or 2 bridges
 		p.SetBridge(pr.id1, pr.id2, count)
 		union(pr.id1, pr.id2)
 		edgesAdded++
@@ -242,8 +242,6 @@ func addExtraBridges(p *Puzzle) {
 		}
 
 		// Don't let any island exceed 8 bridges
-		isl1 := p.FindIslandByID(pr.id1)
-		isl2 := p.FindIslandByID(pr.id2)
 		addAmount := newCount
 		if existing != nil {
 			addAmount = newCount - existing.Count
@@ -251,8 +249,6 @@ func addExtraBridges(p *Puzzle) {
 		if p.BridgeCount(pr.id1)+addAmount > 8 || p.BridgeCount(pr.id2)+addAmount > 8 {
 			continue
 		}
-		_ = isl1
-		_ = isl2
 
 		p.SetBridge(pr.id1, pr.id2, newCount)
 		added++

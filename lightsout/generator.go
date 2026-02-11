@@ -1,7 +1,7 @@
 package lightsout
 
 import (
-	"math/rand"
+	"math/rand/v2"
 )
 
 // Generate creates a new w x h grid with a solvable puzzle.
@@ -17,7 +17,7 @@ func Generate(w, h int) [][]bool {
 	// iterating once through all cells covers all reachable states from "all off".
 	for y := 0; y < h; y++ {
 		for x := 0; x < w; x++ {
-			if rand.Intn(2) == 1 {
+			if rand.IntN(2) == 1 {
 				Toggle(grid, x, y)
 			}
 		}
@@ -26,7 +26,7 @@ func Generate(w, h int) [][]bool {
 	// Ensure the puzzle isn't already solved (all off).
 	if IsSolved(grid) {
 		// Toggle one random cell to ensure at least some lights are on.
-		Toggle(grid, rand.Intn(w), rand.Intn(h))
+		Toggle(grid, rand.IntN(w), rand.IntN(h))
 	}
 
 	return grid

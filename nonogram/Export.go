@@ -3,12 +3,11 @@ package nonogram
 import (
 	"encoding/json"
 	"fmt"
-	"math/rand"
+	"math/rand/v2"
 	"strings"
 )
 
 type Save struct {
-	Solved   bool                 `json:"solved"`
 	State    string               `json:"state"`
 	Width    int                  `json:"width"`
 	Height   int                  `json:"height"`
@@ -20,7 +19,6 @@ func (m Model) GetSave() ([]byte, error) {
 	save := Save{
 		RowHints: m.rowHints,
 		ColHints: m.colHints,
-		Solved:   m.solved,
 		State:    m.grid.String(),
 		Width:    m.width,
 		Height:   m.height,
@@ -49,10 +47,6 @@ func ImportModel(data []byte) (*Model, error) {
 		currentHints: curr,
 		solved:       curr.rows.equal(save.RowHints) && curr.cols.equal(save.ColHints),
 	}, nil
-}
-
-func (m Model) GetTomography() Hints {
-	return generateTomography(m.grid)
 }
 
 func GenerateRandomTomography(mode NonogramMode) Hints {
