@@ -2,7 +2,7 @@
 
 A terminal-based puzzle game collection built with [Bubble Tea](https://github.com/charmbracelet/bubbletea).
 
-Five puzzle types, multiple difficulty modes, save/load persistence, and a plugin architecture for adding new games.
+Six puzzle types, multiple difficulty modes, save/load persistence, and a plugin architecture for adding new games.
 
 ![PuzzleTea menu](vhs/menu.gif)
 
