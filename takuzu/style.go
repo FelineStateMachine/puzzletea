@@ -28,15 +28,7 @@ var (
 	crosshairBG = lipgloss.AdaptiveColor{Light: "254", Dark: "237"}
 	solvedBG    = lipgloss.AdaptiveColor{Light: "151", Dark: "22"}
 
-	gridBorderStyle = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.AdaptiveColor{Light: "250", Dark: "240"}).
-			BorderBackground(backgroundColor)
-
-	gridBorderSolvedStyle = lipgloss.NewStyle().
-				Border(lipgloss.RoundedBorder()).
-				BorderForeground(lipgloss.AdaptiveColor{Light: "22", Dark: "149"}).
-				BorderBackground(solvedBG)
+	borderFG = lipgloss.AdaptiveColor{Light: "250", Dark: "240"}
 
 	statusBarStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.AdaptiveColor{Light: "244", Dark: "244"}).
@@ -70,7 +62,7 @@ func cellView(val rune, isProvided, isCursor, inCursorRow, inCursorCol, solved b
 	}
 
 	if isCursor && !solved {
-		s = cursorStyle
+		s = s.Background(cursorStyle.GetBackground()).Bold(true)
 	} else if !solved && (inCursorRow || inCursorCol) {
 		s = s.Background(crosshairBG)
 	}
@@ -87,24 +79,67 @@ func cellView(val rune, isProvided, isCursor, inCursorRow, inCursorCol, solved b
 }
 
 func gridView(g grid, provided [][]bool, c game.Cursor, solved bool) string {
+	w := 0
+	if len(g) > 0 {
+		w = len(g[0])
+	}
+
 	var rows []string
 	for y, row := range g {
 		var rowCells []string
+		inCursorRow := y == c.Y
+
+		// Left border segment for this row.
+		rowCells = append(rowCells, borderChar("│", solved, !solved && inCursorRow))
+
 		for x, val := range row {
 			isCursor := x == c.X && y == c.Y
-			inCursorRow := y == c.Y
 			inCursorCol := x == c.X
 			cell := cellView(val, provided[y][x], isCursor, inCursorRow, inCursorCol, solved)
 			rowCells = append(rowCells, cell)
 		}
+
+		// Right border segment for this row.
+		rowCells = append(rowCells, borderChar("│", solved, !solved && inCursorRow))
+
 		rows = append(rows, lipgloss.JoinHorizontal(lipgloss.Top, rowCells...))
 	}
-	content := lipgloss.JoinVertical(lipgloss.Left, rows...)
 
+	// Build top and bottom border rows with per-column crosshair highlighting.
+	topRow := hBorderRow(w, c.X, "╭", "╮", solved)
+	botRow := hBorderRow(w, c.X, "╰", "╯", solved)
+
+	return lipgloss.JoinVertical(lipgloss.Left, topRow, lipgloss.JoinVertical(lipgloss.Left, rows...), botRow)
+}
+
+// borderChar renders a single border character with optional crosshair highlighting.
+func borderChar(ch string, solved, highlight bool) string {
+	s := baseStyle.Foreground(borderFG).Background(backgroundColor)
 	if solved {
-		return gridBorderSolvedStyle.Render(content)
+		s = baseStyle.Foreground(lipgloss.AdaptiveColor{Light: "22", Dark: "149"}).Background(solvedBG)
+	} else if highlight {
+		s = s.Background(crosshairBG)
 	}
-	return gridBorderStyle.Render(content)
+	return s.Render(ch)
+}
+
+// hBorderRow builds a horizontal border row (top or bottom) with per-column crosshair.
+func hBorderRow(w, cursorX int, left, right string, solved bool) string {
+	var parts []string
+	parts = append(parts, borderChar(left, solved, false))
+	segment := "───" // cellWidth = 3
+	for x := range w {
+		highlight := !solved && x == cursorX
+		s := baseStyle.Foreground(borderFG).Background(backgroundColor)
+		if solved {
+			s = baseStyle.Foreground(lipgloss.AdaptiveColor{Light: "22", Dark: "149"}).Background(solvedBG)
+		} else if highlight {
+			s = s.Background(crosshairBG)
+		}
+		parts = append(parts, s.Render(segment))
+	}
+	parts = append(parts, borderChar(right, solved, false))
+	return lipgloss.JoinHorizontal(lipgloss.Top, parts...)
 }
 
 func statusBarView(showFullHelp bool) string {

@@ -419,7 +419,7 @@ func (m *model) initContinueTable() {
 		table.WithColumns(columns),
 		table.WithRows(rows),
 		table.WithFocused(true),
-		table.WithHeight(24),
+		table.WithHeight(max(m.height-2, 1)),
 	)
 
 	s := table.DefaultStyles()

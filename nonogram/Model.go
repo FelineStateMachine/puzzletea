@@ -74,9 +74,8 @@ func (m Model) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 			m.updateTile(markedTile)
 		case key.Matches(msg, m.keys.ClearTile):
 			m.updateTile(emptyTile)
-		default:
-			m.cursor.Move(m.keys.CursorKeyMap, msg, m.width-1, m.height-1)
 		}
+		m.cursor.Move(m.keys.CursorKeyMap, msg, m.width-1, m.height-1)
 	}
 	m.updateKeyBindings()
 	return m, nil
