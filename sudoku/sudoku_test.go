@@ -104,9 +104,15 @@ func TestIsValid(t *testing.T) {
 		// Place value 1 in center of each 3x3 box, then verify no cross-box conflict.
 		g := emptyGrid()
 		centers := [][2]int{
-			{1, 1}, {4, 1}, {7, 1},
-			{1, 4}, {4, 4}, {7, 4},
-			{1, 7}, {4, 7}, {7, 7},
+			{1, 1},
+			{4, 1},
+			{7, 1},
+			{1, 4},
+			{4, 4},
+			{7, 4},
+			{1, 7},
+			{4, 7},
+			{7, 7},
 		}
 		for _, c := range centers {
 			g[c[1]][c[0]].v = 1
