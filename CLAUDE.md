@@ -41,6 +41,12 @@ just fmt          # gofumpt -w .
 just tidy         # go mod tidy
 ```
 
+Run a single package's tests:
+```bash
+go test ./nonogram/
+go test ./sudoku/ -run TestGenerateGrid
+```
+
 ### VHS GIF Previews
 ```bash
 just vhs          # generate all game preview GIFs (requires vhs + ffmpeg + ttyd)
@@ -85,17 +91,30 @@ Save/load uses `game.Registry` — each package registers its import function vi
 
 ### Adding a New Puzzle Type
 
+#### Game package files (e.g. `mypuzzle/`)
+
 1. Create a new package under the project root (e.g., `mypuzzle/`)
 2. Define a mode struct embedding `game.BaseMode` that implements `game.Spawner`
 3. Add compile-time checks: `var _ game.Mode = MyMode{}` and `var _ game.Spawner = MyMode{}`
 4. Export a `Modes` variable (`[]list.Item`) listing available difficulties
 5. Implement `game.Gamer` on a `Model` struct
 6. Register the import function in an `init()`: `game.Register("My Puzzle", func(data []byte) (game.Gamer, error) { ... })`
-7. Add the category to `GameCategories` in `model.go` (maintain alphabetical order)
-8. Add aliases to `categoryAliases` in `resolve.go`
-9. Create a `README.md` in the package directory (see existing games for format)
-10. Create a VHS tape file in `vhs/<game>.tape` (see VHS Tape Files section)
-11. Add a one-line entry to "Current Implementations" below
+7. Write tests in `mypuzzle_test.go` (see Testing Conventions below)
+8. Create a `README.md` in the package directory (see Game README Format below)
+
+#### Main folder edits required
+
+9. **`model.go`**: Import the new package and add a `game.Category` entry to `GameCategories` (maintain alphabetical order):
+   - Add import: `"github.com/FelineStateMachine/puzzletea/mypuzzle"`
+   - Add entry: `game.Category{Name: "My Puzzle", Desc: "Short description.", Modes: mypuzzle.Modes}`
+   - The import triggers the package's `init()`, which registers the save/load function — no blank import needed.
+10. **`resolve.go`**: Add the canonical name and any CLI aliases to the `categoryAliases` map (lowercase, spaces not hyphens).
+11. **`CLAUDE.md`**: Add a one-line entry to "Current Implementations" below.
+
+#### VHS and CI
+
+12. Create a VHS tape file in `vhs/<game>.tape` (see VHS Tape Files section)
+13. **`justfile`**: Add the new tape to the `vhs` target (e.g. `vhs vhs/mypuzzle.tape`)
 
 Each package follows a consistent file structure:
 - `Gamemode.go`: Mode struct, `NewMode()`, `Spawn()`, `Modes` var, `init()` with `game.Register()`
@@ -154,6 +173,40 @@ Version is injected at build time via `-ldflags "-X main.version=..."`. The `ver
 
 All Go code must pass `gofumpt` (strict superset of `gofmt`) and `golangci-lint` with the project's `.golangci.yml` config. Enabled linters: gofumpt, govet, errcheck, staticcheck, unused, gosimple, ineffassign, misspell. Run `just fmt` and `just lint` before committing.
 
+### Testing Conventions
+
+Each game package has a `<game>_test.go` file. Tests follow these conventions:
+
+- **Table-driven tests** with subtests (`t.Run`) for all pure functions.
+- **Priority annotations** in section comments: `(P0)` = critical core logic, `(P1)` = important functionality (save/load, interface checks), `(P2)` = generators and less critical paths.
+- **Section separators**: `// --- FunctionName (P0) ---` above each test group.
+- **Save/load round-trip tests**: Create a model, call `GetSave()`, pass bytes to `ImportModel()`, and verify state is preserved.
+- **Compile-time interface checks** in tests: `var _ game.Gamer = Model{}` (or `&Model{}`).
+- **Edge cases**: Empty grids, 1x1 grids, maximum sizes, boundary conditions.
+- **Generator validation**: Verify generated puzzles satisfy game rules (e.g. solvability, uniqueness).
+
+Run `just test` before committing. All tests must pass in CI.
+
+### File Naming Convention
+
+Game packages use capital first letters for the three core files and lowercase for helpers:
+- **Capital**: `Gamemode.go`, `Model.go`, `Export.go`
+- **Lowercase**: `grid.go`, `keys.go`, `style.go`, `generator.go`, `<game>_test.go`
+
+### Game README Format
+
+Each game package contains a `README.md` with this structure:
+
+1. **Title** (`# Game Name`)
+2. **One-line description**
+3. **GIF preview** (`![Gameplay](../vhs/gamename.gif)`)
+4. **How to Play** — rules and mechanics
+5. **Controls** — table with Key and Action columns; include game-specific keys plus shared keys (`Ctrl+H`, `Ctrl+E`, `Ctrl+N`)
+6. **Modes** — table listing each mode with parameters and description
+7. **Quick Start** — `puzzletea new <game> <mode>` examples
+
+See `nonogram/README.md` for a complete example.
+
 ### Color Convention
 
 All colors must use `lipgloss.AdaptiveColor{Light: "X", Dark: "Y"}` with ANSI 256 palette numbers. Avoid hex colors (`#rrggbb`) — they require true-color support and don't adapt to terminal background.
@@ -163,11 +216,15 @@ All colors must use `lipgloss.AdaptiveColor{Light: "X", Dark: "Y"}` with ANSI 25
 Each game has a `.tape` file in `vhs/` that generates a GIF preview using [charmbracelet/vhs](https://github.com/charmbracelet/vhs). All tapes share a common preamble:
 
 ```tape
-Set FontSize 13
-Set Width 854
-Set Height 480
-Set Padding 40
-Set Theme "Catppuccin Mocha"
+Output vhs/<game>.gif
+
+Set Theme "catppuccin-mocha"
+Set FontSize 14
+Set Width 1200
+Set Height 800
+Set Margin 60
+Set MarginFill "#A85C40"
+Set WindowBar Colorful
 
 Env COLORTERM "truecolor"
 Env CLICOLOR_FORCE "1"
@@ -176,7 +233,31 @@ Env CI ""
 
 The three `Env` lines are required for CI color support. `termenv` (used by lipgloss/bubbletea) checks `CI` env var and returns no-color when set — GitHub Actions sets `CI=true`. `COLORTERM=truecolor` sets the color profile, and `CLICOLOR_FORCE=1` is a fallback.
 
-Each tape uses a `Hide` block to build the binary and clear the screen before `Show`ing the gameplay commands. Use `Ctrl+L` (not `clear`) to clear the screen in the hidden block.
+After the preamble, each tape follows this structure:
+
+```tape
+Hide
+Type "go build -o puzzletea"
+Enter
+Sleep 2s
+Ctrl+L
+Show
+
+Type "./puzzletea new <game> <mode>"
+Sleep 500ms
+Enter
+Sleep 2s
+
+# Demo gameplay actions...
+
+Sleep 3s
+```
+
+- Use a `Hide`/`Show` block to build the binary and clear the screen before showing gameplay.
+- Use `Ctrl+L` (not `clear`) to clear the screen in the hidden block.
+- Demonstrate core gameplay mechanics (filling cells, toggling, navigating, etc.).
+- End with `Sleep 3s` to let viewers see the final state.
+- Add the new tape to the `vhs` target in the `justfile`.
 
 GIFs are not tracked in git — they are generated by CI and committed via PR.
 

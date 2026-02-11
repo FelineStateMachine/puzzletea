@@ -153,31 +153,70 @@ Arrow keys, WASD, and Vim bindings (hjkl) are supported for grid movement across
 
 Games are automatically saved to `~/.puzzletea/history.db` (SQLite). Navigating away saves progress; quitting with `Ctrl+C` marks the game as abandoned. Completed games are preserved and can be revisited.
 
-## Building
+## Building and Testing
 
 [just](https://github.com/casey/just) is used as the command runner:
 
 ```bash
 just              # build
 just run          # build and run
-just test         # run tests
+just test         # run tests (go test ./...)
 just lint         # run golangci-lint
 just fmt          # format with gofumpt
+just tidy         # go mod tidy
 just install      # install to $GOPATH/bin
 just clean        # remove build artifacts
+just vhs          # generate all VHS GIF previews
 ```
+
+Run a single package's tests:
+
+```bash
+go test ./nonogram/
+go test ./sudoku/ -run TestGenerateGrid
+```
+
+All code must pass `gofumpt` and `golangci-lint` before committing. CI runs both on every PR.
 
 ## Adding a New Puzzle
 
 PuzzleTea uses a plugin architecture. To add a new puzzle type:
 
-1. Create a package (e.g., `mypuzzle/`)
-2. Implement the `game.Gamer` interface on a Model struct
-3. Define modes embedding `game.BaseMode` that implement `game.Spawner`
-4. Register an import function in `init()` for save/load support
-5. Add the category to `GameCategories` in `model.go`
+### 1. Create the game package
 
-See any existing game package (e.g., `nonogram/`) for the full pattern.
+Create a directory (e.g., `mypuzzle/`) with these files:
+
+| File | Purpose |
+|------|---------|
+| `Gamemode.go` | Mode struct embedding `game.BaseMode`, `Spawn()`, `Modes` var, `init()` with `game.Register()` |
+| `Model.go` | `Model` struct implementing `game.Gamer` |
+| `Export.go` | `Save` struct, `GetSave()`, `ImportModel()` for persistence |
+| `keys.go` | Game-specific `KeyMap` struct |
+| `style.go` | lipgloss styling and rendering helpers |
+| `generator.go` | Puzzle generation logic (if applicable) |
+| `grid.go` | Grid type and serialization (for grid-based games) |
+| `mypuzzle_test.go` | Tests (table-driven, save/load round-trip, generator validation) |
+| `README.md` | Game docs: rules, controls table, modes table, quick start examples |
+
+### 2. Wire it into the main application
+
+These files in the project root must be edited:
+
+- **`model.go`**: Import the package and add a `game.Category` entry to `GameCategories` (maintain alphabetical order). The import triggers `init()`, which registers save/load — no blank import needed.
+- **`resolve.go`**: Add the canonical name and any CLI aliases to `categoryAliases`.
+
+### 3. Add a VHS preview
+
+- Create `vhs/<game>.tape` following the format in existing tapes.
+- Add the tape to the `vhs` target in the `justfile`.
+
+### 4. Verify
+
+```bash
+just fmt && just lint && just test
+```
+
+See any existing game package (e.g., `nonogram/`) for the full pattern, and `CLAUDE.md` for detailed conventions.
 
 ## License
 
