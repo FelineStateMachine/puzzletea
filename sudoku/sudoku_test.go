@@ -101,26 +101,30 @@ func TestIsValid(t *testing.T) {
 	})
 
 	t.Run("all 9 boxes center placement", func(t *testing.T) {
-		// Place value 1 in center of each 3x3 box, then verify no cross-box conflict.
+		// Place a distinct value in the center of each 3x3 box so that no row,
+		// column, or box conflict exists, then verify isValid agrees.
 		g := emptyGrid()
-		centers := [][2]int{
-			{1, 1},
-			{4, 1},
-			{7, 1},
-			{1, 4},
-			{4, 4},
-			{7, 4},
-			{1, 7},
-			{4, 7},
-			{7, 7},
+		type centerVal struct {
+			x, y, v int
+		}
+		centers := []centerVal{
+			{1, 1, 1},
+			{4, 1, 2},
+			{7, 1, 3},
+			{1, 4, 4},
+			{4, 4, 5},
+			{7, 4, 6},
+			{1, 7, 7},
+			{4, 7, 8},
+			{7, 7, 9},
 		}
 		for _, c := range centers {
-			g[c[1]][c[0]].v = 1
+			g[c.y][c.x].v = c.v
 		}
-		// Each center should be valid (1 appears once per box, once per row, once per column).
+		// Each center should be valid (unique per box, row, and column).
 		for _, c := range centers {
-			if !isValid(&g, 1, c[0], c[1]) {
-				t.Errorf("expected valid at center (%d,%d)", c[0], c[1])
+			if !isValid(&g, c.v, c.x, c.y) {
+				t.Errorf("expected valid at center (%d,%d) with value %d", c.x, c.y, c.v)
 			}
 		}
 	})
@@ -203,15 +207,27 @@ func TestFillGrid(t *testing.T) {
 
 // --- countSolutions (P0) ---
 
+// almostCompleteGrid returns a valid grid with four empty cells forming a
+// swap rectangle, giving exactly 2 solutions. The removed cells are (3,0),
+// (4,0), (3,3), (4,3) whose original values (6,7,7,6) can be swapped.
+func almostCompleteGrid() grid {
+	g := validCompleteGrid()
+	g[0][3].v = 0
+	g[0][4].v = 0
+	g[3][3].v = 0
+	g[3][4].v = 0
+	return g
+}
+
 func TestCountSolutions(t *testing.T) {
-	t.Run("complete grid", func(t *testing.T) {
+	t.Run("complete grid has 1 solution", func(t *testing.T) {
 		g := validCompleteGrid()
 		if count := countSolutions(&g, 10); count != 1 {
 			t.Errorf("countSolutions = %d, want 1", count)
 		}
 	})
 
-	t.Run("one empty cell unique", func(t *testing.T) {
+	t.Run("one empty cell has 1 solution", func(t *testing.T) {
 		g := validCompleteGrid()
 		g[0][0].v = 0
 		if count := countSolutions(&g, 10); count != 1 {
@@ -219,9 +235,8 @@ func TestCountSolutions(t *testing.T) {
 		}
 	})
 
-	t.Run("impossible grid", func(t *testing.T) {
+	t.Run("impossible grid has 0 solutions", func(t *testing.T) {
 		g := emptyGrid()
-		// Place two 1s in row 0 by forcing the grid state.
 		g[0][0].v = 1
 		g[0][1].v = 1
 		if count := countSolutions(&g, 10); count != 0 {
@@ -230,39 +245,19 @@ func TestCountSolutions(t *testing.T) {
 	})
 
 	t.Run("respects limit", func(t *testing.T) {
-		g := emptyGrid()
+		g := almostCompleteGrid()
+		// This grid has more than 2 solutions.
 		count := countSolutions(&g, 2)
-		if count < 2 {
-			t.Errorf("countSolutions = %d, want >= 2", count)
-		}
-		if count > 2 {
-			t.Errorf("countSolutions = %d, should not exceed limit 2", count)
+		if count != 2 {
+			t.Errorf("countSolutions = %d, want 2 (limit)", count)
 		}
 	})
 
-	t.Run("two empty cells ambiguous", func(t *testing.T) {
-		// Start with a valid complete grid, then clear two cells that create
-		// ambiguity: (0,0) and (0,1) where swapping their values still yields
-		// a valid grid.
-		g := validCompleteGrid()
-		// g[0][0]=5, g[0][1]=3. We need to check if swapping creates a valid grid.
-		// Clear both and count solutions.
-		v1, v2 := g[0][0].v, g[0][1].v
-		g[0][0].v = 0
-		g[0][1].v = 0
+	t.Run("ambiguous grid has multiple solutions", func(t *testing.T) {
+		g := almostCompleteGrid()
 		count := countSolutions(&g, 10)
-		// If swapping is valid, count >= 2; otherwise find a different pair.
-		// The valid grid has (0,0)=5,(0,1)=3 — swapping: is 3 valid at (0,0)
-		// and 5 valid at (0,1)?
-		g[0][0].v = v2
-		g[0][1].v = v1
-		swapValid := isValid(&g, v2, 0, 0) && isValid(&g, v1, 1, 0)
-		if swapValid && count < 2 {
-			t.Errorf("countSolutions = %d, expected >= 2 for ambiguous pair", count)
-		}
-		if !swapValid && count != 1 {
-			// The pair wasn't actually ambiguous; just verify we got 1.
-			t.Logf("pair (0,0)/(0,1) not ambiguous, count=%d", count)
+		if count <= 1 {
+			t.Errorf("countSolutions = %d, want > 1 for ambiguous grid", count)
 		}
 	})
 }

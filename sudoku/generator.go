@@ -47,7 +47,20 @@ func fillGrid(g *grid) bool {
 }
 
 // countSolutions counts solutions of the grid up to limit using backtracking.
+// Returns 0 immediately if the grid already contains conflicting values.
 func countSolutions(g *grid, limit int) int {
+	for y := range gridSize {
+		for x := range gridSize {
+			if g[y][x].v != 0 && !isValid(g, g[y][x].v, x, y) {
+				return 0
+			}
+		}
+	}
+	return countSolutionsRec(g, limit)
+}
+
+// countSolutionsRec is the recursive backtracking helper for countSolutions.
+func countSolutionsRec(g *grid, limit int) int {
 	for y := range gridSize {
 		for x := range gridSize {
 			if g[y][x].v == 0 {
@@ -55,7 +68,7 @@ func countSolutions(g *grid, limit int) int {
 				for val := 1; val <= gridSize; val++ {
 					if isValid(g, val, x, y) {
 						g[y][x].v = val
-						count += countSolutions(g, limit-count)
+						count += countSolutionsRec(g, limit-count)
 						g[y][x].v = 0
 						if count >= limit {
 							return count
