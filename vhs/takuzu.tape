@@ -1,10 +1,12 @@
 Output vhs/takuzu.gif
 
-Set FontSize 13
-Set Width 854
-Set Height 480
-Set Padding 40
-Set Theme "Catppuccin Mocha"
+Set Theme "catppuccin-mocha"
+Set FontSize 14
+Set Width 1200
+Set Height 800
+Set Margin 60
+Set MarginFill "#A85C40"
+Set WindowBar Colorful
 
 Env COLORTERM "truecolor"
 Env CLICOLOR_FORCE "1"

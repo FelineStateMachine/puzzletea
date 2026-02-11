@@ -6,19 +6,19 @@ import (
 )
 
 var (
-	baseStyle = lipgloss.NewStyle()
-
-	zeroStyle = baseStyle.
+	baseStyle       = lipgloss.NewStyle()
+	backgroundColor = lipgloss.AdaptiveColor{Light: "254", Dark: "235"}
+	zeroStyle       = baseStyle.
 			Foreground(lipgloss.AdaptiveColor{Light: "130", Dark: "222"}).
-			Background(lipgloss.AdaptiveColor{Light: "254", Dark: "235"})
+			Background(backgroundColor)
 
 	oneStyle = baseStyle.
 			Foreground(lipgloss.AdaptiveColor{Light: "68", Dark: "111"}).
-			Background(lipgloss.AdaptiveColor{Light: "254", Dark: "235"})
+			Background(backgroundColor)
 
 	emptyStyle = baseStyle.
 			Foreground(lipgloss.AdaptiveColor{Light: "250", Dark: "240"}).
-			Background(lipgloss.AdaptiveColor{Light: "254", Dark: "235"})
+			Background(backgroundColor)
 
 	cursorStyle = baseStyle.
 			Bold(true).
@@ -30,11 +30,13 @@ var (
 
 	gridBorderStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.AdaptiveColor{Light: "250", Dark: "240"})
+			BorderForeground(lipgloss.AdaptiveColor{Light: "250", Dark: "240"}).
+			BorderBackground(backgroundColor)
 
 	gridBorderSolvedStyle = lipgloss.NewStyle().
 				Border(lipgloss.RoundedBorder()).
-				BorderForeground(lipgloss.AdaptiveColor{Light: "22", Dark: "149"})
+				BorderForeground(lipgloss.AdaptiveColor{Light: "22", Dark: "149"}).
+				BorderBackground(backgroundColor)
 
 	statusBarStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.AdaptiveColor{Light: "244", Dark: "244"}).

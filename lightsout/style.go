@@ -29,11 +29,13 @@ var (
 
 	gridBorderStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.AdaptiveColor{Light: "250", Dark: "240"})
+			BorderForeground(lipgloss.AdaptiveColor{Light: "250", Dark: "240"}).
+			BorderBackground(colorOff)
 
 	gridBorderSolvedStyle = lipgloss.NewStyle().
 				Border(lipgloss.RoundedBorder()).
-				BorderForeground(lipgloss.AdaptiveColor{Light: "22", Dark: "149"})
+				BorderForeground(lipgloss.AdaptiveColor{Light: "22", Dark: "149"}).
+				BorderBackground(lipgloss.AdaptiveColor{Light: "151", Dark: "22"})
 
 	statusBarStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.AdaptiveColor{Light: "244", Dark: "244"}).

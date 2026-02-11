@@ -11,23 +11,23 @@ const cellWidth = 3
 
 // Color palette — warm earth-tone theme (ANSI 256, adaptive for light/dark terminals)
 var (
-	colorIslandFg      = lipgloss.AdaptiveColor{Light: "236", Dark: "187"}
-	colorIslandBg      = lipgloss.AdaptiveColor{Light: "187", Dark: "58"}
-	colorSatisfiedFg   = lipgloss.AdaptiveColor{Light: "22", Dark: "149"}
-	colorSatisfiedBg   = lipgloss.AdaptiveColor{Light: "194", Dark: "236"}
-	colorOverFg        = lipgloss.AdaptiveColor{Light: "160", Dark: "167"}
-	colorOverBg        = lipgloss.AdaptiveColor{Light: "224", Dark: "52"}
-	colorCursorFg      = lipgloss.AdaptiveColor{Light: "255", Dark: "235"}
-	colorCursorBg      = lipgloss.AdaptiveColor{Light: "130", Dark: "173"}
-	colorSelectedFg    = lipgloss.AdaptiveColor{Light: "255", Dark: "235"}
-	colorSelectedBg    = lipgloss.AdaptiveColor{Light: "172", Dark: "179"}
-	colorAdjacentBg    = lipgloss.AdaptiveColor{Light: "223", Dark: "58"}
-	colorBridge        = lipgloss.AdaptiveColor{Light: "137", Dark: "137"}
-	colorBridgeSolved  = lipgloss.AdaptiveColor{Light: "22", Dark: "149"}
-	colorEmptyDot      = lipgloss.AdaptiveColor{Light: "252", Dark: "239"}
-	colorEmptySolved   = lipgloss.AdaptiveColor{Light: "151", Dark: "107"}
-	colorInfoSatisfied = lipgloss.AdaptiveColor{Light: "22", Dark: "149"}
-	colorInfoText      = lipgloss.AdaptiveColor{Light: "137", Dark: "137"}
+	colorIslandFg      = lipgloss.AdaptiveColor{Dark: "236", Light: "187"}
+	colorIslandBg      = lipgloss.AdaptiveColor{Dark: "187", Light: "58"}
+	colorSatisfiedFg   = lipgloss.AdaptiveColor{Dark: "22", Light: "149"}
+	colorSatisfiedBg   = lipgloss.AdaptiveColor{Dark: "194", Light: "236"}
+	colorOverFg        = lipgloss.AdaptiveColor{Dark: "160", Light: "167"}
+	colorOverBg        = lipgloss.AdaptiveColor{Dark: "224", Light: "52"}
+	colorCursorFg      = lipgloss.AdaptiveColor{Dark: "255", Light: "235"}
+	colorCursorBg      = lipgloss.AdaptiveColor{Dark: "130", Light: "173"}
+	colorSelectedFg    = lipgloss.AdaptiveColor{Dark: "255", Light: "235"}
+	colorSelectedBg    = lipgloss.AdaptiveColor{Dark: "172", Light: "179"}
+	colorAdjacentBg    = lipgloss.AdaptiveColor{Dark: "223", Light: "58"}
+	colorBridge        = lipgloss.AdaptiveColor{Dark: "137", Light: "137"}
+	colorBridgeSolved  = lipgloss.AdaptiveColor{Dark: "22", Light: "149"}
+	colorEmptyDot      = lipgloss.AdaptiveColor{Dark: "252", Light: "239"}
+	colorEmptySolved   = lipgloss.AdaptiveColor{Dark: "151", Light: "107"}
+	colorInfoSatisfied = lipgloss.AdaptiveColor{Dark: "22", Light: "149"}
+	colorInfoText      = lipgloss.AdaptiveColor{Dark: "137", Light: "137"}
 )
 
 var (

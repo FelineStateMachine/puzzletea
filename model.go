@@ -377,7 +377,7 @@ func initList(items []list.Item, title string) list.Model {
 }
 
 func initMainMenuList() list.Model {
-	return initList(mainMenuItems, "PuzzleTea")
+	return initList(mainMenuItems, "puzzletea")
 }
 
 func initGameSelectList() list.Model {
@@ -419,7 +419,7 @@ func (m *model) initContinueTable() {
 		table.WithColumns(columns),
 		table.WithRows(rows),
 		table.WithFocused(true),
-		table.WithHeight(10),
+		table.WithHeight(24),
 	)
 
 	s := table.DefaultStyles()

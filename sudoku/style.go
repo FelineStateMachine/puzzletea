@@ -8,18 +8,20 @@ import (
 )
 
 var (
+	backgroundColor = lipgloss.AdaptiveColor{Light: "254", Dark: "235"}
+
 	emptyCellStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.AdaptiveColor{Light: "250", Dark: "240"}).
-			Background(lipgloss.AdaptiveColor{Light: "254", Dark: "235"})
+			Background(backgroundColor)
 
 	providedCellStyle = lipgloss.NewStyle().
 				Bold(true).
 				Foreground(lipgloss.AdaptiveColor{Light: "130", Dark: "179"}).
-				Background(lipgloss.AdaptiveColor{Light: "254", Dark: "235"})
+				Background(backgroundColor)
 
 	userCellStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.AdaptiveColor{Light: "236", Dark: "187"}).
-			Background(lipgloss.AdaptiveColor{Light: "254", Dark: "235"})
+			Background(backgroundColor)
 
 	cursorCellStyle = lipgloss.NewStyle().
 			Bold(true).
@@ -36,11 +38,13 @@ var (
 
 	gridBorderStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.AdaptiveColor{Light: "250", Dark: "240"})
+			BorderForeground(lipgloss.AdaptiveColor{Light: "250", Dark: "240"}).
+			BorderBackground(backgroundColor)
 
 	gridBorderSolvedStyle = lipgloss.NewStyle().
 				Border(lipgloss.RoundedBorder()).
-				BorderForeground(lipgloss.AdaptiveColor{Light: "22", Dark: "149"})
+				BorderForeground(lipgloss.AdaptiveColor{Light: "22", Dark: "149"}).
+				BorderBackground(backgroundColor)
 
 	statusBarStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.AdaptiveColor{Light: "137", Dark: "137"}).
@@ -63,7 +67,7 @@ func renderGrid(m Model, solved bool, conflicts [gridSize][gridSize]bool) string
 
 			// Insert vertical box separator after columns 3 and 6
 			if x == 2 || x == 5 {
-				sep := lipgloss.NewStyle().Foreground(boxBorderFG).Render("│")
+				sep := lipgloss.NewStyle().Foreground(boxBorderFG).Background(backgroundColor).Render("│")
 				cells = append(cells, sep)
 			}
 		}
@@ -80,7 +84,7 @@ func renderGrid(m Model, solved bool, conflicts [gridSize][gridSize]bool) string
 					sepParts = append(sepParts, "┼")
 				}
 			}
-			sep := lipgloss.NewStyle().Foreground(boxBorderFG).Render(strings.Join(sepParts, ""))
+			sep := lipgloss.NewStyle().Foreground(boxBorderFG).Background(backgroundColor).Render(strings.Join(sepParts, ""))
 			rows = append(rows, sep)
 		}
 	}

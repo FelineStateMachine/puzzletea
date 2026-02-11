@@ -26,7 +26,7 @@ func TitleBarView(gameName, modeName string, solved bool) string {
 		badge := solvedBadgeStyle.Render("  SOLVED")
 		return title + badge + "\nctrl+n to play again"
 	}
-	return title
+	return title + "\n"
 }
 
 // DebugHeader returns the markdown heading and property table header for debug info.
