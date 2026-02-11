@@ -67,7 +67,11 @@ func renderGrid(m Model, solved bool, conflicts [gridSize][gridSize]bool) string
 
 			// Insert vertical box separator after columns 3 and 6
 			if x == 2 || x == 5 {
-				sep := lipgloss.NewStyle().Foreground(boxBorderFG).Background(backgroundColor).Render("│")
+				bg := backgroundColor
+				if m.cursor.Y == y {
+					bg = crosshairBG
+				}
+				sep := lipgloss.NewStyle().Foreground(boxBorderFG).Background(bg).Render("│")
 				cells = append(cells, sep)
 			}
 		}
@@ -77,15 +81,18 @@ func renderGrid(m Model, solved bool, conflicts [gridSize][gridSize]bool) string
 		// Insert horizontal box separator after rows 3 and 6
 		if y == 2 || y == 5 {
 			sepLine := strings.Repeat("─", sudokuCellWidth)
-			var sepParts []string
+			var renderedParts []string
 			for x := range gridSize {
-				sepParts = append(sepParts, sepLine)
+				bg := backgroundColor
+				if m.cursor.X == x {
+					bg = crosshairBG
+				}
+				renderedParts = append(renderedParts, lipgloss.NewStyle().Foreground(boxBorderFG).Background(bg).Render(sepLine))
 				if x == 2 || x == 5 {
-					sepParts = append(sepParts, "┼")
+					renderedParts = append(renderedParts, lipgloss.NewStyle().Foreground(boxBorderFG).Background(backgroundColor).Render("┼"))
 				}
 			}
-			sep := lipgloss.NewStyle().Foreground(boxBorderFG).Background(backgroundColor).Render(strings.Join(sepParts, ""))
-			rows = append(rows, sep)
+			rows = append(rows, lipgloss.JoinHorizontal(lipgloss.Top, renderedParts...))
 		}
 	}
 
