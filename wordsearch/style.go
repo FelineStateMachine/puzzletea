@@ -40,15 +40,51 @@ var (
 	statusBarStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.AdaptiveColor{Light: "137", Dark: "137"}).
 			MarginTop(1)
+
+	borderFG    = lipgloss.AdaptiveColor{Light: "250", Dark: "240"}
+	gridBG      = lipgloss.AdaptiveColor{Light: "254", Dark: "236"}
+	solvedBdrFG = lipgloss.AdaptiveColor{Light: "22", Dark: "149"}
+
+	gridBorderStyle = lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(borderFG).
+			BorderBackground(gridBG)
+
+	gridBorderSolvedStyle = lipgloss.NewStyle().
+				Border(lipgloss.RoundedBorder()).
+				BorderForeground(solvedBdrFG).
+				BorderBackground(gridBG)
+
+	wordListBorderStyle = lipgloss.NewStyle().
+				Border(lipgloss.RoundedBorder()).
+				BorderForeground(borderFG).
+				Padding(0, 1)
+
+	wordListBorderSolvedStyle = lipgloss.NewStyle().
+					Border(lipgloss.RoundedBorder()).
+					BorderForeground(solvedBdrFG).
+					Padding(0, 1)
 )
 
 func renderView(m Model) string {
 	title := game.TitleBarView("Word Search", m.modeTitle, m.solved)
-	gridView := renderGrid(m)
-	wordListView := renderWordList(m)
+	gridContent := renderGrid(m)
+	wordListContent := renderWordList(m)
 
-	// Join grid and word list horizontally with spacing
-	spacer := strings.Repeat(" ", 4)
+	gBorder := gridBorderStyle
+	wBorder := wordListBorderStyle
+	if m.solved {
+		gBorder = gridBorderSolvedStyle
+		wBorder = wordListBorderSolvedStyle
+	}
+
+	gridView := gBorder.Render(gridContent)
+	gridHeight := lipgloss.Height(gridView)
+	// Match word list height to grid height, subtracting border lines (top+bottom).
+	wBorder = wBorder.Height(gridHeight - 2)
+	wordListView := wBorder.Render(wordListContent)
+
+	spacer := strings.Repeat(" ", 2)
 	mainView := lipgloss.JoinHorizontal(lipgloss.Top, gridView, spacer, wordListView)
 
 	status := statusBarView(m.showFullHelp)
@@ -64,18 +100,19 @@ func statusBarView(showFullHelp bool) string {
 }
 
 func renderGrid(m Model) string {
-	var sb strings.Builder
+	var rows []string
 
 	for y := 0; y < m.height; y++ {
+		var cells []string
 		for x := 0; x < m.width; x++ {
 			letter := m.grid.Get(x, y)
 			style := getCellStyle(m, x, y)
-			sb.WriteString(style.Render(fmt.Sprintf(" %c ", letter)))
+			cells = append(cells, style.Render(fmt.Sprintf(" %c ", letter)))
 		}
-		sb.WriteString("\n")
+		rows = append(rows, lipgloss.JoinHorizontal(lipgloss.Top, cells...))
 	}
 
-	return sb.String()
+	return lipgloss.JoinVertical(lipgloss.Left, rows...)
 }
 
 func getCellStyle(m Model, x, y int) lipgloss.Style {

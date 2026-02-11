@@ -81,6 +81,16 @@ var (
 	statusBarStyle = lipgloss.NewStyle().
 			Foreground(colorInfoText).
 			MarginTop(1)
+
+	gridBorderStyle = lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			Padding(1).
+			BorderForeground(colorEmptyDot)
+
+	gridBorderSolvedStyle = lipgloss.NewStyle().
+				Border(lipgloss.RoundedBorder()).
+				Padding(1).
+				BorderForeground(colorBridgeSolved)
 )
 
 // isHighlightedNeighbor returns true if islandID is directly connectable
@@ -120,15 +130,19 @@ func gridView(m Model, solved bool) string {
 	dispH := 2*m.puzzle.Height - 1
 
 	var rows []string
-	for dy := 0; dy < dispH; dy++ {
+	for dy := range dispH {
 		var cells []string
-		for dx := 0; dx < dispW; dx++ {
+		for dx := range dispW {
 			cells = append(cells, displayCellView(m, dx, dy, solved))
 		}
 		rows = append(rows, lipgloss.JoinHorizontal(lipgloss.Top, cells...))
 	}
+	grid := lipgloss.JoinVertical(lipgloss.Left, rows...)
 
-	return lipgloss.JoinVertical(lipgloss.Left, rows...)
+	if solved {
+		return gridBorderSolvedStyle.Render(grid)
+	}
+	return gridBorderStyle.Render(grid)
 }
 
 // displayCellView renders a single cell in the display grid.

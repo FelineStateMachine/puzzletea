@@ -40,9 +40,14 @@ var (
 	nonoStatusBarStyle = lipgloss.NewStyle().
 				Foreground(lipgloss.AdaptiveColor{Light: "244", Dark: "244"}).
 				MarginTop(1)
+
+	separatorFG = lipgloss.AdaptiveColor{Light: "250", Dark: "240"}
 )
 
-const cellWidth = 3
+const (
+	cellWidth   = 3
+	spacerEvery = 5
+)
 
 var (
 	hintCellStyle = baseStyle.Width(cellWidth)
@@ -60,6 +65,34 @@ var (
 	}
 )
 
+// needsSpacer reports whether a separator should be inserted after index i
+// in a dimension of size n (i.e. after every spacerEvery cells, except the last).
+func needsSpacer(i, n int) bool {
+	return n > spacerEvery && (i+1)%spacerEvery == 0 && i < n-1
+}
+
+// hSeparator builds a horizontal separator row using box-drawing characters.
+// w is the number of grid columns. cursorX is the cursor column (-1 to disable crosshair).
+// bg is the default background, crossBG is the crosshair-highlighted background.
+func hSeparator(w, cursorX int, bg, crossBG lipgloss.TerminalColor) string {
+	defStyle := baseStyle.Foreground(separatorFG).Background(bg)
+	highStyle := baseStyle.Foreground(separatorFG).Background(crossBG)
+	segment := strings.Repeat("─", cellWidth)
+
+	var parts []string
+	for x := range w {
+		style := defStyle
+		if x == cursorX {
+			style = highStyle
+		}
+		parts = append(parts, style.Render(segment))
+		if needsSpacer(x, w) {
+			parts = append(parts, defStyle.Render("┼"))
+		}
+	}
+	return lipgloss.JoinHorizontal(lipgloss.Top, parts...)
+}
+
 func colHintView(c TomographyDefinition, height int, current ...TomographyDefinition) string {
 	var hasCurrent bool
 	var curr TomographyDefinition
@@ -68,12 +101,13 @@ func colHintView(c TomographyDefinition, height int, current ...TomographyDefini
 		curr = current[0]
 	}
 
+	n := len(c)
 	var renderedCols []string
 	for i, hints := range c {
 		var colHints []string
 		for range height - len(hints) {
-			spacer := hintCellStyle.Render(" ")
-			colHints = append(colHints, spacer)
+			pad := hintCellStyle.Render(" ")
+			colHints = append(colHints, pad)
 		}
 
 		satisfied := hasCurrent && i < len(curr) && intSliceEqual(hints, curr[i])
@@ -90,6 +124,14 @@ func colHintView(c TomographyDefinition, height int, current ...TomographyDefini
 		}
 		renderedCol := lipgloss.JoinVertical(lipgloss.Left, colHints...)
 		renderedCols = append(renderedCols, renderedCol)
+
+		if needsSpacer(i, n) {
+			sepStyle := baseStyle.Foreground(separatorFG)
+			col := lipgloss.JoinVertical(lipgloss.Left,
+				strings.Split(strings.Repeat("│\n", height), "\n")[:height]...,
+			)
+			renderedCols = append(renderedCols, sepStyle.Render(col))
+		}
 	}
 	return lipgloss.JoinHorizontal(lipgloss.Top, renderedCols...)
 }
@@ -102,6 +144,7 @@ func rowHintView(r TomographyDefinition, width int, current ...TomographyDefinit
 		curr = current[0]
 	}
 
+	n := len(r)
 	var renderedRows []string
 	for i, hints := range r {
 		satisfied := hasCurrent && i < len(curr) && intSliceEqual(hints, curr[i])
@@ -120,24 +163,63 @@ func rowHintView(r TomographyDefinition, width int, current ...TomographyDefinit
 			Align(lipgloss.Right).
 			Render(strings.Join(rowHints, " "))
 		renderedRows = append(renderedRows, renderedRow)
+
+		if needsSpacer(i, n) {
+			sep := baseStyle.Foreground(separatorFG).
+				Width(width).
+				Align(lipgloss.Right).
+				Render(strings.Repeat("─", width))
+			renderedRows = append(renderedRows, sep)
+		}
 	}
 	s := lipgloss.JoinVertical(lipgloss.Left, renderedRows...)
 	return s
 }
 
 func gridView(g grid, c game.Cursor, solved bool) string {
+	h := len(g)
+	w := 0
+	if h > 0 {
+		w = len(g[0])
+	}
+
+	sepStyle := baseStyle.Foreground(separatorFG)
+
+	// Determine background for horizontal separators (matches grid background).
+	gridBG := emptyStyle.GetBackground()
+	if solved {
+		gridBG = solvedBG
+	}
+
 	var rows []string
 	for y, row := range g {
+		inCursorRow := y == c.Y
+
 		var rowBuilder []string
 		for x, cell := range row {
 			isCursor := x == c.X && y == c.Y
-			inCursorRow := y == c.Y
 			inCursorCol := x == c.X
 			cell := tileView(cell, isCursor, inCursorRow, inCursorCol, solved)
 			rowBuilder = append(rowBuilder, cell)
+
+			if needsSpacer(x, w) {
+				bg := gridBG
+				if !solved && inCursorRow {
+					bg = crosshairBG
+				}
+				rowBuilder = append(rowBuilder, sepStyle.Background(bg).Render("│"))
+			}
 		}
 		row := lipgloss.JoinHorizontal(lipgloss.Top, rowBuilder...)
 		rows = append(rows, row)
+
+		if needsSpacer(y, h) {
+			cursorX := -1
+			if !solved {
+				cursorX = c.X
+			}
+			rows = append(rows, hSeparator(w, cursorX, gridBG, crosshairBG))
+		}
 	}
 	grid := lipgloss.JoinVertical(lipgloss.Left, rows...)
 	return grid
