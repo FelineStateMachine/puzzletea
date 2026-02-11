@@ -27,4 +27,5 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: "1.24"
-      - run: go test ./...
+      - uses: extractions/setup-just@v2
+      - run: just test
