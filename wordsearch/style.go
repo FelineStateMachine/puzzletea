@@ -53,7 +53,7 @@ func renderView(m Model) string {
 
 	status := statusBarView(m.showFullHelp)
 
-	return lipgloss.JoinVertical(lipgloss.Left, title, mainView, status)
+	return lipgloss.JoinVertical(lipgloss.Center, title, mainView, status)
 }
 
 func statusBarView(showFullHelp bool) string {

@@ -132,7 +132,7 @@ func (m Model) View() string {
 	info := infoView(&m.puzzle)
 	status := statusBarView(m.selectedIsland != nil, m.showFullHelp)
 
-	return lipgloss.JoinVertical(lipgloss.Left, title, grid, info, status)
+	return lipgloss.JoinVertical(lipgloss.Center, title, grid, info, status)
 }
 
 func (m Model) SetTitle(t string) game.Gamer {

@@ -95,9 +95,9 @@ func (m Model) View() string {
 	s1 := lipgloss.JoinHorizontal(lipgloss.Bottom, spacer, c)
 	s2 := lipgloss.JoinHorizontal(lipgloss.Top, r, g)
 
-	grid := lipgloss.JoinVertical(lipgloss.Left, s1, s2)
+	grid := lipgloss.JoinVertical(lipgloss.Center, s1, s2)
 
-	return lipgloss.JoinVertical(lipgloss.Left, title, grid, status)
+	return lipgloss.JoinVertical(lipgloss.Center, title, grid, status)
 }
 
 func (m Model) GetDebugInfo() string {

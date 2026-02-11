@@ -339,7 +339,7 @@ func (m model) View() string {
 		if m.debug {
 			debugInfo = debugStyle.Render(m.debuginfo)
 		}
-		s := lipgloss.JoinVertical(lipgloss.Left,
+		s := lipgloss.JoinVertical(lipgloss.Center,
 			m.game.View(),
 			debugInfo,
 		)
