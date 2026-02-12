@@ -2,12 +2,26 @@ package nonogram
 
 import (
 	"context"
+	"fmt"
 	"math/rand/v2"
 	"strings"
+	"sync"
 	"time"
 )
 
-const maxAttempts = 100
+const (
+	maxAttempts      = 100
+	maxPossibilities = 10000
+)
+
+var (
+	possibilitiesCache = make(map[string][][]cellState)
+	possibilitiesMu    sync.RWMutex
+)
+
+func cacheKey(length int, hint []int) string {
+	return fmt.Sprintf("%d:%v", length, hint)
+}
 
 func GenerateRandomTomography(mode NonogramMode) Hints {
 	maxDim := max(mode.Width, mode.Height)
@@ -141,7 +155,7 @@ func countSolutionsRecursive(g solutionGrid, hints Hints, limit int, ctx context
 	default:
 	}
 
-	propagated, valid := propagate(g, hints)
+	propagated, valid := propagate(g, hints, ctx)
 	if !valid {
 		return 0
 	}
@@ -155,8 +169,9 @@ func countSolutionsRecursive(g solutionGrid, hints Hints, limit int, ctx context
 			if propagated.cells[y][x] == cellUnknown {
 				count := 0
 
-				g1 := propagated.clone()
-				if g1.set(x, y, cellFilled) {
+				if propagated.set(x, y, cellFilled) {
+					g1 := propagated.clone()
+					propagated.cells[y][x] = cellUnknown
 					n := countSolutionsRecursive(g1, hints, limit-count, ctx)
 					if n < 0 {
 						return n
@@ -167,8 +182,9 @@ func countSolutionsRecursive(g solutionGrid, hints Hints, limit int, ctx context
 					}
 				}
 
-				g2 := propagated.clone()
-				if g2.set(x, y, cellEmpty) {
+				if propagated.set(x, y, cellEmpty) {
+					g2 := propagated.clone()
+					propagated.cells[y][x] = cellUnknown
 					n := countSolutionsRecursive(g2, hints, limit-count, ctx)
 					if n < 0 {
 						return n
@@ -187,18 +203,25 @@ func countSolutionsRecursive(g solutionGrid, hints Hints, limit int, ctx context
 	return 0
 }
 
-func propagate(g solutionGrid, hints Hints) (solutionGrid, bool) {
+func propagate(g solutionGrid, hints Hints, ctx context.Context) (solutionGrid, bool) {
+	rowBuf := make([]cellState, g.w)
+	colBuf := make([]cellState, g.h)
+
 	changed := true
 	for changed {
+		select {
+		case <-ctx.Done():
+			return g, false
+		default:
+		}
 		changed = false
 
 		for y := range g.h {
-			row := make([]cellState, g.w)
 			for x := range g.w {
-				row[x] = g.cells[y][x]
+				rowBuf[x] = g.cells[y][x]
 			}
 
-			newRow, valid := propagateLine(row, hints.rows[y])
+			newRow, valid := propagateLine(rowBuf[:g.w], hints.rows[y])
 			if !valid {
 				return g, false
 			}
@@ -212,12 +235,11 @@ func propagate(g solutionGrid, hints Hints) (solutionGrid, bool) {
 		}
 
 		for x := range g.w {
-			col := make([]cellState, g.h)
 			for y := range g.h {
-				col[y] = g.cells[y][x]
+				colBuf[y] = g.cells[y][x]
 			}
 
-			newCol, valid := propagateLine(col, hints.cols[x])
+			newCol, valid := propagateLine(colBuf[:g.h], hints.cols[x])
 			if !valid {
 				return g, false
 			}
@@ -236,7 +258,11 @@ func propagate(g solutionGrid, hints Hints) (solutionGrid, bool) {
 
 func propagateLine(line []cellState, hint []int) ([]cellState, bool) {
 	n := len(line)
-	possibilities := generateLinePossibilities(n, hint)
+	possibilities := getCachedPossibilities(n, hint)
+
+	if len(possibilities) > maxPossibilities {
+		return line, true
+	}
 
 	filtered := make([][]cellState, 0, len(possibilities))
 	for _, poss := range possibilities {
@@ -271,6 +297,29 @@ func propagateLine(line []cellState, hint []int) ([]cellState, bool) {
 	}
 
 	return result, true
+}
+
+func getCachedPossibilities(length int, hint []int) [][]cellState {
+	key := cacheKey(length, hint)
+
+	possibilitiesMu.RLock()
+	if cached, ok := possibilitiesCache[key]; ok {
+		possibilitiesMu.RUnlock()
+		return cached
+	}
+	possibilitiesMu.RUnlock()
+
+	possibilities := generateLinePossibilities(length, hint)
+
+	possibilitiesMu.Lock()
+	if cached, ok := possibilitiesCache[key]; ok {
+		possibilitiesMu.Unlock()
+		return cached
+	}
+	possibilitiesCache[key] = possibilities
+	possibilitiesMu.Unlock()
+
+	return possibilities
 }
 
 func generateLinePossibilities(length int, hint []int) [][]cellState {

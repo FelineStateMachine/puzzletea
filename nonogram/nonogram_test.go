@@ -894,3 +894,50 @@ func TestGenerateRandomTomography_5x5_VerifyUnique(t *testing.T) {
 // Ensure the game import is used (it's needed for the init() registration side effect
 // and the NewMode constructor uses game.NewBaseMode internally).
 var _ game.Gamer = Model{}
+
+// --- Spawn Performance Benchmark (P2) ---
+
+func TestSpawnPerformance(t *testing.T) {
+	const numRuns = 20
+
+	modeConfigs := []struct {
+		name string
+		mode NonogramMode
+	}{
+		{"Mini", NewMode("Mini", "test", 5, 5, 0.65)},
+		{"Pocket", NewMode("Pocket", "test", 5, 5, 0.50)},
+		{"Teaser", NewMode("Teaser", "test", 5, 5, 0.35)},
+		{"Standard", NewMode("Standard", "test", 10, 10, 0.67)},
+		{"Classic", NewMode("Classic", "test", 10, 10, 0.52)},
+		{"Tricky", NewMode("Tricky", "test", 10, 10, 0.37)},
+		{"Large", NewMode("Large", "test", 15, 15, 0.69)},
+		{"Grand", NewMode("Grand", "test", 15, 15, 0.54)},
+		{"Epic", NewMode("Epic", "test", 20, 20, 0.71)},
+		{"Massive", NewMode("Massive", "test", 20, 20, 0.56)},
+	}
+
+	t.Run("average spawn time across all modes", func(t *testing.T) {
+		for _, cfg := range modeConfigs {
+			cfg := cfg
+			t.Run(cfg.name, func(t *testing.T) {
+				if cfg.mode.Width >= 15 && testing.Short() {
+					t.Skip("skipping large grids in short mode")
+				}
+
+				var totalDuration time.Duration
+				for i := 0; i < numRuns; i++ {
+					start := time.Now()
+					_, err := cfg.mode.Spawn()
+					if err != nil {
+						t.Fatalf("Spawn failed: %v", err)
+					}
+					totalDuration += time.Since(start)
+				}
+
+				avgNs := totalDuration.Nanoseconds() / numRuns
+				avgµs := float64(avgNs) / 1000
+				t.Logf("Average spawn time for %s: %.2fµs", cfg.name, avgµs)
+			})
+		}
+	})
+}

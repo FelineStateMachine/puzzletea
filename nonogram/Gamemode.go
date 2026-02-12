@@ -38,19 +38,17 @@ func (n NonogramMode) Spawn() (game.Gamer, error) {
 
 var Modes = []list.Item{
 	// 5x5
-	NewMode("Easy 5x5", "5x5 grid, ~65% filled. Dense, constraining hints.", 5, 5, 0.65),
-	NewMode("Medium 5x5", "5x5 grid, ~50% filled. Balanced challenge.", 5, 5, 0.50),
-	NewMode("Hard 5x5", "5x5 grid, ~35% filled. Sparse, ambiguous hints.", 5, 5, 0.35),
+	NewMode("Mini", "5x5 grid, ~65% filled. Quick puzzle, straightforward hints.", 5, 5, 0.65),
+	NewMode("Pocket", "5x5 grid, ~50% filled. Compact but balanced.", 5, 5, 0.50),
+	NewMode("Teaser", "5x5 grid, ~35% filled. Small but tricky.", 5, 5, 0.35),
 	// 10x10
-	NewMode("Easy 10x10", "10x10 grid, ~65% filled. Dense, constraining hints.", 10, 10, 0.65),
-	NewMode("Medium 10x10", "10x10 grid, ~50% filled. Balanced challenge.", 10, 10, 0.50),
-	NewMode("Hard 10x10", "10x10 grid, ~35% filled. Sparse, ambiguous hints.", 10, 10, 0.35),
+	NewMode("Standard", "10x10 grid, ~67% filled. Classic size, dense hints.", 10, 10, 0.67),
+	NewMode("Classic", "10x10 grid, ~52% filled. The typical nonogram experience.", 10, 10, 0.52),
+	NewMode("Tricky", "10x10 grid, ~37% filled. Sparse hints require reasoning.", 10, 10, 0.37),
 	// 15x15
-	NewMode("Easy 15x15", "15x15 grid, ~65% filled. Dense, constraining hints.", 15, 15, 0.65),
-	NewMode("Medium 15x15", "15x15 grid, ~50% filled. Balanced challenge.", 15, 15, 0.50),
-	NewMode("Hard 15x15", "15x15 grid, ~35% filled. Sparse, ambiguous hints.", 15, 15, 0.35),
+	NewMode("Large", "15x15 grid, ~69% filled. Bigger grid, constraining hints.", 15, 15, 0.69),
+	NewMode("Grand", "15x15 grid, ~54% filled. A substantial challenge.", 15, 15, 0.54),
 	// 20x20
-	NewMode("Easy 20x20", "20x20 grid, ~65% filled. Dense, constraining hints.", 20, 20, 0.65),
-	NewMode("Medium 20x20", "20x20 grid, ~50% filled. Balanced challenge.", 20, 20, 0.50),
-	NewMode("Hard 20x20", "20x20 grid, ~35% filled. Sparse, ambiguous hints.", 20, 20, 0.35),
+	NewMode("Epic", "20x20 grid, ~71% filled. A epic undertaking.", 20, 20, 0.71),
+	NewMode("Massive", "20x20 grid, ~56% filled. Truly massive puzzle.", 20, 20, 0.56),
 }
