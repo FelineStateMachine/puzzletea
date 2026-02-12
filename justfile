@@ -42,5 +42,5 @@ vhs: build
     vhs vhs/takuzu.tape
     vhs vhs/wordsearch.tape
     vhs vhs/hashiwokakero.tape
-    vhs vhs/help.tapex
+    vhs vhs/help.tape
     vhs vhs/lightsout.tape
