@@ -38,7 +38,7 @@ var (
 				Foreground(lipgloss.AdaptiveColor{Light: "137", Dark: "137"})
 
 	statusBarStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.AdaptiveColor{Light: "137", Dark: "137"}).
+			Foreground(lipgloss.AdaptiveColor{Light: "244", Dark: "244"}).
 			MarginTop(1)
 
 	borderFG    = lipgloss.AdaptiveColor{Light: "250", Dark: "240"}

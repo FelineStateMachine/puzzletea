@@ -1,12 +1,12 @@
 Output vhs/nonogram.gif
 
-Set Theme "catppuccin-mocha"
+Set Theme "Monokai Pro"
 Set FontSize 14
-Set Width 1200
-Set Height 800
+Set Width 1000
+Set Height 860
 Set Margin 60
 Set MarginFill "#A85C40"
-Set WindowBar Colorful
+Set WindowBar ColorfulRight
 
 Env COLORTERM "truecolor"
 Env CLICOLOR_FORCE "1"
@@ -19,7 +19,7 @@ Sleep 2s
 Ctrl+L
 Show
 
-Type "./puzzletea new nonogram easy-5x5"
+Type "./puzzletea new nonogram easy-20x20"
 Sleep 500ms
 Enter
 Sleep 2s
@@ -38,6 +38,8 @@ Right
 Type "x"
 Sleep 400ms
 
+Ctrl+H
+
 # Move down and left, fill more cells
 Down
 Left
@@ -45,21 +47,39 @@ Left
 Type "z"
 Sleep 400ms
 Down
+Down
+Down
+Right
+Down
+Down
+Down
+Type "z"
+Sleep 400ms
+Right
+Right
+Right
+Down
+Down
+Down
+Right
+Right
 Type "z"
 Sleep 400ms
 Right
 Type "z"
-Sleep 400ms
+Sleep 500ms
+Right
+Type "z"
+Sleep 300ms
 Right
 Type "z"
 Sleep 400ms
 
 # Demonstrate clearing a cell
 Backspace
-Sleep 400ms
+Sleep 900ms
 
 # Refill it
 Type "z"
-Sleep 400ms
 
-Sleep 3s
+Sleep 4s

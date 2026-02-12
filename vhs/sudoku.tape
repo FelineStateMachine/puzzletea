@@ -1,12 +1,14 @@
 Output vhs/sudoku.gif
 
-Set Theme "catppuccin-mocha"
-Set FontSize 14
-Set Width 1200
-Set Height 800
+Set Theme "MaterialDarker"
+Set FontSize 16
+Set Width 600
+Set Height 680
 Set Margin 60
 Set MarginFill "#6B5B5E"
-Set WindowBar Colorful
+Set WindowBar Rings
+Set BorderRadius 10
+
 
 Env COLORTERM "truecolor"
 Env CLICOLOR_FORCE "1"
@@ -19,7 +21,7 @@ Sleep 2s
 Ctrl+L
 Show
 
-Type "./puzzletea new sudoku beginner"
+Type "./puzzletea new sudoku Medium"
 Sleep 500ms
 Enter
 Sleep 2s
@@ -45,7 +47,7 @@ Sleep 500ms
 Backspace
 Sleep 500ms
 Type "8"
-Sleep 500ms
+Sleep 800ms
 
 # Navigate around to show highlighting
 Down
@@ -53,6 +55,15 @@ Down
 Down
 Sleep 300ms
 Right
+Right
+Sleep 500ms
+Down
+Sleep 200ms
+Left
+Sleep 800ms
+Down
+Sleep 600ms
+Up
 Right
 Sleep 300ms
 

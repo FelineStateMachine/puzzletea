@@ -15,7 +15,7 @@ var DefaultKeyMap = KeyMap{
 
 	Toggle: key.NewBinding(
 		key.WithKeys("enter", " "),
-		key.WithHelp("space/enter", "Toggle"),
+		key.WithHelp("enter/space", "Toggle"),
 	),
 }
 

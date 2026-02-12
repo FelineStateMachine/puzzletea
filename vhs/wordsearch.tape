@@ -1,12 +1,13 @@
 Output vhs/wordsearch.gif
 
-Set Theme "catppuccin-mocha"
-Set FontSize 14
+Set Theme "Solarized Darcula"
+Set FontSize 16
 Set Width 1200
 Set Height 800
-Set Margin 60
+Set Margin 40
 Set MarginFill "#9C7A5B"
-Set WindowBar Colorful
+Set WindowBar ColorfulRight
+Set BorderRadius 10
 
 Env COLORTERM "truecolor"
 Env CLICOLOR_FORCE "1"
@@ -19,7 +20,7 @@ Sleep 2s
 Ctrl+L
 Show
 
-Type "./puzzletea new word-search easy-10x10"
+Type "./puzzletea new word-search hard-20x20"
 Sleep 500ms
 Enter
 Sleep 2s

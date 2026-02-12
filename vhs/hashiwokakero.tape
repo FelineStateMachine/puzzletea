@@ -2,11 +2,12 @@ Output vhs/hashiwokakero.gif
 
 Set Theme "catppuccin-mocha"
 Set FontSize 14
-Set Width 1200
+Set Width 800
 Set Height 800
 Set Margin 60
 Set MarginFill "#7A6855"
 Set WindowBar Colorful
+Set BorderRadius 10
 
 Env COLORTERM "truecolor"
 Env CLICOLOR_FORCE "1"
@@ -19,7 +20,7 @@ Sleep 2s
 Ctrl+L
 Show
 
-Type "./puzzletea new hashi easy-7x7"
+Type "./puzzletea new hashi medium-9x9"
 Sleep 500ms
 Enter
 Sleep 2s

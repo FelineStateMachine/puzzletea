@@ -89,7 +89,7 @@ func (m Model) View() string {
 	r := rowHintView(m.rowHints, maxWidth, m.currentHints.rows)
 	c := colHintView(m.colHints, maxHeight, m.currentHints.cols)
 	spacer := baseStyle.Width(maxWidth).Height(maxHeight).Render("")
-	status := nonoStatusBarView(m.showFullHelp)
+	status := statusBarView(m.showFullHelp)
 
 	s1 := lipgloss.JoinHorizontal(lipgloss.Bottom, spacer, c)
 	s2 := lipgloss.JoinHorizontal(lipgloss.Top, r, g)

@@ -38,9 +38,9 @@ var (
 	hintSatisfiedStyle = baseStyle.
 				Foreground(lipgloss.AdaptiveColor{Light: "22", Dark: "149"})
 
-	nonoStatusBarStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.AdaptiveColor{Light: "244", Dark: "244"}).
-				MarginTop(1)
+	statusBarStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.AdaptiveColor{Light: "244", Dark: "244"}).
+			MarginTop(1)
 
 	separatorFG = lipgloss.AdaptiveColor{Light: "250", Dark: "240"}
 )
@@ -257,11 +257,11 @@ func tileView(val rune, isCursor, inCursorRow, inCursorCol, solved bool) string 
 	return s.Width(cellWidth).AlignHorizontal(lipgloss.Center).Render(r)
 }
 
-func nonoStatusBarView(showFullHelp bool) string {
+func statusBarView(showFullHelp bool) string {
 	if showFullHelp {
-		return nonoStatusBarStyle.Render("arrows/wasd: move  z: fill  x: mark  bkspc: clear  ctrl+n: menu  ctrl+h: help")
+		return statusBarStyle.Render("arrows/wasd: move  z: fill  x: mark  bkspc: clear  ctrl+n: menu  ctrl+h: help")
 	}
-	return nonoStatusBarStyle.Render("z: fill  x: mark  bkspc: clear")
+	return statusBarStyle.Render("z: fill  x: mark  bkspc: clear")
 }
 
 func intSliceEqual(a, b []int) bool {

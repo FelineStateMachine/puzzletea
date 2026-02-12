@@ -1,12 +1,12 @@
 Output vhs/takuzu.gif
 
 Set Theme "catppuccin-mocha"
-Set FontSize 14
+Set FontSize 18
 Set Width 1200
-Set Height 800
-Set Margin 60
+Set Height 940
+Set Margin 80
 Set MarginFill "#6E6352"
-Set WindowBar Colorful
+Set WindowBar ColorfulRight
 
 Env COLORTERM "truecolor"
 Env CLICOLOR_FORCE "1"
@@ -19,7 +19,7 @@ Sleep 2s
 Ctrl+L
 Show
 
-Type "./puzzletea new takuzu easy"
+Type "./puzzletea new takuzu hard"
 Sleep 500ms
 Enter
 Sleep 2s

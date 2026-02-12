@@ -1,12 +1,14 @@
 Output vhs/menu.gif
 
-Set Theme "catppuccin-mocha"
+Set Theme "Treehouse"
 Set FontSize 14
 Set Width 1200
 Set Height 800
 Set Margin 60
 Set MarginFill "#8B6B4A"
-Set WindowBar Colorful
+Set WindowBar RingsRight
+Set BorderRadius 14
+
 
 Env COLORTERM "truecolor"
 Env CLICOLOR_FORCE "1"
@@ -59,10 +61,20 @@ Down
 Sleep 400ms
 Down
 Sleep 400ms
+Down
+Sleep 400ms
+Down
+Sleep 400ms
+Down
+Sleep 400ms
+Down
+Down
+Sleep 600ms
+
 
 # Go back through menus
 Escape
-Sleep 500ms
+Sleep 1s
 Escape
 Sleep 500ms
 

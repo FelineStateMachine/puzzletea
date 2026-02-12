@@ -15,11 +15,11 @@ var DefaultKeyMap = KeyMap{
 	CursorKeyMap: game.DefaultCursorKeyMap,
 	FillValue: key.NewBinding(
 		key.WithKeys("1", "2", "3", "4", "5", "6", "7", "8", "9"),
-		key.WithHelp("[1-9]", "Fill Cell"),
+		key.WithHelp("1-9", "Fill"),
 	),
 	ClearCell: key.NewBinding(
 		key.WithKeys("backspace"),
-		key.WithHelp("bkspc", "Clear Cell Contents"),
+		key.WithHelp("bkspc", "Clear"),
 	),
 }
 

@@ -25,7 +25,7 @@ var DefaultKeyMap = KeyMap{
 	),
 	ClearTile: key.NewBinding(
 		key.WithKeys("backspace"),
-		key.WithHelp("⌫", "Clear"),
+		key.WithHelp("bkspc", "Clear"),
 	),
 }
 

@@ -15,11 +15,11 @@ var DefaultKeyMap = KeyMap{
 	CursorKeyMap: game.DefaultCursorKeyMap,
 	Select: key.NewBinding(
 		key.WithKeys("enter", " "),
-		key.WithHelp("enter/space", "select start/end"),
+		key.WithHelp("enter/space", "Select"),
 	),
 	Cancel: key.NewBinding(
 		key.WithKeys("esc"),
-		key.WithHelp("esc", "cancel selection"),
+		key.WithHelp("esc", "Cancel"),
 	),
 }
 

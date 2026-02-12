@@ -1,9 +1,9 @@
 Output vhs/lightsout.gif
 
-Set Theme "catppuccin-mocha"
-Set FontSize 14
-Set Width 1200
-Set Height 800
+Set Theme "GitHub Dark"
+Set FontSize 18
+Set Width 800
+Set Height 880
 Set Margin 60
 Set MarginFill "#8A7260"
 Set WindowBar Colorful
@@ -19,7 +19,7 @@ Sleep 2s
 Ctrl+L
 Show
 
-Type "./puzzletea new lights-out easy"
+Type "./puzzletea new lights-out hard"
 Sleep 500ms
 Enter
 Sleep 2s

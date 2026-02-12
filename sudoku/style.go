@@ -51,7 +51,7 @@ var (
 				BorderBackground(backgroundColor)
 
 	statusBarStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.AdaptiveColor{Light: "137", Dark: "137"}).
+			Foreground(lipgloss.AdaptiveColor{Light: "244", Dark: "244"}).
 			MarginTop(1)
 
 	sudokuCellWidth = 2
