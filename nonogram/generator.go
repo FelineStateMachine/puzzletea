@@ -7,9 +7,13 @@ import (
 	"time"
 )
 
+const maxAttempts = 100
+
 func GenerateRandomTomography(mode NonogramMode) Hints {
-	timeout := 5 * time.Second
-	for {
+	maxDim := max(mode.Width, mode.Height)
+	timeout := time.Duration(maxDim) * time.Second
+
+	for range maxAttempts {
 		s := generateRandomState(mode.Height, mode.Width, mode.Density)
 		g := newGrid(s)
 		hints := generateTomography(g)
@@ -23,6 +27,7 @@ func GenerateRandomTomography(mode NonogramMode) Hints {
 			return hints
 		}
 	}
+	return Hints{}
 }
 
 func generateRandomState(h, w int, density float64) state {
@@ -317,10 +322,8 @@ func generateLinePossibilitiesRecursive(length int, hint []int, hintIdx, pos int
 
 		if hintIdx < len(hint)-1 {
 			newCurrent = append(newCurrent, cellEmpty)
-			results = append(results, generateLinePossibilitiesRecursive(length, hint, hintIdx+1, len(newCurrent), newCurrent)...)
-		} else {
-			results = append(results, generateLinePossibilitiesRecursive(length, hint, hintIdx+1, len(newCurrent), newCurrent)...)
 		}
+		results = append(results, generateLinePossibilitiesRecursive(length, hint, hintIdx+1, len(newCurrent), newCurrent)...)
 	}
 
 	return results

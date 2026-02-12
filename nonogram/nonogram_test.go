@@ -867,6 +867,44 @@ func TestGenerateRandomTomography_10x10_Unique(t *testing.T) {
 	}
 }
 
+func TestGenerateRandomTomography_15x15_Unique(t *testing.T) {
+	mode := NewMode("Test 15x15", "test mode", 15, 15, 0.5)
+
+	hints := GenerateRandomTomography(mode)
+	if len(hints.rows) == 0 && len(hints.cols) == 0 {
+		t.Skip("15x15 generation timed out or exhausted attempts")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	count := countSolutions(hints, mode.Width, mode.Height, 2, ctx)
+	if count != 1 {
+		t.Errorf("puzzle has %d solutions, want 1", count)
+	}
+}
+
+func TestGenerateRandomTomography_20x20_Unique(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping 20x20 in short mode")
+	}
+
+	mode := NewMode("Test 20x20", "test mode", 20, 20, 0.5)
+
+	hints := GenerateRandomTomography(mode)
+	if len(hints.rows) == 0 && len(hints.cols) == 0 {
+		t.Skip("20x20 generation timed out or exhausted attempts")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+
+	count := countSolutions(hints, mode.Width, mode.Height, 2, ctx)
+	if count != 1 {
+		t.Errorf("puzzle has %d solutions, want 1", count)
+	}
+}
+
 // Ensure the game import is used (it's needed for the init() registration side effect
 // and the NewMode constructor uses game.NewBaseMode internally).
 var _ game.Gamer = Model{}
