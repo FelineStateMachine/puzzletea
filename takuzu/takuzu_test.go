@@ -916,3 +916,36 @@ func TestImportModel_SolvedRecalculated(t *testing.T) {
 		t.Error("ImportModel should set solved=true for complete valid grid")
 	}
 }
+
+// --- Uniqueness across all modes (P0) ---
+
+func TestGeneratePuzzle_AllModes_Unique(t *testing.T) {
+	modes := []struct {
+		name      string
+		size      int
+		prefilled float64
+		runs      int
+	}{
+		{"Beginner 6x6", 6, 0.50, 3},
+		{"Easy 6x6", 6, 0.40, 3},
+		{"Medium 8x8", 8, 0.40, 3},
+		{"Tricky 10x10", 10, 0.38, 2},
+		{"Hard 10x10", 10, 0.32, 2},
+		{"Very Hard 12x12", 12, 0.30, 1},
+		{"Extreme 14x14", 14, 0.28, 1},
+	}
+
+	for _, m := range modes {
+		t.Run(m.name, func(t *testing.T) {
+			for range m.runs {
+				complete := generateComplete(m.size)
+				puzzle, _ := generatePuzzle(complete, m.size, m.prefilled)
+				count := countSolutions(puzzle, m.size, 2)
+				if count != 1 {
+					t.Errorf("puzzle has %d solutions, want 1", count)
+					return
+				}
+			}
+		})
+	}
+}
