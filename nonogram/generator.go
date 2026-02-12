@@ -13,8 +13,9 @@ func GenerateRandomTomography(mode NonogramMode) Hints {
 	maxDim := max(mode.Width, mode.Height)
 	timeout := time.Duration(maxDim) * time.Second
 
-	for range maxAttempts {
-		s := generateRandomState(mode.Height, mode.Width, mode.Density)
+	for attempt := range maxAttempts {
+		density := lerp(mode.Density, 0.5, float64(attempt)*0.02)
+		s := generateRandomState(mode.Height, mode.Width, density)
 		g := newGrid(s)
 		hints := generateTomography(g)
 		if !isValidPuzzle(hints, mode.Height, mode.Width) {
@@ -28,6 +29,10 @@ func GenerateRandomTomography(mode NonogramMode) Hints {
 		}
 	}
 	return Hints{}
+}
+
+func lerp(a, b, t float64) float64 {
+	return a + (b-a)*t
 }
 
 func generateRandomState(h, w int, density float64) state {
