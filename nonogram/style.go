@@ -28,8 +28,9 @@ var (
 			Foreground(lipgloss.AdaptiveColor{Light: "255", Dark: "235"}).
 			Background(lipgloss.AdaptiveColor{Light: "130", Dark: "214"})
 
-	crosshairBG = lipgloss.AdaptiveColor{Light: "254", Dark: "237"}
-	solvedBG    = lipgloss.AdaptiveColor{Light: "151", Dark: "22"}
+	crosshairBG       = lipgloss.AdaptiveColor{Light: "254", Dark: "237"}
+	crosshairFilledBG = lipgloss.AdaptiveColor{Light: "223", Dark: "100"}
+	solvedBG          = lipgloss.AdaptiveColor{Light: "151", Dark: "22"}
 
 	hintStyle = baseStyle.
 			Foreground(lipgloss.AdaptiveColor{Light: "137", Dark: "137"})
@@ -127,10 +128,12 @@ func colHintView(c TomographyDefinition, height int, current ...TomographyDefini
 
 		if needsSpacer(i, n) {
 			sepStyle := baseStyle.Foreground(separatorFG)
-			col := lipgloss.JoinVertical(lipgloss.Left,
-				strings.Split(strings.Repeat("│\n", height), "\n")[:height]...,
-			)
-			renderedCols = append(renderedCols, sepStyle.Render(col))
+			var lines []string
+			for range height - 1 {
+				lines = append(lines, " ")
+			}
+			lines = append(lines, sepStyle.Render("│"))
+			renderedCols = append(renderedCols, lipgloss.JoinVertical(lipgloss.Left, lines...))
 		}
 	}
 	return lipgloss.JoinHorizontal(lipgloss.Top, renderedCols...)
@@ -168,7 +171,7 @@ func rowHintView(r TomographyDefinition, width int, current ...TomographyDefinit
 			sep := baseStyle.Foreground(separatorFG).
 				Width(width).
 				Align(lipgloss.Right).
-				Render(strings.Repeat("─", width))
+				Render("─")
 			renderedRows = append(renderedRows, sep)
 		}
 	}
@@ -234,8 +237,12 @@ func tileView(val rune, isCursor, inCursorRow, inCursorCol, solved bool) string 
 	if isCursor && !solved {
 		s = cursorStyle
 	} else if !solved && (inCursorRow || inCursorCol) {
-		// Apply crosshair background tint
-		s = s.Background(crosshairBG)
+		// Apply crosshair background tint — filled cells get a more active color
+		if val == filledTile {
+			s = s.Background(crosshairFilledBG)
+		} else {
+			s = s.Background(crosshairBG)
+		}
 	}
 
 	if solved {

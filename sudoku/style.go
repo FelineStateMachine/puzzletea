@@ -32,6 +32,10 @@ var (
 				Foreground(lipgloss.AdaptiveColor{Light: "160", Dark: "167"}).
 				Background(lipgloss.AdaptiveColor{Light: "224", Dark: "52"})
 
+	sameNumberStyle = lipgloss.NewStyle().
+			Bold(true).
+			Foreground(lipgloss.AdaptiveColor{Light: "130", Dark: "187"})
+
 	crosshairBG = lipgloss.AdaptiveColor{Light: "254", Dark: "237"}
 
 	boxBorderFG = lipgloss.AdaptiveColor{Light: "250", Dark: "240"}
@@ -105,13 +109,19 @@ func renderGrid(m Model, solved bool, conflicts [gridSize][gridSize]bool) string
 }
 
 func getCellStyle(m Model, c cell, x, y int, conflict bool) lipgloss.Style {
-	// Priority: cursor > conflict > provided > user > empty
+	cursorVal := m.grid[m.cursor.Y][m.cursor.X].v
+
+	// Priority: cursor > conflict > same number > provided > user > empty
 	if m.cursor.X == x && m.cursor.Y == y {
 		return cursorCellStyle
 	}
 
 	if conflict {
 		return conflictCellStyle
+	}
+
+	if cursorVal != 0 && c.v == cursorVal {
+		return sameNumberStyle
 	}
 
 	isProvided := m.providedGrid[y][x]

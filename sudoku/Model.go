@@ -95,7 +95,7 @@ func (m Model) View() string {
 	grid := renderGrid(m, solved, conflicts)
 	status := statusBarView(m.showFullHelp)
 
-	return lipgloss.JoinVertical(lipgloss.Left, title, grid, status)
+	return lipgloss.JoinVertical(lipgloss.Center, title, grid, status)
 }
 
 // GetDebugInfo implements game.Gamer.
