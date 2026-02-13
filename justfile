@@ -13,6 +13,10 @@ run: build
 test:
     go test ./...
 
+# Run tests in short mode (skips slow generator tests).
+test-short:
+    go test -short ./...
+
 # Run linter.
 lint:
     golangci-lint run ./...

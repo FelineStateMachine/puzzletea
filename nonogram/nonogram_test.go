@@ -1,9 +1,11 @@
 package nonogram
 
 import (
+	"context"
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/FelineStateMachine/puzzletea/game"
 )
@@ -577,6 +579,371 @@ func TestSaveLoadRoundTrip(t *testing.T) {
 	})
 }
 
+// --- countSolutions (P0) ---
+
+func TestCountSolutions_Unique(t *testing.T) {
+	tests := []struct {
+		name  string
+		hints Hints
+		w, h  int
+		want  int
+	}{
+		{
+			name: "3x3 permutation matrix has 6 solutions",
+			hints: Hints{
+				rows: TomographyDefinition{{1}, {1}, {1}},
+				cols: TomographyDefinition{{1}, {1}, {1}},
+			},
+			w: 3, h: 3,
+			want: 6,
+		},
+		{
+			name: "2x2 diagonal has 2 solutions",
+			hints: Hints{
+				rows: TomographyDefinition{{1}, {1}},
+				cols: TomographyDefinition{{1}, {1}},
+			},
+			w: 2, h: 2,
+			want: 2,
+		},
+		{
+			name: "single cell filled",
+			hints: Hints{
+				rows: TomographyDefinition{{1}},
+				cols: TomographyDefinition{{1}},
+			},
+			w: 1, h: 1,
+			want: 1,
+		},
+		{
+			name: "single cell empty",
+			hints: Hints{
+				rows: TomographyDefinition{{0}},
+				cols: TomographyDefinition{{0}},
+			},
+			w: 1, h: 1,
+			want: 1,
+		},
+		{
+			name: "full row constraint",
+			hints: Hints{
+				rows: TomographyDefinition{{3}},
+				cols: TomographyDefinition{{1}, {1}, {1}},
+			},
+			w: 3, h: 1,
+			want: 1,
+		},
+		{
+			name: "full 2x2 grid unique",
+			hints: Hints{
+				rows: TomographyDefinition{{2}, {2}},
+				cols: TomographyDefinition{{2}, {2}},
+			},
+			w: 2, h: 2,
+			want: 1,
+		},
+		{
+			name: "empty 2x2 grid unique",
+			hints: Hints{
+				rows: TomographyDefinition{{0}, {0}},
+				cols: TomographyDefinition{{0}, {0}},
+			},
+			w: 2, h: 2,
+			want: 1,
+		},
+		{
+			name: "L-shape unique",
+			hints: Hints{
+				rows: TomographyDefinition{{2}, {1}},
+				cols: TomographyDefinition{{1}, {2}},
+			},
+			w: 2, h: 2,
+			want: 1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
+			got := countSolutions(tt.hints, tt.w, tt.h, 20, ctx)
+			if got != tt.want {
+				t.Errorf("countSolutions = %d, want %d", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestCountSolutions_Multiple(t *testing.T) {
+	t.Run("symmetric hints with multiple solutions", func(t *testing.T) {
+		hints := Hints{
+			rows: TomographyDefinition{{1}, {1}, {1}},
+			cols: TomographyDefinition{{1}, {1}, {1}},
+		}
+		ctx := context.Background()
+		got := countSolutions(hints, 3, 3, 10, ctx)
+		if got < 2 {
+			t.Errorf("expected multiple solutions, got %d", got)
+		}
+	})
+
+	t.Run("ambiguous pattern", func(t *testing.T) {
+		hints := Hints{
+			rows: TomographyDefinition{{1}, {1}},
+			cols: TomographyDefinition{{1}, {1}},
+		}
+		ctx := context.Background()
+		got := countSolutions(hints, 2, 2, 10, ctx)
+		if got != 2 {
+			t.Errorf("expected 2 solutions, got %d", got)
+		}
+	})
+}
+
+func TestCountSolutions_Limit(t *testing.T) {
+	t.Run("respects limit", func(t *testing.T) {
+		hints := Hints{
+			rows: TomographyDefinition{{1}, {1}, {1}},
+			cols: TomographyDefinition{{1}, {1}, {1}},
+		}
+		ctx := context.Background()
+		got := countSolutions(hints, 3, 3, 2, ctx)
+		if got > 2 {
+			t.Errorf("countSolutions = %d, should not exceed limit 2", got)
+		}
+	})
+}
+
+func TestCountSolutions_Timeout(t *testing.T) {
+	t.Run("returns on timeout", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Nanosecond)
+		defer cancel()
+		time.Sleep(1 * time.Millisecond)
+
+		hints := Hints{
+			rows: TomographyDefinition{{1}, {1}, {1}},
+			cols: TomographyDefinition{{1}, {1}, {1}},
+		}
+		got := countSolutions(hints, 3, 3, 10, ctx)
+		if got != -1 {
+			t.Errorf("expected -1 on timeout, got %d", got)
+		}
+	})
+}
+
+// --- propagateLine (P0) ---
+
+func TestPropagateLine(t *testing.T) {
+	tests := []struct {
+		name   string
+		line   []cellState
+		hint   []int
+		want   []cellState
+		wantOK bool
+	}{
+		{
+			name:   "empty line with zero hint",
+			line:   []cellState{cellUnknown, cellUnknown, cellUnknown},
+			hint:   []int{0},
+			want:   []cellState{cellEmpty, cellEmpty, cellEmpty},
+			wantOK: true,
+		},
+		{
+			name:   "full line",
+			line:   []cellState{cellUnknown, cellUnknown, cellUnknown},
+			hint:   []int{3},
+			want:   []cellState{cellFilled, cellFilled, cellFilled},
+			wantOK: true,
+		},
+		{
+			name:   "single block in middle of 5",
+			line:   []cellState{cellUnknown, cellUnknown, cellUnknown, cellUnknown, cellUnknown},
+			hint:   []int{3},
+			want:   []cellState{cellUnknown, cellUnknown, cellFilled, cellUnknown, cellUnknown},
+			wantOK: true,
+		},
+		{
+			name:   "contradiction",
+			line:   []cellState{cellFilled, cellUnknown, cellEmpty},
+			hint:   []int{3},
+			want:   nil,
+			wantOK: false,
+		},
+		{
+			name:   "partial fill forced with [2,1]",
+			line:   []cellState{cellFilled, cellUnknown, cellUnknown, cellUnknown, cellUnknown},
+			hint:   []int{2, 1},
+			want:   []cellState{cellFilled, cellFilled, cellEmpty, cellUnknown, cellUnknown},
+			wantOK: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, ok := propagateLine(tt.line, tt.hint)
+			if ok != tt.wantOK {
+				t.Errorf("propagateLine ok = %v, want %v", ok, tt.wantOK)
+				return
+			}
+			if !tt.wantOK {
+				return
+			}
+			if len(got) != len(tt.want) {
+				t.Errorf("got length %d, want %d", len(got), len(tt.want))
+				return
+			}
+			for i := range got {
+				if got[i] != tt.want[i] {
+					t.Errorf("got[%d] = %v, want %v", i, got[i], tt.want[i])
+				}
+			}
+		})
+	}
+}
+
+// --- generateLinePossibilities (P0) ---
+
+func TestGenerateLinePossibilities(t *testing.T) {
+	tests := []struct {
+		name   string
+		length int
+		hint   []int
+		want   int
+	}{
+		{"empty line", 3, []int{0}, 1},
+		{"full line", 3, []int{3}, 1},
+		{"single in 3", 3, []int{1}, 3},
+		{"two blocks", 5, []int{1, 1}, 6},
+		{"block of 2 in 5", 5, []int{2}, 4},
+		{"exact fit", 5, []int{2, 2}, 1},
+		{"impossible", 3, []int{4}, 0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := generateLinePossibilities(tt.length, tt.hint)
+			if len(got) != tt.want {
+				t.Errorf("got %d possibilities, want %d", len(got), tt.want)
+			}
+		})
+	}
+}
+
+// --- GenerateRandomTomography uniqueness (P0) ---
+
+func TestGenerateRandomTomography_AllModes_Unique(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping slow generator test in short mode")
+	}
+	modes := []struct {
+		name    string
+		width   int
+		height  int
+		density float64
+		runs    int
+	}{
+		{"Easy 5x5", 5, 5, 0.65, 5},
+		{"Medium 5x5", 5, 5, 0.50, 5},
+		{"Hard 5x5", 5, 5, 0.35, 5},
+		{"Easy 10x10", 10, 10, 0.65, 3},
+		{"Medium 10x10", 10, 10, 0.50, 3},
+		{"Hard 10x10", 10, 10, 0.35, 3},
+		{"Easy 15x15", 15, 15, 0.65, 1},
+		{"Medium 15x15", 15, 15, 0.50, 1},
+		{"Easy 20x20", 20, 20, 0.65, 1},
+		{"Medium 20x20", 20, 20, 0.50, 1},
+	}
+
+	for _, m := range modes {
+		t.Run(m.name, func(t *testing.T) {
+			if m.width >= 15 && testing.Short() {
+				t.Skip("skipping large grids in short mode")
+			}
+
+			mode := NewMode(m.name, "test mode", m.width, m.height, m.density)
+
+			for range m.runs {
+				hints := GenerateRandomTomography(mode)
+				if len(hints.rows) == 0 || len(hints.cols) == 0 {
+					t.Error("GenerateRandomTomography returned empty hints")
+					return
+				}
+				if len(hints.rows) != m.height || len(hints.cols) != m.width {
+					t.Errorf("hints dimensions wrong: got rows=%d, cols=%d, want rows=%d, cols=%d",
+						len(hints.rows), len(hints.cols), m.height, m.width)
+					return
+				}
+			}
+		})
+	}
+}
+
+func TestGenerateRandomTomography_5x5_VerifyUnique(t *testing.T) {
+	mode := NewMode("Test 5x5", "test mode", 5, 5, 0.5)
+
+	hints := GenerateRandomTomography(mode)
+	if len(hints.rows) == 0 {
+		t.Fatal("GenerateRandomTomography returned empty hints")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	count := countSolutions(hints, mode.Width, mode.Height, 2, ctx)
+	if count != 1 {
+		t.Errorf("puzzle has %d solutions, want 1", count)
+	}
+}
+
 // Ensure the game import is used (it's needed for the init() registration side effect
 // and the NewMode constructor uses game.NewBaseMode internally).
 var _ game.Gamer = Model{}
+
+// --- Spawn Performance Benchmark (P2) ---
+
+func TestSpawnPerformance(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping slow performance test in short mode")
+	}
+	const numRuns = 20
+
+	modeConfigs := []struct {
+		name string
+		mode NonogramMode
+	}{
+		{"Mini", NewMode("Mini", "test", 5, 5, 0.65)},
+		{"Pocket", NewMode("Pocket", "test", 5, 5, 0.50)},
+		{"Teaser", NewMode("Teaser", "test", 5, 5, 0.35)},
+		{"Standard", NewMode("Standard", "test", 10, 10, 0.67)},
+		{"Classic", NewMode("Classic", "test", 10, 10, 0.52)},
+		{"Tricky", NewMode("Tricky", "test", 10, 10, 0.37)},
+		{"Large", NewMode("Large", "test", 15, 15, 0.69)},
+		{"Grand", NewMode("Grand", "test", 15, 15, 0.54)},
+		{"Epic", NewMode("Epic", "test", 20, 20, 0.71)},
+		{"Massive", NewMode("Massive", "test", 20, 20, 0.56)},
+	}
+
+	t.Run("average spawn time across all modes", func(t *testing.T) {
+		for _, cfg := range modeConfigs {
+			cfg := cfg
+			t.Run(cfg.name, func(t *testing.T) {
+				if cfg.mode.Width >= 15 && testing.Short() {
+					t.Skip("skipping large grids in short mode")
+				}
+
+				var totalDuration time.Duration
+				for i := 0; i < numRuns; i++ {
+					start := time.Now()
+					_, err := cfg.mode.Spawn()
+					if err != nil {
+						t.Fatalf("Spawn failed: %v", err)
+					}
+					totalDuration += time.Since(start)
+				}
+
+				avgNs := totalDuration.Nanoseconds() / numRuns
+				avgµs := float64(avgNs) / 1000
+				t.Logf("Average spawn time for %s: %.2fµs", cfg.name, avgµs)
+			})
+		}
+	})
+}

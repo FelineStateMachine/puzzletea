@@ -2,14 +2,54 @@ package takuzu
 
 import "math/rand/v2"
 
-// generateComplete fills an empty grid with a valid Takuzu solution using backtracking.
+type cellPos struct{ x, y int }
+
+// generateComplete fills an empty grid with a valid Takuzu solution using
+// backtracking with retry on failure.
 func generateComplete(size int) grid {
 	g := newGrid(createEmptyState(size))
-	fillGrid(g, size)
-	return g
+
+	const maxRetries = 10
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		// Reset grid
+		for y := range size {
+			for x := range size {
+				g[y][x] = emptyCell
+			}
+		}
+
+		if fillGrid(g, size) {
+			return g
+		}
+	}
+
+	// Last attempt - use more exhaustive search
+	for y := range size {
+		for x := range size {
+			g[y][x] = emptyCell
+		}
+	}
+	if fillGrid(g, size) {
+		return g
+	}
+
+	panic("failed to generate complete grid")
 }
 
 func fillGrid(g grid, size int) bool {
+	order := make([]cellPos, 0, size*size)
+	for y := range size {
+		for x := range size {
+			if g[y][x] == emptyCell {
+				order = append(order, cellPos{x, y})
+			}
+		}
+	}
+
+	rand.Shuffle(len(order), func(i, j int) {
+		order[i], order[j] = order[j], order[i]
+	})
+
 	for y := range size {
 		for x := range size {
 			if g[y][x] != emptyCell {
@@ -34,144 +74,6 @@ func fillGrid(g grid, size int) bool {
 	return true
 }
 
-// canPlace checks whether placing val at (x,y) would violate Takuzu constraints.
-func canPlace(g grid, size, x, y int, val rune) bool {
-	// Check no three consecutive in row.
-	if x >= 2 && g[y][x-1] == val && g[y][x-2] == val {
-		return false
-	}
-	if x >= 1 && x < size-1 && g[y][x-1] == val && g[y][x+1] == val {
-		return false
-	}
-	if x <= size-3 && g[y][x+1] == val && g[y][x+2] == val {
-		return false
-	}
-
-	// Check no three consecutive in column.
-	if y >= 2 && g[y-1][x] == val && g[y-2][x] == val {
-		return false
-	}
-	if y >= 1 && y < size-1 && g[y-1][x] == val && g[y+1][x] == val {
-		return false
-	}
-	if y <= size-3 && g[y+1][x] == val && g[y+2][x] == val {
-		return false
-	}
-
-	// Check count in row doesn't exceed size/2.
-	half := size / 2
-	count := 0
-	for _, c := range g[y] {
-		if c == val {
-			count++
-		}
-	}
-	if count >= half {
-		return false
-	}
-
-	// Check count in column doesn't exceed size/2.
-	count = 0
-	for r := range size {
-		if g[r][x] == val {
-			count++
-		}
-	}
-	if count >= half {
-		return false
-	}
-
-	// If this placement would complete the row, check uniqueness against other complete rows.
-	// The cell at (x,y) is empty, so the row is complete iff every other cell is filled.
-	if rowFilledExcept(g, y, x, size) {
-		for other := range size {
-			if other != y && rowFilled(g, other, size) && rowEqualWith(g[y], g[other], x, val) {
-				return false
-			}
-		}
-	}
-
-	// If this placement would complete the column, check uniqueness against other complete columns.
-	if colFilledExcept(g, x, y, size) {
-		for other := range size {
-			if other != x && colFilled(g, other, size) && colEqualWith(g, size, x, other, y, val) {
-				return false
-			}
-		}
-	}
-
-	return true
-}
-
-// rowFilledExcept returns true if every cell in row y is filled except column skip.
-func rowFilledExcept(g grid, y, skip, size int) bool {
-	for x := range size {
-		if x != skip && g[y][x] == emptyCell {
-			return false
-		}
-	}
-	return true
-}
-
-// colFilledExcept returns true if every cell in column x is filled except row skip.
-func colFilledExcept(g grid, x, skip, size int) bool {
-	for y := range size {
-		if y != skip && g[y][x] == emptyCell {
-			return false
-		}
-	}
-	return true
-}
-
-// rowEqualWith compares rows a and b, treating a[overrideIdx] as overrideVal.
-func rowEqualWith(a, b []rune, overrideIdx int, overrideVal rune) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		av := a[i]
-		if i == overrideIdx {
-			av = overrideVal
-		}
-		if av != b[i] {
-			return false
-		}
-	}
-	return true
-}
-
-// colEqualWith compares columns c1 and c2, treating g[overrideRow][c1] as overrideVal.
-func colEqualWith(g grid, size, c1, c2, overrideRow int, overrideVal rune) bool {
-	for r := range size {
-		v1 := g[r][c1]
-		if r == overrideRow {
-			v1 = overrideVal
-		}
-		if v1 != g[r][c2] {
-			return false
-		}
-	}
-	return true
-}
-
-func rowFilled(g grid, y, size int) bool {
-	for x := range size {
-		if g[y][x] == emptyCell {
-			return false
-		}
-	}
-	return true
-}
-
-func colFilled(g grid, x, size int) bool {
-	for y := range size {
-		if g[y][x] == emptyCell {
-			return false
-		}
-	}
-	return true
-}
-
 // generatePuzzle removes cells from a complete grid to create a puzzle with a unique solution.
 func generatePuzzle(complete grid, size int, prefilled float64) (puzzle grid, provided [][]bool) {
 	puzzle = complete.clone()
@@ -185,12 +87,10 @@ func generatePuzzle(complete grid, size int, prefilled float64) (puzzle grid, pr
 
 	target := int(prefilled * float64(size*size))
 
-	// Shuffled positions.
-	type pos struct{ x, y int }
-	positions := make([]pos, 0, size*size)
+	positions := make([]cellPos, 0, size*size)
 	for y := range size {
 		for x := range size {
-			positions = append(positions, pos{x, y})
+			positions = append(positions, cellPos{x, y})
 		}
 	}
 	rand.Shuffle(len(positions), func(i, j int) {
@@ -236,7 +136,6 @@ func countSolutions(g grid, size, limit int) int {
 			return count
 		}
 	}
-	// All cells filled — check uniqueness constraints.
 	if hasUniqueLines(g, size) {
 		return 1
 	}
@@ -281,7 +180,6 @@ func checkConstraints(g grid, size int) bool {
 
 // hasUniqueLines checks that all rows are unique and all columns are unique.
 func hasUniqueLines(g grid, size int) bool {
-	// Check rows.
 	for i := range size {
 		for j := i + 1; j < size; j++ {
 			if rowEqual(g[i], g[j]) {
@@ -289,7 +187,6 @@ func hasUniqueLines(g grid, size int) bool {
 			}
 		}
 	}
-	// Check columns.
 	for i := range size {
 		for j := i + 1; j < size; j++ {
 			if colEqual(g, size, i, j) {
@@ -315,6 +212,133 @@ func rowEqual(a, b []rune) bool {
 func colEqual(g grid, size, c1, c2 int) bool {
 	for r := range size {
 		if g[r][c1] != g[r][c2] {
+			return false
+		}
+	}
+	return true
+}
+
+// canPlace checks whether placing val at (x,y) would violate Takuzu constraints.
+func canPlace(g grid, size, x, y int, val rune) bool {
+	if x >= 2 && g[y][x-1] == val && g[y][x-2] == val {
+		return false
+	}
+	if x >= 1 && x < size-1 && g[y][x-1] == val && g[y][x+1] == val {
+		return false
+	}
+	if x <= size-3 && g[y][x+1] == val && g[y][x+2] == val {
+		return false
+	}
+
+	if y >= 2 && g[y-1][x] == val && g[y-2][x] == val {
+		return false
+	}
+	if y >= 1 && y < size-1 && g[y-1][x] == val && g[y+1][x] == val {
+		return false
+	}
+	if y <= size-3 && g[y+1][x] == val && g[y+2][x] == val {
+		return false
+	}
+
+	half := size / 2
+	count := 0
+	for _, c := range g[y] {
+		if c == val {
+			count++
+		}
+	}
+	if count >= half {
+		return false
+	}
+
+	count = 0
+	for r := range size {
+		if g[r][x] == val {
+			count++
+		}
+	}
+	if count >= half {
+		return false
+	}
+
+	if rowFilledExcept(g, y, x, size) {
+		for other := range size {
+			if other != y && rowFilled(g, other, size) && rowEqualWith(g[y], g[other], x, val) {
+				return false
+			}
+		}
+	}
+
+	if colFilledExcept(g, x, y, size) {
+		for other := range size {
+			if other != x && colFilled(g, other, size) && colEqualWith(g, size, x, other, y, val) {
+				return false
+			}
+		}
+	}
+
+	return true
+}
+
+func rowFilledExcept(g grid, y, skip, size int) bool {
+	for x := range size {
+		if x != skip && g[y][x] == emptyCell {
+			return false
+		}
+	}
+	return true
+}
+
+func colFilledExcept(g grid, x, skip, size int) bool {
+	for y := range size {
+		if y != skip && g[y][x] == emptyCell {
+			return false
+		}
+	}
+	return true
+}
+
+func rowEqualWith(a, b []rune, overrideIdx int, overrideVal rune) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		av := a[i]
+		if i == overrideIdx {
+			av = overrideVal
+		}
+		if av != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func colEqualWith(g grid, size, c1, c2, overrideRow int, overrideVal rune) bool {
+	for r := range size {
+		v1 := g[r][c1]
+		if r == overrideRow {
+			v1 = overrideVal
+		}
+		if v1 != g[r][c2] {
+			return false
+		}
+	}
+	return true
+}
+
+func rowFilled(g grid, y, size int) bool {
+	for x := range size {
+		if g[y][x] == emptyCell {
+			return false
+		}
+	}
+	return true
+}
+
+func colFilled(g grid, x, size int) bool {
+	for y := range size {
+		if g[y][x] == emptyCell {
 			return false
 		}
 	}
