@@ -38,8 +38,6 @@ Right
 Type "x"
 Sleep 400ms
 
-Ctrl+H
-
 # Move down and left, fill more cells
 Down
 Left

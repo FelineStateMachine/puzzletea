@@ -10,15 +10,21 @@ func GeneratePuzzle(mode HitoriMode) (puzzle grid, provided [][]bool, err error)
 	prefilled := mode.Prefilled
 
 	for attempts := 0; attempts < 50; attempts++ {
-		puzzle = generateSimplePuzzle(size, prefilled)
+		puzzle, shadedCells := generateSimplePuzzle(size, prefilled)
 		if puzzle != nil {
 			provided = make([][]bool, size)
 			for i := range provided {
 				provided[i] = make([]bool, size)
 			}
+
+			for _, cell := range shadedCells {
+				x, y := cell[0], cell[1]
+				puzzle[y][x] = shadedCell
+			}
+
 			for y := 0; y < size; y++ {
 				for x := 0; x < size; x++ {
-					if puzzle[y][x] != emptyCell && puzzle[y][x] != shadedCell {
+					if puzzle[y][x] != emptyCell {
 						provided[y][x] = true
 					}
 				}
@@ -30,7 +36,7 @@ func GeneratePuzzle(mode HitoriMode) (puzzle grid, provided [][]bool, err error)
 	return nil, nil, errors.New("failed to generate hitori puzzle")
 }
 
-func generateSimplePuzzle(size int, prefilled float64) grid {
+func generateSimplePuzzle(size int, prefilled float64) (grid, [][2]int) {
 	puzzle := make(grid, size)
 	for i := range puzzle {
 		puzzle[i] = make([]rune, size)
@@ -61,6 +67,12 @@ func generateSimplePuzzle(size int, prefilled float64) grid {
 		}
 	}
 
+	solution := make(grid, size)
+	for i := range solution {
+		solution[i] = make([]rune, size)
+		copy(solution[i], puzzle[i])
+	}
+
 	targetFilled := int(float64(size*size) * prefilled)
 	cells := make([][2]int, 0, size*size)
 	for y := 0; y < size; y++ {
@@ -72,33 +84,28 @@ func generateSimplePuzzle(size int, prefilled float64) grid {
 		cells[i], cells[j] = cells[j], cells[i]
 	})
 
+	var shadedCells [][2]int
 	filled := size * size
 	for _, cell := range cells {
 		if filled <= targetFilled {
 			break
 		}
 		x, y := cell[0], cell[1]
-		if puzzle[y][x] != emptyCell {
-			original := puzzle[y][x]
-			puzzle[y][x] = shadedCell
+		if solution[y][x] != emptyCell {
+			original := solution[y][x]
+			solution[y][x] = shadedCell
 			filled--
 
-			if !hasValidSolution(puzzle, size) {
-				puzzle[y][x] = original
+			if !hasValidSolution(solution, size) {
+				solution[y][x] = original
 				filled++
+			} else {
+				shadedCells = append(shadedCells, cell)
 			}
 		}
 	}
 
-	for y := 0; y < size; y++ {
-		for x := 0; x < size; x++ {
-			if puzzle[y][x] == shadedCell {
-				puzzle[y][x] = emptyCell
-			}
-		}
-	}
-
-	return puzzle
+	return puzzle, shadedCells
 }
 
 func hasValidSolution(g grid, size int) bool {

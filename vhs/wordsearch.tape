@@ -43,6 +43,13 @@ Right
 Right
 Sleep 500ms
 
+# Show hint toggle
+Ctrl+H
+Sleep 1s
+Ctrl+H
+Sleep 500ms
+Ctrl+H
+
 # Confirm end of selection
 Enter
 Sleep 500ms

@@ -103,9 +103,17 @@ func (m Model) GetDebugInfo() string {
 		status = "Solved"
 	}
 
+	cellVal := string(m.grid[m.cursor.Y][m.cursor.X])
+	if m.grid[m.cursor.Y][m.cursor.X] == shadedCell {
+		cellVal = "shaded"
+	} else if m.grid[m.cursor.Y][m.cursor.X] == emptyCell {
+		cellVal = "empty"
+	}
+
 	return game.DebugHeader("Hitori", [][2]string{
 		{"Status", status},
 		{"Cursor", fmt.Sprintf("(%d, %d)", m.cursor.X, m.cursor.Y)},
+		{"Cell", cellVal},
 		{"Grid Size", fmt.Sprintf("%d x %d", m.size, m.size)},
 	})
 }

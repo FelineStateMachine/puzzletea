@@ -189,6 +189,7 @@ func TestListCategoryNames(t *testing.T) {
 
 	// Verify all expected games are present.
 	expected := map[string]bool{
+		"Hitori":        true,
 		"Hashiwokakero": true,
 		"Lights Out":    true,
 		"Nonogram":      true,

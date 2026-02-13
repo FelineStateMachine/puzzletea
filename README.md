@@ -13,6 +13,7 @@ Six puzzle types, multiple difficulty modes, save/load persistence, and a plugin
 | **Nonogram** | Fill cells to match row and column hints | Easy/Medium/Hard across 5x5, 10x10, 15x15, 20x20 |
 | **Sudoku** | Classic 9x9 grid | Beginner, Easy, Medium, Hard, Expert, Diabolical |
 | **Word Search** | Find hidden words in a letter grid | Easy, Medium, Hard (3-8 directions) |
+| **Hitori** | Shade cells so each row/column has unique numbers | Tiny, Easy, Medium, Hard, Expert (5x5 to 12x12) |
 | **Hashiwokakero** | Connect islands with bridges | 12 modes across 7x7 to 13x13 grids |
 | **Lights Out** | Toggle lights to turn all off | Easy (3x3) to Extreme (9x9) |
 | **Takuzu** | Fill grid with two symbols (●/○) | 7 modes from 6x6 to 14x14 |
@@ -45,7 +46,14 @@ Connect islands with bridges.
 
 ![Hashiwokakero](vhs/hashiwokakero.gif)
 
-[Game details and controls](hashiwokakero/README.md)
+[Hitori details and controls](hitori/README.md)
+
+### Hitori
+Shade cells so each row and column contains no duplicate numbers.
+
+![Hitori](vhs/hitori.gif)
+
+[Game details and controls](hitori/README.md)
 
 ### Lights Out
 Toggle lights to turn all off.
