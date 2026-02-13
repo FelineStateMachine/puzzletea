@@ -19,7 +19,7 @@ Sleep 2s
 Ctrl+L
 Show
 
-Type "./puzzletea new nonogram easy-20x20"
+Type "./puzzletea new nonogram epic"
 Sleep 500ms
 Enter
 Sleep 2s
@@ -55,6 +55,8 @@ Down
 Down
 Type "z"
 Sleep 400ms
+Ctrl+H
+
 Right
 Right
 Right
