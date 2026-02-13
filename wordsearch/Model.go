@@ -187,6 +187,26 @@ func (m Model) IsSolved() bool {
 	return m.solved
 }
 
+func (m Model) Reset() game.Gamer {
+	words := make([]Word, len(m.words))
+	for i, w := range m.words {
+		words[i] = Word{
+			Text:      w.Text,
+			Start:     w.Start,
+			End:       w.End,
+			Direction: w.Direction,
+			Found:     false,
+		}
+	}
+	m.words = words
+	m.foundCells = buildFoundCells(m.width, m.height, m.words)
+	m.solved = false
+	m.selection = noSelection
+	m.selectionStart = game.Cursor{}
+	m.cursor = game.Cursor{}
+	return m
+}
+
 func (m Model) countFoundWords() int {
 	count := 0
 	for _, word := range m.words {

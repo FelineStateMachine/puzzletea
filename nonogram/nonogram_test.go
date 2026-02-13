@@ -947,3 +947,39 @@ func TestSpawnPerformance(t *testing.T) {
 		}
 	})
 }
+
+func TestReset(t *testing.T) {
+	mode := NonogramMode{Width: 5, Height: 5}
+	hints := Hints{
+		rows: TomographyDefinition{{1}, {1}, {1}, {1}, {1}},
+		cols: TomographyDefinition{{1}, {1}, {1}, {1}, {1}},
+	}
+	m, err := New(mode, hints)
+	if err != nil {
+		t.Fatal(err)
+	}
+	model := m.(Model)
+
+	originalGrid := model.grid.String()
+
+	model.grid[0][0] = filledTile
+	model.grid[0][1] = filledTile
+
+	if model.grid.String() == originalGrid {
+		t.Fatal("grid should be modified before reset")
+	}
+
+	reset := model.Reset().(Model)
+
+	if reset.grid.String() != originalGrid {
+		t.Errorf("grid after reset = %q, want %q", reset.grid.String(), originalGrid)
+	}
+
+	if reset.cursor != (game.Cursor{}) {
+		t.Errorf("cursor after reset = %v, want zero cursor", reset.cursor)
+	}
+
+	if reset.solved {
+		t.Error("solved should be false after reset")
+	}
+}

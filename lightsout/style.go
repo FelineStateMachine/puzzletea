@@ -83,7 +83,7 @@ func gridView(g [][]bool, c game.Cursor, solved bool) string {
 
 func statusBarView(showFullHelp bool) string {
 	if showFullHelp {
-		return statusBarStyle.Render("arrows/wasd: move  enter/space: toggle  ctrl+n: menu  ctrl+h: help")
+		return statusBarStyle.Render("arrows/wasd: move  enter/space: toggle  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
 	}
 	return statusBarStyle.Render("enter/space: toggle")
 }

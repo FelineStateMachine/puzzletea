@@ -259,7 +259,7 @@ func tileView(val rune, isCursor, inCursorRow, inCursorCol, solved bool) string 
 
 func statusBarView(showFullHelp bool) string {
 	if showFullHelp {
-		return statusBarStyle.Render("arrows/wasd: move  z: fill  x: mark  bkspc: clear  ctrl+n: menu  ctrl+h: help")
+		return statusBarStyle.Render("arrows/wasd: move  z: fill  x: mark  bkspc: clear  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
 	}
 	return statusBarStyle.Render("z: fill  x: mark  bkspc: clear")
 }

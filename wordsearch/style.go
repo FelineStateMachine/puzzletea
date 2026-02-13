@@ -94,7 +94,7 @@ func renderView(m Model) string {
 
 func statusBarView(showFullHelp bool) string {
 	if showFullHelp {
-		return statusBarStyle.Render("arrows/wasd: move  enter/space: select  esc: cancel  ctrl+n: menu  ctrl+h: help")
+		return statusBarStyle.Render("arrows/wasd: move  enter/space: select  esc: cancel  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
 	}
 	return statusBarStyle.Render("enter/space: select  esc: cancel")
 }

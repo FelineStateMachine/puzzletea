@@ -14,6 +14,7 @@ import (
 type Model struct {
 	size         int
 	grid         grid
+	initialGrid  grid
 	provided     [][]bool
 	cursor       game.Cursor
 	solved       bool
@@ -27,12 +28,13 @@ var _ game.Gamer = Model{}
 // New creates a new Takuzu game model.
 func New(mode TakuzuMode, puzzle grid, provided [][]bool) (game.Gamer, error) {
 	m := Model{
-		size:      mode.Size,
-		grid:      puzzle,
-		provided:  provided,
-		cursor:    game.Cursor{X: 0, Y: 0},
-		keys:      DefaultKeyMap,
-		modeTitle: mode.Title(),
+		size:        mode.Size,
+		grid:        puzzle,
+		initialGrid: puzzle.clone(),
+		provided:    provided,
+		cursor:      game.Cursor{X: 0, Y: 0},
+		keys:        DefaultKeyMap,
+		modeTitle:   mode.Title(),
 	}
 	m.solved = m.checkSolved()
 	return m, nil
@@ -85,6 +87,13 @@ func (m Model) SetTitle(t string) game.Gamer {
 
 func (m Model) IsSolved() bool {
 	return m.solved
+}
+
+func (m Model) Reset() game.Gamer {
+	m.grid = m.initialGrid.clone()
+	m.solved = m.checkSolved()
+	m.cursor = game.Cursor{}
+	return m
 }
 
 func (m Model) checkSolved() bool {

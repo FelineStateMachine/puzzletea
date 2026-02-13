@@ -159,6 +159,16 @@ func (m Model) IsSolved() bool {
 	return m.solved
 }
 
+func (m Model) Reset() game.Gamer {
+	g := newGrid(createEmptyState(m.height, m.width))
+	curr := generateTomography(g)
+	m.grid = g
+	m.currentHints = curr
+	m.solved = false
+	m.cursor = game.Cursor{}
+	return m
+}
+
 func (m *Model) updateTile(r rune) {
 	m.grid[m.cursor.Y][m.cursor.X] = r
 	m.currentHints = generateTomography(m.grid)

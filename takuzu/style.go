@@ -144,7 +144,7 @@ func hBorderRow(w, cursorX int, left, right string, solved bool) string {
 
 func statusBarView(showFullHelp bool) string {
 	if showFullHelp {
-		return statusBarStyle.Render("arrows/wasd: move  z: ●  x: ○  bkspc: clear  ctrl+n: menu  ctrl+h: help")
+		return statusBarStyle.Render("arrows/wasd: move  z: ●  x: ○  bkspc: clear  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
 	}
 	return statusBarStyle.Render("z: ●  x: ○  bkspc: clear")
 }

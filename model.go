@@ -171,6 +171,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.state == gameView && m.game != nil {
 				m.game, _ = m.game.Update(game.HelpToggleMsg{Show: m.showFullHelp})
 			}
+		case tea.KeyCtrlR:
+			if m.state == gameView && m.game != nil {
+				m.game = m.game.Reset()
+			}
 		}
 	}
 
