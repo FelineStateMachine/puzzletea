@@ -65,6 +65,7 @@ var mainMenuItems = []list.Item{
 	menuItem{title: "Daily Puzzle", desc: time.Now().Format("Jan _2 06")},
 	menuItem{title: "Generate", desc: "a new puzzle."},
 	menuItem{title: "Continue", desc: "a previous puzzle."},
+	menuItem{title: "Quit", desc: "the game."},
 }
 
 type model struct {
@@ -230,6 +231,8 @@ func (m model) handleMainMenuEnter() (tea.Model, tea.Cmd) {
 	case "Continue":
 		m.initContinueTable()
 		m.state = continueView
+	case "Quit":
+		return m, tea.Quit
 	}
 	return m, nil
 }
