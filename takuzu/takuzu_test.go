@@ -920,6 +920,9 @@ func TestImportModel_SolvedRecalculated(t *testing.T) {
 // --- Uniqueness across all modes (P0) ---
 
 func TestGeneratePuzzle_AllModes_Unique(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping slow generator test in short mode")
+	}
 	modes := []struct {
 		name      string
 		size      int

@@ -831,6 +831,9 @@ func TestGenerateLinePossibilities(t *testing.T) {
 // --- GenerateRandomTomography uniqueness (P0) ---
 
 func TestGenerateRandomTomography_AllModes_Unique(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping slow generator test in short mode")
+	}
 	modes := []struct {
 		name    string
 		width   int
@@ -898,6 +901,9 @@ var _ game.Gamer = Model{}
 // --- Spawn Performance Benchmark (P2) ---
 
 func TestSpawnPerformance(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping slow performance test in short mode")
+	}
 	const numRuns = 20
 
 	modeConfigs := []struct {
