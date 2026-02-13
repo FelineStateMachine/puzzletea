@@ -2,7 +2,7 @@ Output vhs/nonogram.gif
 
 Set Theme "Monokai Pro"
 Set FontSize 14
-Set Width 1000
+Set Width 1200
 Set Height 860
 Set Margin 60
 Set MarginFill "#A85C40"
