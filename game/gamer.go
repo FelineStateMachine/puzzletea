@@ -14,6 +14,7 @@ type Gamer interface {
 
 	GetSave() ([]byte, error)
 	IsSolved() bool
+	Reset() Gamer
 	SetTitle(string) Gamer
 
 	Init() tea.Cmd
@@ -66,6 +67,10 @@ func (c Category) FilterValue() string { return c.Name }
 // HelpToggleMsg is sent from the root model to games when the user toggles
 // the full help display with Ctrl+H.
 type HelpToggleMsg struct{ Show bool }
+
+// ResetMsg is sent from the root model to games when the user wants to reset
+// the puzzle to its initial state (Ctrl+R).
+type ResetMsg struct{}
 
 // Registry maps game type names to their import functions.
 var Registry = map[string]func([]byte) (Gamer, error){}

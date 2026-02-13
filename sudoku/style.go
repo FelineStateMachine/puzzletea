@@ -230,7 +230,7 @@ func computeConflicts(g grid) [gridSize][gridSize]bool {
 
 func statusBarView(showFullHelp bool) string {
 	if showFullHelp {
-		return statusBarStyle.Render("arrows/wasd: move  1-9: fill  bkspc: clear  ctrl+n: menu  ctrl+h: help")
+		return statusBarStyle.Render("arrows/wasd: move  1-9: fill  bkspc: clear  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
 	}
 	return statusBarStyle.Render("1-9: fill  bkspc: clear")
 }

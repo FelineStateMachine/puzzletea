@@ -12,6 +12,7 @@ import (
 
 type Model struct {
 	grid         [][]bool
+	initialGrid  [][]bool
 	width        int
 	height       int
 	cursor       game.Cursor
@@ -24,12 +25,18 @@ var _ game.Gamer = Model{}
 
 func New(w, h int) (Model, error) {
 	grid := Generate(w, h)
+	initial := make([][]bool, h)
+	for y := range h {
+		initial[y] = make([]bool, w)
+		copy(initial[y], grid[y])
+	}
 	return Model{
-		grid:   grid,
-		width:  w,
-		height: h,
-		cursor: game.Cursor{X: w / 2, Y: h / 2},
-		keys:   DefaultKeyMap,
+		grid:        grid,
+		initialGrid: initial,
+		width:       w,
+		height:      h,
+		cursor:      game.Cursor{X: w / 2, Y: h / 2},
+		keys:        DefaultKeyMap,
 	}, nil
 }
 
@@ -72,6 +79,14 @@ func (m Model) SetTitle(t string) game.Gamer {
 
 func (m Model) IsSolved() bool {
 	return IsSolved(m.grid)
+}
+
+func (m Model) Reset() game.Gamer {
+	for y := range m.height {
+		copy(m.grid[y], m.initialGrid[y])
+	}
+	m.cursor = game.Cursor{X: m.width / 2, Y: m.height / 2}
+	return m
 }
 
 func (m Model) GetDebugInfo() string {

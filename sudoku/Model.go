@@ -80,6 +80,12 @@ func (m Model) IsSolved() bool {
 	return m.isSolved()
 }
 
+// Reset implements game.Gamer.
+func (m Model) Reset() game.Gamer {
+	m.grid = newGrid(m.provided)
+	return m
+}
+
 func (m *Model) updateCell(v int) {
 	if m.providedGrid[m.cursor.Y][m.cursor.X] {
 		return

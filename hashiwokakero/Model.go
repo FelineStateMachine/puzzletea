@@ -144,6 +144,16 @@ func (m Model) IsSolved() bool {
 	return m.puzzle.IsSolved()
 }
 
+func (m Model) Reset() game.Gamer {
+	m.puzzle.Bridges = nil
+	m.cursorIsland = 0
+	if len(m.puzzle.Islands) > 0 {
+		m.cursorIsland = m.puzzle.Islands[0].ID
+	}
+	m.selectedIsland = nil
+	return m
+}
+
 func (m Model) GetDebugInfo() string {
 	solved := m.puzzle.IsSolved()
 	connected := m.puzzle.IsConnected()
