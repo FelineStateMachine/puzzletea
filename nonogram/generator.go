@@ -24,12 +24,17 @@ func cacheKey(length int, hint []int) string {
 }
 
 func GenerateRandomTomography(mode NonogramMode) Hints {
+	rng := rand.New(rand.NewPCG(rand.Uint64(), rand.Uint64()))
+	return GenerateRandomTomographySeeded(mode, rng)
+}
+
+func GenerateRandomTomographySeeded(mode NonogramMode, rng *rand.Rand) Hints {
 	maxDim := max(mode.Width, mode.Height)
 	timeout := time.Duration(maxDim) * time.Second
 
 	for attempt := range maxAttempts {
 		density := lerp(mode.Density, 0.5, float64(attempt)*0.02)
-		s := generateRandomState(mode.Height, mode.Width, density)
+		s := generateRandomStateSeeded(mode.Height, mode.Width, density, rng)
 		g := newGrid(s)
 		hints := generateTomography(g)
 		if !isValidPuzzle(hints, mode.Height, mode.Width) {
@@ -50,6 +55,11 @@ func lerp(a, b, t float64) float64 {
 }
 
 func generateRandomState(h, w int, density float64) state {
+	rng := rand.New(rand.NewPCG(rand.Uint64(), rand.Uint64()))
+	return generateRandomStateSeeded(h, w, density, rng)
+}
+
+func generateRandomStateSeeded(h, w int, density float64, rng *rand.Rand) state {
 	if h <= 0 || w <= 0 {
 		return ""
 	}
@@ -60,10 +70,10 @@ func generateRandomState(h, w int, density float64) state {
 	b.Grow((w + 1) * h)
 
 	for i := range h {
-		rowDensity := density + (rand.Float64()-0.5)*0.3
+		rowDensity := density + (rng.Float64()-0.5)*0.3
 		rowDensity = max(0.05, min(0.95, rowDensity))
 		for range w {
-			if rand.Float64() < rowDensity {
+			if rng.Float64() < rowDensity {
 				b.WriteRune(filledTile)
 			} else {
 				b.WriteRune(emptyTile)

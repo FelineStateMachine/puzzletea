@@ -1,6 +1,8 @@
 package wordsearch
 
 import (
+	"math/rand/v2"
+
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/charmbracelet/bubbles/list"
 )
@@ -23,8 +25,9 @@ type WordSearchMode struct {
 }
 
 var (
-	_ game.Mode    = WordSearchMode{} // compile-time interface check
-	_ game.Spawner = WordSearchMode{} // compile-time interface check
+	_ game.Mode          = WordSearchMode{} // compile-time interface check
+	_ game.Spawner       = WordSearchMode{} // compile-time interface check
+	_ game.SeededSpawner = WordSearchMode{} // compile-time interface check
 )
 
 // NewMode creates a new WordSearchMode with the given parameters
@@ -42,6 +45,11 @@ func NewMode(title, description string, width, height, wordCount, minLen, maxLen
 
 func (w WordSearchMode) Spawn() (game.Gamer, error) {
 	grid, words := GenerateWordSearch(w.Width, w.Height, w.WordCount, w.MinWordLen, w.MaxWordLen, w.AllowedDirs)
+	return New(w, grid, words)
+}
+
+func (w WordSearchMode) SpawnSeeded(rng *rand.Rand) (game.Gamer, error) {
+	grid, words := GenerateWordSearchSeeded(w.Width, w.Height, w.WordCount, w.MinWordLen, w.MaxWordLen, w.AllowedDirs, rng)
 	return New(w, grid, words)
 }
 

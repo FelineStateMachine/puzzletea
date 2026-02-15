@@ -150,6 +150,35 @@ func (s *Store) ListGames() ([]GameRecord, error) {
 	return games, rows.Err()
 }
 
+// GetDailyGame looks up a daily game by name, including abandoned ones.
+// Daily puzzles should always be resumable regardless of status.
+// Returns nil, nil if no matching game is found.
+func (s *Store) GetDailyGame(name string) (*GameRecord, error) {
+	var g GameRecord
+	var completedAt sql.NullTime
+	err := s.db.QueryRow(
+		`SELECT id, name, game_type, mode, initial_state, save_state, status,
+		        created_at, updated_at, completed_at
+		 FROM games
+		 WHERE name = ?`,
+		name,
+	).Scan(
+		&g.ID, &g.Name, &g.GameType, &g.Mode,
+		&g.InitialState, &g.SaveState, &g.Status,
+		&g.CreatedAt, &g.UpdatedAt, &completedAt,
+	)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("querying daily game: %w", err)
+	}
+	if completedAt.Valid {
+		g.CompletedAt = &completedAt.Time
+	}
+	return &g, nil
+}
+
 // GetGameByName looks up a single non-abandoned game by its unique name.
 // Returns nil, nil if no matching game is found.
 func (s *Store) GetGameByName(name string) (*GameRecord, error) {

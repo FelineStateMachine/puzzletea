@@ -2,6 +2,8 @@
 package game
 
 import (
+	"math/rand/v2"
+
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
@@ -34,6 +36,13 @@ type Mode interface {
 // does not need a Spawn method.
 type Spawner interface {
 	Spawn() (Gamer, error)
+}
+
+// SeededSpawner creates a new game instance using a deterministic RNG.
+// This enables reproducible puzzle generation for daily puzzles.
+type SeededSpawner interface {
+	Spawner
+	SpawnSeeded(rng *rand.Rand) (Gamer, error)
 }
 
 // BaseMode provides the common title/description fields and the three

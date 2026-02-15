@@ -1,6 +1,8 @@
 package takuzu
 
 import (
+	"math/rand/v2"
+
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/charmbracelet/bubbles/list"
 )
@@ -19,8 +21,9 @@ type TakuzuMode struct {
 }
 
 var (
-	_ game.Mode    = TakuzuMode{}
-	_ game.Spawner = TakuzuMode{}
+	_ game.Mode          = TakuzuMode{}
+	_ game.Spawner       = TakuzuMode{}
+	_ game.SeededSpawner = TakuzuMode{}
 )
 
 // NewMode creates a new Takuzu game mode.
@@ -36,6 +39,12 @@ func NewMode(title, desc string, size int, prefilled float64) TakuzuMode {
 func (t TakuzuMode) Spawn() (game.Gamer, error) {
 	complete := generateComplete(t.Size)
 	puzzle, provided := generatePuzzle(complete, t.Size, t.Prefilled)
+	return New(t, puzzle, provided)
+}
+
+func (t TakuzuMode) SpawnSeeded(rng *rand.Rand) (game.Gamer, error) {
+	complete := generateCompleteSeeded(t.Size, rng)
+	puzzle, provided := generatePuzzleSeeded(complete, t.Size, t.Prefilled, rng)
 	return New(t, puzzle, provided)
 }
 

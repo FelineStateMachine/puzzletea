@@ -1,6 +1,8 @@
 package nonogram
 
 import (
+	"math/rand/v2"
+
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/charmbracelet/bubbles/list"
 )
@@ -18,8 +20,9 @@ type NonogramMode struct {
 }
 
 var (
-	_ game.Mode    = NonogramMode{} // compile-time interface check
-	_ game.Spawner = NonogramMode{} // compile-time interface check
+	_ game.Mode          = NonogramMode{} // compile-time interface check
+	_ game.Spawner       = NonogramMode{} // compile-time interface check
+	_ game.SeededSpawner = NonogramMode{} // compile-time interface check
 )
 
 func NewMode(title, description string, width, height int, density float64) NonogramMode {
@@ -33,6 +36,11 @@ func NewMode(title, description string, width, height int, density float64) Nono
 
 func (n NonogramMode) Spawn() (game.Gamer, error) {
 	hints := GenerateRandomTomography(n)
+	return New(n, hints)
+}
+
+func (n NonogramMode) SpawnSeeded(rng *rand.Rand) (game.Gamer, error) {
+	hints := GenerateRandomTomographySeeded(n, rng)
 	return New(n, hints)
 }
 

@@ -1,6 +1,8 @@
 package sudoku
 
 import (
+	"math/rand/v2"
+
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/charmbracelet/bubbles/list"
 )
@@ -17,8 +19,9 @@ type SudokuMode struct {
 }
 
 var (
-	_ game.Mode    = SudokuMode{} // compile-time interface check
-	_ game.Spawner = SudokuMode{} // compile-time interface check
+	_ game.Mode          = SudokuMode{} // compile-time interface check
+	_ game.Spawner       = SudokuMode{} // compile-time interface check
+	_ game.SeededSpawner = SudokuMode{} // compile-time interface check
 )
 
 func NewMode(title, description string, providedCount int) SudokuMode {
@@ -30,6 +33,10 @@ func NewMode(title, description string, providedCount int) SudokuMode {
 
 func (s SudokuMode) Spawn() (game.Gamer, error) {
 	return New(s, GenerateProvidedCells(s))
+}
+
+func (s SudokuMode) SpawnSeeded(rng *rand.Rand) (game.Gamer, error) {
+	return New(s, GenerateProvidedCellsSeeded(s, rng))
 }
 
 var Modes = []list.Item{

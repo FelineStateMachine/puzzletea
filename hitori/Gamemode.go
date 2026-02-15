@@ -1,8 +1,9 @@
 package hitori
 
 import (
-	"github.com/FelineStateMachine/puzzletea/game"
+	"math/rand/v2"
 
+	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/charmbracelet/bubbles/list"
 )
 
@@ -20,8 +21,9 @@ type HitoriMode struct {
 }
 
 var (
-	_ game.Mode    = HitoriMode{}
-	_ game.Spawner = HitoriMode{}
+	_ game.Mode          = HitoriMode{}
+	_ game.Spawner       = HitoriMode{}
+	_ game.SeededSpawner = HitoriMode{}
 )
 
 // NewMode creates a new Hitori game mode.
@@ -36,6 +38,14 @@ func NewMode(title, desc string, size int, blackRatio float64) HitoriMode {
 // Spawn creates a new game instance for this mode.
 func (h HitoriMode) Spawn() (game.Gamer, error) {
 	puzzle, err := Generate(h.Size, h.BlackRatio)
+	if err != nil {
+		return nil, err
+	}
+	return New(h, puzzle)
+}
+
+func (h HitoriMode) SpawnSeeded(rng *rand.Rand) (game.Gamer, error) {
+	puzzle, err := GenerateSeeded(h.Size, h.BlackRatio, rng)
 	if err != nil {
 		return nil, err
 	}

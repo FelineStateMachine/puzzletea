@@ -1,6 +1,8 @@
 package hashiwokakero
 
 import (
+	"math/rand/v2"
+
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/charmbracelet/bubbles/list"
 )
@@ -21,8 +23,9 @@ type HashiMode struct {
 }
 
 var (
-	_ game.Mode    = HashiMode{} // compile-time interface check
-	_ game.Spawner = HashiMode{} // compile-time interface check
+	_ game.Mode          = HashiMode{} // compile-time interface check
+	_ game.Spawner       = HashiMode{} // compile-time interface check
+	_ game.SeededSpawner = HashiMode{} // compile-time interface check
 )
 
 func NewMode(title, description string, width, height, minIslands, maxIslands int) HashiMode {
@@ -37,6 +40,14 @@ func NewMode(title, description string, width, height, minIslands, maxIslands in
 
 func (h HashiMode) Spawn() (game.Gamer, error) {
 	puzzle, err := GeneratePuzzle(h)
+	if err != nil {
+		return nil, err
+	}
+	return New(h, puzzle), nil
+}
+
+func (h HashiMode) SpawnSeeded(rng *rand.Rand) (game.Gamer, error) {
+	puzzle, err := GeneratePuzzleSeeded(h, rng)
 	if err != nil {
 		return nil, err
 	}

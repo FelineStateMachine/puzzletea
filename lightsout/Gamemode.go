@@ -1,6 +1,8 @@
 package lightsout
 
 import (
+	"math/rand/v2"
+
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/charmbracelet/bubbles/list"
 )
@@ -20,8 +22,9 @@ type Mode struct {
 
 // Compile-time assertions
 var (
-	_ game.Mode    = Mode{}
-	_ game.Spawner = Mode{}
+	_ game.Mode          = Mode{}
+	_ game.Spawner       = Mode{}
+	_ game.SeededSpawner = Mode{}
 )
 
 // NewMode creates a new game mode.
@@ -36,6 +39,10 @@ func NewMode(title, desc string, w, h int) Mode {
 // Spawn creates a new game instance for this mode.
 func (m Mode) Spawn() (game.Gamer, error) {
 	return New(m.Width, m.Height)
+}
+
+func (m Mode) SpawnSeeded(rng *rand.Rand) (game.Gamer, error) {
+	return NewSeeded(m.Width, m.Height, rng)
 }
 
 // Modes defines the available difficulty levels.
