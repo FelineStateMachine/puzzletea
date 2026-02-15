@@ -8,7 +8,9 @@ import (
 	"text/tabwriter"
 
 	"github.com/FelineStateMachine/puzzletea/game"
+	"github.com/FelineStateMachine/puzzletea/resolve"
 	"github.com/FelineStateMachine/puzzletea/store"
+
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 )
@@ -57,7 +59,7 @@ var newCmd = &cobra.Command{
 	Use:   "new <game> [mode]",
 	Short: "Start a new puzzle game",
 	Long: fmt.Sprintf("Start a new puzzle game, optionally specifying the difficulty mode.\n\nAvailable games:\n  %s",
-		strings.Join(listCategoryNames(), "\n  ")),
+		strings.Join(resolve.CategoryNames(GameCategories), "\n  ")),
 	Args: cobra.RangeArgs(1, 2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		gameArg := args[0]
@@ -133,12 +135,12 @@ func init() {
 
 // launchNewGame resolves the game/mode, spawns a new game, and launches the TUI.
 func launchNewGame(gameArg, modeArg string) error {
-	cat, err := resolveCategory(gameArg)
+	cat, err := resolve.Category(gameArg, GameCategories)
 	if err != nil {
 		return err
 	}
 
-	spawner, modeTitle, err := resolveMode(cat, modeArg)
+	spawner, modeTitle, err := resolve.Mode(cat, modeArg)
 	if err != nil {
 		return err
 	}
