@@ -28,10 +28,7 @@ var (
 			Foreground(lipgloss.AdaptiveColor{Light: "255", Dark: "235"}).
 			Background(lipgloss.AdaptiveColor{Light: "130", Dark: "214"})
 
-	cursorSolvedStyle = baseStyle.
-				Bold(true).
-				Foreground(lipgloss.AdaptiveColor{Light: "255", Dark: "235"}).
-				Background(lipgloss.AdaptiveColor{Light: "28", Dark: "28"})
+	cursorSolvedStyle = game.CursorSolvedStyle
 
 	crosshairBG       = lipgloss.AdaptiveColor{Light: "254", Dark: "237"}
 	crosshairFilledBG = lipgloss.AdaptiveColor{Light: "223", Dark: "100"}

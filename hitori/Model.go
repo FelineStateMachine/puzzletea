@@ -17,6 +17,7 @@ type Model struct {
 	numbers      grid
 	marks        [][]cellMark
 	initialMarks [][]cellMark
+	conflicts    [][]bool
 	cursor       game.Cursor
 	solved       bool
 	keys         KeyMap
@@ -51,6 +52,7 @@ func New(mode HitoriMode, numbers grid) (game.Gamer, error) {
 		modeTitle:    mode.Title(),
 	}
 	m.solved = m.checkSolved()
+	m.conflicts = computeConflicts(m.numbers, m.marks, m.size)
 	return m, nil
 }
 
@@ -65,6 +67,7 @@ func (m Model) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 	case game.ResetMsg:
 		m.marks = cloneMarks(m.initialMarks)
 		m.solved = m.checkSolved()
+		m.conflicts = computeConflicts(m.numbers, m.marks, m.size)
 		m.cursor = game.Cursor{}
 	case tea.KeyMsg:
 		switch {
@@ -80,6 +83,7 @@ func (m Model) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 			if !m.solved {
 				m.marks[m.cursor.Y][m.cursor.X] = unmarked
 				m.solved = m.checkSolved()
+				m.conflicts = computeConflicts(m.numbers, m.marks, m.size)
 			}
 		default:
 			m.cursor.Move(m.keys.CursorKeyMap, msg, m.size-1, m.size-1)
@@ -98,12 +102,12 @@ func (m *Model) toggleMark(mark cellMark) {
 		m.marks[m.cursor.Y][m.cursor.X] = mark
 	}
 	m.solved = m.checkSolved()
+	m.conflicts = computeConflicts(m.numbers, m.marks, m.size)
 }
 
 func (m Model) View() string {
 	title := game.TitleBarView("Hitori", m.modeTitle, m.solved)
-	conflicts := computeConflicts(m.numbers, m.marks, m.size)
-	grid := gridView(m.numbers, m.marks, m.cursor, m.solved, conflicts)
+	grid := gridView(m.numbers, m.marks, m.cursor, m.solved, m.conflicts)
 	status := statusBarView(m.showFullHelp)
 	return lipgloss.JoinVertical(lipgloss.Center, title, grid, status)
 }
@@ -120,6 +124,7 @@ func (m Model) IsSolved() bool {
 func (m Model) Reset() game.Gamer {
 	m.marks = cloneMarks(m.initialMarks)
 	m.solved = m.checkSolved()
+	m.conflicts = computeConflicts(m.numbers, m.marks, m.size)
 	m.cursor = game.Cursor{}
 	return m
 }

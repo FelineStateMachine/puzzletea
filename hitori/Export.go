@@ -52,5 +52,6 @@ func ImportModel(data []byte) (*Model, error) {
 	}
 	m.initialMarks = newMarks(s.Size)
 	m.solved = m.checkSolved()
+	m.conflicts = computeConflicts(m.numbers, m.marks, m.size)
 	return m, nil
 }

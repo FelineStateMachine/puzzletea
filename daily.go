@@ -69,11 +69,15 @@ func dailySeed(date time.Time) uint64 {
 // dailyRNG creates a deterministic RNG seeded from the given date.
 func dailyRNG(date time.Time) *rand.Rand {
 	seed := dailySeed(date)
-	return rand.New(rand.NewPCG(seed, seed))
+	return rand.New(rand.NewPCG(seed, ^seed))
 }
 
 // dailyName generates the daily puzzle name in the format:
 // "Daily Feb 14 26 - amber-falcon"
+//
+// NOTE: this must be called before dailyMode on the same RNG — the number
+// of draws here determines which mode is selected. Changing this function
+// will shift daily puzzles for all future dates.
 func dailyName(date time.Time, rng *rand.Rand) string {
 	return "Daily " + date.Format("Jan _2 06") + " - " + namegen.GenerateSeeded(rng)
 }

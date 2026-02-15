@@ -306,7 +306,7 @@ func (m model) handleDailyPuzzle() (tea.Model, tea.Cmd) {
 			log.Printf("failed to import daily game: %v", err)
 			return m, nil
 		}
-		m.game = g.SetTitle(dailyTitle(rec.Name))
+		m.game = g.SetTitle(rec.Name)
 		m.game, _ = m.game.Update(game.HelpToggleMsg{Show: m.showFullHelp})
 		m.activeGameID = rec.ID
 		m.state = gameView
@@ -328,12 +328,6 @@ func (m model) handleDailyPuzzle() (tea.Model, tea.Cmd) {
 	m.state = generatingView
 	m.generating = true
 	return m, tea.Batch(m.spinner.Tick, spawnSeededCmd(spawner, rng))
-}
-
-// dailyTitle returns the display title for a daily game.
-// The name already starts with "Daily", so no extra prefix is needed.
-func dailyTitle(name string) string {
-	return name
 }
 
 func (m model) handleGameSelectEnter() (tea.Model, tea.Cmd) {
@@ -368,6 +362,8 @@ func spawnCmd(spawner game.Spawner) tea.Cmd {
 }
 
 // spawnSeededCmd returns a tea.Cmd that runs SpawnSeeded() off the main goroutine.
+// The caller must not use rng after this call — *rand.Rand is not goroutine-safe
+// and ownership is transferred to the spawned goroutine.
 func spawnSeededCmd(spawner game.SeededSpawner, rng *rand.Rand) tea.Cmd {
 	return func() tea.Msg {
 		g, err := spawner.SpawnSeeded(rng)
@@ -400,7 +396,7 @@ func (m model) handleSpawnComplete(msg game.SpawnCompleteMsg) (tea.Model, tea.Cm
 		name = m.dailyName
 		gameType = m.dailyGameType
 		modeTitle = m.dailyModeTitle
-		m.game = msg.Game.SetTitle(dailyTitle(name))
+		m.game = msg.Game.SetTitle(name)
 	} else {
 		name = generateUniqueName(m.store)
 		gameType = m.selectedCategory.Name

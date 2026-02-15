@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -53,10 +54,7 @@ var (
 				Background(colorCursorBg).
 				Bold(true)
 
-	islandCursorSolvedStyle = baseStyle.
-				Foreground(lipgloss.AdaptiveColor{Dark: "255", Light: "235"}).
-				Background(lipgloss.AdaptiveColor{Dark: "28", Light: "28"}).
-				Bold(true)
+	islandCursorSolvedStyle = game.CursorSolvedStyle
 
 	islandSelectedStyle = baseStyle.
 				Foreground(colorSelectedFg).

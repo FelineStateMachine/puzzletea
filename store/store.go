@@ -3,6 +3,7 @@ package store
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -195,7 +196,7 @@ func (s *Store) GetGameByName(name string) (*GameRecord, error) {
 		&g.InitialState, &g.SaveState, &g.Status,
 		&g.CreatedAt, &g.UpdatedAt, &completedAt,
 	)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
 	if err != nil {

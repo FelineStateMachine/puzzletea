@@ -17,6 +17,13 @@ var (
 	solvedBadgeStyle = lipgloss.NewStyle().
 				Bold(true).
 				Foreground(lipgloss.AdaptiveColor{Light: "28", Dark: "78"})
+
+	// CursorSolvedStyle highlights the cursor position on a solved grid.
+	// Shared across all puzzle types.
+	CursorSolvedStyle = lipgloss.NewStyle().
+				Bold(true).
+				Foreground(lipgloss.AdaptiveColor{Light: "255", Dark: "235"}).
+				Background(lipgloss.AdaptiveColor{Light: "28", Dark: "28"})
 )
 
 // TitleBarView renders a title bar with the game name, mode name, and optional solved badge.
