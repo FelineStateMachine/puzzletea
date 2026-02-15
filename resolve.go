@@ -20,6 +20,7 @@ func normalize(s string) string {
 var categoryAliases = map[string]string{
 	"hashi":      "hashiwokakero",
 	"bridges":    "hashiwokakero",
+	"hitori":     "hitori",
 	"lights":     "lights out",
 	"nonogram":   "nonogram",
 	"sudoku":     "sudoku",

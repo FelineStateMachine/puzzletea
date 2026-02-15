@@ -8,6 +8,7 @@ import (
 
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/hashiwokakero"
+	"github.com/FelineStateMachine/puzzletea/hitori"
 	"github.com/FelineStateMachine/puzzletea/lightsout"
 	"github.com/FelineStateMachine/puzzletea/namegen"
 	"github.com/FelineStateMachine/puzzletea/nonogram"
@@ -37,6 +38,7 @@ var (
 
 	GameCategories = []list.Item{
 		game.Category{Name: "Hashiwokakero", Desc: "Connect islands with bridges.", Modes: hashiwokakero.Modes},
+		game.Category{Name: "Hitori", Desc: "Shade cells to eliminate duplicates.", Modes: hitori.Modes},
 		game.Category{Name: "Lights Out", Desc: "Turn off all the lights.", Modes: lightsout.Modes},
 		game.Category{Name: "Nonogram", Desc: "Fill cells to match row and column hints.", Modes: nonogram.Modes},
 		game.Category{Name: "Sudoku", Desc: "Fill the 9x9 grid following sudoku rules.", Modes: sudoku.Modes},
