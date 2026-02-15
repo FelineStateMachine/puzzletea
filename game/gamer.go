@@ -67,6 +67,7 @@ type Category struct {
 	Name  string
 	Desc  string
 	Modes []list.Item
+	Help  string // embedded help.md content rendered in "How to Play"
 }
 
 func (c Category) Title() string       { return c.Name }

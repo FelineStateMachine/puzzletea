@@ -1,11 +1,15 @@
 package takuzu
 
 import (
+	_ "embed"
 	"math/rand/v2"
 
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/charmbracelet/bubbles/list"
 )
+
+//go:embed help.md
+var HelpContent string
 
 func init() {
 	game.Register("Takuzu", func(data []byte) (game.Gamer, error) {

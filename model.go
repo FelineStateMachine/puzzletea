@@ -20,6 +20,7 @@ import (
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/table"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/lipgloss"
@@ -38,13 +39,13 @@ var (
 	debugStyle = lipgloss.NewStyle().Border(lipgloss.RoundedBorder(), true).BorderForeground(lipgloss.Color("124"))
 
 	GameCategories = []list.Item{
-		game.Category{Name: "Hashiwokakero", Desc: "Connect islands with bridges.", Modes: hashiwokakero.Modes},
-		game.Category{Name: "Hitori", Desc: "Shade cells to eliminate duplicates.", Modes: hitori.Modes},
-		game.Category{Name: "Lights Out", Desc: "Turn off all the lights.", Modes: lightsout.Modes},
-		game.Category{Name: "Nonogram", Desc: "Fill cells to match row and column hints.", Modes: nonogram.Modes},
-		game.Category{Name: "Sudoku", Desc: "Fill the 9x9 grid following sudoku rules.", Modes: sudoku.Modes},
-		game.Category{Name: "Takuzu", Desc: "Fill the grid with ● and ○.", Modes: takuzu.Modes},
-		game.Category{Name: "Word Search", Desc: "Find hidden words in a letter grid.", Modes: wordsearch.Modes},
+		game.Category{Name: "Hashiwokakero", Desc: "Connect islands with bridges.", Modes: hashiwokakero.Modes, Help: hashiwokakero.HelpContent},
+		game.Category{Name: "Hitori", Desc: "Shade cells to eliminate duplicates.", Modes: hitori.Modes, Help: hitori.HelpContent},
+		game.Category{Name: "Lights Out", Desc: "Turn off all the lights.", Modes: lightsout.Modes, Help: lightsout.HelpContent},
+		game.Category{Name: "Nonogram", Desc: "Fill cells to match row and column hints.", Modes: nonogram.Modes, Help: nonogram.HelpContent},
+		game.Category{Name: "Sudoku", Desc: "Fill the 9x9 grid following sudoku rules.", Modes: sudoku.Modes, Help: sudoku.HelpContent},
+		game.Category{Name: "Takuzu", Desc: "Fill the grid with ● and ○.", Modes: takuzu.Modes, Help: takuzu.HelpContent},
+		game.Category{Name: "Word Search", Desc: "Find hidden words in a letter grid.", Modes: wordsearch.Modes, Help: wordsearch.HelpContent},
 	}
 )
 
@@ -55,6 +56,8 @@ const (
 	generatingView
 	gameView
 	continueView
+	helpSelectView
+	helpDetailView
 )
 
 type menuItem struct {
@@ -70,6 +73,7 @@ var mainMenuItems = []list.Item{
 	menuItem{title: "Daily Puzzle", desc: time.Now().Format("Jan _2 06")},
 	menuItem{title: "Generate", desc: "a new puzzle."},
 	menuItem{title: "Continue", desc: "a previous puzzle."},
+	menuItem{title: "Guides", desc: "to learn."},
 	menuItem{title: "Quit", desc: "the game."},
 }
 
@@ -107,6 +111,11 @@ type model struct {
 	dailyName      string // pre-computed daily name
 	dailyGameType  string // e.g. "Nonogram"
 	dailyModeTitle string // e.g. "Standard"
+
+	// Help page state
+	helpSelectList list.Model
+	helpCategory   game.Category
+	helpViewport   viewport.Model
 }
 
 func initialModel(s *store.Store) model {
@@ -173,6 +182,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.state == continueView {
 			m.continueTable.SetWidth(w)
 			m.continueTable.SetHeight(ht)
+		}
+		if m.state == helpSelectView {
+			m.helpSelectList.SetSize(menuW, menuH)
+		}
+		if m.state == helpDetailView {
+			m.helpViewport.Width = w
+			m.helpViewport.Height = ht - 2
 		}
 
 	case tea.KeyMsg:
@@ -244,6 +260,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.modeSelectList, cmd = m.modeSelectList.Update(msg)
 	case continueView:
 		m.continueTable, cmd = m.continueTable.Update(msg)
+	case helpSelectView:
+		m.helpSelectList, cmd = m.helpSelectList.Update(msg)
+	case helpDetailView:
+		m.helpViewport, cmd = m.helpViewport.Update(msg)
 	}
 
 	return m, cmd
@@ -259,6 +279,8 @@ func (m model) handleEnter() (tea.Model, tea.Cmd) {
 		return m.handleModeSelectEnter()
 	case continueView:
 		return m.handleContinueEnter()
+	case helpSelectView:
+		return m.handleHelpSelectEnter()
 	}
 	return m, nil
 }
@@ -276,6 +298,10 @@ func (m model) handleMainMenuEnter() (tea.Model, tea.Cmd) {
 	case "Continue":
 		m.initContinueTable()
 		m.state = continueView
+	case "Guides":
+		m.helpSelectList = initList(GameCategories, "How to Play")
+		m.helpSelectList.SetSize(min(m.width, 64), min(m.height, 24))
+		m.state = helpSelectView
 	case "Quit":
 		return m, tea.Quit
 	}
@@ -452,6 +478,33 @@ func (m model) handleContinueEnter() (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m model) handleHelpSelectEnter() (tea.Model, tea.Cmd) {
+	cat, ok := m.helpSelectList.SelectedItem().(game.Category)
+	if !ok {
+		return m, nil
+	}
+	m.helpCategory = cat
+
+	renderer, err := glamour.NewTermRenderer(
+		glamour.WithAutoStyle(),
+		glamour.WithWordWrap(m.width),
+	)
+	if err != nil {
+		log.Printf("failed to create help renderer: %v", err)
+		return m, nil
+	}
+	rendered, err := renderer.Render(cat.Help)
+	if err != nil {
+		log.Printf("failed to render help: %v", err)
+		return m, nil
+	}
+
+	m.helpViewport = viewport.New(m.width, m.height-2)
+	m.helpViewport.SetContent(rendered)
+	m.state = helpDetailView
+	return m, nil
+}
+
 func (m model) handleEscape() (tea.Model, tea.Cmd) {
 	switch m.state {
 	case generatingView:
@@ -459,6 +512,10 @@ func (m model) handleEscape() (tea.Model, tea.Cmd) {
 	case modeSelectView:
 		m.state = gameSelectView
 	case gameSelectView, continueView:
+		m.state = mainMenuView
+	case helpDetailView:
+		m.state = helpSelectView
+	case helpSelectView:
 		m.state = mainMenuView
 	}
 	return m, nil
@@ -500,6 +557,17 @@ func (m model) View() string {
 		s := lipgloss.JoinVertical(lipgloss.Center,
 			m.game.View(),
 			debugInfo,
+		)
+		return rootStyle.Render(lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, s))
+	case helpSelectView:
+		return rootStyle.Render(lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, m.helpSelectList.View()))
+	case helpDetailView:
+		footer := lipgloss.NewStyle().
+			Foreground(menuTextDim).
+			Render("↑/↓ scroll • esc back")
+		s := lipgloss.JoinVertical(lipgloss.Left,
+			m.helpViewport.View(),
+			footer,
 		)
 		return rootStyle.Render(lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, s))
 	default:

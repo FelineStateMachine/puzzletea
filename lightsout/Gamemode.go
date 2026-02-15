@@ -1,11 +1,15 @@
 package lightsout
 
 import (
+	_ "embed"
 	"math/rand/v2"
 
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/charmbracelet/bubbles/list"
 )
+
+//go:embed help.md
+var HelpContent string
 
 // Register the import function for save games.
 func init() {
