@@ -25,6 +25,11 @@ var (
 			Foreground(lipgloss.AdaptiveColor{Light: "255", Dark: "235"}).
 			Background(lipgloss.AdaptiveColor{Light: "130", Dark: "214"})
 
+	cursorSolvedStyle = baseStyle.
+				Bold(true).
+				Foreground(lipgloss.AdaptiveColor{Light: "255", Dark: "235"}).
+				Background(lipgloss.AdaptiveColor{Light: "28", Dark: "28"})
+
 	crosshairBG = lipgloss.AdaptiveColor{Light: "254", Dark: "237"}
 	solvedBG    = lipgloss.AdaptiveColor{Light: "151", Dark: "22"}
 
@@ -61,14 +66,14 @@ func cellView(val rune, isProvided, isCursor, inCursorRow, inCursorCol, solved b
 		s = s.Bold(true)
 	}
 
-	if isCursor && !solved {
+	if isCursor && solved {
+		s = cursorSolvedStyle
+	} else if isCursor {
 		s = s.Background(cursorStyle.GetBackground()).Bold(true)
-	} else if !solved && (inCursorRow || inCursorCol) {
-		s = s.Background(crosshairBG)
-	}
-
-	if solved {
+	} else if solved {
 		s = s.Background(solvedBG)
+	} else if inCursorRow || inCursorCol {
+		s = s.Background(crosshairBG)
 	}
 
 	r, ok := renderRuneMap[val]
