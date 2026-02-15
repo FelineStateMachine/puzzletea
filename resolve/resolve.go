@@ -1,23 +1,25 @@
-package main
+package resolve
 
 import (
 	"fmt"
 	"strings"
 
 	"github.com/FelineStateMachine/puzzletea/game"
+
+	"github.com/charmbracelet/bubbles/list"
 )
 
-// normalize lowercases and replaces hyphens/underscores with spaces for
+// Normalize lowercases and replaces hyphens/underscores with spaces for
 // fuzzy matching of CLI arguments to game/mode names.
-func normalize(s string) string {
+func Normalize(s string) string {
 	s = strings.ToLower(s)
 	s = strings.ReplaceAll(s, "-", " ")
 	s = strings.ReplaceAll(s, "_", " ")
 	return strings.TrimSpace(s)
 }
 
-// categoryAliases maps short or alternate names to canonical category names.
-var categoryAliases = map[string]string{
+// CategoryAliases maps short or alternate names to canonical category names.
+var CategoryAliases = map[string]string{
 	"hashi":      "hashiwokakero",
 	"bridges":    "hashiwokakero",
 	"hitori":     "hitori",
@@ -32,30 +34,30 @@ var categoryAliases = map[string]string{
 	"ws":         "word search",
 }
 
-// resolveCategory finds a game category by name (case-insensitive,
+// Category finds a game category by name (case-insensitive,
 // hyphen/underscore-tolerant, with alias support).
-func resolveCategory(name string) (game.Category, error) {
-	norm := normalize(name)
+func Category(name string, categories []list.Item) (game.Category, error) {
+	norm := Normalize(name)
 
 	// Check aliases first.
-	if canonical, ok := categoryAliases[norm]; ok {
+	if canonical, ok := CategoryAliases[norm]; ok {
 		norm = canonical
 	}
 
-	for _, item := range GameCategories {
+	for _, item := range categories {
 		cat := item.(game.Category)
-		if normalize(cat.Name) == norm {
+		if Normalize(cat.Name) == norm {
 			return cat, nil
 		}
 	}
 
 	return game.Category{}, fmt.Errorf("unknown game %q\n\nAvailable games:\n  %s",
-		name, strings.Join(listCategoryNames(), "\n  "))
+		name, strings.Join(CategoryNames(categories), "\n  "))
 }
 
-// resolveMode finds a mode within a category by name. If name is empty,
+// Mode finds a mode within a category by name. If name is empty,
 // returns the first (default) mode.
-func resolveMode(cat game.Category, name string) (game.Spawner, string, error) {
+func Mode(cat game.Category, name string) (game.Spawner, string, error) {
 	if len(cat.Modes) == 0 {
 		return nil, "", fmt.Errorf("game %q has no available modes", cat.Name)
 	}
@@ -65,29 +67,29 @@ func resolveMode(cat game.Category, name string) (game.Spawner, string, error) {
 		return m.(game.Spawner), m.Title(), nil
 	}
 
-	norm := normalize(name)
+	norm := Normalize(name)
 	for _, item := range cat.Modes {
 		m := item.(game.Mode)
-		if normalize(m.Title()) == norm {
+		if Normalize(m.Title()) == norm {
 			return m.(game.Spawner), m.Title(), nil
 		}
 	}
 
 	return nil, "", fmt.Errorf("unknown mode %q for %s\n\nAvailable modes:\n  %s",
-		name, cat.Name, strings.Join(listModeNames(cat), "\n  "))
+		name, cat.Name, strings.Join(ModeNames(cat), "\n  "))
 }
 
-// listCategoryNames returns the display names of all game categories.
-func listCategoryNames() []string {
-	names := make([]string, len(GameCategories))
-	for i, item := range GameCategories {
+// CategoryNames returns the display names of all game categories.
+func CategoryNames(categories []list.Item) []string {
+	names := make([]string, len(categories))
+	for i, item := range categories {
 		names[i] = item.(game.Category).Name
 	}
 	return names
 }
 
-// listModeNames returns the display names of all modes in a category.
-func listModeNames(cat game.Category) []string {
+// ModeNames returns the display names of all modes in a category.
+func ModeNames(cat game.Category) []string {
 	names := make([]string, len(cat.Modes))
 	for i, item := range cat.Modes {
 		names[i] = item.(game.Mode).Title()

@@ -1,12 +1,30 @@
-package main
+package resolve
 
 import (
 	"strings"
 	"testing"
 
 	"github.com/FelineStateMachine/puzzletea/game"
+	"github.com/FelineStateMachine/puzzletea/hashiwokakero"
+	"github.com/FelineStateMachine/puzzletea/hitori"
+	"github.com/FelineStateMachine/puzzletea/lightsout"
+	"github.com/FelineStateMachine/puzzletea/nonogram"
+	"github.com/FelineStateMachine/puzzletea/sudoku"
+	"github.com/FelineStateMachine/puzzletea/takuzu"
+	"github.com/FelineStateMachine/puzzletea/wordsearch"
+
 	"github.com/charmbracelet/bubbles/list"
 )
+
+var testCategories = []list.Item{
+	game.Category{Name: "Hashiwokakero", Desc: "Connect islands with bridges.", Modes: hashiwokakero.Modes},
+	game.Category{Name: "Hitori", Desc: "Shade cells to eliminate duplicates.", Modes: hitori.Modes},
+	game.Category{Name: "Lights Out", Desc: "Turn off all the lights.", Modes: lightsout.Modes},
+	game.Category{Name: "Nonogram", Desc: "Fill cells to match row and column hints.", Modes: nonogram.Modes},
+	game.Category{Name: "Sudoku", Desc: "Fill the 9x9 grid following sudoku rules.", Modes: sudoku.Modes},
+	game.Category{Name: "Takuzu", Desc: "Fill the grid with ● and ○.", Modes: takuzu.Modes},
+	game.Category{Name: "Word Search", Desc: "Find hidden words in a letter grid.", Modes: wordsearch.Modes},
+}
 
 func TestNormalize(t *testing.T) {
 	tests := []struct {
@@ -29,15 +47,15 @@ func TestNormalize(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := normalize(tt.input)
+			got := Normalize(tt.input)
 			if got != tt.want {
-				t.Errorf("normalize(%q) = %q, want %q", tt.input, got, tt.want)
+				t.Errorf("Normalize(%q) = %q, want %q", tt.input, got, tt.want)
 			}
 		})
 	}
 }
 
-func TestResolveCategory(t *testing.T) {
+func TestCategory(t *testing.T) {
 	// Exact and case-insensitive matches.
 	exactTests := []struct {
 		name     string
@@ -59,12 +77,12 @@ func TestResolveCategory(t *testing.T) {
 
 	for _, tt := range exactTests {
 		t.Run(tt.name, func(t *testing.T) {
-			cat, err := resolveCategory(tt.input)
+			cat, err := Category(tt.input, testCategories)
 			if err != nil {
-				t.Fatalf("resolveCategory(%q) error: %v", tt.input, err)
+				t.Fatalf("Category(%q) error: %v", tt.input, err)
 			}
 			if cat.Name != tt.wantName {
-				t.Errorf("resolveCategory(%q).Name = %q, want %q", tt.input, cat.Name, tt.wantName)
+				t.Errorf("Category(%q).Name = %q, want %q", tt.input, cat.Name, tt.wantName)
 			}
 		})
 	}
@@ -90,19 +108,19 @@ func TestResolveCategory(t *testing.T) {
 
 	for _, tt := range aliasTests {
 		t.Run("alias_"+tt.alias, func(t *testing.T) {
-			cat, err := resolveCategory(tt.alias)
+			cat, err := Category(tt.alias, testCategories)
 			if err != nil {
-				t.Fatalf("resolveCategory(%q) error: %v", tt.alias, err)
+				t.Fatalf("Category(%q) error: %v", tt.alias, err)
 			}
 			if cat.Name != tt.wantName {
-				t.Errorf("resolveCategory(%q).Name = %q, want %q", tt.alias, cat.Name, tt.wantName)
+				t.Errorf("Category(%q).Name = %q, want %q", tt.alias, cat.Name, tt.wantName)
 			}
 		})
 	}
 
 	// Error cases.
 	t.Run("unknown game", func(t *testing.T) {
-		_, err := resolveCategory("chess")
+		_, err := Category("chess", testCategories)
 		if err == nil {
 			t.Fatal("expected error for unknown game")
 		}
@@ -112,22 +130,22 @@ func TestResolveCategory(t *testing.T) {
 	})
 
 	t.Run("empty string", func(t *testing.T) {
-		_, err := resolveCategory("")
+		_, err := Category("", testCategories)
 		if err == nil {
 			t.Fatal("expected error for empty string")
 		}
 	})
 }
 
-func TestResolveMode(t *testing.T) {
+func TestMode(t *testing.T) {
 	// Find a known category with modes for testing.
-	sudoku, err := resolveCategory("Sudoku")
+	sudokuCat, err := Category("Sudoku", testCategories)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	t.Run("empty name returns default (first) mode", func(t *testing.T) {
-		spawner, title, err := resolveMode(sudoku, "")
+		spawner, title, err := Mode(sudokuCat, "")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -141,7 +159,7 @@ func TestResolveMode(t *testing.T) {
 	})
 
 	t.Run("exact mode title", func(t *testing.T) {
-		_, title, err := resolveMode(sudoku, "Easy")
+		_, title, err := Mode(sudokuCat, "Easy")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -151,7 +169,7 @@ func TestResolveMode(t *testing.T) {
 	})
 
 	t.Run("case insensitive", func(t *testing.T) {
-		_, title, err := resolveMode(sudoku, "easy")
+		_, title, err := Mode(sudokuCat, "easy")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -161,7 +179,7 @@ func TestResolveMode(t *testing.T) {
 	})
 
 	t.Run("unknown mode", func(t *testing.T) {
-		_, _, err := resolveMode(sudoku, "impossible")
+		_, _, err := Mode(sudokuCat, "impossible")
 		if err == nil {
 			t.Fatal("expected error for unknown mode")
 		}
@@ -172,7 +190,7 @@ func TestResolveMode(t *testing.T) {
 
 	t.Run("empty modes list", func(t *testing.T) {
 		emptyCat := game.Category{Name: "Empty", Modes: []list.Item{}}
-		_, _, err := resolveMode(emptyCat, "any")
+		_, _, err := Mode(emptyCat, "any")
 		if err == nil {
 			t.Fatal("expected error for empty modes")
 		}
@@ -182,10 +200,10 @@ func TestResolveMode(t *testing.T) {
 	})
 }
 
-func TestListCategoryNames(t *testing.T) {
-	names := listCategoryNames()
-	if len(names) != len(GameCategories) {
-		t.Fatalf("len(listCategoryNames()) = %d, want %d", len(names), len(GameCategories))
+func TestCategoryNames(t *testing.T) {
+	names := CategoryNames(testCategories)
+	if len(names) != len(testCategories) {
+		t.Fatalf("len(CategoryNames()) = %d, want %d", len(names), len(testCategories))
 	}
 
 	// Verify all expected games are present.
@@ -209,15 +227,15 @@ func TestListCategoryNames(t *testing.T) {
 	}
 }
 
-func TestListModeNames(t *testing.T) {
-	cat, err := resolveCategory("Lights Out")
+func TestModeNames(t *testing.T) {
+	cat, err := Category("Lights Out", testCategories)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	names := listModeNames(cat)
+	names := ModeNames(cat)
 	if len(names) != len(cat.Modes) {
-		t.Fatalf("len(listModeNames) = %d, want %d", len(names), len(cat.Modes))
+		t.Fatalf("len(ModeNames) = %d, want %d", len(names), len(cat.Modes))
 	}
 
 	// Lights Out modes: Easy, Medium, Hard, Extreme.

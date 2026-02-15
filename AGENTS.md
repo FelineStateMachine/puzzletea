@@ -13,10 +13,11 @@ Without `just`: `go build -ldflags "-X main.version=$(git describe --tags --alwa
 
 ### Testing
 ```bash
-just test         # go test ./...
-just test-short   # go test -short ./... (skips slow generator tests)
-go test ./nonogram/              # single package
-go test ./sudoku/ -run TestGenerateGrid  # specific test
+just test                                    # go test ./...
+just test-short                              # go test -short ./... (skips slow generator tests)
+go test ./nonogram/                          # single package
+go test ./sudoku/ -run TestGenerateGrid      # specific test
+go test ./resolve/ -run TestCategory -v      # specific test, verbose
 ```
 
 ### Linting & Formatting
@@ -25,51 +26,44 @@ just lint         # golangci-lint run ./...
 just fmt          # gofumpt -w .
 just tidy         # go mod tidy
 ```
+
 **Always run `just fmt` and `just lint` before committing.**
+
+---
+
+## Project Structure
+```
+puzzletea/
+├── main.go, cmd.go, model.go   # Entry point, CLI (cobra), root TUI model
+├── update.go, view.go          # Root model update loop, view rendering
+├── spawn.go, debug.go          # Game spawn/save lifecycle, debug overlay
+├── game/       # Plugin interfaces (Gamer, Mode, Spawner), cursor, keys, style
+├── store/      # SQLite persistence (GameRecord, CRUD)
+├── ui/         # Shared UI: menu list, table, styles, MenuItem
+├── daily/      # Daily puzzle seeding, RNG, mode selection
+├── resolve/    # CLI argument resolution (category/mode name matching)
+├── namegen/    # Adjective-noun name generator
+├── hashiwokakero/, hitori/, lightsout/, nonogram/
+├── sudoku/, takuzu/, wordsearch/       # Puzzle game packages
+├── plan/       # Design/planning documents
+└── vhs/        # GIF preview tapes
+```
+
+Each puzzle package follows a consistent file structure:
+- **Capitalized**: `Model.go`, `Gamemode.go`, `Export.go`
+- **Lowercase**: `grid.go`, `keys.go`, `style.go`, `generator.go`, `<game>_test.go`
 
 ---
 
 ## Code Style Guidelines
 
 ### Formatting
-- Use `gofumpt` - run `just fmt`
+- Use `gofumpt` (stricter than gofmt) -- run `just fmt`
 - No comments required unless explaining non-obvious logic
 - Keep lines under ~100 characters
-- Group imports: stdlib, puzzletea internal, Bubble Tea ecosystem
 
-### File Naming
-- **Capitalized**: `Gamemode.go`, `Model.go`, `Export.go`
-- **Lowercase**: `grid.go`, `keys.go`, `style.go`, `generator.go`, `<game>_test.go`
-
-### Naming Conventions
-- **Types**: PascalCase (`Model`, `NonogramMode`, `grid`)
-- **Variables/Fields**: camelCase (`rowHints`, `currentHints`)
-- **Constants**: camelCase for constants
-- **Interfaces**: PascalCase (`Gamer`, `Spawner`, `Mode`)
-
-### Type Declarations
-Prefer type aliases for clarity:
-```go
-type (
-    grid  [][]rune
-    state string
-)
-```
-
-### Interface Compliance
-Use compile-time checks:
-```go
-var _ game.Gamer = Model{}
-var _ game.Mode = NonogramMode{}
-var _ game.Spawner = NonogramMode{}
-```
-
-### Error Handling
-- Return descriptive errors: `return Model{}, errors.New("puzzle width does not support row tomography definition")`
-- Check errors immediately; avoid wrapping unless adding context
-- Use `fmt.Errorf` with `%w` when wrapping
-
-### Imports (grouped, blank line between)
+### Imports
+Two groups separated by a blank line: stdlib, then everything else (internal + external sorted together). When there are many internal imports, a third group separating internal from external is acceptable.
 ```go
 import (
     "errors"
@@ -82,64 +76,79 @@ import (
 )
 ```
 
----
+### Naming Conventions
+- **Types**: PascalCase (`Model`, `NonogramMode`, `Entry`)
+- **Unexported types**: camelCase or lowercase (`grid`, `state`, `menuItem`)
+- **Variables/Fields**: camelCase (`rowHints`, `currentHints`)
+- **Constants**: camelCase (`mainMenuView`, `gameSelectView`)
+- **Interfaces**: PascalCase (`Gamer`, `Spawner`, `Mode`)
 
-## TUI Patterns
+### Type Declarations
+Prefer grouped type aliases: `type ( grid [][]rune; state string )`
 
-### Model Structure
-```go
-type Model struct {
-    width, height int
-    rowHints      TomographyDefinition
-    colHints      TomographyDefinition
-    cursor        game.Cursor
-    grid          grid
-    keys          KeyMap
-    modeTitle     string
-    showFullHelp  bool
-    currentHints  Hints
-    solved        bool
-}
-```
+### Interface Compliance
+Use compile-time checks: `var _ game.Gamer = Model{}`, `var _ game.Spawner = NonogramMode{}`
 
-### Update Method Pattern
-```go
-func (m Model) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
-    switch msg := msg.(type) {
-    case game.HelpToggleMsg:
-        m.showFullHelp = msg.Show
-    case tea.KeyMsg:
-        switch {
-        case key.Matches(msg, m.keys.FillTile):
-            m.updateTile(filledTile)
-        }
-        m.cursor.Move(m.keys.CursorKeyMap, msg, m.width-1, m.height-1)
-    }
-    m.updateKeyBindings()
-    return m, nil
-}
-```
-
-### Required Gamer Methods
-`Init() tea.Cmd`, `Update(tea.Msg)`, `View() string`, `GetDebugInfo() string`, `GetFullHelp() string`, `GetSave() []byte`, `IsSolved() bool`, `SetTitle(string)`
+### Error Handling
+- Return descriptive errors: `errors.New("puzzle width does not support row tomography definition")`
+- Check errors immediately; use `fmt.Errorf` with `%w` only when wrapping adds context
 
 ### Styling
-Use `lipgloss.AdaptiveColor` with ANSI 256 palette numbers:
+Use `lipgloss.AdaptiveColor` with ANSI 256 palette numbers. Avoid hex colors.
+
+---
+
+## Plugin Architecture
+
+### Gamer Interface (game/gamer.go)
+Every puzzle `Model` must implement:
 ```go
-lipgloss.AdaptiveColor{Light: "255", Dark: "255"}
+type Gamer interface {
+    Init() tea.Cmd
+    Update(msg tea.Msg) (Gamer, tea.Cmd)
+    View() string
+    GetDebugInfo() string
+    GetFullHelp() [][]key.Binding
+    GetSave() ([]byte, error)
+    IsSolved() bool
+    Reset() Gamer
+    SetTitle(string) Gamer
+}
 ```
-Avoid hex colors (`#rrggbb`).
+
+### Mode/Spawner Interfaces
+```go
+type Spawner interface { Spawn() (Gamer, error) }
+type SeededSpawner interface {
+    Spawner
+    SpawnSeeded(rng *rand.Rand) (Gamer, error)
+}
+```
+
+### Puzzle Package Exports
+Every puzzle package exports `Modes`, `DailyModes` (`[]list.Item`), `HelpContent` (`string`), `NewMode(...)`, `New(...)`, `ImportModel([]byte) (*Model, error)`, and `DefaultKeyMap`.
+
+Each package registers itself via `init()`:
+```go
+func init() {
+    game.Register("Nonogram", func(data []byte) (game.Gamer, error) {
+        return ImportModel(data)
+    })
+}
+```
 
 ---
 
 ## Testing Conventions
 
-Section comments with priority:
+### Section Comments with Priority
 ```go
-// --- generateTomography (P0) ---
+// --- generateTomography (P0) ---     // P0 = critical
+// --- Grid serialization (P1) ---     // P1 = important
+// --- generateRandomState (P2) ---    // P2 = generators/slow
 ```
 
-Table-driven tests with subtests:
+### Table-Driven Tests with Subtests
 ```go
 func TestGenerateTomography(t *testing.T) {
     tests := []struct {
@@ -151,37 +160,29 @@ func TestGenerateTomography(t *testing.T) {
     }
     for _, tt := range tests {
         t.Run(tt.name, func(t *testing.T) {
-            // test logic
+            // test logic using t.Errorf / t.Fatalf only (no assertion libraries)
         })
     }
 }
 ```
 
-Save/load round-trip:
+### Save/Load Round-Trip Pattern
 ```go
-m, _ := New(mode, hints)
-data := m.GetSave()
+data, err := m.GetSave()
+if err != nil { t.Fatal(err) }
 loaded, err := ImportModel(data)
 if err != nil { t.Fatal(err) }
 // verify state preserved
 ```
 
-Priority: (P0) = critical, (P1) = important, (P2) = generators
-
----
-
-## Project Structure
-```
-puzzletea/
-├── main.go, cmd.go, model.go, resolve.go   # Core app
-├── game/           # Plugin interface, cursor, keys, style
-├── store/          # SQLite persistence
-├── namegen/        # Adjective-noun name generator
-├── nonogram/, sudoku/, wordsearch/, hashiwokakero/, lightsout/, takuzu/  # Puzzle games
-└── vhs/           # GIF preview tapes
+### Slow Test Gating
+```go
+if testing.Short() {
+	t.Skip("skipping slow generator test in short mode")
+}
 ```
 
 ---
 
 ## Global Keybindings
-- `Ctrl+N`: Main menu | `Ctrl+C`: Quit (saves abandoned) | `Ctrl+E`: Debug overlay | `Ctrl+H`: Full help | `Enter`: Select | `Escape`: Back
+`Ctrl+N` Main menu | `Ctrl+C` Quit (saves abandoned) | `Ctrl+E` Debug overlay | `Ctrl+H` Full help | `Ctrl+R` Reset puzzle | `Enter` Select | `Escape` Back

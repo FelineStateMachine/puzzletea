@@ -1,4 +1,4 @@
-package main
+package daily
 
 import (
 	"hash/fnv"
@@ -18,16 +18,16 @@ import (
 	"github.com/charmbracelet/bubbles/list"
 )
 
-// dailyEntry pairs a SeededSpawner with metadata for the eligible daily pool.
-type dailyEntry struct {
-	spawner  game.SeededSpawner
-	gameType string
-	mode     string
+// Entry pairs a SeededSpawner with metadata for the eligible daily pool.
+type Entry struct {
+	Spawner  game.SeededSpawner
+	GameType string
+	Mode     string
 }
 
-// dailyPool maps game type names to their DailyModes exports.
+// pool maps game type names to their DailyModes exports.
 // Each package owns which of its modes are eligible for daily rotation.
-var dailyPool = []struct {
+var pool = []struct {
 	gameType string
 	modes    []list.Item
 }{
@@ -40,51 +40,51 @@ var dailyPool = []struct {
 	{"Word Search", wordsearch.DailyModes},
 }
 
-// eligibleDailyModes is the flattened pool built from each package's DailyModes.
-var eligibleDailyModes = buildEligibleDailyModes()
+// eligibleModes is the flattened pool built from each package's DailyModes.
+var eligibleModes = buildEligibleModes()
 
-func buildEligibleDailyModes() []dailyEntry {
-	var entries []dailyEntry
-	for _, p := range dailyPool {
+func buildEligibleModes() []Entry {
+	var entries []Entry
+	for _, p := range pool {
 		for _, item := range p.modes {
 			s := item.(game.SeededSpawner)
-			entries = append(entries, dailyEntry{
-				spawner:  s,
-				gameType: p.gameType,
-				mode:     item.(game.Mode).Title(),
+			entries = append(entries, Entry{
+				Spawner:  s,
+				GameType: p.gameType,
+				Mode:     item.(game.Mode).Title(),
 			})
 		}
 	}
 	return entries
 }
 
-// dailySeed returns a deterministic int64 seed derived from the date.
-func dailySeed(date time.Time) uint64 {
+// Seed returns a deterministic uint64 seed derived from the date.
+func Seed(date time.Time) uint64 {
 	dateStr := date.Format("2006-01-02")
 	h := fnv.New64a()
 	h.Write([]byte(dateStr))
 	return h.Sum64()
 }
 
-// dailyRNG creates a deterministic RNG seeded from the given date.
-func dailyRNG(date time.Time) *rand.Rand {
-	seed := dailySeed(date)
+// RNG creates a deterministic RNG seeded from the given date.
+func RNG(date time.Time) *rand.Rand {
+	seed := Seed(date)
 	return rand.New(rand.NewPCG(seed, ^seed))
 }
 
-// dailyName generates the daily puzzle name in the format:
+// Name generates the daily puzzle name in the format:
 // "Daily Feb 14 26 - amber-falcon"
 //
-// NOTE: this must be called before dailyMode on the same RNG — the number
+// NOTE: this must be called before Mode on the same RNG — the number
 // of draws here determines which mode is selected. Changing this function
 // will shift daily puzzles for all future dates.
-func dailyName(date time.Time, rng *rand.Rand) string {
+func Name(date time.Time, rng *rand.Rand) string {
 	return "Daily " + date.Format("Jan _2 06") + " - " + namegen.GenerateSeeded(rng)
 }
 
-// dailyMode selects the daily mode from the eligible pool using the seeded RNG.
+// Mode selects the daily mode from the eligible pool using the seeded RNG.
 // Returns the spawner, game type name, and mode title.
-func dailyMode(rng *rand.Rand) (game.SeededSpawner, string, string) {
-	entry := eligibleDailyModes[rng.IntN(len(eligibleDailyModes))]
-	return entry.spawner, entry.gameType, entry.mode
+func Mode(rng *rand.Rand) (game.SeededSpawner, string, string) {
+	entry := eligibleModes[rng.IntN(len(eligibleModes))]
+	return entry.Spawner, entry.GameType, entry.Mode
 }
