@@ -26,16 +26,19 @@ Sleep 500ms
 Enter
 Sleep 2s
 
-# Browse main menu
+# Browse main menu (Daily Puzzle, Generate, Continue, Quit)
 Down
 Sleep 500ms
 Down
 Sleep 500ms
+Down
+Sleep 500ms
+Up
 Up
 Up
 Sleep 500ms
 
-# Select "Generate"
+# Select "Generate" (second item)
 Down
 Enter
 Sleep 1s
