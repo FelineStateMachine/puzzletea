@@ -25,12 +25,10 @@ archives:
           - zip
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
 
-brews:
+homebrew_casks:
   - name: puzzletea
-    directory: Formula
     homepage: "https://github.com/FelineStateMachine/puzzletea"
     description: "Terminal-based puzzle game collection built with Bubble Tea"
-    license: "MIT"
     repository:
       owner: FelineStateMachine
       name: homebrew-tap
@@ -40,8 +38,12 @@ brews:
       name: goreleaserbot
       email: bot@goreleaser.com
     commit_msg_template: "Update {{ .ProjectName }} to {{ .Tag }}"
-    test: |
-      system "#{bin}/puzzletea", "--version"
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/puzzletea"]
+          end
 
 changelog:
   sort: asc
