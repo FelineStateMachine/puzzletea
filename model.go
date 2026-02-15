@@ -16,6 +16,7 @@ import (
 	"github.com/FelineStateMachine/puzzletea/takuzu"
 	"github.com/FelineStateMachine/puzzletea/wordsearch"
 	"github.com/charmbracelet/bubbles/list"
+	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/glamour"
@@ -48,6 +49,7 @@ const (
 	mainMenuView = iota
 	gameSelectView
 	modeSelectView
+	generatingView
 	gameView
 	continueView
 )
@@ -82,6 +84,9 @@ type model struct {
 	mode game.Mode
 	game game.Gamer
 
+	spinner    spinner.Model
+	generating bool // true while an async Spawn is in flight
+
 	width  int // available content width (terminal - rootStyle frame)
 	height int // available content height (terminal - rootStyle frame)
 
@@ -99,11 +104,15 @@ func initialModel(s *store.Store) model {
 	r := initDebugRenderer()
 	l := initGameSelectList()
 	ml := initMainMenuList()
+	sp := spinner.New()
+	sp.Spinner = spinner.Dot
+	sp.Style = lipgloss.NewStyle().Foreground(menuAccent)
 	return model{
 		state:          mainMenuView,
 		debugRenderer:  r,
 		gameSelectList: l,
 		mainMenuList:   ml,
+		spinner:        sp,
 		store:          s,
 	}
 }
@@ -114,11 +123,15 @@ func initialModelWithGame(s *store.Store, g game.Gamer, activeGameID int64, comp
 	r := initDebugRenderer()
 	l := initGameSelectList()
 	ml := initMainMenuList()
+	sp := spinner.New()
+	sp.Spinner = spinner.Dot
+	sp.Style = lipgloss.NewStyle().Foreground(menuAccent)
 	return model{
 		state:           gameView,
 		debugRenderer:   r,
 		gameSelectList:  l,
 		mainMenuList:    ml,
+		spinner:         sp,
 		store:           s,
 		game:            g,
 		activeGameID:    activeGameID,
@@ -134,6 +147,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
 	switch msg := msg.(type) {
+	case game.SpawnCompleteMsg:
+		return m.handleSpawnComplete(msg)
+
 	case tea.WindowSizeMsg:
 		h, v := rootStyle.GetFrameSize()
 		w, ht := msg.Width-h, msg.Height-v
@@ -151,6 +167,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case tea.KeyMsg:
+		// During generation, only allow Escape (to cancel) and Ctrl+C (to quit).
+		if m.state == generatingView {
+			switch msg.Type {
+			case tea.KeyEscape:
+				m.state = modeSelectView
+				return m, nil
+			case tea.KeyCtrlC:
+				return m, tea.Quit
+			}
+			return m, nil
+		}
 		switch msg.Type {
 		case tea.KeyCtrlN:
 			m = saveCurrentGame(m, store.StatusInProgress)
@@ -182,6 +209,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch m.state {
 	case mainMenuView:
 		m.mainMenuList, cmd = m.mainMenuList.Update(msg)
+	case generatingView:
+		m.spinner, cmd = m.spinner.Update(msg)
 	case gameView:
 		m.game, cmd = m.game.Update(msg)
 		if m.debug {
@@ -251,12 +280,39 @@ func (m model) handleGameSelectEnter() (tea.Model, tea.Cmd) {
 
 func (m model) handleModeSelectEnter() (tea.Model, tea.Cmd) {
 	m.mode, _ = m.modeSelectList.SelectedItem().(game.Mode)
-	g, err := m.mode.(game.Spawner).Spawn()
-	if err != nil {
+	spawner, ok := m.mode.(game.Spawner)
+	if !ok {
 		return m, nil
 	}
+	m.state = generatingView
+	m.generating = true
+	return m, tea.Batch(m.spinner.Tick, spawnCmd(spawner))
+}
+
+// spawnCmd returns a tea.Cmd that runs Spawn() off the main goroutine.
+func spawnCmd(spawner game.Spawner) tea.Cmd {
+	return func() tea.Msg {
+		g, err := spawner.Spawn()
+		return game.SpawnCompleteMsg{Game: g, Err: err}
+	}
+}
+
+func (m model) handleSpawnComplete(msg game.SpawnCompleteMsg) (tea.Model, tea.Cmd) {
+	m.generating = false
+
+	// If the user navigated away while generating, discard the result.
+	if m.state != generatingView {
+		return m, nil
+	}
+
+	if msg.Err != nil {
+		log.Printf("failed to spawn game: %v", msg.Err)
+		m.state = modeSelectView
+		return m, nil
+	}
+
 	name := generateUniqueName(m.store)
-	m.game = g.SetTitle(name)
+	m.game = msg.Game.SetTitle(name)
 	m.game, _ = m.game.Update(game.HelpToggleMsg{Show: m.showFullHelp})
 	m.state = gameView
 	m.completionSaved = false
@@ -308,6 +364,8 @@ func (m model) handleContinueEnter() (tea.Model, tea.Cmd) {
 
 func (m model) handleEscape() (tea.Model, tea.Cmd) {
 	switch m.state {
+	case generatingView:
+		m.state = modeSelectView
 	case modeSelectView:
 		m.state = gameSelectView
 	case gameSelectView, continueView:
@@ -324,6 +382,9 @@ func (m model) View() string {
 		return rootStyle.Render(lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, m.gameSelectList.View()))
 	case modeSelectView:
 		return rootStyle.Render(lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, m.modeSelectList.View()))
+	case generatingView:
+		s := m.spinner.View() + " Generating puzzle..."
+		return rootStyle.Render(lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, s))
 	case continueView:
 		var s string
 		if len(m.continueGames) == 0 {

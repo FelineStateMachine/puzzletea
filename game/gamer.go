@@ -64,6 +64,12 @@ func (c Category) Title() string       { return c.Name }
 func (c Category) Description() string { return c.Desc }
 func (c Category) FilterValue() string { return c.Name }
 
+// SpawnCompleteMsg is sent when an async Spawn() call finishes.
+type SpawnCompleteMsg struct {
+	Game Gamer
+	Err  error
+}
+
 // HelpToggleMsg is sent from the root model to games when the user toggles
 // the full help display with Ctrl+H.
 type HelpToggleMsg struct{ Show bool }

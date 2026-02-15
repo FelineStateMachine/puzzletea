@@ -36,7 +36,10 @@ func NewMode(title, description string, width, height, minIslands, maxIslands in
 }
 
 func (h HashiMode) Spawn() (game.Gamer, error) {
-	puzzle := GeneratePuzzle(h)
+	puzzle, err := GeneratePuzzle(h)
+	if err != nil {
+		return nil, err
+	}
 	return New(h, puzzle), nil
 }
 

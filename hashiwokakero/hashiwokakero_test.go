@@ -936,7 +936,10 @@ func TestGeneratePuzzle(t *testing.T) {
 	mode := NewMode("Test", "test mode", 7, 7, 8, 10)
 
 	t.Run("produces valid puzzle", func(t *testing.T) {
-		puzzle := GeneratePuzzle(mode)
+		puzzle, err := GeneratePuzzle(mode)
+		if err != nil {
+			t.Fatal(err)
+		}
 		for _, isl := range puzzle.Islands {
 			if isl.Required < 1 {
 				t.Errorf("island %d has Required=%d, want >= 1", isl.ID, isl.Required)
@@ -945,14 +948,20 @@ func TestGeneratePuzzle(t *testing.T) {
 	})
 
 	t.Run("bridges cleared", func(t *testing.T) {
-		puzzle := GeneratePuzzle(mode)
+		puzzle, err := GeneratePuzzle(mode)
+		if err != nil {
+			t.Fatal(err)
+		}
 		if len(puzzle.Bridges) != 0 {
 			t.Errorf("len(Bridges) = %d, want 0", len(puzzle.Bridges))
 		}
 	})
 
 	t.Run("correct dimensions", func(t *testing.T) {
-		puzzle := GeneratePuzzle(mode)
+		puzzle, err := GeneratePuzzle(mode)
+		if err != nil {
+			t.Fatal(err)
+		}
 		if puzzle.Width != 7 || puzzle.Height != 7 {
 			t.Errorf("dimensions = %dx%d, want 7x7", puzzle.Width, puzzle.Height)
 		}
