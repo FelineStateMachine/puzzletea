@@ -76,6 +76,7 @@ func TestResolveCategory(t *testing.T) {
 	}{
 		{"hashi", "Hashiwokakero"},
 		{"bridges", "Hashiwokakero"},
+		{"hitori", "Hitori"},
 		{"lights", "Lights Out"},
 		{"ws", "Word Search"},
 		{"words", "Word Search"},
@@ -190,6 +191,7 @@ func TestListCategoryNames(t *testing.T) {
 	// Verify all expected games are present.
 	expected := map[string]bool{
 		"Hashiwokakero": true,
+		"Hitori":        true,
 		"Lights Out":    true,
 		"Nonogram":      true,
 		"Sudoku":        true,

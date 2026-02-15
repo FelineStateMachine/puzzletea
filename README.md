@@ -2,7 +2,7 @@
 
 A terminal-based puzzle game collection built with [Bubble Tea](https://github.com/charmbracelet/bubbletea).
 
-Six puzzle types, multiple difficulty modes, save/load persistence, and a plugin architecture for adding new games.
+Seven puzzle types, multiple difficulty modes, save/load persistence, and a plugin architecture for adding new games.
 
 ![PuzzleTea menu](vhs/menu.gif)
 
@@ -14,6 +14,7 @@ Six puzzle types, multiple difficulty modes, save/load persistence, and a plugin
 | **Sudoku** | Classic 9x9 grid | Beginner, Easy, Medium, Hard, Expert, Diabolical |
 | **Word Search** | Find hidden words in a letter grid | Easy, Medium, Hard (3-8 directions) |
 | **Hashiwokakero** | Connect islands with bridges | 12 modes across 7x7 to 13x13 grids |
+| **Hitori** | Shade cells to eliminate duplicates | 6 modes from 5x5 to 12x12 |
 | **Lights Out** | Toggle lights to turn all off | Easy (3x3) to Extreme (9x9) |
 | **Takuzu** | Fill grid with two symbols (●/○) | 7 modes from 6x6 to 14x14 |
 
@@ -46,6 +47,13 @@ Connect islands with bridges.
 ![Hashiwokakero](vhs/hashiwokakero.gif)
 
 [Game details and controls](hashiwokakero/README.md)
+
+### Hitori
+Shade cells to eliminate duplicate numbers.
+
+![Hitori](vhs/hitori.gif)
+
+[Game details and controls](hitori/README.md)
 
 ### Lights Out
 Toggle lights to turn all off.

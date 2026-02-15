@@ -37,19 +37,6 @@ func generateComplete(size int) grid {
 }
 
 func fillGrid(g grid, size int) bool {
-	order := make([]cellPos, 0, size*size)
-	for y := range size {
-		for x := range size {
-			if g[y][x] == emptyCell {
-				order = append(order, cellPos{x, y})
-			}
-		}
-	}
-
-	rand.Shuffle(len(order), func(i, j int) {
-		order[i], order[j] = order[j], order[i]
-	})
-
 	for y := range size {
 		for x := range size {
 			if g[y][x] != emptyCell {

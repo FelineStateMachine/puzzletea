@@ -1,19 +1,23 @@
 package hashiwokakero
 
 import (
+	"errors"
 	"math/rand/v2"
 )
 
+const maxGenerateAttempts = 200
+
 // GeneratePuzzle creates a solvable hashiwokakero puzzle for the given mode.
-func GeneratePuzzle(mode HashiMode) Puzzle {
+func GeneratePuzzle(mode HashiMode) (Puzzle, error) {
 	islandCount := mode.MinIslands + rand.IntN(mode.MaxIslands-mode.MinIslands+1)
 
-	for {
+	for range maxGenerateAttempts {
 		p := tryGenerate(mode.Width, mode.Height, islandCount)
 		if p != nil {
-			return *p
+			return *p, nil
 		}
 	}
+	return Puzzle{}, errors.New("failed to generate puzzle after maximum attempts")
 }
 
 func tryGenerate(width, height, islandCount int) *Puzzle {
