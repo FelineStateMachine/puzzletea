@@ -7,6 +7,11 @@ type cellPos struct{ x, y int }
 // generateComplete fills an empty grid with a valid Takuzu solution using
 // backtracking with retry on failure.
 func generateComplete(size int) grid {
+	rng := rand.New(rand.NewPCG(rand.Uint64(), rand.Uint64()))
+	return generateCompleteSeeded(size, rng)
+}
+
+func generateCompleteSeeded(size int, rng *rand.Rand) grid {
 	g := newGrid(createEmptyState(size))
 
 	const maxRetries = 10
@@ -18,7 +23,7 @@ func generateComplete(size int) grid {
 			}
 		}
 
-		if fillGrid(g, size) {
+		if fillGridSeeded(g, size, rng) {
 			return g
 		}
 	}
@@ -29,7 +34,7 @@ func generateComplete(size int) grid {
 			g[y][x] = emptyCell
 		}
 	}
-	if fillGrid(g, size) {
+	if fillGridSeeded(g, size, rng) {
 		return g
 	}
 
@@ -37,19 +42,24 @@ func generateComplete(size int) grid {
 }
 
 func fillGrid(g grid, size int) bool {
+	rng := rand.New(rand.NewPCG(rand.Uint64(), rand.Uint64()))
+	return fillGridSeeded(g, size, rng)
+}
+
+func fillGridSeeded(g grid, size int, rng *rand.Rand) bool {
 	for y := range size {
 		for x := range size {
 			if g[y][x] != emptyCell {
 				continue
 			}
 			vals := [2]rune{zeroCell, oneCell}
-			if rand.IntN(2) == 0 {
+			if rng.IntN(2) == 0 {
 				vals[0], vals[1] = vals[1], vals[0]
 			}
 			for _, v := range vals {
 				if canPlace(g, size, x, y, v) {
 					g[y][x] = v
-					if fillGrid(g, size) {
+					if fillGridSeeded(g, size, rng) {
 						return true
 					}
 					g[y][x] = emptyCell
@@ -63,6 +73,11 @@ func fillGrid(g grid, size int) bool {
 
 // generatePuzzle removes cells from a complete grid to create a puzzle with a unique solution.
 func generatePuzzle(complete grid, size int, prefilled float64) (puzzle grid, provided [][]bool) {
+	rng := rand.New(rand.NewPCG(rand.Uint64(), rand.Uint64()))
+	return generatePuzzleSeeded(complete, size, prefilled, rng)
+}
+
+func generatePuzzleSeeded(complete grid, size int, prefilled float64, rng *rand.Rand) (puzzle grid, provided [][]bool) {
 	puzzle = complete.clone()
 	provided = make([][]bool, size)
 	for y := range size {
@@ -80,7 +95,7 @@ func generatePuzzle(complete grid, size int, prefilled float64) (puzzle grid, pr
 			positions = append(positions, cellPos{x, y})
 		}
 	}
-	rand.Shuffle(len(positions), func(i, j int) {
+	rng.Shuffle(len(positions), func(i, j int) {
 		positions[i], positions[j] = positions[j], positions[i]
 	})
 

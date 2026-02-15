@@ -2,6 +2,11 @@ package sudoku
 
 import "math/rand/v2"
 
+// newRNG creates a fresh non-deterministic RNG.
+func newRNG() *rand.Rand {
+	return rand.New(rand.NewPCG(rand.Uint64(), rand.Uint64()))
+}
+
 // isValid checks whether placing val at (x, y) in the grid is valid.
 func isValid(g *grid, val, x, y int) bool {
 	for i := range gridSize {
@@ -25,15 +30,20 @@ func isValid(g *grid, val, x, y int) bool {
 
 // fillGrid fills an empty grid with a random valid sudoku solution using backtracking.
 func fillGrid(g *grid) bool {
+	rng := newRNG()
+	return fillGridSeeded(g, rng)
+}
+
+func fillGridSeeded(g *grid, rng *rand.Rand) bool {
 	for y := range gridSize {
 		for x := range gridSize {
 			if g[y][x].v == 0 {
-				order := rand.Perm(gridSize)
+				order := rng.Perm(gridSize)
 				for _, i := range order {
 					val := i + 1
 					if isValid(g, val, x, y) {
 						g[y][x].v = val
-						if fillGrid(g) {
+						if fillGridSeeded(g, rng) {
 							return true
 						}
 						g[y][x].v = 0
@@ -85,8 +95,12 @@ func countSolutionsRec(g *grid, limit int) int {
 // GenerateProvidedCells generates a random sudoku puzzle with the number of
 // provided cells determined by the mode's ProvidedCount.
 func GenerateProvidedCells(m SudokuMode) []cell {
+	return GenerateProvidedCellsSeeded(m, newRNG())
+}
+
+func GenerateProvidedCellsSeeded(m SudokuMode, rng *rand.Rand) []cell {
 	g := newGrid(nil)
-	fillGrid(&g)
+	fillGridSeeded(&g, rng)
 
 	// Build shuffled list of all positions
 	type pos struct{ x, y int }
@@ -96,7 +110,7 @@ func GenerateProvidedCells(m SudokuMode) []cell {
 			positions = append(positions, pos{x, y})
 		}
 	}
-	rand.Shuffle(len(positions), func(i, j int) {
+	rng.Shuffle(len(positions), func(i, j int) {
 		positions[i], positions[j] = positions[j], positions[i]
 	})
 

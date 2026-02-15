@@ -1,4 +1,4 @@
-Output vhs/menu.gif
+Output vhs/help.gif
 
 Set Theme "Solarized Darcula"
 Set FontSize 14

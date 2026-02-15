@@ -1,6 +1,8 @@
 package hashiwokakero
 
 import (
+	"math/rand/v2"
+
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/charmbracelet/bubbles/list"
 )
@@ -21,8 +23,9 @@ type HashiMode struct {
 }
 
 var (
-	_ game.Mode    = HashiMode{} // compile-time interface check
-	_ game.Spawner = HashiMode{} // compile-time interface check
+	_ game.Mode          = HashiMode{} // compile-time interface check
+	_ game.Spawner       = HashiMode{} // compile-time interface check
+	_ game.SeededSpawner = HashiMode{} // compile-time interface check
 )
 
 func NewMode(title, description string, width, height, minIslands, maxIslands int) HashiMode {
@@ -43,6 +46,14 @@ func (h HashiMode) Spawn() (game.Gamer, error) {
 	return New(h, puzzle), nil
 }
 
+func (h HashiMode) SpawnSeeded(rng *rand.Rand) (game.Gamer, error) {
+	puzzle, err := GeneratePuzzleSeeded(h, rng)
+	if err != nil {
+		return nil, err
+	}
+	return New(h, puzzle), nil
+}
+
 var Modes = []list.Item{
 	NewMode("Easy 7x7", "7x7 grid with 8-10 islands.", 7, 7, 8, 10),
 	NewMode("Medium 7x7", "7x7 grid with 12-15 islands.", 7, 7, 12, 15),
@@ -56,4 +67,10 @@ var Modes = []list.Item{
 	NewMode("Easy 13x13", "13x13 grid with 25-34 islands.", 13, 13, 25, 34),
 	NewMode("Medium 13x13", "13x13 grid with 42-51 islands.", 13, 13, 42, 51),
 	NewMode("Hard 13x13", "13x13 grid with 59-68 islands.", 13, 13, 59, 68),
+}
+
+// DailyModes is the subset of Modes eligible for daily puzzle rotation.
+var DailyModes = []list.Item{
+	Modes[3], // Easy 9x9
+	Modes[1], // Medium 7x7
 }

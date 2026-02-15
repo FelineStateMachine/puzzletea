@@ -61,3 +61,11 @@ func Generate() string {
 	noun := nouns[rand.IntN(len(nouns))]
 	return adj + "-" + noun
 }
+
+// GenerateSeeded returns a deterministic "adjective-noun" name using the
+// provided RNG. Two calls with identically-seeded RNGs produce the same name.
+func GenerateSeeded(rng *rand.Rand) string {
+	adj := adjectives[rng.IntN(len(adjectives))]
+	noun := nouns[rng.IntN(len(nouns))]
+	return adj + "-" + noun
+}

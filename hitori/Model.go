@@ -102,7 +102,8 @@ func (m *Model) toggleMark(mark cellMark) {
 
 func (m Model) View() string {
 	title := game.TitleBarView("Hitori", m.modeTitle, m.solved)
-	grid := gridView(m.numbers, m.marks, m.cursor, m.solved)
+	conflicts := computeConflicts(m.numbers, m.marks, m.size)
+	grid := gridView(m.numbers, m.marks, m.cursor, m.solved, conflicts)
 	status := statusBarView(m.showFullHelp)
 	return lipgloss.JoinVertical(lipgloss.Center, title, grid, status)
 }

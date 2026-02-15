@@ -29,6 +29,15 @@ var (
 			Foreground(lipgloss.AdaptiveColor{Light: "255", Dark: "235"}).
 			Background(lipgloss.AdaptiveColor{Light: "130", Dark: "214"})
 
+	cursorSolvedStyle = baseStyle.
+				Bold(true).
+				Foreground(lipgloss.AdaptiveColor{Light: "255", Dark: "235"}).
+				Background(lipgloss.AdaptiveColor{Light: "28", Dark: "28"})
+
+	conflictStyle = baseStyle.
+			Foreground(lipgloss.AdaptiveColor{Light: "160", Dark: "167"}).
+			Background(lipgloss.AdaptiveColor{Light: "224", Dark: "52"})
+
 	crosshairBG = lipgloss.AdaptiveColor{Light: "254", Dark: "237"}
 	solvedBG    = lipgloss.AdaptiveColor{Light: "151", Dark: "22"}
 
@@ -41,7 +50,7 @@ var (
 
 const cellWidth = 3
 
-func cellView(num rune, mark cellMark, isCursor, inCursorRow, inCursorCol, solved bool) string {
+func cellView(num rune, mark cellMark, isCursor, inCursorRow, inCursorCol, solved, conflict bool) string {
 	var s lipgloss.Style
 	var display string
 
@@ -57,22 +66,26 @@ func cellView(num rune, mark cellMark, isCursor, inCursorRow, inCursorCol, solve
 		display = fmt.Sprintf(" %c ", num)
 	}
 
-	if isCursor && !solved {
+	// Priority: cursor+solved > cursor > conflict > crosshair > solved > base.
+	if isCursor && solved {
+		s = cursorSolvedStyle
+	} else if isCursor {
 		s = s.Background(cursorStyle.GetBackground()).
 			Foreground(cursorStyle.GetForeground()).
 			Bold(true)
-	} else if !solved && (inCursorRow || inCursorCol) {
-		s = s.Background(crosshairBG)
-	}
-
-	if solved {
+	} else if solved {
 		s = s.Background(solvedBG)
+	} else if conflict {
+		s = s.Background(conflictStyle.GetBackground()).
+			Foreground(conflictStyle.GetForeground())
+	} else if inCursorRow || inCursorCol {
+		s = s.Background(crosshairBG)
 	}
 
 	return s.Width(cellWidth).AlignHorizontal(lipgloss.Center).Render(display)
 }
 
-func gridView(numbers grid, marks [][]cellMark, c game.Cursor, solved bool) string {
+func gridView(numbers grid, marks [][]cellMark, c game.Cursor, solved bool, conflicts [][]bool) string {
 	w := 0
 	if len(numbers) > 0 {
 		w = len(numbers[0])
@@ -88,7 +101,7 @@ func gridView(numbers grid, marks [][]cellMark, c game.Cursor, solved bool) stri
 		for x, num := range row {
 			isCursor := x == c.X && y == c.Y
 			inCursorCol := x == c.X
-			cell := cellView(num, marks[y][x], isCursor, inCursorRow, inCursorCol, solved)
+			cell := cellView(num, marks[y][x], isCursor, inCursorRow, inCursorCol, solved, conflicts[y][x])
 			rowCells = append(rowCells, cell)
 		}
 

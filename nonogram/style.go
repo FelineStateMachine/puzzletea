@@ -28,6 +28,11 @@ var (
 			Foreground(lipgloss.AdaptiveColor{Light: "255", Dark: "235"}).
 			Background(lipgloss.AdaptiveColor{Light: "130", Dark: "214"})
 
+	cursorSolvedStyle = baseStyle.
+				Bold(true).
+				Foreground(lipgloss.AdaptiveColor{Light: "255", Dark: "235"}).
+				Background(lipgloss.AdaptiveColor{Light: "28", Dark: "28"})
+
 	crosshairBG       = lipgloss.AdaptiveColor{Light: "254", Dark: "237"}
 	crosshairFilledBG = lipgloss.AdaptiveColor{Light: "223", Dark: "100"}
 	solvedBG          = lipgloss.AdaptiveColor{Light: "151", Dark: "22"}
@@ -234,20 +239,19 @@ func tileView(val rune, isCursor, inCursorRow, inCursorCol, solved bool) string 
 		s = renderStyleMap[emptyTile]
 	}
 
-	if isCursor && !solved {
+	if isCursor && solved {
+		s = cursorSolvedStyle
+	} else if isCursor {
 		s = cursorStyle
-	} else if !solved && (inCursorRow || inCursorCol) {
+	} else if solved {
+		s = s.Background(solvedBG)
+	} else if inCursorRow || inCursorCol {
 		// Apply crosshair background tint — filled cells get a more active color
 		if val == filledTile {
 			s = s.Background(crosshairFilledBG)
 		} else {
 			s = s.Background(crosshairBG)
 		}
-	}
-
-	if solved {
-		// Brighten filled tiles when solved
-		s = s.Background(solvedBG)
 	}
 
 	r, ok := renderRuneMap[val]

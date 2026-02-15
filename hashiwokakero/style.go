@@ -53,6 +53,11 @@ var (
 				Background(colorCursorBg).
 				Bold(true)
 
+	islandCursorSolvedStyle = baseStyle.
+				Foreground(lipgloss.AdaptiveColor{Dark: "255", Light: "235"}).
+				Background(lipgloss.AdaptiveColor{Dark: "28", Light: "28"}).
+				Bold(true)
+
 	islandSelectedStyle = baseStyle.
 				Foreground(colorSelectedFg).
 				Background(colorSelectedBg).
@@ -235,7 +240,9 @@ func islandView(m Model, islandID int, solved bool) string {
 	style := islandDefaultStyle
 	current := m.puzzle.BridgeCount(islandID)
 
-	if solved {
+	if solved && m.cursorIsland == islandID {
+		style = islandCursorSolvedStyle
+	} else if solved {
 		style = islandSatisfiedStyle
 	} else if m.selectedIsland != nil && *m.selectedIsland == islandID {
 		style = islandSelectedStyle

@@ -1,6 +1,8 @@
 package takuzu
 
 import (
+	"math/rand/v2"
+
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/charmbracelet/bubbles/list"
 )
@@ -19,8 +21,9 @@ type TakuzuMode struct {
 }
 
 var (
-	_ game.Mode    = TakuzuMode{}
-	_ game.Spawner = TakuzuMode{}
+	_ game.Mode          = TakuzuMode{}
+	_ game.Spawner       = TakuzuMode{}
+	_ game.SeededSpawner = TakuzuMode{}
 )
 
 // NewMode creates a new Takuzu game mode.
@@ -39,6 +42,12 @@ func (t TakuzuMode) Spawn() (game.Gamer, error) {
 	return New(t, puzzle, provided)
 }
 
+func (t TakuzuMode) SpawnSeeded(rng *rand.Rand) (game.Gamer, error) {
+	complete := generateCompleteSeeded(t.Size, rng)
+	puzzle, provided := generatePuzzleSeeded(complete, t.Size, t.Prefilled, rng)
+	return New(t, puzzle, provided)
+}
+
 // Modes defines the available difficulty levels.
 // Difficulty is controlled by two axes: grid size and clue density.
 // Smaller grids with more clues need only basic pattern recognition (doubles,
@@ -52,4 +61,10 @@ var Modes = []list.Item{
 	NewMode("Hard", "10×10 grid, ~32% clues. Long deduction chains.", 10, 0.32),
 	NewMode("Very Hard", "12×12 grid, ~30% clues. Deep logic required.", 12, 0.30),
 	NewMode("Extreme", "14×14 grid, ~28% clues. Maximum challenge.", 14, 0.28),
+}
+
+// DailyModes is the subset of Modes eligible for daily puzzle rotation.
+var DailyModes = []list.Item{
+	Modes[2], // Medium 8x8
+	Modes[3], // Tricky 10x10
 }

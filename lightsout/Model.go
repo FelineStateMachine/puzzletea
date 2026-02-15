@@ -3,6 +3,7 @@ package lightsout
 
 import (
 	"fmt"
+	"math/rand/v2"
 
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/charmbracelet/bubbles/key"
@@ -25,6 +26,15 @@ var _ game.Gamer = Model{}
 
 func New(w, h int) (Model, error) {
 	grid := Generate(w, h)
+	return newFromGrid(w, h, grid), nil
+}
+
+func NewSeeded(w, h int, rng *rand.Rand) (Model, error) {
+	grid := GenerateSeeded(w, h, rng)
+	return newFromGrid(w, h, grid), nil
+}
+
+func newFromGrid(w, h int, grid [][]bool) Model {
 	initial := make([][]bool, h)
 	for y := range h {
 		initial[y] = make([]bool, w)
@@ -37,7 +47,7 @@ func New(w, h int) (Model, error) {
 		height:      h,
 		cursor:      game.Cursor{X: w / 2, Y: h / 2},
 		keys:        DefaultKeyMap,
-	}, nil
+	}
 }
 
 func (m Model) Init() tea.Cmd {

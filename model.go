@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"math/rand/v2"
 	"strconv"
 	"time"
 
@@ -100,6 +101,12 @@ type model struct {
 	store           *store.Store
 	activeGameID    int64
 	completionSaved bool
+
+	// Daily puzzle state
+	dailyPending   bool   // true while generating a daily puzzle
+	dailyName      string // pre-computed daily name
+	dailyGameType  string // e.g. "Nonogram"
+	dailyModeTitle string // e.g. "Standard"
 }
 
 func initialModel(s *store.Store) model {
@@ -173,7 +180,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.state == generatingView {
 			switch msg.Type {
 			case tea.KeyEscape:
-				m.state = modeSelectView
+				if m.dailyPending {
+					m.dailyPending = false
+					m.state = mainMenuView
+				} else {
+					m.state = modeSelectView
+				}
 				return m, nil
 			case tea.KeyCtrlC:
 				return m, tea.Quit
@@ -257,6 +269,8 @@ func (m model) handleMainMenuEnter() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	switch item.title {
+	case "Daily Puzzle":
+		return m.handleDailyPuzzle()
 	case "Generate":
 		m.state = gameSelectView
 	case "Continue":
@@ -266,6 +280,60 @@ func (m model) handleMainMenuEnter() (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 	}
 	return m, nil
+}
+
+func (m model) handleDailyPuzzle() (tea.Model, tea.Cmd) {
+	today := time.Now()
+	rng := dailyRNG(today)
+	name := dailyName(today, rng)
+
+	// Check if a daily game already exists for today.
+	rec, err := m.store.GetDailyGame(name)
+	if err != nil {
+		log.Printf("failed to check daily game: %v", err)
+		return m, nil
+	}
+
+	if rec != nil {
+		// Daily exists - resume or review it.
+		importFn, ok := game.Registry[rec.GameType]
+		if !ok {
+			log.Printf("unknown game type for daily: %s", rec.GameType)
+			return m, nil
+		}
+		g, err := importFn([]byte(rec.SaveState))
+		if err != nil {
+			log.Printf("failed to import daily game: %v", err)
+			return m, nil
+		}
+		m.game = g.SetTitle(dailyTitle(rec.Name))
+		m.game, _ = m.game.Update(game.HelpToggleMsg{Show: m.showFullHelp})
+		m.activeGameID = rec.ID
+		m.state = gameView
+		m.completionSaved = rec.Status == store.StatusCompleted
+
+		// Resume abandoned dailies by resetting their status.
+		if rec.Status == store.StatusAbandoned {
+			_ = m.store.UpdateStatus(rec.ID, store.StatusInProgress)
+		}
+		return m, nil
+	}
+
+	// No existing daily - generate a new one.
+	spawner, gameType, modeTitle := dailyMode(rng)
+	m.dailyPending = true
+	m.dailyName = name
+	m.dailyGameType = gameType
+	m.dailyModeTitle = modeTitle
+	m.state = generatingView
+	m.generating = true
+	return m, tea.Batch(m.spinner.Tick, spawnSeededCmd(spawner, rng))
+}
+
+// dailyTitle returns the display title for a daily game.
+// The name already starts with "Daily", so no extra prefix is needed.
+func dailyTitle(name string) string {
+	return name
 }
 
 func (m model) handleGameSelectEnter() (tea.Model, tea.Cmd) {
@@ -299,8 +367,18 @@ func spawnCmd(spawner game.Spawner) tea.Cmd {
 	}
 }
 
+// spawnSeededCmd returns a tea.Cmd that runs SpawnSeeded() off the main goroutine.
+func spawnSeededCmd(spawner game.SeededSpawner, rng *rand.Rand) tea.Cmd {
+	return func() tea.Msg {
+		g, err := spawner.SpawnSeeded(rng)
+		return game.SpawnCompleteMsg{Game: g, Err: err}
+	}
+}
+
 func (m model) handleSpawnComplete(msg game.SpawnCompleteMsg) (tea.Model, tea.Cmd) {
 	m.generating = false
+	isDaily := m.dailyPending
+	m.dailyPending = false
 
 	// If the user navigated away while generating, discard the result.
 	if m.state != generatingView {
@@ -309,12 +387,26 @@ func (m model) handleSpawnComplete(msg game.SpawnCompleteMsg) (tea.Model, tea.Cm
 
 	if msg.Err != nil {
 		log.Printf("failed to spawn game: %v", msg.Err)
-		m.state = modeSelectView
+		if isDaily {
+			m.state = mainMenuView
+		} else {
+			m.state = modeSelectView
+		}
 		return m, nil
 	}
 
-	name := generateUniqueName(m.store)
-	m.game = msg.Game.SetTitle(name)
+	var name, gameType, modeTitle string
+	if isDaily {
+		name = m.dailyName
+		gameType = m.dailyGameType
+		modeTitle = m.dailyModeTitle
+		m.game = msg.Game.SetTitle(dailyTitle(name))
+	} else {
+		name = generateUniqueName(m.store)
+		gameType = m.selectedCategory.Name
+		modeTitle = m.mode.Title()
+		m.game = msg.Game.SetTitle(name)
+	}
 	m.game, _ = m.game.Update(game.HelpToggleMsg{Show: m.showFullHelp})
 	m.state = gameView
 	m.completionSaved = false
@@ -327,8 +419,8 @@ func (m model) handleSpawnComplete(msg game.SpawnCompleteMsg) (tea.Model, tea.Cm
 	}
 	rec := &store.GameRecord{
 		Name:         name,
-		GameType:     m.selectedCategory.Name,
-		Mode:         m.mode.Title(),
+		GameType:     gameType,
+		Mode:         modeTitle,
 		InitialState: string(initialState),
 		SaveState:    string(initialState),
 		Status:       store.StatusNew,
@@ -467,7 +559,7 @@ func (m *model) initContinueTable() {
 	m.continueGames = games
 
 	columns := []table.Column{
-		{Title: "Name", Width: 20},
+		{Title: "Name", Width: 34},
 		{Title: "Game", Width: 15},
 		{Title: "Mode", Width: 15},
 		{Title: "Status", Width: 12},

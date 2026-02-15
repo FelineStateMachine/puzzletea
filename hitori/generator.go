@@ -11,11 +11,16 @@ type cellPos struct{ x, y int }
 // exactly once in each row and column. Uses cyclic shifts with row and
 // column shuffling.
 func generateLatinSquare(size int) grid {
+	rng := rand.New(rand.NewPCG(rand.Uint64(), rand.Uint64()))
+	return generateLatinSquareSeeded(size, rng)
+}
+
+func generateLatinSquareSeeded(size int, rng *rand.Rand) grid {
 	firstRow := make([]rune, size)
 	for i := range size {
 		firstRow[i] = rune('1' + i)
 	}
-	rand.Shuffle(len(firstRow), func(i, j int) {
+	rng.Shuffle(len(firstRow), func(i, j int) {
 		firstRow[i], firstRow[j] = firstRow[j], firstRow[i]
 	})
 
@@ -31,7 +36,7 @@ func generateLatinSquare(size int) grid {
 	for i := range size {
 		cols[i] = i
 	}
-	rand.Shuffle(len(cols), func(i, j int) {
+	rng.Shuffle(len(cols), func(i, j int) {
 		cols[i], cols[j] = cols[j], cols[i]
 	})
 
@@ -39,7 +44,7 @@ func generateLatinSquare(size int) grid {
 	for i := range size {
 		rowOrder[i] = i
 	}
-	rand.Shuffle(len(rowOrder), func(i, j int) {
+	rng.Shuffle(len(rowOrder), func(i, j int) {
 		rowOrder[i], rowOrder[j] = rowOrder[j], rowOrder[i]
 	})
 
@@ -57,6 +62,11 @@ func generateLatinSquare(size int) grid {
 // generateValidMask determines which cells should be black. The mask
 // satisfies: no adjacent black cells, and all white cells connected.
 func generateValidMask(size int, blackRatio float64) [][]bool {
+	rng := rand.New(rand.NewPCG(rand.Uint64(), rand.Uint64()))
+	return generateValidMaskSeeded(size, blackRatio, rng)
+}
+
+func generateValidMaskSeeded(size int, blackRatio float64, rng *rand.Rand) [][]bool {
 	mask := make([][]bool, size)
 	for y := range size {
 		mask[y] = make([]bool, size)
@@ -70,7 +80,7 @@ func generateValidMask(size int, blackRatio float64) [][]bool {
 			positions = append(positions, cellPos{x, y})
 		}
 	}
-	rand.Shuffle(len(positions), func(i, j int) {
+	rng.Shuffle(len(positions), func(i, j int) {
 		positions[i], positions[j] = positions[j], positions[i]
 	})
 
@@ -158,10 +168,10 @@ func whiteCellsConnected(mask [][]bool, size int) bool {
 	return visitedCount == whiteCount
 }
 
-// constructPuzzle builds the initial puzzle grid from a Latin square and mask.
+// constructPuzzleSeeded builds the initial puzzle grid from a Latin square and mask.
 // White cells keep their original number. Black cells get a duplicate from
 // a white cell in the same row.
-func constructPuzzle(baseGrid grid, mask [][]bool) grid {
+func constructPuzzleSeeded(baseGrid grid, mask [][]bool, rng *rand.Rand) grid {
 	size := len(baseGrid)
 	puzzle := baseGrid.clone()
 
@@ -178,7 +188,7 @@ func constructPuzzle(baseGrid grid, mask [][]bool) grid {
 				}
 			}
 			if len(rowNums) > 0 {
-				puzzle[y][x] = rowNums[rand.IntN(len(rowNums))]
+				puzzle[y][x] = rowNums[rng.IntN(len(rowNums))]
 				continue
 			}
 			// Fallback: column numbers.
@@ -189,17 +199,17 @@ func constructPuzzle(baseGrid grid, mask [][]bool) grid {
 				}
 			}
 			if len(colNums) > 0 {
-				puzzle[y][x] = colNums[rand.IntN(len(colNums))]
+				puzzle[y][x] = colNums[rng.IntN(len(colNums))]
 			}
 		}
 	}
 	return puzzle
 }
 
-// refinePuzzle tries different number assignments for black cells to achieve
+// refinePuzzleSeeded tries different number assignments for black cells to achieve
 // a unique solution. It iterates through each black cell trying all possible
 // duplicate values, checking if the resulting puzzle has exactly one solution.
-func refinePuzzle(puzzle grid, mask [][]bool, size int) (grid, bool) {
+func refinePuzzleSeeded(puzzle grid, mask [][]bool, size int, rng *rand.Rand) (grid, bool) {
 	// Collect black cell positions.
 	var blackCells []cellPos
 	for y := range size {
@@ -219,7 +229,7 @@ func refinePuzzle(puzzle grid, mask [][]bool, size int) (grid, bool) {
 	for _, bc := range blackCells {
 		// Collect candidate numbers for this black cell.
 		candidates := cellCandidates(refined, mask, size, bc.x, bc.y)
-		rand.Shuffle(len(candidates), func(i, j int) {
+		rng.Shuffle(len(candidates), func(i, j int) {
 			candidates[i], candidates[j] = candidates[j], candidates[i]
 		})
 
@@ -358,12 +368,17 @@ func stateToMarks(st [][]solverState, size int) [][]cellMark {
 // Generate creates a Hitori puzzle of the given size. Returns the puzzle
 // numbers grid or an error if generation fails after all attempts.
 func Generate(size int, blackRatio float64) (grid, error) {
+	rng := rand.New(rand.NewPCG(rand.Uint64(), rand.Uint64()))
+	return GenerateSeeded(size, blackRatio, rng)
+}
+
+func GenerateSeeded(size int, blackRatio float64, rng *rand.Rand) (grid, error) {
 	const maxAttempts = 200
 
 	for range maxAttempts {
-		baseGrid := generateLatinSquare(size)
-		mask := generateValidMask(size, blackRatio)
-		puzzle := constructPuzzle(baseGrid, mask)
+		baseGrid := generateLatinSquareSeeded(size, rng)
+		mask := generateValidMaskSeeded(size, blackRatio, rng)
+		puzzle := constructPuzzleSeeded(baseGrid, mask, rng)
 
 		// First try the random construction.
 		if countPuzzleSolutions(puzzle, size, 2) == 1 {
@@ -371,7 +386,7 @@ func Generate(size int, blackRatio float64) (grid, error) {
 		}
 
 		// Refine by trying different values for black cells.
-		refined, ok := refinePuzzle(puzzle, mask, size)
+		refined, ok := refinePuzzleSeeded(puzzle, mask, size, rng)
 		if ok {
 			return refined, nil
 		}

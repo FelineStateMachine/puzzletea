@@ -7,26 +7,36 @@ import (
 
 // GenerateWordSearch creates a new word search grid with the specified parameters
 func GenerateWordSearch(width, height, wordCount, minLen, maxLen int, allowedDirs []Direction) (grid, []Word) {
+	rng := rand.New(rand.NewPCG(rand.Uint64(), rand.Uint64()))
+	return GenerateWordSearchSeeded(width, height, wordCount, minLen, maxLen, allowedDirs, rng)
+}
+
+func GenerateWordSearchSeeded(width, height, wordCount, minLen, maxLen int, allowedDirs []Direction, rng *rand.Rand) (grid, []Word) {
 	g := createEmptyGrid(height, width)
-	words := selectWords(wordCount, minLen, maxLen)
+	words := selectWordsSeeded(wordCount, minLen, maxLen, rng)
 	placedWords := make([]Word, 0, len(words))
 
 	// Try to place each word
 	for _, wordText := range words {
-		word := tryPlaceWord(g, wordText, allowedDirs, 100)
+		word := tryPlaceWordSeeded(g, wordText, allowedDirs, 100, rng)
 		if word != nil {
 			placedWords = append(placedWords, *word)
 		}
 	}
 
 	// Fill remaining empty cells with random letters
-	fillEmptyCells(g)
+	fillEmptyCellsSeeded(g, rng)
 
 	return g, placedWords
 }
 
 // selectWords randomly selects words from the word list
 func selectWords(count, minLen, maxLen int) []string {
+	rng := rand.New(rand.NewPCG(rand.Uint64(), rand.Uint64()))
+	return selectWordsSeeded(count, minLen, maxLen, rng)
+}
+
+func selectWordsSeeded(count, minLen, maxLen int, rng *rand.Rand) []string {
 	// Collect all valid words
 	var candidates []string
 	for length := minLen; length <= maxLen; length++ {
@@ -36,7 +46,7 @@ func selectWords(count, minLen, maxLen int) []string {
 	}
 
 	// Shuffle and take first 'count' words
-	rand.Shuffle(len(candidates), func(i, j int) {
+	rng.Shuffle(len(candidates), func(i, j int) {
 		candidates[i], candidates[j] = candidates[j], candidates[i]
 	})
 
@@ -49,17 +59,22 @@ func selectWords(count, minLen, maxLen int) []string {
 
 // tryPlaceWord attempts to place a word in the grid
 func tryPlaceWord(g grid, text string, allowedDirs []Direction, maxAttempts int) *Word {
+	rng := rand.New(rand.NewPCG(rand.Uint64(), rand.Uint64()))
+	return tryPlaceWordSeeded(g, text, allowedDirs, maxAttempts, rng)
+}
+
+func tryPlaceWordSeeded(g grid, text string, allowedDirs []Direction, maxAttempts int, rng *rand.Rand) *Word {
 	text = strings.ToUpper(text)
 	height := len(g)
 	width := len(g[0])
 
 	for range maxAttempts {
 		// Random starting position
-		x := rand.IntN(width)
-		y := rand.IntN(height)
+		x := rng.IntN(width)
+		y := rng.IntN(height)
 
 		// Random direction
-		dir := allowedDirs[rand.IntN(len(allowedDirs))]
+		dir := allowedDirs[rng.IntN(len(allowedDirs))]
 		dx, dy := dir.Vector()
 
 		// Check if word fits in this direction
@@ -108,12 +123,17 @@ func tryPlaceWord(g grid, text string, allowedDirs []Direction, maxAttempts int)
 
 // fillEmptyCells fills all empty cells with random letters
 func fillEmptyCells(g grid) {
+	rng := rand.New(rand.NewPCG(rand.Uint64(), rand.Uint64()))
+	fillEmptyCellsSeeded(g, rng)
+}
+
+func fillEmptyCellsSeeded(g grid, rng *rand.Rand) {
 	letters := "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 	for y := range g {
 		for x := range g[y] {
 			if g[y][x] == ' ' {
-				g[y][x] = rune(letters[rand.IntN(len(letters))])
+				g[y][x] = rune(letters[rng.IntN(len(letters))])
 			}
 		}
 	}

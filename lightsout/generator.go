@@ -7,6 +7,11 @@ import (
 // Generate creates a new w x h grid with a solvable puzzle.
 // It starts with all lights off and applies random toggles.
 func Generate(w, h int) [][]bool {
+	rng := rand.New(rand.NewPCG(rand.Uint64(), rand.Uint64()))
+	return GenerateSeeded(w, h, rng)
+}
+
+func GenerateSeeded(w, h int, rng *rand.Rand) [][]bool {
 	grid := make([][]bool, h)
 	for y := 0; y < h; y++ {
 		grid[y] = make([]bool, w)
@@ -17,7 +22,7 @@ func Generate(w, h int) [][]bool {
 	// iterating once through all cells covers all reachable states from "all off".
 	for y := 0; y < h; y++ {
 		for x := 0; x < w; x++ {
-			if rand.IntN(2) == 1 {
+			if rng.IntN(2) == 1 {
 				Toggle(grid, x, y)
 			}
 		}
@@ -26,7 +31,7 @@ func Generate(w, h int) [][]bool {
 	// Ensure the puzzle isn't already solved (all off).
 	if IsSolved(grid) {
 		// Toggle one random cell to ensure at least some lights are on.
-		Toggle(grid, rand.IntN(w), rand.IntN(h))
+		Toggle(grid, rng.IntN(w), rng.IntN(h))
 	}
 
 	return grid

@@ -24,6 +24,11 @@ var (
 			Foreground(lipgloss.AdaptiveColor{Light: "255", Dark: "235"}).
 			Background(lipgloss.AdaptiveColor{Light: "130", Dark: "173"})
 
+	cursorSolvedStyle = baseStyle.
+				Bold(true).
+				Foreground(lipgloss.AdaptiveColor{Light: "255", Dark: "235"}).
+				Background(lipgloss.AdaptiveColor{Light: "28", Dark: "28"})
+
 	solvedStyle = baseStyle.
 			Background(lipgloss.AdaptiveColor{Light: "151", Dark: "22"})
 
@@ -53,7 +58,9 @@ func cellView(isOn, isCursor, solved bool) string {
 		s = styleOn
 	}
 
-	if solved {
+	if isCursor && solved {
+		s = cursorSolvedStyle
+	} else if solved {
 		s = solvedStyle
 	} else if isCursor {
 		s = cursorStyle

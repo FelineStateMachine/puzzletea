@@ -50,6 +50,7 @@ func ImportModel(data []byte) (*Model, error) {
 		keys:      DefaultKeyMap,
 		modeTitle: s.ModeTitle,
 	}
+	m.initialMarks = newMarks(s.Size)
 	m.solved = m.checkSolved()
 	return m, nil
 }

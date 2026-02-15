@@ -297,6 +297,166 @@ func TestIsValidSolution_InvalidAdjacent(t *testing.T) {
 	}
 }
 
+// --- computeConflicts (P0) ---
+
+func TestComputeConflicts_NoConflicts(t *testing.T) {
+	numbers := makeGrid("123", "231", "312")
+	marks := makeMarks("...", "...", "...")
+	conflicts := computeConflicts(numbers, marks, 3)
+
+	for y := range 3 {
+		for x := range 3 {
+			if conflicts[y][x] {
+				t.Errorf("unexpected conflict at (%d,%d)", x, y)
+			}
+		}
+	}
+}
+
+func TestComputeConflicts_RowDuplicate(t *testing.T) {
+	// Row 0 has two unshaded 1s at (0,0) and (1,0).
+	numbers := makeGrid("113", "231", "312")
+	marks := makeMarks("...", "...", "...")
+	conflicts := computeConflicts(numbers, marks, 3)
+
+	if !conflicts[0][0] {
+		t.Error("expected conflict at (0,0)")
+	}
+	if !conflicts[0][1] {
+		t.Error("expected conflict at (1,0)")
+	}
+	if conflicts[0][2] {
+		t.Error("unexpected conflict at (2,0)")
+	}
+}
+
+func TestComputeConflicts_ColDuplicate(t *testing.T) {
+	// Column 0 has two unshaded 1s at (0,0) and (0,2).
+	numbers := makeGrid("123", "231", "112")
+	marks := makeMarks("...", "...", "...")
+	conflicts := computeConflicts(numbers, marks, 3)
+
+	if !conflicts[0][0] {
+		t.Error("expected conflict at (0,0)")
+	}
+	if !conflicts[2][0] {
+		t.Error("expected conflict at (0,2)")
+	}
+}
+
+func TestComputeConflicts_ShadedRemovesDuplicate(t *testing.T) {
+	// Row 0 has duplicate 1s but one is shaded.
+	numbers := makeGrid("113", "231", "312")
+	marks := makeMarks("X..", "...", "...")
+	conflicts := computeConflicts(numbers, marks, 3)
+
+	if conflicts[0][0] {
+		t.Error("shaded cell should not cause duplicate conflict")
+	}
+	if conflicts[0][2] {
+		t.Error("no duplicate after shading, should not conflict")
+	}
+}
+
+func TestComputeConflicts_AdjacentShaded(t *testing.T) {
+	numbers := makeGrid("123", "231", "312")
+	marks := makeMarks("XX.", "...", "...")
+	conflicts := computeConflicts(numbers, marks, 3)
+
+	if !conflicts[0][0] {
+		t.Error("expected conflict at (0,0) for adjacent shaded")
+	}
+	if !conflicts[0][1] {
+		t.Error("expected conflict at (1,0) for adjacent shaded")
+	}
+}
+
+func TestComputeConflicts_AdjacentShadedVertical(t *testing.T) {
+	numbers := makeGrid("123", "231", "312")
+	marks := makeMarks("X..", "X..", "...")
+	conflicts := computeConflicts(numbers, marks, 3)
+
+	if !conflicts[0][0] {
+		t.Error("expected conflict at (0,0) for vertical adjacent shaded")
+	}
+	if !conflicts[1][0] {
+		t.Error("expected conflict at (0,1) for vertical adjacent shaded")
+	}
+}
+
+func TestComputeConflicts_DiagonalShadedOK(t *testing.T) {
+	numbers := makeGrid("123", "231", "312")
+	marks := makeMarks("X..", ".X.", "..X")
+	conflicts := computeConflicts(numbers, marks, 3)
+
+	// Diagonal shaded cells are fine, but check connectivity.
+	// The white cells form: (1,0),(2,0),(0,1),(2,1),(0,2),(1,2)
+	// These are all connected, so no adjacency or connectivity conflicts.
+	if conflicts[0][0] || conflicts[1][1] || conflicts[2][2] {
+		t.Error("diagonal shaded cells should not conflict with each other")
+	}
+}
+
+func TestComputeConflicts_DisconnectedWhite(t *testing.T) {
+	// Shaded column splits white cells into two groups.
+	// Left side: (0,0),(0,1),(0,2) -- 3 cells
+	// Right side: (2,0),(2,1),(2,2) -- 3 cells
+	numbers := makeGrid("123", "231", "312")
+	marks := makeMarks(".X.", ".X.", ".X.")
+	conflicts := computeConflicts(numbers, marks, 3)
+
+	// One group of 3 is the largest, the other 3 are disconnected.
+	// Both sides are size 3 so the first found (left) is the largest
+	// by discovery order and the right side gets flagged (or vice versa).
+	// At least one group of 3 should be flagged.
+	disconnectedCount := 0
+	for y := range 3 {
+		for x := range 3 {
+			if marks[y][x] != shaded && conflicts[y][x] {
+				disconnectedCount++
+			}
+		}
+	}
+	if disconnectedCount != 3 {
+		t.Errorf("expected 3 disconnected white cells flagged, got %d", disconnectedCount)
+	}
+}
+
+func TestComputeConflicts_MultipleViolations(t *testing.T) {
+	// Adjacent shaded AND row duplicate at the same time.
+	numbers := makeGrid("1123", "2341", "3124", "4213")
+	marks := makeMarks("XX..", "....", "....", "....")
+	conflicts := computeConflicts(numbers, marks, 4)
+
+	// (0,0) and (1,0) are adjacent shaded.
+	if !conflicts[0][0] {
+		t.Error("expected adjacent shaded conflict at (0,0)")
+	}
+	if !conflicts[0][1] {
+		t.Error("expected adjacent shaded conflict at (1,0)")
+	}
+}
+
+func TestComputeConflicts_EmptyBoard(t *testing.T) {
+	// No shaded cells -- the entire board is one connected white region.
+	// There may be duplicate conflicts but no adjacency or connectivity issues.
+	numbers := makeGrid("123", "123", "123")
+	marks := makeMarks("...", "...", "...")
+	conflicts := computeConflicts(numbers, marks, 3)
+
+	// Rows all have unique numbers, but columns have duplicates:
+	// col 0: 1,1,1 -- all three conflict.
+	// col 1: 2,2,2 -- all three conflict.
+	// col 2: 3,3,3 -- all three conflict.
+	for y := range 3 {
+		for x := range 3 {
+			if !conflicts[y][x] {
+				t.Errorf("expected column duplicate conflict at (%d,%d)", x, y)
+			}
+		}
+	}
+}
+
 // --- Latin square generation (P1) ---
 
 func TestGenerateLatinSquare(t *testing.T) {

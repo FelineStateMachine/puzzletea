@@ -1,6 +1,8 @@
 package lightsout
 
 import (
+	"math/rand/v2"
+
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/charmbracelet/bubbles/list"
 )
@@ -20,8 +22,9 @@ type Mode struct {
 
 // Compile-time assertions
 var (
-	_ game.Mode    = Mode{}
-	_ game.Spawner = Mode{}
+	_ game.Mode          = Mode{}
+	_ game.Spawner       = Mode{}
+	_ game.SeededSpawner = Mode{}
 )
 
 // NewMode creates a new game mode.
@@ -38,10 +41,20 @@ func (m Mode) Spawn() (game.Gamer, error) {
 	return New(m.Width, m.Height)
 }
 
+func (m Mode) SpawnSeeded(rng *rand.Rand) (game.Gamer, error) {
+	return NewSeeded(m.Width, m.Height, rng)
+}
+
 // Modes defines the available difficulty levels.
 var Modes = []list.Item{
 	NewMode("Easy", "3x3 grid", 3, 3),
 	NewMode("Medium", "5x5 grid", 5, 5),
 	NewMode("Hard", "7x7 grid", 7, 7),
 	NewMode("Extreme", "9x9 grid", 9, 9),
+}
+
+// DailyModes is the subset of Modes eligible for daily puzzle rotation.
+var DailyModes = []list.Item{
+	Modes[1], // Medium 5x5
+	Modes[2], // Hard 7x7
 }
