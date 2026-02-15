@@ -62,3 +62,9 @@ var Modes = []list.Item{
 	NewMode("Very Hard", "12×12 grid, ~30% clues. Deep logic required.", 12, 0.30),
 	NewMode("Extreme", "14×14 grid, ~28% clues. Maximum challenge.", 14, 0.28),
 }
+
+// DailyModes is the subset of Modes eligible for daily puzzle rotation.
+var DailyModes = []list.Item{
+	Modes[2], // Medium 8x8
+	Modes[3], // Tricky 10x10
+}

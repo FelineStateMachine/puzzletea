@@ -14,6 +14,8 @@ import (
 	"github.com/FelineStateMachine/puzzletea/sudoku"
 	"github.com/FelineStateMachine/puzzletea/takuzu"
 	"github.com/FelineStateMachine/puzzletea/wordsearch"
+
+	"github.com/charmbracelet/bubbles/list"
 )
 
 // dailyEntry pairs a SeededSpawner with metadata for the eligible daily pool.
@@ -23,21 +25,37 @@ type dailyEntry struct {
 	mode     string
 }
 
-// eligibleDailyModes is the curated pool of quick (<10 min) modes for daily rotation.
-var eligibleDailyModes = []dailyEntry{
-	{nonogram.NewMode("Standard", "10x10 grid, ~67% filled. Classic size, dense hints.", 10, 10, 0.67), "Nonogram", "Standard"},
-	{nonogram.NewMode("Classic", "10x10 grid, ~52% filled. The typical nonogram experience.", 10, 10, 0.52), "Nonogram", "Classic"},
-	{sudoku.NewMode("Easy", "38\u201344 clues. Naked Singles.", 38), "Sudoku", "Easy"},
-	{sudoku.NewMode("Medium", "32\u201337 clues. Hidden Pairs / Pointing.", 32), "Sudoku", "Medium"},
-	{takuzu.NewMode("Medium", "8\u00d78 grid, ~40% clues. Larger grid, moderate deduction.", 8, 0.40), "Takuzu", "Medium"},
-	{takuzu.NewMode("Tricky", "10\u00d710 grid, ~38% clues. Uniqueness rule needed.", 10, 0.38), "Takuzu", "Tricky"},
-	{hashiwokakero.NewMode("Easy 9x9", "9x9 grid with 12-16 islands.", 9, 9, 12, 16), "Hashiwokakero", "Easy 9x9"},
-	{hashiwokakero.NewMode("Medium 7x7", "7x7 grid with 12-15 islands.", 7, 7, 12, 15), "Hashiwokakero", "Medium 7x7"},
-	{hitori.NewMode("Easy", "6\u00d76 grid, straightforward logic.", 6, 0.32), "Hitori", "Easy"},
-	{hitori.NewMode("Medium", "8\u00d78 grid, moderate challenge.", 8, 0.30), "Hitori", "Medium"},
-	{lightsout.NewMode("Medium", "5x5 grid", 5, 5), "Lights Out", "Medium"},
-	{lightsout.NewMode("Hard", "7x7 grid", 7, 7), "Lights Out", "Hard"},
-	{wordsearch.NewMode("Easy 10x10", "Find 6 words in a 10x10 grid.", 10, 10, 6, 3, 5, []wordsearch.Direction{wordsearch.Right, wordsearch.Down, wordsearch.DownRight}), "Word Search", "Easy 10x10"},
+// dailyPool maps game type names to their DailyModes exports.
+// Each package owns which of its modes are eligible for daily rotation.
+var dailyPool = []struct {
+	gameType string
+	modes    []list.Item
+}{
+	{"Nonogram", nonogram.DailyModes},
+	{"Sudoku", sudoku.DailyModes},
+	{"Takuzu", takuzu.DailyModes},
+	{"Hashiwokakero", hashiwokakero.DailyModes},
+	{"Hitori", hitori.DailyModes},
+	{"Lights Out", lightsout.DailyModes},
+	{"Word Search", wordsearch.DailyModes},
+}
+
+// eligibleDailyModes is the flattened pool built from each package's DailyModes.
+var eligibleDailyModes = buildEligibleDailyModes()
+
+func buildEligibleDailyModes() []dailyEntry {
+	var entries []dailyEntry
+	for _, p := range dailyPool {
+		for _, item := range p.modes {
+			s := item.(game.SeededSpawner)
+			entries = append(entries, dailyEntry{
+				spawner:  s,
+				gameType: p.gameType,
+				mode:     item.(game.Mode).Title(),
+			})
+		}
+	}
+	return entries
 }
 
 // dailySeed returns a deterministic int64 seed derived from the date.

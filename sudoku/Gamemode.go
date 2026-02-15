@@ -47,3 +47,9 @@ var Modes = []list.Item{
 	NewMode("Expert", "22–26 clues. X-Wing / Y-Wing.", 22),
 	NewMode("Diabolical", "17–21 clues. Swordfish / XY-Chains.", 17),
 }
+
+// DailyModes is the subset of Modes eligible for daily puzzle rotation.
+var DailyModes = []list.Item{
+	Modes[1], // Easy
+	Modes[2], // Medium
+}

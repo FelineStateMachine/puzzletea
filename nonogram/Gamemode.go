@@ -60,3 +60,9 @@ var Modes = []list.Item{
 	NewMode("Epic", "20x20 grid, ~71% filled. A epic undertaking.", 20, 20, 0.71),
 	NewMode("Massive", "20x20 grid, ~56% filled. Truly massive puzzle.", 20, 20, 0.56),
 }
+
+// DailyModes is the subset of Modes eligible for daily puzzle rotation.
+var DailyModes = []list.Item{
+	Modes[3], // Standard 10x10
+	Modes[4], // Classic 10x10
+}

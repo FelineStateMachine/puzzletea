@@ -64,3 +64,9 @@ var Modes = []list.Item{
 	NewMode("Hard", "10\u00d710 grid, advanced logic chains.", 10, 0.30),
 	NewMode("Expert", "12\u00d712 grid, maximum challenge.", 12, 0.28),
 }
+
+// DailyModes is the subset of Modes eligible for daily puzzle rotation.
+var DailyModes = []list.Item{
+	Modes[1], // Easy 6x6
+	Modes[2], // Medium 8x8
+}

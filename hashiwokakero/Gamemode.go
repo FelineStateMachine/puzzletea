@@ -68,3 +68,9 @@ var Modes = []list.Item{
 	NewMode("Medium 13x13", "13x13 grid with 42-51 islands.", 13, 13, 42, 51),
 	NewMode("Hard 13x13", "13x13 grid with 59-68 islands.", 13, 13, 59, 68),
 }
+
+// DailyModes is the subset of Modes eligible for daily puzzle rotation.
+var DailyModes = []list.Item{
+	Modes[3], // Easy 9x9
+	Modes[1], // Medium 7x7
+}

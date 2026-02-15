@@ -58,3 +58,8 @@ var Modes = []list.Item{
 	NewMode("Medium 15x15", "Find 10 words in a 15x15 grid.", 15, 15, 10, 4, 7, []Direction{Right, Down, DownRight, DownLeft, Left, Up}),
 	NewMode("Hard 20x20", "Find 15 words in a 20x20 grid.", 20, 20, 15, 5, 10, []Direction{Right, Down, DownRight, DownLeft, Left, Up, UpRight, UpLeft}),
 }
+
+// DailyModes is the subset of Modes eligible for daily puzzle rotation.
+var DailyModes = []list.Item{
+	Modes[0], // Easy 10x10
+}
