@@ -48,7 +48,7 @@ func cellView(num rune, mark cellMark, isCursor, inCursorRow, inCursorCol, solve
 	switch mark {
 	case shaded:
 		s = shadedStyle
-		display = " \u25A0 " // ■
+		display = " ▒ "
 	case circled:
 		s = circledStyle
 		display = fmt.Sprintf(" %c ", num)
