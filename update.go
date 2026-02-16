@@ -23,26 +23,24 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleSpawnComplete(msg)
 
 	case tea.WindowSizeMsg:
-		h, v := ui.RootFrameSize()
-		w, ht := msg.Width-h, msg.Height-v
-		m.width = w
-		m.height = ht
-		menuW, menuH := min(w, 64), min(ht, 24)
+		m.width = msg.Width
+		m.height = msg.Height
+		menuW, menuH := min(m.width, 64), min(m.height, 24)
 		m.mainMenuList.SetSize(menuW, menuH)
 		m.gameSelectList.SetSize(menuW, menuH)
 		if m.state == modeSelectView {
 			m.modeSelectList.SetSize(menuW, menuH)
 		}
 		if m.state == continueView {
-			m.continueTable.SetWidth(w)
-			m.continueTable.SetHeight(ht)
+			m.continueTable.SetWidth(m.width)
+			m.continueTable.SetHeight(m.height)
 		}
 		if m.state == helpSelectView {
 			m.helpSelectList.SetSize(menuW, menuH)
 		}
 		if m.state == helpDetailView {
-			m.helpViewport.SetWidth(w)
-			m.helpViewport.SetHeight(ht - 2)
+			m.helpViewport.SetWidth(m.width)
+			m.helpViewport.SetHeight(m.height - 2)
 		}
 
 	case tea.KeyMsg:

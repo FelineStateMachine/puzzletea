@@ -14,20 +14,12 @@ var (
 	MenuDim         = compat.AdaptiveColor{Light: lipgloss.Color("250"), Dark: lipgloss.Color("238")}
 	MenuTableHeader = compat.AdaptiveColor{Light: lipgloss.Color("130"), Dark: lipgloss.Color("180")}
 
-	RootStyle  = lipgloss.NewStyle().Margin(1, 2)
 	DebugStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder(), true).
 			BorderForeground(compat.AdaptiveColor{Light: lipgloss.Color("124"), Dark: lipgloss.Color("124")})
 )
 
-// RootFrameSize returns the horizontal and vertical frame size of RootStyle.
-// Isolates the lipgloss v1 GetFrameSize() call for easier v2 migration.
-func RootFrameSize() (int, int) {
-	return RootStyle.GetFrameSize()
-}
-
-// CenterView wraps content in centered placement within the root frame.
-// Isolates the lipgloss.Place() call for easier v2 migration.
+// CenterView wraps content in centered placement within the available area.
 func CenterView(width, height int, content string) string {
-	return RootStyle.Render(lipgloss.Place(width, height, lipgloss.Center, lipgloss.Center, content))
+	return lipgloss.Place(width, height, lipgloss.Center, lipgloss.Center, content)
 }
