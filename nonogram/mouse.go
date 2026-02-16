@@ -11,7 +11,7 @@ import (
 // Returns (col, row, ok) where ok is false if the click landed outside the grid
 // or on a separator.
 func (m *Model) screenToGrid(screenX, screenY int) (col, row int, ok bool) {
-	ox, oy := m.gridOrigin()
+	ox, oy := m.cachedGridOrigin()
 	lx := screenX - ox
 	ly := screenY - oy
 	if lx < 0 || ly < 0 {
@@ -67,6 +67,19 @@ func localToCell(pos, count, unitWidth int) int {
 		return -1
 	}
 	return cell
+}
+
+// cachedGridOrigin returns the screen position of the top-left corner of
+// cell (0,0), using a cached value when available. The cache is invalidated
+// on terminal resize and solve-state changes.
+func (m *Model) cachedGridOrigin() (x, y int) {
+	if m.originValid {
+		return m.originX, m.originY
+	}
+	x, y = m.gridOrigin()
+	m.originX, m.originY = x, y
+	m.originValid = true
+	return x, y
 }
 
 // gridOrigin computes the screen position of the top-left corner of the

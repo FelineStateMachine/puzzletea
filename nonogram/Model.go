@@ -41,6 +41,10 @@ type Model struct {
 	// Screen geometry for mouse hit-testing.
 	termWidth, termHeight int
 
+	// Cached grid origin for mouse hit-testing (recomputed on resize/solve).
+	originX, originY int
+	originValid      bool
+
 	// Debug: last mouse event info.
 	lastMouseX, lastMouseY int
 	lastMouseBtn           string
@@ -90,28 +94,32 @@ func (m Model) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.termWidth = msg.Width
 		m.termHeight = msg.Height
+		m.originValid = false
 
 	case tea.KeyPressMsg:
-		if m.solved {
-			break
-		}
 		switch {
 		case key.Matches(msg, m.keys.FillTile):
-			m.updateTile(filledTile)
-			if m.supportsKeyRelease {
-				m.paintBrush = filledTile
+			if !m.solved {
+				m.updateTile(filledTile)
+				if m.supportsKeyRelease {
+					m.paintBrush = filledTile
+				}
 			}
 		case key.Matches(msg, m.keys.MarkTile):
-			m.updateTile(markedTile)
-			if m.supportsKeyRelease {
-				m.paintBrush = markedTile
+			if !m.solved {
+				m.updateTile(markedTile)
+				if m.supportsKeyRelease {
+					m.paintBrush = markedTile
+				}
 			}
 		case key.Matches(msg, m.keys.ClearTile):
-			m.updateTile(emptyTile)
-			m.paintBrush = 0
+			if !m.solved {
+				m.updateTile(emptyTile)
+				m.paintBrush = 0
+			}
 		default:
 			moved := m.cursor.Move(m.keys.CursorKeyMap, msg, m.width-1, m.height-1)
-			if moved && m.paintBrush != 0 {
+			if moved && m.paintBrush != 0 && !m.solved {
 				m.updateTile(m.paintBrush)
 			}
 		}
@@ -261,13 +269,20 @@ func (m Model) Reset() game.Gamer {
 	m.currentHints = curr
 	m.solved = false
 	m.cursor = game.Cursor{}
+	m.paintBrush = 0
+	m.dragging = 0
+	m.originValid = false
 	return m
 }
 
 func (m *Model) updateTile(r rune) {
 	m.grid[m.cursor.Y][m.cursor.X] = r
 	m.currentHints = generateTomography(m.grid)
+	wasSolved := m.solved
 	m.solved = m.currentHints.rows.equal(m.rowHints) && m.currentHints.cols.equal(m.colHints)
+	if m.solved != wasSolved {
+		m.originValid = false
+	}
 }
 
 // toggleTile toggles a cell between the given target state and empty.
