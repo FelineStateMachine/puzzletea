@@ -262,15 +262,19 @@ func (m model) handleHelpSelectEnter() (tea.Model, tea.Cmd) {
 	}
 	m.helpCategory = cat
 
-	renderer, err := glamour.NewTermRenderer(
-		glamour.WithAutoStyle(),
-		glamour.WithWordWrap(m.width),
-	)
-	if err != nil {
-		log.Printf("failed to create help renderer: %v", err)
-		return m, nil
+	if m.helpRenderer == nil || m.helpRendererWidth != m.width {
+		renderer, err := glamour.NewTermRenderer(
+			glamour.WithAutoStyle(),
+			glamour.WithWordWrap(m.width),
+		)
+		if err != nil {
+			log.Printf("failed to create help renderer: %v", err)
+			return m, nil
+		}
+		m.helpRenderer = renderer
+		m.helpRendererWidth = m.width
 	}
-	rendered, err := renderer.Render(cat.Help)
+	rendered, err := m.helpRenderer.Render(cat.Help)
 	if err != nil {
 		log.Printf("failed to render help: %v", err)
 		return m, nil

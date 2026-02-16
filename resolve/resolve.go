@@ -29,6 +29,8 @@ var CategoryAliases = map[string]string{
 	"takuzu":     "takuzu",
 	"binairo":    "takuzu",
 	"binary":     "takuzu",
+	"shikaku":    "shikaku",
+	"rectangles": "shikaku",
 	"words":      "word search",
 	"wordsearch": "word search",
 	"ws":         "word search",
