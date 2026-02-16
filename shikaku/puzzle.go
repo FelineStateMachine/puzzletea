@@ -120,6 +120,17 @@ func (p *Puzzle) RemoveRectangle(clueID int) {
 	}
 }
 
+// CluesInRect returns all clues contained within the given rectangle bounds.
+func (p *Puzzle) CluesInRect(r Rectangle) []*Clue {
+	var result []*Clue
+	for i := range p.Clues {
+		if r.Contains(p.Clues[i].X, p.Clues[i].Y) {
+			result = append(result, &p.Clues[i])
+		}
+	}
+	return result
+}
+
 // IsSolved reports whether the puzzle is complete:
 // every cell is covered exactly once and each rectangle contains
 // exactly one clue whose value equals the rectangle's area.

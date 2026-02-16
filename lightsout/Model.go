@@ -20,6 +20,9 @@ type Model struct {
 	keys         KeyMap
 	modeTitle    string
 	showFullHelp bool
+
+	termWidth  int
+	termHeight int
 }
 
 var _ game.Gamer = Model{}
@@ -58,6 +61,16 @@ func (m Model) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 	switch msg := msg.(type) {
 	case game.HelpToggleMsg:
 		m.showFullHelp = msg.Show
+	case tea.WindowSizeMsg:
+		m.termWidth = msg.Width
+		m.termHeight = msg.Height
+	case tea.MouseClickMsg:
+		if msg.Button == tea.MouseLeft && !m.IsSolved() {
+			if col, row, ok := m.screenToGrid(msg.X, msg.Y); ok {
+				m.cursor.X, m.cursor.Y = col, row
+				Toggle(m.grid, col, row)
+			}
+		}
 	case tea.KeyPressMsg:
 		switch {
 		case key.Matches(msg, m.keys.Toggle):

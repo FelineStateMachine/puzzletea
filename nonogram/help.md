@@ -13,15 +13,26 @@ Fill cells to match row and column hints, revealing a hidden pattern.
 
 ## Controls
 
+### Keyboard
+
 | Key | Action |
 |-----|--------|
 | `Arrows` / `wasd` / `hjkl` | Move cursor |
-| `z` | Fill cell |
-| `x` | Mark cell |
+| `z` | Fill cell (hold to paint) |
+| `x` | Mark cell (hold to paint) |
 | `Backspace` | Clear cell |
 | `Ctrl+H` | Toggle help bar |
 | `Ctrl+R` | Reset puzzle |
 | `Ctrl+N` | Return to main menu |
+
+### Mouse
+
+| Action | Effect |
+|--------|--------|
+| Left click | Toggle fill on a cell |
+| Right click | Toggle mark on a cell |
+| Left drag | Paint filled cells |
+| Right drag | Paint marked cells |
 
 ## Tips
 

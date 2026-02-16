@@ -63,10 +63,19 @@ var (
 )
 
 func gridView(m Model, solved bool) string {
-	// Build preview rectangle if in expansion mode.
+	// Build preview rectangle for visual feedback.
 	var preview *Rectangle
 	var previewClue *Clue
-	if m.selectedClue != nil {
+
+	if m.mousePreview != nil {
+		// Mouse drag in progress: use the free-form preview rect.
+		preview = m.mousePreview
+		clues := m.puzzle.CluesInRect(*preview)
+		if len(clues) == 1 {
+			previewClue = clues[0]
+		}
+	} else if m.selectedClue != nil {
+		// Keyboard expansion mode.
 		previewClue = m.puzzle.FindClueByID(*m.selectedClue)
 		if previewClue != nil {
 			r := m.expansion.rect(previewClue)
@@ -122,8 +131,11 @@ func cellView(m Model, x, y int, solved bool, preview *Rectangle, previewClue *C
 
 	// Preview overlay.
 	inPreview := preview != nil && preview.Contains(x, y)
-	if inPreview && previewClue != nil {
-		if preview.Area() == previewClue.Value && !m.puzzle.Overlaps(*preview, previewClue.ID) {
+	if inPreview {
+		good := previewClue != nil &&
+			preview.Area() == previewClue.Value &&
+			!m.puzzle.Overlaps(*preview, previewClue.ID)
+		if good {
 			s = s.Background(previewGoodBg).Foreground(compat.AdaptiveColor{Dark: lipgloss.Color("255"), Light: lipgloss.Color("255")})
 		} else {
 			s = s.Background(previewBadBg).Foreground(compat.AdaptiveColor{Dark: lipgloss.Color("255"), Light: lipgloss.Color("255")})
@@ -177,12 +189,12 @@ func infoView(p *Puzzle) string {
 func statusBarView(selected, showFullHelp bool) string {
 	if selected {
 		if showFullHelp {
-			return game.StatusBarStyle.Render("arrows: expand  shift+arrows: shrink  enter: confirm  esc: cancel  bkspc: delete  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
+			return game.StatusBarStyle.Render("arrows: expand  shift+arrows: shrink  enter: confirm  esc: cancel  bkspc: delete  mouse: drag rect  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
 		}
-		return game.StatusBarStyle.Render("arrows: expand  shift+arrows: shrink  enter: confirm  esc: cancel")
+		return game.StatusBarStyle.Render("arrows: expand  shift+arrows: shrink  enter: confirm  esc: cancel  mouse: drag")
 	}
 	if showFullHelp {
-		return game.StatusBarStyle.Render("arrows/wasd: move  enter/space: select clue  bkspc: delete  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
+		return game.StatusBarStyle.Render("arrows/wasd: move  enter/space: select clue  bkspc: delete  mouse: click clue & drag  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
 	}
-	return game.StatusBarStyle.Render("enter/space: select clue  bkspc: delete")
+	return game.StatusBarStyle.Render("enter/space: select clue  bkspc: delete  mouse: click & drag")
 }

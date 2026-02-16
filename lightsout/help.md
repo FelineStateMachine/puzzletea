@@ -12,6 +12,8 @@ Toggle lights in a cross pattern to turn them all off.
 
 ## Controls
 
+### Keyboard
+
 | Key | Action |
 |-----|--------|
 | `Arrows` / `wasd` / `hjkl` | Move cursor |
@@ -19,6 +21,12 @@ Toggle lights in a cross pattern to turn them all off.
 | `Ctrl+H` | Toggle help bar |
 | `Ctrl+R` | Reset puzzle |
 | `Ctrl+N` | Return to main menu |
+
+### Mouse
+
+| Action | Effect |
+|--------|--------|
+| Left click | Toggle light (and its neighbors) |
 
 ## Tips
 

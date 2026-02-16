@@ -12,7 +12,7 @@ The puzzle is solved when all three rules hold simultaneously.
 
 ## Controls
 
-### Navigation Mode
+### Keyboard — Navigation Mode
 
 | Key | Action |
 |-----|--------|
@@ -20,7 +20,7 @@ The puzzle is solved when all three rules hold simultaneously.
 | `Enter` / `Space` | Select clue to expand |
 | `Backspace` | Delete rectangle at cursor |
 
-### Expansion Mode
+### Keyboard — Expansion Mode
 
 After selecting a clue, you enter Expansion Mode. Each side of the
 rectangle is controlled independently.
@@ -33,8 +33,18 @@ rectangle is controlled independently.
 | `Escape` | Cancel, discard preview |
 | `Backspace` | Delete existing rectangle, return to nav |
 
-The preview turns **green** when the area matches the clue value and there
-are no overlaps, or **red** otherwise. You can only confirm a green preview.
+### Mouse
+
+| Action | Effect |
+|--------|--------|
+| Left click + drag | Draw a rectangle from any cell |
+| Release | Place the rectangle if it contains exactly one clue, the area matches, and there are no overlaps |
+| Right click | Delete rectangle at cursor |
+
+You can start a drag from **any cell**, not just a numbered clue.
+While dragging, the preview turns **green** when valid or **red**
+otherwise. If the rectangle is invalid on release, you stay in
+Expansion Mode so you can fine-tune with the keyboard.
 
 ---
 

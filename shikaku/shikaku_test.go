@@ -496,6 +496,121 @@ func TestGeneratePuzzle(t *testing.T) {
 	})
 }
 
+// --- screenToGrid (P1) ---
+
+func TestScreenToGrid(t *testing.T) {
+	m := &Model{
+		puzzle: Puzzle{
+			Width:  5,
+			Height: 5,
+			Clues: []Clue{
+				{ID: 0, X: 0, Y: 0, Value: 4},
+			},
+		},
+		keys:       DefaultKeyMap,
+		modeTitle:  "Test",
+		termWidth:  120,
+		termHeight: 40,
+	}
+
+	ox, oy := m.gridOrigin()
+
+	tests := []struct {
+		name    string
+		screenX int
+		screenY int
+		wantCol int
+		wantRow int
+		wantOk  bool
+	}{
+		{"origin cell", ox, oy, 0, 0, true},
+		{"cell (1,0)", ox + cellWidth, oy, 1, 0, true},
+		{"cell (0,1)", ox, oy + 1, 0, 1, true},
+		{"cell (2,3)", ox + 2*cellWidth, oy + 3, 2, 3, true},
+		{"cell (4,4) last", ox + 4*cellWidth, oy + 4, 4, 4, true},
+		{"outside left", ox - 1, oy, 0, 0, false},
+		{"outside top", ox, oy - 1, 0, 0, false},
+		{"outside right", ox + 5*cellWidth, oy, 0, 0, false},
+		{"outside bottom", ox, oy + 5, 0, 0, false},
+		{"far outside", 0, 0, 0, 0, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			col, row, ok := m.screenToGrid(tt.screenX, tt.screenY)
+			if ok != tt.wantOk {
+				t.Errorf("ok = %v, want %v", ok, tt.wantOk)
+			}
+			if ok && (col != tt.wantCol || row != tt.wantRow) {
+				t.Errorf("screenToGrid(%d, %d) = (%d, %d), want (%d, %d)",
+					tt.screenX, tt.screenY, col, row, tt.wantCol, tt.wantRow)
+			}
+		})
+	}
+}
+
+// --- rectFromCorners (P1) ---
+
+func TestRectFromCorners(t *testing.T) {
+	tests := []struct {
+		name                       string
+		x1, y1, x2, y2             int
+		wantX, wantY, wantW, wantH int
+	}{
+		{"same cell", 3, 3, 3, 3, 3, 3, 1, 1},
+		{"drag right", 1, 2, 4, 2, 1, 2, 4, 1},
+		{"drag left", 4, 2, 1, 2, 1, 2, 4, 1},
+		{"drag down", 2, 1, 2, 5, 2, 1, 1, 5},
+		{"drag up", 2, 5, 2, 1, 2, 1, 1, 5},
+		{"drag down-right", 1, 1, 4, 3, 1, 1, 4, 3},
+		{"drag up-left", 4, 3, 1, 1, 1, 1, 4, 3},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := rectFromCorners(tt.x1, tt.y1, tt.x2, tt.y2)
+			if r.X != tt.wantX || r.Y != tt.wantY || r.W != tt.wantW || r.H != tt.wantH {
+				t.Errorf("rectFromCorners(%d,%d, %d,%d) = (%d,%d) %dx%d, want (%d,%d) %dx%d",
+					tt.x1, tt.y1, tt.x2, tt.y2,
+					r.X, r.Y, r.W, r.H,
+					tt.wantX, tt.wantY, tt.wantW, tt.wantH)
+			}
+		})
+	}
+}
+
+// --- CluesInRect (P1) ---
+
+func TestCluesInRect(t *testing.T) {
+	p := simplePuzzle()
+
+	tests := []struct {
+		name      string
+		rect      Rectangle
+		wantCount int
+		wantIDs   []int
+	}{
+		{"single clue", Rectangle{X: 0, Y: 0, W: 1, H: 1}, 1, []int{0}},
+		{"no clues", Rectangle{X: 1, Y: 1, W: 1, H: 1}, 0, nil},
+		{"two clues", Rectangle{X: 0, Y: 0, W: 4, H: 1}, 2, []int{0, 3}},
+		{"all clues", Rectangle{X: 0, Y: 0, W: 4, H: 4}, 4, []int{0, 1, 2, 3}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			clues := p.CluesInRect(tt.rect)
+			if len(clues) != tt.wantCount {
+				t.Fatalf("CluesInRect returned %d clues, want %d", len(clues), tt.wantCount)
+			}
+			for i, c := range clues {
+				if c.ID != tt.wantIDs[i] {
+					t.Errorf("clue[%d].ID = %d, want %d", i, c.ID, tt.wantIDs[i])
+				}
+			}
+		})
+	}
+}
+
 // --- Mode Spawn ---
 
 func TestModeSpawn(t *testing.T) {

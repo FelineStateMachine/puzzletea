@@ -8,6 +8,49 @@ import (
 	"github.com/FelineStateMachine/puzzletea/game"
 )
 
+// screenToGrid converts terminal screen coordinates to grid cell coordinates.
+// Returns (col, row, ok) where ok is false if the click landed outside the grid.
+func (m *Model) screenToGrid(screenX, screenY int) (col, row int, ok bool) {
+	gameView := m.View()
+	viewWidth := lipgloss.Width(gameView)
+	viewHeight := lipgloss.Height(gameView)
+
+	if viewWidth > m.termWidth {
+		viewWidth = m.termWidth
+	}
+
+	centerX := max((m.termWidth-viewWidth)/2, 0)
+	centerY := max((m.termHeight-viewHeight)/2, 0)
+
+	// Title bar is always 2 lines (title + blank/subtitle line).
+	titleHeight := strings.Count(game.TitleBarView("Lights Out", m.modeTitle, m.IsSolved()), "\n") + 1
+
+	// The grid border adds 1 character on each side.
+	const borderSize = 1
+
+	// Grid origin within the centered view.
+	gridInnerWidth := m.width * cellWidth
+	gridOuterWidth := gridInnerWidth + 2*borderSize
+	gridPadLeft := max((viewWidth-gridOuterWidth)/2, 0)
+
+	gridX := centerX + gridPadLeft + borderSize
+	gridY := centerY + titleHeight + borderSize
+
+	lx := screenX - gridX
+	ly := screenY - gridY
+	if lx < 0 || ly < 0 {
+		return 0, 0, false
+	}
+
+	col = lx / cellWidth
+	row = ly / cellHeight
+	if col >= m.width || row >= m.height {
+		return 0, 0, false
+	}
+
+	return col, row, true
+}
+
 var (
 	baseStyle = lipgloss.NewStyle()
 
@@ -80,7 +123,7 @@ func gridView(g [][]bool, c game.Cursor, solved bool) string {
 
 func statusBarView(showFullHelp bool) string {
 	if showFullHelp {
-		return game.StatusBarStyle.Render("arrows/wasd: move  enter/space: toggle  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
+		return game.StatusBarStyle.Render("arrows/wasd: move  enter/space/click: toggle  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
 	}
-	return game.StatusBarStyle.Render("enter/space: toggle")
+	return game.StatusBarStyle.Render("enter/space/click: toggle")
 }
