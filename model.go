@@ -8,6 +8,7 @@ import (
 	"github.com/FelineStateMachine/puzzletea/hitori"
 	"github.com/FelineStateMachine/puzzletea/lightsout"
 	"github.com/FelineStateMachine/puzzletea/nonogram"
+	"github.com/FelineStateMachine/puzzletea/shikaku"
 	"github.com/FelineStateMachine/puzzletea/store"
 	"github.com/FelineStateMachine/puzzletea/sudoku"
 	"github.com/FelineStateMachine/puzzletea/takuzu"
@@ -29,6 +30,7 @@ var (
 		game.Category{Name: "Hitori", Desc: "Shade cells to eliminate duplicates.", Modes: hitori.Modes, Help: hitori.HelpContent},
 		game.Category{Name: "Lights Out", Desc: "Turn off all the lights.", Modes: lightsout.Modes, Help: lightsout.HelpContent},
 		game.Category{Name: "Nonogram", Desc: "Fill cells to match row and column hints.", Modes: nonogram.Modes, Help: nonogram.HelpContent},
+		game.Category{Name: "Shikaku", Desc: "Divide the grid into rectangles.", Modes: shikaku.Modes, Help: shikaku.HelpContent},
 		game.Category{Name: "Sudoku", Desc: "Fill the 9x9 grid following sudoku rules.", Modes: sudoku.Modes, Help: sudoku.HelpContent},
 		game.Category{Name: "Takuzu", Desc: "Fill the grid with ● and ○.", Modes: takuzu.Modes, Help: takuzu.HelpContent},
 		game.Category{Name: "Word Search", Desc: "Find hidden words in a letter grid.", Modes: wordsearch.Modes, Help: wordsearch.HelpContent},
@@ -90,9 +92,11 @@ type model struct {
 	dailyModeTitle string // e.g. "Standard"
 
 	// Help page state
-	helpSelectList list.Model
-	helpCategory   game.Category
-	helpViewport   viewport.Model
+	helpSelectList    list.Model
+	helpCategory      game.Category
+	helpViewport      viewport.Model
+	helpRenderer      *glamour.TermRenderer
+	helpRendererWidth int
 }
 
 func initialModel(s *store.Store) model {

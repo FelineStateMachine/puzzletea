@@ -43,6 +43,7 @@ vhs: build
     vhs vhs/menu.tape
     vhs vhs/nonogram.tape
     vhs vhs/sudoku.tape
+    vhs vhs/shikaku.tape
     vhs vhs/takuzu.tape
     vhs vhs/wordsearch.tape
     vhs vhs/hashiwokakero.tape

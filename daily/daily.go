@@ -11,6 +11,7 @@ import (
 	"github.com/FelineStateMachine/puzzletea/lightsout"
 	"github.com/FelineStateMachine/puzzletea/namegen"
 	"github.com/FelineStateMachine/puzzletea/nonogram"
+	"github.com/FelineStateMachine/puzzletea/shikaku"
 	"github.com/FelineStateMachine/puzzletea/sudoku"
 	"github.com/FelineStateMachine/puzzletea/takuzu"
 	"github.com/FelineStateMachine/puzzletea/wordsearch"
@@ -37,6 +38,7 @@ var pool = []struct {
 	{"Hashiwokakero", hashiwokakero.DailyModes},
 	{"Hitori", hitori.DailyModes},
 	{"Lights Out", lightsout.DailyModes},
+	{"Shikaku", shikaku.DailyModes},
 	{"Word Search", wordsearch.DailyModes},
 }
 
