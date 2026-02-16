@@ -14,7 +14,7 @@ type KeyMap struct {
 var DefaultKeyMap = KeyMap{
 	CursorKeyMap: game.DefaultCursorKeyMap,
 	Select: key.NewBinding(
-		key.WithKeys("enter", " "),
+		key.WithKeys("enter", "space"),
 		key.WithHelp("enter/space", "Select"),
 	),
 	Cancel: key.NewBinding(

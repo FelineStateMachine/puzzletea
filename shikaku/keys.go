@@ -37,7 +37,7 @@ var DefaultKeyMap = KeyMap{
 		key.WithHelp("shift+→", "Shrink right"),
 	),
 	Select: key.NewBinding(
-		key.WithKeys("enter", " "),
+		key.WithKeys("enter", "space"),
 		key.WithHelp("enter/space", "Select/Confirm"),
 	),
 	Cancel: key.NewBinding(
