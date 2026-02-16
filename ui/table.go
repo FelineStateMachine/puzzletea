@@ -25,7 +25,7 @@ func FormatStatus(s store.GameStatus) string {
 
 // InitContinueTable loads saved games from the store and builds the table
 // widget. Returns the table, the loaded games, and the column definitions.
-func InitContinueTable(s *store.Store, height int) (table.Model, []store.GameRecord) {
+func InitContinueTable(s *store.Store, width, height int) (table.Model, []store.GameRecord) {
 	games, err := s.ListGames()
 	if err != nil {
 		log.Printf("failed to list games: %v", err)
@@ -55,6 +55,7 @@ func InitContinueTable(s *store.Store, height int) (table.Model, []store.GameRec
 		table.WithColumns(columns),
 		table.WithRows(rows),
 		table.WithFocused(true),
+		table.WithWidth(width),
 		table.WithHeight(max(height-2, 1)),
 	)
 

@@ -148,7 +148,7 @@ func (m model) handleMainMenuEnter() (tea.Model, tea.Cmd) {
 	case "Generate":
 		m.state = gameSelectView
 	case "Continue":
-		m.continueTable, m.continueGames = ui.InitContinueTable(m.store, m.height)
+		m.continueTable, m.continueGames = ui.InitContinueTable(m.store, m.width, m.height)
 		m.state = continueView
 	case "Guides":
 		m.helpSelectList = ui.InitList(GameCategories, "How to Play")
