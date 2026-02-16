@@ -63,6 +63,7 @@ func (m model) handleSpawnComplete(msg game.SpawnCompleteMsg) (tea.Model, tea.Cm
 		m.game = msg.Game.SetTitle(name)
 	}
 	m.game, _ = m.game.Update(game.HelpToggleMsg{Show: m.showFullHelp})
+	m.game, _ = m.game.Update(tea.WindowSizeMsg{Width: m.width, Height: m.height})
 	m.state = gameView
 	m.completionSaved = false
 

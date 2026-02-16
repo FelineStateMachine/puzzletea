@@ -186,6 +186,7 @@ func (m model) handleDailyPuzzle() (tea.Model, tea.Cmd) {
 		}
 		m.game = g.SetTitle(rec.Name)
 		m.game, _ = m.game.Update(game.HelpToggleMsg{Show: m.showFullHelp})
+		m.game, _ = m.game.Update(tea.WindowSizeMsg{Width: m.width, Height: m.height})
 		m.activeGameID = rec.ID
 		m.state = gameView
 		m.completionSaved = rec.Status == store.StatusCompleted
@@ -248,6 +249,7 @@ func (m model) handleContinueEnter() (tea.Model, tea.Cmd) {
 	}
 	m.game = g.SetTitle(rec.Name)
 	m.game, _ = m.game.Update(game.HelpToggleMsg{Show: m.showFullHelp})
+	m.game, _ = m.game.Update(tea.WindowSizeMsg{Width: m.width, Height: m.height})
 	m.activeGameID = rec.ID
 	m.state = gameView
 	m.completionSaved = rec.Status == store.StatusCompleted
