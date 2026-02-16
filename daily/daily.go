@@ -16,7 +16,7 @@ import (
 	"github.com/FelineStateMachine/puzzletea/takuzu"
 	"github.com/FelineStateMachine/puzzletea/wordsearch"
 
-	"github.com/charmbracelet/bubbles/list"
+	"charm.land/bubbles/v2/list"
 )
 
 // Entry pairs a SeededSpawner with metadata for the eligible daily pool.

@@ -1,20 +1,23 @@
 package ui
 
-import "github.com/charmbracelet/lipgloss"
+import (
+	"charm.land/lipgloss/v2"
+	"charm.land/lipgloss/v2/compat"
+)
 
 // Earth-tone palette for menus — ANSI 256 colors with light/dark adaptivity.
 var (
-	MenuAccent      = lipgloss.AdaptiveColor{Light: "130", Dark: "173"}
-	MenuAccentLight = lipgloss.AdaptiveColor{Light: "137", Dark: "180"}
-	MenuText        = lipgloss.AdaptiveColor{Light: "235", Dark: "252"}
-	MenuTextDim     = lipgloss.AdaptiveColor{Light: "243", Dark: "243"}
-	MenuDim         = lipgloss.AdaptiveColor{Light: "250", Dark: "238"}
-	MenuTableHeader = lipgloss.AdaptiveColor{Light: "130", Dark: "180"}
+	MenuAccent      = compat.AdaptiveColor{Light: lipgloss.Color("130"), Dark: lipgloss.Color("173")}
+	MenuAccentLight = compat.AdaptiveColor{Light: lipgloss.Color("137"), Dark: lipgloss.Color("180")}
+	MenuText        = compat.AdaptiveColor{Light: lipgloss.Color("235"), Dark: lipgloss.Color("252")}
+	MenuTextDim     = compat.AdaptiveColor{Light: lipgloss.Color("243"), Dark: lipgloss.Color("243")}
+	MenuDim         = compat.AdaptiveColor{Light: lipgloss.Color("250"), Dark: lipgloss.Color("238")}
+	MenuTableHeader = compat.AdaptiveColor{Light: lipgloss.Color("130"), Dark: lipgloss.Color("180")}
 
 	RootStyle  = lipgloss.NewStyle().Margin(1, 2)
 	DebugStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder(), true).
-			BorderForeground(lipgloss.AdaptiveColor{Light: "124", Dark: "124"})
+			BorderForeground(compat.AdaptiveColor{Light: lipgloss.Color("124"), Dark: lipgloss.Color("124")})
 )
 
 // RootFrameSize returns the horizontal and vertical frame size of RootStyle.

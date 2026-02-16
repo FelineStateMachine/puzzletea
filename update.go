@@ -9,9 +9,9 @@ import (
 	"github.com/FelineStateMachine/puzzletea/store"
 	"github.com/FelineStateMachine/puzzletea/ui"
 
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/viewport"
-	tea "github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/viewport"
+	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/glamour"
 )
 
@@ -41,8 +41,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.helpSelectList.SetSize(menuW, menuH)
 		}
 		if m.state == helpDetailView {
-			m.helpViewport.Width = w
-			m.helpViewport.Height = ht - 2
+			m.helpViewport.SetWidth(w)
+			m.helpViewport.SetHeight(ht - 2)
 		}
 
 	case tea.KeyMsg:
@@ -281,7 +281,7 @@ func (m model) handleHelpSelectEnter() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	m.helpViewport = viewport.New(m.width, m.height-2)
+	m.helpViewport = viewport.New(viewport.WithWidth(m.width), viewport.WithHeight(m.height-2))
 	m.helpViewport.SetContent(rendered)
 	m.state = helpDetailView
 	return m, nil

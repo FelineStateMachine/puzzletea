@@ -4,48 +4,49 @@ import (
 	"fmt"
 	"strings"
 
+	"charm.land/lipgloss/v2"
+	"charm.land/lipgloss/v2/compat"
 	"github.com/FelineStateMachine/puzzletea/game"
-	"github.com/charmbracelet/lipgloss"
 )
 
 var (
-	backgroundColor = lipgloss.AdaptiveColor{Light: "254", Dark: "235"}
+	backgroundColor = compat.AdaptiveColor{Light: lipgloss.Color("254"), Dark: lipgloss.Color("235")}
 
 	emptyCellStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.AdaptiveColor{Light: "250", Dark: "240"}).
+			Foreground(compat.AdaptiveColor{Light: lipgloss.Color("250"), Dark: lipgloss.Color("240")}).
 			Background(backgroundColor)
 
 	providedCellStyle = lipgloss.NewStyle().
 				Bold(true).
-				Foreground(lipgloss.AdaptiveColor{Light: "130", Dark: "179"}).
+				Foreground(compat.AdaptiveColor{Light: lipgloss.Color("130"), Dark: lipgloss.Color("179")}).
 				Background(backgroundColor)
 
 	userCellStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.AdaptiveColor{Light: "236", Dark: "187"}).
+			Foreground(compat.AdaptiveColor{Light: lipgloss.Color("236"), Dark: lipgloss.Color("187")}).
 			Background(backgroundColor)
 
 	cursorCellStyle = game.CursorStyle
 
 	conflictCellStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.AdaptiveColor{Light: "160", Dark: "167"}).
-				Background(lipgloss.AdaptiveColor{Light: "224", Dark: "52"})
+				Foreground(compat.AdaptiveColor{Light: lipgloss.Color("160"), Dark: lipgloss.Color("167")}).
+				Background(compat.AdaptiveColor{Light: lipgloss.Color("224"), Dark: lipgloss.Color("52")})
 
 	sameNumberStyle = lipgloss.NewStyle().
 			Bold(true).
-			Foreground(lipgloss.AdaptiveColor{Light: "130", Dark: "187"})
+			Foreground(compat.AdaptiveColor{Light: lipgloss.Color("130"), Dark: lipgloss.Color("187")})
 
-	crosshairBG = lipgloss.AdaptiveColor{Light: "254", Dark: "237"}
+	crosshairBG = compat.AdaptiveColor{Light: lipgloss.Color("254"), Dark: lipgloss.Color("237")}
 
-	boxBorderFG = lipgloss.AdaptiveColor{Light: "250", Dark: "240"}
+	boxBorderFG = compat.AdaptiveColor{Light: lipgloss.Color("250"), Dark: lipgloss.Color("240")}
 
 	gridBorderStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.AdaptiveColor{Light: "250", Dark: "240"}).
+			BorderForeground(compat.AdaptiveColor{Light: lipgloss.Color("250"), Dark: lipgloss.Color("240")}).
 			BorderBackground(backgroundColor)
 
 	gridBorderSolvedStyle = lipgloss.NewStyle().
 				Border(lipgloss.RoundedBorder()).
-				BorderForeground(lipgloss.AdaptiveColor{Light: "22", Dark: "149"}).
+				BorderForeground(compat.AdaptiveColor{Light: lipgloss.Color("22"), Dark: lipgloss.Color("149")}).
 				BorderBackground(backgroundColor)
 
 	sudokuCellWidth = 2

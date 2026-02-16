@@ -1,8 +1,8 @@
 package wordsearch
 
 import (
+	"charm.land/bubbles/v2/key"
 	"github.com/FelineStateMachine/puzzletea/game"
-	"github.com/charmbracelet/bubbles/key"
 )
 
 type KeyMap struct {

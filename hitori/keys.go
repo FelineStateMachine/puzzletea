@@ -3,7 +3,7 @@ package hitori
 import (
 	"github.com/FelineStateMachine/puzzletea/game"
 
-	"github.com/charmbracelet/bubbles/key"
+	"charm.land/bubbles/v2/key"
 )
 
 // KeyMap defines the keybindings for Hitori.

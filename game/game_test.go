@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 )
 
 // --- Cursor.Move (P0) ---
@@ -12,11 +12,11 @@ import (
 func TestCursorMove(t *testing.T) {
 	keys := DefaultCursorKeyMap
 
-	keyMsg := func(k string) tea.KeyMsg {
-		return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(k)}
+	keyMsg := func(k string) tea.KeyPressMsg {
+		return tea.KeyPressMsg{Code: rune(k[0]), Text: k}
 	}
-	specialKeyMsg := func(k tea.KeyType) tea.KeyMsg {
-		return tea.KeyMsg{Type: k}
+	specialKeyMsg := func(k rune) tea.KeyPressMsg {
+		return tea.KeyPressMsg{Code: k}
 	}
 
 	t.Run("movement within bounds", func(t *testing.T) {
@@ -24,7 +24,7 @@ func TestCursorMove(t *testing.T) {
 			name      string
 			startX    int
 			startY    int
-			msg       tea.KeyMsg
+			msg       tea.KeyPressMsg
 			maxX      int
 			maxY      int
 			wantX     int
@@ -56,7 +56,7 @@ func TestCursorMove(t *testing.T) {
 			name   string
 			startX int
 			startY int
-			msg    tea.KeyMsg
+			msg    tea.KeyPressMsg
 			maxX   int
 			maxY   int
 		}{
@@ -81,7 +81,7 @@ func TestCursorMove(t *testing.T) {
 	})
 
 	t.Run("1x1 grid no movement", func(t *testing.T) {
-		directions := []tea.KeyMsg{
+		directions := []tea.KeyPressMsg{
 			specialKeyMsg(tea.KeyUp),
 			specialKeyMsg(tea.KeyDown),
 			specialKeyMsg(tea.KeyLeft),
@@ -101,7 +101,7 @@ func TestCursorMove(t *testing.T) {
 
 	t.Run("arrow keys work", func(t *testing.T) {
 		tests := []struct {
-			msg   tea.KeyMsg
+			msg   tea.KeyPressMsg
 			wantX int
 			wantY int
 		}{

@@ -3,15 +3,16 @@ package lightsout
 import (
 	"strings"
 
+	"charm.land/lipgloss/v2"
+	"charm.land/lipgloss/v2/compat"
 	"github.com/FelineStateMachine/puzzletea/game"
-	"github.com/charmbracelet/lipgloss"
 )
 
 var (
 	baseStyle = lipgloss.NewStyle()
 
-	colorOn  = lipgloss.AdaptiveColor{Light: "222", Dark: "180"}
-	colorOff = lipgloss.AdaptiveColor{Light: "254", Dark: "236"}
+	colorOn  = compat.AdaptiveColor{Light: lipgloss.Color("222"), Dark: lipgloss.Color("180")}
+	colorOff = compat.AdaptiveColor{Light: lipgloss.Color("254"), Dark: lipgloss.Color("236")}
 
 	styleOn = baseStyle.
 		Background(colorOn)
@@ -23,17 +24,17 @@ var (
 	cursorSolvedStyle = game.CursorSolvedStyle
 
 	solvedStyle = baseStyle.
-			Background(lipgloss.AdaptiveColor{Light: "151", Dark: "22"})
+			Background(compat.AdaptiveColor{Light: lipgloss.Color("151"), Dark: lipgloss.Color("22")})
 
 	gridBorderStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.AdaptiveColor{Light: "250", Dark: "240"}).
+			BorderForeground(compat.AdaptiveColor{Light: lipgloss.Color("250"), Dark: lipgloss.Color("240")}).
 			BorderBackground(colorOff)
 
 	gridBorderSolvedStyle = lipgloss.NewStyle().
 				Border(lipgloss.RoundedBorder()).
-				BorderForeground(lipgloss.AdaptiveColor{Light: "22", Dark: "149"}).
-				BorderBackground(lipgloss.AdaptiveColor{Light: "151", Dark: "22"})
+				BorderForeground(compat.AdaptiveColor{Light: lipgloss.Color("22"), Dark: lipgloss.Color("149")}).
+				BorderBackground(compat.AdaptiveColor{Light: lipgloss.Color("151"), Dark: lipgloss.Color("22")})
 )
 
 const (

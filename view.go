@@ -5,20 +5,24 @@ import (
 
 	"github.com/FelineStateMachine/puzzletea/ui"
 
-	"github.com/charmbracelet/lipgloss"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
+	"charm.land/lipgloss/v2/compat"
 )
 
-func (m model) View() string {
+func (m model) View() tea.View {
+	var content string
+
 	switch m.state {
 	case mainMenuView:
-		return ui.CenterView(m.width, m.height, m.mainMenuList.View())
+		content = ui.CenterView(m.width, m.height, m.mainMenuList.View())
 	case gameSelectView:
-		return ui.CenterView(m.width, m.height, m.gameSelectList.View())
+		content = ui.CenterView(m.width, m.height, m.gameSelectList.View())
 	case modeSelectView:
-		return ui.CenterView(m.width, m.height, m.modeSelectList.View())
+		content = ui.CenterView(m.width, m.height, m.modeSelectList.View())
 	case generatingView:
 		s := m.spinner.View() + " Generating puzzle..."
-		return ui.CenterView(m.width, m.height, s)
+		content = ui.CenterView(m.width, m.height, s)
 	case continueView:
 		var s string
 		if len(m.continueGames) == 0 {
@@ -26,28 +30,30 @@ func (m model) View() string {
 		} else {
 			title := lipgloss.NewStyle().
 				Bold(true).
-				Foreground(lipgloss.AdaptiveColor{Light: "255", Dark: "255"}).
+				Foreground(compat.AdaptiveColor{Light: lipgloss.Color("255"), Dark: lipgloss.Color("255")}).
 				Background(ui.MenuAccent).
 				Padding(0, 1).
 				Render("Saved Games")
 			s = lipgloss.JoinVertical(lipgloss.Left, title, "", m.continueTable.View())
 		}
-		return ui.CenterView(m.width, m.height, s)
+		content = ui.CenterView(m.width, m.height, s)
 	case gameView:
 		if m.game == nil {
-			return ""
+			content = ""
+		} else {
+			var debugInfo string
+			if m.debug {
+				debugInfo = ui.DebugStyle.Render(m.debuginfo)
+			}
+			content = ui.CenterView(m.width, m.height,
+				lipgloss.JoinVertical(lipgloss.Center,
+					m.game.View(),
+					debugInfo,
+				),
+			)
 		}
-		var debugInfo string
-		if m.debug {
-			debugInfo = ui.DebugStyle.Render(m.debuginfo)
-		}
-		s := lipgloss.JoinVertical(lipgloss.Center,
-			m.game.View(),
-			debugInfo,
-		)
-		return ui.CenterView(m.width, m.height, s)
 	case helpSelectView:
-		return ui.CenterView(m.width, m.height, m.helpSelectList.View())
+		content = ui.CenterView(m.width, m.height, m.helpSelectList.View())
 	case helpDetailView:
 		footer := lipgloss.NewStyle().
 			Foreground(ui.MenuTextDim).
@@ -56,8 +62,12 @@ func (m model) View() string {
 			m.helpViewport.View(),
 			footer,
 		)
-		return ui.CenterView(m.width, m.height, s)
+		content = ui.CenterView(m.width, m.height, s)
 	default:
-		return fmt.Sprintf("unknown state: %d", m.state)
+		content = fmt.Sprintf("unknown state: %d", m.state)
 	}
+
+	v := tea.NewView(content)
+	v.AltScreen = true
+	return v
 }

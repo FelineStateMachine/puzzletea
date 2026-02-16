@@ -1,31 +1,32 @@
 package takuzu
 
 import (
+	"charm.land/lipgloss/v2"
+	"charm.land/lipgloss/v2/compat"
 	"github.com/FelineStateMachine/puzzletea/game"
-	"github.com/charmbracelet/lipgloss"
 )
 
 var (
 	baseStyle       = lipgloss.NewStyle()
-	backgroundColor = lipgloss.AdaptiveColor{Light: "254", Dark: "235"}
+	backgroundColor = compat.AdaptiveColor{Light: lipgloss.Color("254"), Dark: lipgloss.Color("235")}
 	zeroStyle       = baseStyle.
-			Foreground(lipgloss.AdaptiveColor{Light: "130", Dark: "222"}).
+			Foreground(compat.AdaptiveColor{Light: lipgloss.Color("130"), Dark: lipgloss.Color("222")}).
 			Background(backgroundColor)
 
 	oneStyle = baseStyle.
-			Foreground(lipgloss.AdaptiveColor{Light: "68", Dark: "111"}).
+			Foreground(compat.AdaptiveColor{Light: lipgloss.Color("68"), Dark: lipgloss.Color("111")}).
 			Background(backgroundColor)
 
 	emptyStyle = baseStyle.
-			Foreground(lipgloss.AdaptiveColor{Light: "250", Dark: "240"}).
+			Foreground(compat.AdaptiveColor{Light: lipgloss.Color("250"), Dark: lipgloss.Color("240")}).
 			Background(backgroundColor)
 
 	cursorSolvedStyle = game.CursorSolvedStyle
 
-	crosshairBG = lipgloss.AdaptiveColor{Light: "254", Dark: "237"}
-	solvedBG    = lipgloss.AdaptiveColor{Light: "151", Dark: "22"}
+	crosshairBG = compat.AdaptiveColor{Light: lipgloss.Color("254"), Dark: lipgloss.Color("237")}
+	solvedBG    = compat.AdaptiveColor{Light: lipgloss.Color("151"), Dark: lipgloss.Color("22")}
 
-	borderFG = lipgloss.AdaptiveColor{Light: "250", Dark: "240"}
+	borderFG = compat.AdaptiveColor{Light: lipgloss.Color("250"), Dark: lipgloss.Color("240")}
 )
 
 const cellWidth = 3
@@ -109,7 +110,7 @@ var gridBorderColors = game.GridBorderColors{
 	BorderFG:       borderFG,
 	BackgroundBG:   backgroundColor,
 	CrosshairBG:    crosshairBG,
-	SolvedBorderFG: lipgloss.AdaptiveColor{Light: "22", Dark: "149"},
+	SolvedBorderFG: compat.AdaptiveColor{Light: lipgloss.Color("22"), Dark: lipgloss.Color("149")},
 	SolvedBG:       solvedBG,
 }
 

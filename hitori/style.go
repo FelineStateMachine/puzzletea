@@ -5,31 +5,32 @@ import (
 
 	"github.com/FelineStateMachine/puzzletea/game"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
+	"charm.land/lipgloss/v2/compat"
 )
 
 var (
 	baseStyle       = lipgloss.NewStyle()
-	backgroundColor = lipgloss.AdaptiveColor{Light: "254", Dark: "235"}
+	backgroundColor = compat.AdaptiveColor{Light: lipgloss.Color("254"), Dark: lipgloss.Color("235")}
 
 	numberStyle = baseStyle.
-			Foreground(lipgloss.AdaptiveColor{Light: "236", Dark: "250"}).
+			Foreground(compat.AdaptiveColor{Light: lipgloss.Color("236"), Dark: lipgloss.Color("250")}).
 			Background(backgroundColor)
 
 	shadedStyle = baseStyle.
-			Foreground(lipgloss.AdaptiveColor{Light: "254", Dark: "238"}).
-			Background(lipgloss.AdaptiveColor{Light: "240", Dark: "238"})
+			Foreground(compat.AdaptiveColor{Light: lipgloss.Color("254"), Dark: lipgloss.Color("238")}).
+			Background(compat.AdaptiveColor{Light: lipgloss.Color("240"), Dark: lipgloss.Color("238")})
 
 	circledStyle = baseStyle.
-			Foreground(lipgloss.AdaptiveColor{Light: "25", Dark: "75"}).
+			Foreground(compat.AdaptiveColor{Light: lipgloss.Color("25"), Dark: lipgloss.Color("75")}).
 			Background(backgroundColor)
 
 	cursorSolvedStyle = game.CursorSolvedStyle
 
-	crosshairBG = lipgloss.AdaptiveColor{Light: "254", Dark: "237"}
-	solvedBG    = lipgloss.AdaptiveColor{Light: "151", Dark: "22"}
+	crosshairBG = compat.AdaptiveColor{Light: lipgloss.Color("254"), Dark: lipgloss.Color("237")}
+	solvedBG    = compat.AdaptiveColor{Light: lipgloss.Color("151"), Dark: lipgloss.Color("22")}
 
-	borderFG = lipgloss.AdaptiveColor{Light: "250", Dark: "240"}
+	borderFG = compat.AdaptiveColor{Light: lipgloss.Color("250"), Dark: lipgloss.Color("240")}
 )
 
 const cellWidth = 3
@@ -73,7 +74,7 @@ var gridBorderColors = game.GridBorderColors{
 	BorderFG:       borderFG,
 	BackgroundBG:   backgroundColor,
 	CrosshairBG:    crosshairBG,
-	SolvedBorderFG: lipgloss.AdaptiveColor{Light: "22", Dark: "149"},
+	SolvedBorderFG: compat.AdaptiveColor{Light: lipgloss.Color("22"), Dark: lipgloss.Color("149")},
 	SolvedBG:       solvedBG,
 }
 

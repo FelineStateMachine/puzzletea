@@ -4,40 +4,41 @@ import (
 	"fmt"
 	"strings"
 
+	"charm.land/lipgloss/v2"
+	"charm.land/lipgloss/v2/compat"
 	"github.com/FelineStateMachine/puzzletea/game"
-	"github.com/charmbracelet/lipgloss"
 )
 
 var (
 	normalStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.AdaptiveColor{Light: "236", Dark: "252"}).
-			Background(lipgloss.AdaptiveColor{Light: "254", Dark: "236"})
+			Foreground(compat.AdaptiveColor{Light: lipgloss.Color("236"), Dark: lipgloss.Color("252")}).
+			Background(compat.AdaptiveColor{Light: lipgloss.Color("254"), Dark: lipgloss.Color("236")})
 
 	cursorStyle = game.CursorStyle
 
 	selectionStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.AdaptiveColor{Light: "235", Dark: "235"}).
-			Background(lipgloss.AdaptiveColor{Light: "172", Dark: "180"})
+			Foreground(compat.AdaptiveColor{Light: lipgloss.Color("235"), Dark: lipgloss.Color("235")}).
+			Background(compat.AdaptiveColor{Light: lipgloss.Color("172"), Dark: lipgloss.Color("180")})
 
 	foundStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.AdaptiveColor{Light: "22", Dark: "151"}).
-			Background(lipgloss.AdaptiveColor{Light: "194", Dark: "237"})
+			Foreground(compat.AdaptiveColor{Light: lipgloss.Color("22"), Dark: lipgloss.Color("151")}).
+			Background(compat.AdaptiveColor{Light: lipgloss.Color("194"), Dark: lipgloss.Color("237")})
 
 	wordListHeaderStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.AdaptiveColor{Light: "130", Dark: "173"}).
+				Foreground(compat.AdaptiveColor{Light: lipgloss.Color("130"), Dark: lipgloss.Color("173")}).
 				Bold(true).
 				Underline(true)
 
 	foundWordStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.AdaptiveColor{Light: "28", Dark: "115"}).
+			Foreground(compat.AdaptiveColor{Light: lipgloss.Color("28"), Dark: lipgloss.Color("115")}).
 			Strikethrough(true)
 
 	unfoundWordStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.AdaptiveColor{Light: "137", Dark: "137"})
+				Foreground(compat.AdaptiveColor{Light: lipgloss.Color("137"), Dark: lipgloss.Color("137")})
 
-	borderFG    = lipgloss.AdaptiveColor{Light: "250", Dark: "240"}
-	gridBG      = lipgloss.AdaptiveColor{Light: "254", Dark: "236"}
-	solvedBdrFG = lipgloss.AdaptiveColor{Light: "22", Dark: "149"}
+	borderFG    = compat.AdaptiveColor{Light: lipgloss.Color("250"), Dark: lipgloss.Color("240")}
+	gridBG      = compat.AdaptiveColor{Light: lipgloss.Color("254"), Dark: lipgloss.Color("236")}
+	solvedBdrFG = compat.AdaptiveColor{Light: lipgloss.Color("22"), Dark: lipgloss.Color("149")}
 
 	gridBorderStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).

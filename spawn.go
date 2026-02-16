@@ -9,7 +9,7 @@ import (
 	"github.com/FelineStateMachine/puzzletea/namegen"
 	"github.com/FelineStateMachine/puzzletea/store"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 )
 
 // spawnCmd returns a tea.Cmd that runs Spawn() off the main goroutine.

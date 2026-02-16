@@ -1,15 +1,18 @@
 package game
 
-import "github.com/charmbracelet/lipgloss"
+import (
+	"charm.land/lipgloss/v2"
+	"charm.land/lipgloss/v2/compat"
+)
 
 // GridBorderColors holds the color configuration for a grid border with
 // crosshair and solved-state highlighting.
 type GridBorderColors struct {
-	BorderFG       lipgloss.AdaptiveColor
-	BackgroundBG   lipgloss.AdaptiveColor
-	CrosshairBG    lipgloss.AdaptiveColor
-	SolvedBorderFG lipgloss.AdaptiveColor
-	SolvedBG       lipgloss.AdaptiveColor
+	BorderFG       compat.AdaptiveColor
+	BackgroundBG   compat.AdaptiveColor
+	CrosshairBG    compat.AdaptiveColor
+	SolvedBorderFG compat.AdaptiveColor
+	SolvedBG       compat.AdaptiveColor
 }
 
 // BorderChar renders a single border character with optional crosshair highlighting.

@@ -1,8 +1,9 @@
 package ui
 
 import (
-	"github.com/charmbracelet/bubbles/list"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/list"
+	"charm.land/lipgloss/v2"
+	"charm.land/lipgloss/v2/compat"
 )
 
 // InitList creates a styled list widget with the standard puzzletea theme.
@@ -23,7 +24,7 @@ func InitList(items []list.Item, title string) list.Model {
 	l.Title = title
 	l.Styles.Title = lipgloss.NewStyle().
 		Bold(true).
-		Foreground(lipgloss.AdaptiveColor{Light: "255", Dark: "255"}).
+		Foreground(compat.AdaptiveColor{Light: lipgloss.Color("255"), Dark: lipgloss.Color("255")}).
 		Background(MenuAccent).
 		Padding(0, 1)
 	l.DisableQuitKeybindings()

@@ -6,7 +6,7 @@ import (
 
 	"github.com/FelineStateMachine/puzzletea/game"
 
-	"github.com/charmbracelet/bubbles/list"
+	"charm.land/bubbles/v2/list"
 )
 
 // Normalize lowercases and replaces hyphens/underscores with spaces for

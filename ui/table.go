@@ -3,9 +3,10 @@ package ui
 import (
 	"log"
 
+	"charm.land/bubbles/v2/table"
+	"charm.land/lipgloss/v2"
+	"charm.land/lipgloss/v2/compat"
 	"github.com/FelineStateMachine/puzzletea/store"
-	"github.com/charmbracelet/bubbles/table"
-	"github.com/charmbracelet/lipgloss"
 )
 
 // FormatStatus converts a GameStatus enum to a human-readable display string.
@@ -65,7 +66,7 @@ func InitContinueTable(s *store.Store, height int) (table.Model, []store.GameRec
 		BorderBottom(true).
 		BorderForeground(MenuDim)
 	st.Selected = st.Selected.
-		Foreground(lipgloss.AdaptiveColor{Light: "255", Dark: "255"}).
+		Foreground(compat.AdaptiveColor{Light: lipgloss.Color("255"), Dark: lipgloss.Color("255")}).
 		Background(MenuAccent).
 		Bold(true)
 	st.Cell = st.Cell.
