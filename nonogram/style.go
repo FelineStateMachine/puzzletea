@@ -254,9 +254,9 @@ func tileView(val rune, isCursor, inCursorRow, inCursorCol, solved bool) string 
 
 func statusBarView(showFullHelp bool) string {
 	if showFullHelp {
-		return game.StatusBarStyle.Render("arrows/wasd: move  z: fill  x: mark  bkspc: clear  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
+		return game.StatusBarStyle.Render("arrows/wasd: move  z: fill (hold+move)  x: mark (hold+move)  bkspc: clear  LMB: fill  RMB: mark  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
 	}
-	return game.StatusBarStyle.Render("z: fill  x: mark  bkspc: clear")
+	return game.StatusBarStyle.Render("z: fill  x: mark  bkspc: clear  mouse: click/drag")
 }
 
 func intSliceEqual(a, b []int) bool {
