@@ -66,7 +66,7 @@ Right
 Sleep 400ms
 
 # Shrink one step back
-Shift+Right
+Type "L"
 Sleep 400ms
 
 # Confirm
