@@ -40,6 +40,13 @@ type Model struct {
 
 	// Screen geometry for mouse hit-testing.
 	termWidth, termHeight int
+
+	// Debug: last mouse event info.
+	lastMouseX, lastMouseY int
+	lastMouseBtn           string
+	lastMouseGridCol       int
+	lastMouseGridRow       int
+	lastMouseHit           bool
 }
 
 func New(mode NonogramMode, hints Hints) (game.Gamer, error) {
@@ -119,11 +126,12 @@ func (m Model) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 		}
 
 	case tea.MouseClickMsg:
-		if m.solved {
-			break
-		}
+		m.lastMouseX, m.lastMouseY = msg.X, msg.Y
+		m.lastMouseBtn = msg.String()
 		col, row, ok := m.screenToGrid(msg.X, msg.Y)
-		if !ok {
+		m.lastMouseGridCol, m.lastMouseGridRow = col, row
+		m.lastMouseHit = ok
+		if m.solved || !ok {
 			break
 		}
 		m.cursor.X, m.cursor.Y = col, row
@@ -183,11 +191,20 @@ func (m Model) GetDebugInfo() string {
 		status = "Solved"
 	}
 
+	ox, oy := m.gridOrigin()
+	hitStr := "miss"
+	if m.lastMouseHit {
+		hitStr = fmt.Sprintf("(%d, %d)", m.lastMouseGridCol, m.lastMouseGridRow)
+	}
+
 	s := game.DebugHeader("Nonogram", [][2]string{
 		{"Status", status},
 		{"Cursor", fmt.Sprintf("(%d, %d)", m.cursor.X, m.cursor.Y)},
 		{"Grid Size", fmt.Sprintf("%d x %d", m.width, m.height)},
-		{"Hint Widths", fmt.Sprintf("row: %d, col: %d", m.rowHints.RequiredLen()*cellWidth, m.colHints.RequiredLen())},
+		{"Term Size", fmt.Sprintf("%d x %d", m.termWidth, m.termHeight)},
+		{"Grid Origin", fmt.Sprintf("(%d, %d)", ox, oy)},
+		{"Last Mouse", fmt.Sprintf("screen=(%d, %d) btn=%s grid=%s", m.lastMouseX, m.lastMouseY, m.lastMouseBtn, hitStr)},
+		{"Paint/Drag", fmt.Sprintf("brush=%d drag=%d keyrel=%v", m.paintBrush, m.dragging, m.supportsKeyRelease)},
 	})
 
 	s += tomoDebugTable("Row Tomography", "Row", m.rowHints, m.currentHints.rows)
