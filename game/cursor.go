@@ -12,7 +12,7 @@ type Cursor struct {
 
 // Move updates the cursor position based on the key message and bounds.
 // Returns true if the cursor moved.
-func (c *Cursor) Move(keys CursorKeyMap, msg tea.KeyMsg, maxX, maxY int) bool {
+func (c *Cursor) Move(keys CursorKeyMap, msg tea.KeyPressMsg, maxX, maxY int) bool {
 	switch {
 	case key.Matches(msg, keys.Up):
 		if c.Y > 0 {

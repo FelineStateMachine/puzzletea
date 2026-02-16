@@ -8,18 +8,20 @@ import (
 )
 
 type Save struct {
-	Grid      [][]bool `json:"grid"`
-	CursorX   int      `json:"cx"`
-	CursorY   int      `json:"cy"`
-	ModeTitle string   `json:"mode_title"`
+	Grid        [][]bool `json:"grid"`
+	InitialGrid [][]bool `json:"initial_grid,omitempty"`
+	CursorX     int      `json:"cx"`
+	CursorY     int      `json:"cy"`
+	ModeTitle   string   `json:"mode_title"`
 }
 
 func (m Model) GetSave() ([]byte, error) {
 	save := Save{
-		Grid:      m.grid,
-		CursorX:   m.cursor.X,
-		CursorY:   m.cursor.Y,
-		ModeTitle: m.modeTitle,
+		Grid:        m.grid,
+		InitialGrid: m.initialGrid,
+		CursorX:     m.cursor.X,
+		CursorY:     m.cursor.Y,
+		ModeTitle:   m.modeTitle,
 	}
 	jsonData, err := json.Marshal(save)
 	if err != nil {
@@ -41,12 +43,24 @@ func ImportModel(data []byte) (*Model, error) {
 	h := len(s.Grid)
 	w := len(s.Grid[0])
 
+	// Fall back to a copy of the current grid for saves that predate
+	// the initialGrid field.
+	initial := s.InitialGrid
+	if len(initial) == 0 {
+		initial = make([][]bool, h)
+		for y := range h {
+			initial[y] = make([]bool, w)
+			copy(initial[y], s.Grid[y])
+		}
+	}
+
 	return &Model{
-		grid:      s.Grid,
-		width:     w,
-		height:    h,
-		cursor:    game.Cursor{X: s.CursorX, Y: s.CursorY},
-		modeTitle: s.ModeTitle,
-		keys:      DefaultKeyMap,
+		grid:        s.Grid,
+		initialGrid: initial,
+		width:       w,
+		height:      h,
+		cursor:      game.Cursor{X: s.CursorX, Y: s.CursorY},
+		modeTitle:   s.ModeTitle,
+		keys:        DefaultKeyMap,
 	}, nil
 }

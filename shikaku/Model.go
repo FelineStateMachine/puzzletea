@@ -56,7 +56,7 @@ func (m Model) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 	switch msg := msg.(type) {
 	case game.HelpToggleMsg:
 		m.showFullHelp = msg.Show
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		if m.puzzle.IsSolved() {
 			m.cursor.Move(m.keys.CursorKeyMap, msg, m.puzzle.Width-1, m.puzzle.Height-1)
 		} else if m.selectedClue != nil {
@@ -68,7 +68,7 @@ func (m Model) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 	return m, nil
 }
 
-func (m Model) handleNavMode(msg tea.KeyMsg) Model {
+func (m Model) handleNavMode(msg tea.KeyPressMsg) Model {
 	switch {
 	case key.Matches(msg, m.keys.Select):
 		clue := m.puzzle.FindClueAt(m.cursor.X, m.cursor.Y)
@@ -95,7 +95,7 @@ func (m Model) handleNavMode(msg tea.KeyMsg) Model {
 	return m
 }
 
-func (m Model) handleExpansionMode(msg tea.KeyMsg) Model {
+func (m Model) handleExpansionMode(msg tea.KeyPressMsg) Model {
 	clue := m.puzzle.FindClueByID(*m.selectedClue)
 	if clue == nil {
 		m.selectedClue = nil

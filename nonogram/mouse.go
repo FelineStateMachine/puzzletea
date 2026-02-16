@@ -88,6 +88,11 @@ func (m *Model) gridOrigin() (x, y int) {
 	viewWidth := lipgloss.Width(gameView)
 	viewHeight := lipgloss.Height(gameView)
 
+	// The root view caps the game view to terminal width before centering.
+	if viewWidth > m.termWidth {
+		viewWidth = m.termWidth
+	}
+
 	// Centering offset applied by the root's lipgloss.Place().
 	centerX := max((m.termWidth-viewWidth)/2, 0)
 	centerY := max((m.termHeight-viewHeight)/2, 0)

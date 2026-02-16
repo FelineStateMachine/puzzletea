@@ -41,16 +41,15 @@ func (m model) View() tea.View {
 		if m.game == nil {
 			content = ""
 		} else {
-			var debugInfo string
+			gameView := lipgloss.NewStyle().MaxWidth(m.width).Render(m.game.View())
+			centered := gameView
 			if m.debug {
-				debugInfo = ui.DebugStyle.Render(m.debuginfo)
+				debugInfo := lipgloss.NewStyle().MaxWidth(m.width).Render(
+					ui.DebugStyle.Render(m.debuginfo),
+				)
+				centered = lipgloss.JoinVertical(lipgloss.Center, gameView, debugInfo)
 			}
-			content = ui.CenterView(m.width, m.height,
-				lipgloss.JoinVertical(lipgloss.Center,
-					m.game.View(),
-					debugInfo,
-				),
-			)
+			content = ui.CenterView(m.width, m.height, centered)
 		}
 	case helpSelectView:
 		content = ui.CenterView(m.width, m.height, m.helpSelectList.View())

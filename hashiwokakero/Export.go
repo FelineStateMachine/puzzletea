@@ -6,10 +6,11 @@ import (
 )
 
 type Save struct {
-	Width   int      `json:"width"`
-	Height  int      `json:"height"`
-	Islands []Island `json:"islands"`
-	Bridges []Bridge `json:"bridges"`
+	Width     int      `json:"width"`
+	Height    int      `json:"height"`
+	Islands   []Island `json:"islands"`
+	Bridges   []Bridge `json:"bridges"`
+	ModeTitle string   `json:"mode_title,omitempty"`
 }
 
 func ImportModel(data []byte) (*Model, error) {
@@ -31,16 +32,18 @@ func ImportModel(data []byte) (*Model, error) {
 			Bridges: save.Bridges,
 		},
 		cursorIsland: cursorIsland,
+		modeTitle:    save.ModeTitle,
 		keys:         DefaultKeyMap,
 	}, nil
 }
 
 func (m Model) GetSave() ([]byte, error) {
 	save := Save{
-		Width:   m.puzzle.Width,
-		Height:  m.puzzle.Height,
-		Islands: m.puzzle.Islands,
-		Bridges: m.puzzle.Bridges,
+		Width:     m.puzzle.Width,
+		Height:    m.puzzle.Height,
+		Islands:   m.puzzle.Islands,
+		Bridges:   m.puzzle.Bridges,
+		ModeTitle: m.modeTitle,
 	}
 	jsonData, err := json.Marshal(save)
 	if err != nil {

@@ -71,13 +71,13 @@ func (m Model) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 	switch msg := msg.(type) {
 	case game.HelpToggleMsg:
 		m.showFullHelp = msg.Show
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		return m.handleKeyPress(msg)
 	}
 	return m, nil
 }
 
-func (m Model) handleKeyPress(msg tea.KeyMsg) (game.Gamer, tea.Cmd) {
+func (m Model) handleKeyPress(msg tea.KeyPressMsg) (game.Gamer, tea.Cmd) {
 	switch {
 	case key.Matches(msg, m.keys.Select):
 		m.handleSelect()

@@ -57,7 +57,7 @@ func (m Model) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 	switch msg := msg.(type) {
 	case game.HelpToggleMsg:
 		m.showFullHelp = msg.Show
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		switch {
 		case key.Matches(msg, m.keys.FillValue):
 			val, _ := strconv.Atoi(msg.String())

@@ -25,18 +25,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-		menuW, menuH := min(m.width, 64), min(m.height, 24)
-		m.mainMenuList.SetSize(menuW, menuH)
-		m.gameSelectList.SetSize(menuW, menuH)
+		menuW := min(m.width, 64)
+		m.mainMenuList.SetSize(menuW, min(m.height, ui.ListHeight(m.mainMenuList)))
+		m.gameSelectList.SetSize(menuW, min(m.height, ui.ListHeight(m.gameSelectList)))
 		if m.state == modeSelectView {
-			m.modeSelectList.SetSize(menuW, menuH)
+			m.modeSelectList.SetSize(menuW, min(m.height, ui.ListHeight(m.modeSelectList)))
 		}
 		if m.state == continueView {
 			m.continueTable.SetWidth(m.width)
 			m.continueTable.SetHeight(m.height)
 		}
 		if m.state == helpSelectView {
-			m.helpSelectList.SetSize(menuW, menuH)
+			m.helpSelectList.SetSize(menuW, min(m.height, ui.ListHeight(m.helpSelectList)))
 		}
 		if m.state == helpDetailView {
 			m.helpViewport.SetWidth(m.width)
@@ -152,7 +152,7 @@ func (m model) handleMainMenuEnter() (tea.Model, tea.Cmd) {
 		m.state = continueView
 	case "Guides":
 		m.helpSelectList = ui.InitList(GameCategories, "How to Play")
-		m.helpSelectList.SetSize(min(m.width, 64), min(m.height, 24))
+		m.helpSelectList.SetSize(min(m.width, 64), min(m.height, ui.ListHeight(m.helpSelectList)))
 		m.state = helpSelectView
 	case "Quit":
 		return m, tea.Quit
@@ -216,7 +216,7 @@ func (m model) handleGameSelectEnter() (tea.Model, tea.Cmd) {
 	}
 	m.selectedCategory = cat
 	m.modeSelectList = ui.InitList(cat.Modes, cat.Name+" - Select Mode")
-	m.modeSelectList.SetSize(m.gameSelectList.Width(), m.gameSelectList.Height())
+	m.modeSelectList.SetSize(min(m.width, 64), min(m.height, ui.ListHeight(m.modeSelectList)))
 	m.state = modeSelectView
 	return m, nil
 }

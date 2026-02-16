@@ -30,5 +30,21 @@ func InitList(items []list.Item, title string) list.Model {
 	l.DisableQuitKeybindings()
 	l.SetFilteringEnabled(false)
 	l.SetShowHelp(false)
+	l.SetShowStatusBar(false)
+	l.SetShowPagination(false)
 	return l
+}
+
+// ListHeight returns the minimum height needed to display all items in a
+// single page, avoiding pagination. The bubbles list component has a
+// circular dependency between pagination visibility and PerPage calculation
+// that causes rendering glitches when pages change, so we size the list to
+// prevent pagination entirely when the terminal is tall enough.
+func ListHeight(l list.Model) int {
+	n := len(l.Items())
+	// title bar (title line + bottom padding) = 2 lines
+	const titleHeight = 2
+	// Default delegate: height=2, spacing=1 → 3 lines per item.
+	const itemSlot = 3
+	return titleHeight + itemSlot*n
 }

@@ -42,7 +42,7 @@ func (m Model) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 	switch msg := msg.(type) {
 	case game.HelpToggleMsg:
 		m.showFullHelp = msg.Show
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		if m.selectedIsland != nil {
 			m = m.handleBridgeMode(msg)
 		} else {
@@ -52,7 +52,7 @@ func (m Model) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 	return m, nil
 }
 
-func (m Model) handleNavMode(msg tea.KeyMsg) Model {
+func (m Model) handleNavMode(msg tea.KeyPressMsg) Model {
 	switch {
 	case key.Matches(msg, m.keys.Up):
 		m = m.moveCursor(0, -1)
@@ -69,7 +69,7 @@ func (m Model) handleNavMode(msg tea.KeyMsg) Model {
 	return m
 }
 
-func (m Model) handleBridgeMode(msg tea.KeyMsg) Model {
+func (m Model) handleBridgeMode(msg tea.KeyPressMsg) Model {
 	switch {
 	case key.Matches(msg, m.keys.Up):
 		m = m.cycleBridge(0, -1)

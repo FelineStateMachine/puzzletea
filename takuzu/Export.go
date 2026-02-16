@@ -43,13 +43,23 @@ func ImportModel(data []byte) (*Model, error) {
 	g := newGrid(state(s.State))
 	provided := deserializeProvided(s.Provided, s.Size)
 
+	initial := g.clone()
+	for y := range s.Size {
+		for x := range s.Size {
+			if !provided[y][x] {
+				initial[y][x] = emptyCell
+			}
+		}
+	}
+
 	m := &Model{
-		size:      s.Size,
-		grid:      g,
-		provided:  provided,
-		cursor:    game.Cursor{X: 0, Y: 0},
-		keys:      DefaultKeyMap,
-		modeTitle: s.ModeTitle,
+		size:        s.Size,
+		grid:        g,
+		initialGrid: initial,
+		provided:    provided,
+		cursor:      game.Cursor{X: 0, Y: 0},
+		keys:        DefaultKeyMap,
+		modeTitle:   s.ModeTitle,
 	}
 	m.solved = m.checkSolved()
 	return m, nil
