@@ -11,6 +11,7 @@ Seven puzzle types, multiple difficulty modes, save/load persistence, and a plug
 | Game | Description | Modes |
 |------|-------------|-------|
 | **Nonogram** | Fill cells to match row and column hints | Easy/Medium/Hard across 5x5, 10x10, 15x15, 20x20 |
+| **Shikaku** | Divide grid into rectangles matching cell counts | 5 modes from 7x7 to 11x11 |
 | **Sudoku** | Classic 9x9 grid | Beginner, Easy, Medium, Hard, Expert, Diabolical |
 | **Word Search** | Find hidden words in a letter grid | Easy, Medium, Hard (3-8 directions) |
 | **Hashiwokakero** | Connect islands with bridges | 12 modes across 7x7 to 13x13 grids |
@@ -26,6 +27,13 @@ Fill cells to match row and column hints.
 ![Nonogram](vhs/nonogram.gif)
 
 [Game details and controls](nonogram/README.md)
+
+### Shikaku
+Divide the grid into rectangles, where each rectangle contains exactly the number of cells shown in its clue.
+
+![Shikaku](vhs/shikaku.gif)
+
+[Game details and controls](shikaku/README.md)
 
 ### Sudoku
 Classic 9x9 number placement puzzle.
