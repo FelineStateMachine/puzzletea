@@ -24,12 +24,7 @@ var (
 			Foreground(lipgloss.AdaptiveColor{Light: "25", Dark: "75"}).
 			Background(backgroundColor)
 
-	cursorStyle       = game.CursorWarmStyle
 	cursorSolvedStyle = game.CursorSolvedStyle
-
-	conflictStyle = baseStyle.
-			Foreground(lipgloss.AdaptiveColor{Light: "160", Dark: "167"}).
-			Background(lipgloss.AdaptiveColor{Light: "224", Dark: "52"})
 
 	crosshairBG = lipgloss.AdaptiveColor{Light: "254", Dark: "237"}
 	solvedBG    = lipgloss.AdaptiveColor{Light: "151", Dark: "22"}
@@ -59,14 +54,14 @@ func cellView(num rune, mark cellMark, isCursor, inCursorRow, inCursorCol, solve
 	if isCursor && solved {
 		s = cursorSolvedStyle
 	} else if isCursor {
-		s = s.Background(cursorStyle.GetBackground()).
-			Foreground(cursorStyle.GetForeground()).
+		s = s.Background(game.CursorWarmBG).
+			Foreground(game.CursorFG).
 			Bold(true)
 	} else if solved {
 		s = s.Background(solvedBG)
 	} else if conflict {
-		s = s.Background(conflictStyle.GetBackground()).
-			Foreground(conflictStyle.GetForeground())
+		s = s.Background(game.ConflictBG).
+			Foreground(game.ConflictFG)
 	} else if inCursorRow || inCursorCol {
 		s = s.Background(crosshairBG)
 	}

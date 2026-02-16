@@ -11,14 +11,14 @@ import (
 func (m model) View() string {
 	switch m.state {
 	case mainMenuView:
-		return ui.RootStyle.Render(lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, m.mainMenuList.View()))
+		return ui.CenterView(m.width, m.height, m.mainMenuList.View())
 	case gameSelectView:
-		return ui.RootStyle.Render(lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, m.gameSelectList.View()))
+		return ui.CenterView(m.width, m.height, m.gameSelectList.View())
 	case modeSelectView:
-		return ui.RootStyle.Render(lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, m.modeSelectList.View()))
+		return ui.CenterView(m.width, m.height, m.modeSelectList.View())
 	case generatingView:
 		s := m.spinner.View() + " Generating puzzle..."
-		return ui.RootStyle.Render(lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, s))
+		return ui.CenterView(m.width, m.height, s)
 	case continueView:
 		var s string
 		if len(m.continueGames) == 0 {
@@ -32,7 +32,7 @@ func (m model) View() string {
 				Render("Saved Games")
 			s = lipgloss.JoinVertical(lipgloss.Left, title, "", m.continueTable.View())
 		}
-		return ui.RootStyle.Render(lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, s))
+		return ui.CenterView(m.width, m.height, s)
 	case gameView:
 		if m.game == nil {
 			return ""
@@ -45,9 +45,9 @@ func (m model) View() string {
 			m.game.View(),
 			debugInfo,
 		)
-		return ui.RootStyle.Render(lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, s))
+		return ui.CenterView(m.width, m.height, s)
 	case helpSelectView:
-		return ui.RootStyle.Render(lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, m.helpSelectList.View()))
+		return ui.CenterView(m.width, m.height, m.helpSelectList.View())
 	case helpDetailView:
 		footer := lipgloss.NewStyle().
 			Foreground(ui.MenuTextDim).
@@ -56,7 +56,7 @@ func (m model) View() string {
 			m.helpViewport.View(),
 			footer,
 		)
-		return ui.RootStyle.Render(lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, s))
+		return ui.CenterView(m.width, m.height, s)
 	default:
 		return fmt.Sprintf("unknown state: %d", m.state)
 	}

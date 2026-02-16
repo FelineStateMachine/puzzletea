@@ -9,7 +9,8 @@ import (
 )
 
 var (
-	baseStyle = lipgloss.NewStyle()
+	baseStyle       = lipgloss.NewStyle()
+	backgroundColor = lipgloss.AdaptiveColor{Light: "254", Dark: "235"}
 
 	filledStyle = baseStyle.
 			Foreground(lipgloss.AdaptiveColor{Light: "130", Dark: "222"}).
@@ -21,7 +22,7 @@ var (
 
 	emptyStyle = baseStyle.
 			Foreground(lipgloss.AdaptiveColor{Light: "250", Dark: "240"}).
-			Background(lipgloss.AdaptiveColor{Light: "254", Dark: "235"})
+			Background(backgroundColor)
 
 	cursorStyle       = game.CursorWarmStyle
 	cursorSolvedStyle = game.CursorSolvedStyle
@@ -183,7 +184,7 @@ func gridView(g grid, c game.Cursor, solved bool) string {
 	sepStyle := baseStyle.Foreground(separatorFG)
 
 	// Determine background for horizontal separators (matches grid background).
-	gridBG := emptyStyle.GetBackground()
+	var gridBG lipgloss.TerminalColor = backgroundColor
 	if solved {
 		gridBG = solvedBG
 	}

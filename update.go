@@ -9,6 +9,7 @@ import (
 	"github.com/FelineStateMachine/puzzletea/store"
 	"github.com/FelineStateMachine/puzzletea/ui"
 
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/glamour"
@@ -22,7 +23,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleSpawnComplete(msg)
 
 	case tea.WindowSizeMsg:
-		h, v := ui.RootStyle.GetFrameSize()
+		h, v := ui.RootFrameSize()
 		w, ht := msg.Width-h, msg.Height-v
 		m.width = w
 		m.height = ht
@@ -47,8 +48,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		// During generation, only allow Escape (to cancel) and Ctrl+C (to quit).
 		if m.state == generatingView {
-			switch msg.Type {
-			case tea.KeyEscape:
+			switch {
+			case key.Matches(msg, rootKeys.Escape):
 				if m.dailyPending {
 					m.dailyPending = false
 					m.state = mainMenuView
@@ -56,33 +57,33 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.state = modeSelectView
 				}
 				return m, nil
-			case tea.KeyCtrlC:
+			case key.Matches(msg, rootKeys.Quit):
 				return m, tea.Quit
 			}
 			return m, nil
 		}
-		switch msg.Type {
-		case tea.KeyCtrlN:
+		switch {
+		case key.Matches(msg, rootKeys.MainMenu):
 			m = saveCurrentGame(m, store.StatusInProgress)
 			m.state = mainMenuView
 			m.debug = false
-		case tea.KeyEnter:
+		case key.Matches(msg, rootKeys.Enter):
 			if m.state != gameView {
 				return m.handleEnter()
 			}
-		case tea.KeyEscape:
+		case key.Matches(msg, rootKeys.Escape):
 			return m.handleEscape()
-		case tea.KeyCtrlC:
+		case key.Matches(msg, rootKeys.Quit):
 			m = saveCurrentGame(m, store.StatusAbandoned)
 			return m, tea.Quit
-		case tea.KeyCtrlE:
+		case key.Matches(msg, rootKeys.Debug):
 			m.debug = !m.debug
-		case tea.KeyCtrlH:
+		case key.Matches(msg, rootKeys.FullHelp):
 			m.showFullHelp = !m.showFullHelp
 			if m.state == gameView && m.game != nil {
 				m.game, _ = m.game.Update(game.HelpToggleMsg{Show: m.showFullHelp})
 			}
-		case tea.KeyCtrlR:
+		case key.Matches(msg, rootKeys.ResetGame):
 			if m.state == gameView && m.game != nil {
 				m.game = m.game.Reset()
 			}

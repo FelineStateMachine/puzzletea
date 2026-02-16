@@ -7,11 +7,21 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+// Shared cursor color tokens, used both in style construction and for
+// composite styling where a cursor color is applied on top of another style.
+var (
+	CursorFG     = lipgloss.AdaptiveColor{Light: "255", Dark: "235"}
+	CursorBG     = lipgloss.AdaptiveColor{Light: "130", Dark: "173"}
+	CursorWarmBG = lipgloss.AdaptiveColor{Light: "130", Dark: "214"}
+	ConflictFG   = lipgloss.AdaptiveColor{Light: "160", Dark: "167"}
+	ConflictBG   = lipgloss.AdaptiveColor{Light: "224", Dark: "52"}
+)
+
 var (
 	titleStyle = lipgloss.NewStyle().
 			Bold(true).
 			Foreground(lipgloss.AdaptiveColor{Light: "255", Dark: "255"}).
-			Background(lipgloss.AdaptiveColor{Light: "130", Dark: "173"}).
+			Background(CursorBG).
 			Padding(0, 1)
 
 	solvedBadgeStyle = lipgloss.NewStyle().
@@ -22,21 +32,21 @@ var (
 	// Used by lightsout, sudoku, wordsearch.
 	CursorStyle = lipgloss.NewStyle().
 			Bold(true).
-			Foreground(lipgloss.AdaptiveColor{Light: "255", Dark: "235"}).
-			Background(lipgloss.AdaptiveColor{Light: "130", Dark: "173"})
+			Foreground(CursorFG).
+			Background(CursorBG)
 
 	// CursorWarmStyle highlights the cursor with a warmer background.
 	// Used by hitori, takuzu, nonogram.
 	CursorWarmStyle = lipgloss.NewStyle().
 			Bold(true).
-			Foreground(lipgloss.AdaptiveColor{Light: "255", Dark: "235"}).
-			Background(lipgloss.AdaptiveColor{Light: "130", Dark: "214"})
+			Foreground(CursorFG).
+			Background(CursorWarmBG)
 
 	// CursorSolvedStyle highlights the cursor position on a solved grid.
 	// Shared across all puzzle types.
 	CursorSolvedStyle = lipgloss.NewStyle().
 				Bold(true).
-				Foreground(lipgloss.AdaptiveColor{Light: "255", Dark: "235"}).
+				Foreground(CursorFG).
 				Background(lipgloss.AdaptiveColor{Light: "28", Dark: "28"})
 
 	// StatusBarStyle is the shared style for the status/help bar below each puzzle grid.

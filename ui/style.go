@@ -16,3 +16,15 @@ var (
 			Border(lipgloss.RoundedBorder(), true).
 			BorderForeground(lipgloss.AdaptiveColor{Light: "124", Dark: "124"})
 )
+
+// RootFrameSize returns the horizontal and vertical frame size of RootStyle.
+// Isolates the lipgloss v1 GetFrameSize() call for easier v2 migration.
+func RootFrameSize() (int, int) {
+	return RootStyle.GetFrameSize()
+}
+
+// CenterView wraps content in centered placement within the root frame.
+// Isolates the lipgloss.Place() call for easier v2 migration.
+func CenterView(width, height int, content string) string {
+	return RootStyle.Render(lipgloss.Place(width, height, lipgloss.Center, lipgloss.Center, content))
+}
