@@ -1,6 +1,6 @@
 package game
 
-import "github.com/charmbracelet/bubbles/key"
+import "charm.land/bubbles/v2/key"
 
 // CursorKeyMap defines the shared cursor movement key bindings.
 type CursorKeyMap struct {

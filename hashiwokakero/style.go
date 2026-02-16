@@ -4,31 +4,30 @@ import (
 	"fmt"
 	"strings"
 
+	"charm.land/lipgloss/v2"
+	"charm.land/lipgloss/v2/compat"
 	"github.com/FelineStateMachine/puzzletea/game"
-	"github.com/charmbracelet/lipgloss"
 )
 
 const cellWidth = 3
 
 // Color palette — warm earth-tone theme (ANSI 256, adaptive for light/dark terminals)
 var (
-	colorIslandFg      = lipgloss.AdaptiveColor{Dark: "236", Light: "187"}
-	colorIslandBg      = lipgloss.AdaptiveColor{Dark: "187", Light: "58"}
-	colorSatisfiedFg   = lipgloss.AdaptiveColor{Dark: "22", Light: "149"}
-	colorSatisfiedBg   = lipgloss.AdaptiveColor{Dark: "194", Light: "236"}
-	colorOverFg        = lipgloss.AdaptiveColor{Dark: "160", Light: "167"}
-	colorOverBg        = lipgloss.AdaptiveColor{Dark: "224", Light: "52"}
-	colorCursorFg      = lipgloss.AdaptiveColor{Dark: "255", Light: "235"}
-	colorCursorBg      = lipgloss.AdaptiveColor{Dark: "130", Light: "173"}
-	colorSelectedFg    = lipgloss.AdaptiveColor{Dark: "255", Light: "235"}
-	colorSelectedBg    = lipgloss.AdaptiveColor{Dark: "172", Light: "179"}
-	colorAdjacentBg    = lipgloss.AdaptiveColor{Dark: "223", Light: "58"}
-	colorBridge        = lipgloss.AdaptiveColor{Dark: "137", Light: "137"}
-	colorBridgeSolved  = lipgloss.AdaptiveColor{Dark: "22", Light: "149"}
-	colorEmptyDot      = lipgloss.AdaptiveColor{Dark: "252", Light: "239"}
-	colorEmptySolved   = lipgloss.AdaptiveColor{Dark: "151", Light: "107"}
-	colorInfoSatisfied = lipgloss.AdaptiveColor{Dark: "22", Light: "149"}
-	colorInfoText      = lipgloss.AdaptiveColor{Dark: "137", Light: "137"}
+	colorIslandFg      = compat.AdaptiveColor{Dark: lipgloss.Color("236"), Light: lipgloss.Color("187")}
+	colorIslandBg      = compat.AdaptiveColor{Dark: lipgloss.Color("187"), Light: lipgloss.Color("58")}
+	colorSatisfiedFg   = compat.AdaptiveColor{Dark: lipgloss.Color("22"), Light: lipgloss.Color("149")}
+	colorSatisfiedBg   = compat.AdaptiveColor{Dark: lipgloss.Color("194"), Light: lipgloss.Color("236")}
+	colorOverFg        = compat.AdaptiveColor{Dark: lipgloss.Color("160"), Light: lipgloss.Color("167")}
+	colorOverBg        = compat.AdaptiveColor{Dark: lipgloss.Color("224"), Light: lipgloss.Color("52")}
+	colorSelectedFg    = compat.AdaptiveColor{Dark: lipgloss.Color("255"), Light: lipgloss.Color("235")}
+	colorSelectedBg    = compat.AdaptiveColor{Dark: lipgloss.Color("172"), Light: lipgloss.Color("179")}
+	colorAdjacentBg    = compat.AdaptiveColor{Dark: lipgloss.Color("223"), Light: lipgloss.Color("58")}
+	colorBridge        = compat.AdaptiveColor{Dark: lipgloss.Color("137"), Light: lipgloss.Color("137")}
+	colorBridgeSolved  = compat.AdaptiveColor{Dark: lipgloss.Color("22"), Light: lipgloss.Color("149")}
+	colorEmptyDot      = compat.AdaptiveColor{Dark: lipgloss.Color("252"), Light: lipgloss.Color("239")}
+	colorEmptySolved   = compat.AdaptiveColor{Dark: lipgloss.Color("151"), Light: lipgloss.Color("107")}
+	colorInfoSatisfied = compat.AdaptiveColor{Dark: lipgloss.Color("22"), Light: lipgloss.Color("149")}
+	colorInfoText      = compat.AdaptiveColor{Dark: lipgloss.Color("137"), Light: lipgloss.Color("137")}
 )
 
 var (
@@ -49,11 +48,7 @@ var (
 			Background(colorOverBg).
 			Bold(true)
 
-	islandCursorStyle = baseStyle.
-				Foreground(colorCursorFg).
-				Background(colorCursorBg).
-				Bold(true)
-
+	islandCursorStyle       = game.CursorStyle
 	islandCursorSolvedStyle = game.CursorSolvedStyle
 
 	islandSelectedStyle = baseStyle.
@@ -80,10 +75,6 @@ var (
 
 	emptyStyle = baseStyle.
 			Foreground(colorEmptyDot)
-
-	statusBarStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.AdaptiveColor{Light: "244", Dark: "244"}).
-			MarginTop(1)
 
 	gridBorderStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
@@ -285,14 +276,14 @@ func bridgeVView(count int, solved bool) string {
 func statusBarView(selected, showFullHelp bool) string {
 	if selected {
 		if showFullHelp {
-			return statusBarStyle.Render("arrows/wasd: build bridge  enter/space/esc: cancel  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
+			return game.StatusBarStyle.Render("arrows/wasd: build bridge  enter/space/esc: cancel  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
 		}
-		return statusBarStyle.Render("arrows/wasd: build bridge  enter/space/esc: cancel")
+		return game.StatusBarStyle.Render("arrows/wasd: build bridge  enter/space/esc: cancel")
 	}
 	if showFullHelp {
-		return statusBarStyle.Render("arrows/wasd: move  enter/space: select island  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
+		return game.StatusBarStyle.Render("arrows/wasd: move  enter/space: select island  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
 	}
-	return statusBarStyle.Render("enter/space: select island")
+	return game.StatusBarStyle.Render("enter/space: select island")
 }
 
 func infoView(p *Puzzle) string {

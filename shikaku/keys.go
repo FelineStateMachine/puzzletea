@@ -1,8 +1,8 @@
 package shikaku
 
 import (
+	"charm.land/bubbles/v2/key"
 	"github.com/FelineStateMachine/puzzletea/game"
-	"github.com/charmbracelet/bubbles/key"
 )
 
 // KeyMap defines the keybindings for Shikaku.
@@ -37,7 +37,7 @@ var DefaultKeyMap = KeyMap{
 		key.WithHelp("shift+→", "Shrink right"),
 	),
 	Select: key.NewBinding(
-		key.WithKeys("enter", " "),
+		key.WithKeys("enter", "space"),
 		key.WithHelp("enter/space", "Select/Confirm"),
 	),
 	Cancel: key.NewBinding(

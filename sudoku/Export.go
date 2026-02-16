@@ -13,8 +13,9 @@ type exportCell struct {
 }
 
 type Save struct {
-	Grid     string       `json:"grid"`
-	Provided []exportCell `json:"provided"`
+	Grid      string       `json:"grid"`
+	Provided  []exportCell `json:"provided"`
+	ModeTitle string       `json:"mode_title,omitempty"`
 }
 
 func gridToString(g grid) string {
@@ -58,6 +59,8 @@ func ImportModel(data []byte) (*Model, error) {
 		grid:         g,
 		provided:     provided,
 		providedGrid: buildProvidedGrid(provided),
+		conflicts:    computeConflicts(g),
+		modeTitle:    save.ModeTitle,
 		keys:         DefaultKeyMap,
 	}, nil
 }
@@ -68,8 +71,9 @@ func (m Model) GetSave() ([]byte, error) {
 		provided[i] = exportCell{X: c.x, Y: c.y, V: c.v}
 	}
 	save := Save{
-		Grid:     gridToString(m.grid),
-		Provided: provided,
+		Grid:      gridToString(m.grid),
+		Provided:  provided,
+		ModeTitle: m.modeTitle,
 	}
 	jsonData, err := json.Marshal(save)
 	if err != nil {

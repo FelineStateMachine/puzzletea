@@ -9,8 +9,9 @@ import (
 	"github.com/FelineStateMachine/puzzletea/store"
 	"github.com/FelineStateMachine/puzzletea/ui"
 
-	"github.com/charmbracelet/bubbles/viewport"
-	tea "github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/viewport"
+	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/glamour"
 )
 
@@ -22,33 +23,31 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleSpawnComplete(msg)
 
 	case tea.WindowSizeMsg:
-		h, v := ui.RootStyle.GetFrameSize()
-		w, ht := msg.Width-h, msg.Height-v
-		m.width = w
-		m.height = ht
-		menuW, menuH := min(w, 64), min(ht, 24)
-		m.mainMenuList.SetSize(menuW, menuH)
-		m.gameSelectList.SetSize(menuW, menuH)
+		m.width = msg.Width
+		m.height = msg.Height
+		menuW := min(m.width, 64)
+		m.mainMenuList.SetSize(menuW, min(m.height, ui.ListHeight(m.mainMenuList)))
+		m.gameSelectList.SetSize(menuW, min(m.height, ui.ListHeight(m.gameSelectList)))
 		if m.state == modeSelectView {
-			m.modeSelectList.SetSize(menuW, menuH)
+			m.modeSelectList.SetSize(menuW, min(m.height, ui.ListHeight(m.modeSelectList)))
 		}
 		if m.state == continueView {
-			m.continueTable.SetWidth(w)
-			m.continueTable.SetHeight(ht)
+			m.continueTable.SetWidth(m.width)
+			m.continueTable.SetHeight(m.height)
 		}
 		if m.state == helpSelectView {
-			m.helpSelectList.SetSize(menuW, menuH)
+			m.helpSelectList.SetSize(menuW, min(m.height, ui.ListHeight(m.helpSelectList)))
 		}
 		if m.state == helpDetailView {
-			m.helpViewport.Width = w
-			m.helpViewport.Height = ht - 2
+			m.helpViewport.SetWidth(m.width)
+			m.helpViewport.SetHeight(m.height - 2)
 		}
 
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		// During generation, only allow Escape (to cancel) and Ctrl+C (to quit).
 		if m.state == generatingView {
-			switch msg.Type {
-			case tea.KeyEscape:
+			switch {
+			case key.Matches(msg, rootKeys.Escape):
 				if m.dailyPending {
 					m.dailyPending = false
 					m.state = mainMenuView
@@ -56,33 +55,33 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.state = modeSelectView
 				}
 				return m, nil
-			case tea.KeyCtrlC:
+			case key.Matches(msg, rootKeys.Quit):
 				return m, tea.Quit
 			}
 			return m, nil
 		}
-		switch msg.Type {
-		case tea.KeyCtrlN:
+		switch {
+		case key.Matches(msg, rootKeys.MainMenu):
 			m = saveCurrentGame(m, store.StatusInProgress)
 			m.state = mainMenuView
 			m.debug = false
-		case tea.KeyEnter:
+		case key.Matches(msg, rootKeys.Enter):
 			if m.state != gameView {
 				return m.handleEnter()
 			}
-		case tea.KeyEscape:
+		case key.Matches(msg, rootKeys.Escape):
 			return m.handleEscape()
-		case tea.KeyCtrlC:
+		case key.Matches(msg, rootKeys.Quit):
 			m = saveCurrentGame(m, store.StatusAbandoned)
 			return m, tea.Quit
-		case tea.KeyCtrlE:
+		case key.Matches(msg, rootKeys.Debug):
 			m.debug = !m.debug
-		case tea.KeyCtrlH:
+		case key.Matches(msg, rootKeys.FullHelp):
 			m.showFullHelp = !m.showFullHelp
 			if m.state == gameView && m.game != nil {
 				m.game, _ = m.game.Update(game.HelpToggleMsg{Show: m.showFullHelp})
 			}
-		case tea.KeyCtrlR:
+		case key.Matches(msg, rootKeys.ResetGame):
 			if m.state == gameView && m.game != nil {
 				m.game = m.game.Reset()
 			}
@@ -153,7 +152,7 @@ func (m model) handleMainMenuEnter() (tea.Model, tea.Cmd) {
 		m.state = continueView
 	case "Guides":
 		m.helpSelectList = ui.InitList(GameCategories, "How to Play")
-		m.helpSelectList.SetSize(min(m.width, 64), min(m.height, 24))
+		m.helpSelectList.SetSize(min(m.width, 64), min(m.height, ui.ListHeight(m.helpSelectList)))
 		m.state = helpSelectView
 	case "Quit":
 		return m, tea.Quit
@@ -187,6 +186,7 @@ func (m model) handleDailyPuzzle() (tea.Model, tea.Cmd) {
 		}
 		m.game = g.SetTitle(rec.Name)
 		m.game, _ = m.game.Update(game.HelpToggleMsg{Show: m.showFullHelp})
+		m.game, _ = m.game.Update(tea.WindowSizeMsg{Width: m.width, Height: m.height})
 		m.activeGameID = rec.ID
 		m.state = gameView
 		m.completionSaved = rec.Status == store.StatusCompleted
@@ -216,7 +216,7 @@ func (m model) handleGameSelectEnter() (tea.Model, tea.Cmd) {
 	}
 	m.selectedCategory = cat
 	m.modeSelectList = ui.InitList(cat.Modes, cat.Name+" - Select Mode")
-	m.modeSelectList.SetSize(m.gameSelectList.Width(), m.gameSelectList.Height())
+	m.modeSelectList.SetSize(min(m.width, 64), min(m.height, ui.ListHeight(m.modeSelectList)))
 	m.state = modeSelectView
 	return m, nil
 }
@@ -249,6 +249,7 @@ func (m model) handleContinueEnter() (tea.Model, tea.Cmd) {
 	}
 	m.game = g.SetTitle(rec.Name)
 	m.game, _ = m.game.Update(game.HelpToggleMsg{Show: m.showFullHelp})
+	m.game, _ = m.game.Update(tea.WindowSizeMsg{Width: m.width, Height: m.height})
 	m.activeGameID = rec.ID
 	m.state = gameView
 	m.completionSaved = rec.Status == store.StatusCompleted
@@ -280,7 +281,7 @@ func (m model) handleHelpSelectEnter() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	m.helpViewport = viewport.New(m.width, m.height-2)
+	m.helpViewport = viewport.New(viewport.WithWidth(m.width), viewport.WithHeight(m.height-2))
 	m.helpViewport.SetContent(rendered)
 	m.state = helpDetailView
 	return m, nil

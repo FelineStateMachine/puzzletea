@@ -4,9 +4,9 @@ package game
 import (
 	"math/rand/v2"
 
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/list"
-	tea "github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/list"
+	tea "charm.land/bubbletea/v2"
 )
 
 // Gamer is the interface that an active game instance must implement.
@@ -83,10 +83,6 @@ type SpawnCompleteMsg struct {
 // HelpToggleMsg is sent from the root model to games when the user toggles
 // the full help display with Ctrl+H.
 type HelpToggleMsg struct{ Show bool }
-
-// ResetMsg is sent from the root model to games when the user wants to reset
-// the puzzle to its initial state (Ctrl+R).
-type ResetMsg struct{}
 
 // Registry maps game type names to their import functions.
 var Registry = map[string]func([]byte) (Gamer, error){}

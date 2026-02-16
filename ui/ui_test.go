@@ -5,7 +5,7 @@ import (
 
 	"github.com/FelineStateMachine/puzzletea/store"
 
-	"github.com/charmbracelet/bubbles/list"
+	"charm.land/bubbles/v2/list"
 )
 
 // --- MenuItem (P0) ---

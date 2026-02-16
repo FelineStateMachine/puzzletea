@@ -1,8 +1,8 @@
 package wordsearch
 
 import (
+	"charm.land/bubbles/v2/key"
 	"github.com/FelineStateMachine/puzzletea/game"
-	"github.com/charmbracelet/bubbles/key"
 )
 
 type KeyMap struct {
@@ -14,7 +14,7 @@ type KeyMap struct {
 var DefaultKeyMap = KeyMap{
 	CursorKeyMap: game.DefaultCursorKeyMap,
 	Select: key.NewBinding(
-		key.WithKeys("enter", " "),
+		key.WithKeys("enter", "space"),
 		key.WithHelp("enter/space", "Select"),
 	),
 	Cancel: key.NewBinding(

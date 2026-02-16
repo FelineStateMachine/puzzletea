@@ -5,10 +5,10 @@ import (
 	"errors"
 	"fmt"
 
+	"charm.land/bubbles/v2/key"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/FelineStateMachine/puzzletea/game"
-	"github.com/charmbracelet/bubbles/key"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 )
 
 const (
@@ -30,6 +30,27 @@ type Model struct {
 	showFullHelp  bool
 	currentHints  Hints // cached tomography of the current grid
 	solved        bool  // cached solved state
+
+	// Hold-to-paint support (requires keyboard enhancements).
+	paintBrush         rune // 0 = inactive, filledTile or markedTile when painting
+	supportsKeyRelease bool // set from tea.KeyboardEnhancementsMsg
+
+	// Mouse drag support.
+	dragging rune // 0 = not dragging, filledTile or markedTile while mouse held
+
+	// Screen geometry for mouse hit-testing.
+	termWidth, termHeight int
+
+	// Cached grid origin for mouse hit-testing (recomputed on resize/solve).
+	originX, originY int
+	originValid      bool
+
+	// Debug: last mouse event info.
+	lastMouseX, lastMouseY int
+	lastMouseBtn           string
+	lastMouseGridCol       int
+	lastMouseGridRow       int
+	lastMouseHit           bool
 }
 
 func New(mode NonogramMode, hints Hints) (game.Gamer, error) {
@@ -66,17 +87,90 @@ func (m Model) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 	switch msg := msg.(type) {
 	case game.HelpToggleMsg:
 		m.showFullHelp = msg.Show
-	case tea.KeyMsg:
+
+	case tea.KeyboardEnhancementsMsg:
+		m.supportsKeyRelease = msg.SupportsEventTypes()
+
+	case tea.WindowSizeMsg:
+		m.termWidth = msg.Width
+		m.termHeight = msg.Height
+		m.originValid = false
+
+	case tea.KeyPressMsg:
 		switch {
 		case key.Matches(msg, m.keys.FillTile):
-			m.updateTile(filledTile)
+			if !m.solved {
+				m.updateTile(filledTile)
+				if m.supportsKeyRelease {
+					m.paintBrush = filledTile
+				}
+			}
 		case key.Matches(msg, m.keys.MarkTile):
-			m.updateTile(markedTile)
+			if !m.solved {
+				m.updateTile(markedTile)
+				if m.supportsKeyRelease {
+					m.paintBrush = markedTile
+				}
+			}
 		case key.Matches(msg, m.keys.ClearTile):
-			m.updateTile(emptyTile)
+			if !m.solved {
+				m.updateTile(emptyTile)
+				m.paintBrush = 0
+			}
+		default:
+			moved := m.cursor.Move(m.keys.CursorKeyMap, msg, m.width-1, m.height-1)
+			if moved && m.paintBrush != 0 && !m.solved {
+				m.updateTile(m.paintBrush)
+			}
 		}
-		m.cursor.Move(m.keys.CursorKeyMap, msg, m.width-1, m.height-1)
+
+	case tea.KeyReleaseMsg:
+		// Clear paint brush on key release. Cannot use key.Matches here
+		// because updateKeyBindings may have disabled the binding after the
+		// key was pressed (e.g. filling a cell disables FillTile).
+		switch msg.String() {
+		case "z", "x":
+			m.paintBrush = 0
+		}
+
+	case tea.MouseClickMsg:
+		m.lastMouseX, m.lastMouseY = msg.X, msg.Y
+		m.lastMouseBtn = msg.String()
+		col, row, ok := m.screenToGrid(msg.X, msg.Y)
+		m.lastMouseGridCol, m.lastMouseGridRow = col, row
+		m.lastMouseHit = ok
+		if m.solved || !ok {
+			break
+		}
+		m.cursor.X, m.cursor.Y = col, row
+		switch msg.Button {
+		case tea.MouseLeft:
+			m.toggleTile(filledTile)
+			m.dragging = filledTile
+		case tea.MouseRight:
+			m.toggleTile(markedTile)
+			m.dragging = markedTile
+		}
+
+	case tea.MouseMotionMsg:
+		if m.solved || m.dragging == 0 {
+			break
+		}
+		col, row, ok := m.screenToGrid(msg.X, msg.Y)
+		if !ok {
+			break
+		}
+		if col == m.cursor.X && row == m.cursor.Y {
+			break
+		}
+		m.cursor.X, m.cursor.Y = col, row
+		// While dragging, always set (don't toggle) to maintain consistency.
+		m.updateTile(m.dragging)
+
+	case tea.MouseReleaseMsg:
+		m.dragging = 0
 	}
+
 	m.updateKeyBindings()
 	return m, nil
 }
@@ -105,11 +199,20 @@ func (m Model) GetDebugInfo() string {
 		status = "Solved"
 	}
 
+	ox, oy := m.gridOrigin()
+	hitStr := "miss"
+	if m.lastMouseHit {
+		hitStr = fmt.Sprintf("(%d, %d)", m.lastMouseGridCol, m.lastMouseGridRow)
+	}
+
 	s := game.DebugHeader("Nonogram", [][2]string{
 		{"Status", status},
 		{"Cursor", fmt.Sprintf("(%d, %d)", m.cursor.X, m.cursor.Y)},
 		{"Grid Size", fmt.Sprintf("%d x %d", m.width, m.height)},
-		{"Hint Widths", fmt.Sprintf("row: %d, col: %d", m.rowHints.RequiredLen()*cellWidth, m.colHints.RequiredLen())},
+		{"Term Size", fmt.Sprintf("%d x %d", m.termWidth, m.termHeight)},
+		{"Grid Origin", fmt.Sprintf("(%d, %d)", ox, oy)},
+		{"Last Mouse", fmt.Sprintf("screen=(%d, %d) btn=%s grid=%s", m.lastMouseX, m.lastMouseY, m.lastMouseBtn, hitStr)},
+		{"Paint/Drag", fmt.Sprintf("brush=%d drag=%d keyrel=%v", m.paintBrush, m.dragging, m.supportsKeyRelease)},
 	})
 
 	s += tomoDebugTable("Row Tomography", "Row", m.rowHints, m.currentHints.rows)
@@ -166,11 +269,29 @@ func (m Model) Reset() game.Gamer {
 	m.currentHints = curr
 	m.solved = false
 	m.cursor = game.Cursor{}
+	m.paintBrush = 0
+	m.dragging = 0
+	m.originValid = false
 	return m
 }
 
 func (m *Model) updateTile(r rune) {
 	m.grid[m.cursor.Y][m.cursor.X] = r
 	m.currentHints = generateTomography(m.grid)
+	wasSolved := m.solved
 	m.solved = m.currentHints.rows.equal(m.rowHints) && m.currentHints.cols.equal(m.colHints)
+	if m.solved != wasSolved {
+		m.originValid = false
+	}
+}
+
+// toggleTile toggles a cell between the given target state and empty.
+// If the cell already has the target value, it becomes empty; otherwise
+// it becomes the target.
+func (m *Model) toggleTile(target rune) {
+	if m.grid[m.cursor.Y][m.cursor.X] == target {
+		m.updateTile(emptyTile)
+	} else {
+		m.updateTile(target)
+	}
 }

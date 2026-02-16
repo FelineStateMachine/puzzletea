@@ -1,8 +1,8 @@
 package takuzu
 
 import (
+	"charm.land/bubbles/v2/key"
 	"github.com/FelineStateMachine/puzzletea/game"
-	"github.com/charmbracelet/bubbles/key"
 )
 
 // KeyMap defines the keybindings for Takuzu.

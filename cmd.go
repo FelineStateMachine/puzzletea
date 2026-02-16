@@ -11,7 +11,7 @@ import (
 	"github.com/FelineStateMachine/puzzletea/resolve"
 	"github.com/FelineStateMachine/puzzletea/store"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"github.com/spf13/cobra"
 )
 

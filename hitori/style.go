@@ -5,44 +5,32 @@ import (
 
 	"github.com/FelineStateMachine/puzzletea/game"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
+	"charm.land/lipgloss/v2/compat"
 )
 
 var (
 	baseStyle       = lipgloss.NewStyle()
-	backgroundColor = lipgloss.AdaptiveColor{Light: "254", Dark: "235"}
+	backgroundColor = compat.AdaptiveColor{Light: lipgloss.Color("254"), Dark: lipgloss.Color("235")}
 
 	numberStyle = baseStyle.
-			Foreground(lipgloss.AdaptiveColor{Light: "236", Dark: "250"}).
+			Foreground(compat.AdaptiveColor{Light: lipgloss.Color("236"), Dark: lipgloss.Color("250")}).
 			Background(backgroundColor)
 
 	shadedStyle = baseStyle.
-			Foreground(lipgloss.AdaptiveColor{Light: "254", Dark: "238"}).
-			Background(lipgloss.AdaptiveColor{Light: "240", Dark: "238"})
+			Foreground(compat.AdaptiveColor{Light: lipgloss.Color("254"), Dark: lipgloss.Color("238")}).
+			Background(compat.AdaptiveColor{Light: lipgloss.Color("240"), Dark: lipgloss.Color("238")})
 
 	circledStyle = baseStyle.
-			Foreground(lipgloss.AdaptiveColor{Light: "25", Dark: "75"}).
+			Foreground(compat.AdaptiveColor{Light: lipgloss.Color("25"), Dark: lipgloss.Color("75")}).
 			Background(backgroundColor)
-
-	cursorStyle = baseStyle.
-			Bold(true).
-			Foreground(lipgloss.AdaptiveColor{Light: "255", Dark: "235"}).
-			Background(lipgloss.AdaptiveColor{Light: "130", Dark: "214"})
 
 	cursorSolvedStyle = game.CursorSolvedStyle
 
-	conflictStyle = baseStyle.
-			Foreground(lipgloss.AdaptiveColor{Light: "160", Dark: "167"}).
-			Background(lipgloss.AdaptiveColor{Light: "224", Dark: "52"})
+	crosshairBG = compat.AdaptiveColor{Light: lipgloss.Color("254"), Dark: lipgloss.Color("237")}
+	solvedBG    = compat.AdaptiveColor{Light: lipgloss.Color("151"), Dark: lipgloss.Color("22")}
 
-	crosshairBG = lipgloss.AdaptiveColor{Light: "254", Dark: "237"}
-	solvedBG    = lipgloss.AdaptiveColor{Light: "151", Dark: "22"}
-
-	borderFG = lipgloss.AdaptiveColor{Light: "250", Dark: "240"}
-
-	statusBarStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.AdaptiveColor{Light: "244", Dark: "244"}).
-			MarginTop(1)
+	borderFG = compat.AdaptiveColor{Light: lipgloss.Color("250"), Dark: lipgloss.Color("240")}
 )
 
 const cellWidth = 3
@@ -67,19 +55,27 @@ func cellView(num rune, mark cellMark, isCursor, inCursorRow, inCursorCol, solve
 	if isCursor && solved {
 		s = cursorSolvedStyle
 	} else if isCursor {
-		s = s.Background(cursorStyle.GetBackground()).
-			Foreground(cursorStyle.GetForeground()).
+		s = s.Background(game.CursorWarmBG).
+			Foreground(game.CursorFG).
 			Bold(true)
 	} else if solved {
 		s = s.Background(solvedBG)
 	} else if conflict {
-		s = s.Background(conflictStyle.GetBackground()).
-			Foreground(conflictStyle.GetForeground())
+		s = s.Background(game.ConflictBG).
+			Foreground(game.ConflictFG)
 	} else if inCursorRow || inCursorCol {
 		s = s.Background(crosshairBG)
 	}
 
 	return s.Width(cellWidth).AlignHorizontal(lipgloss.Center).Render(display)
+}
+
+var gridBorderColors = game.GridBorderColors{
+	BorderFG:       borderFG,
+	BackgroundBG:   backgroundColor,
+	CrosshairBG:    crosshairBG,
+	SolvedBorderFG: compat.AdaptiveColor{Light: lipgloss.Color("22"), Dark: lipgloss.Color("149")},
+	SolvedBG:       solvedBG,
 }
 
 func gridView(numbers grid, marks [][]cellMark, c game.Cursor, solved bool, conflicts [][]bool) string {
@@ -93,7 +89,7 @@ func gridView(numbers grid, marks [][]cellMark, c game.Cursor, solved bool, conf
 		var rowCells []string
 		inCursorRow := y == c.Y
 
-		rowCells = append(rowCells, borderChar("\u2502", solved, !solved && inCursorRow))
+		rowCells = append(rowCells, game.BorderChar("│", gridBorderColors, solved, !solved && inCursorRow))
 
 		for x, num := range row {
 			isCursor := x == c.X && y == c.Y
@@ -102,47 +98,19 @@ func gridView(numbers grid, marks [][]cellMark, c game.Cursor, solved bool, conf
 			rowCells = append(rowCells, cell)
 		}
 
-		rowCells = append(rowCells, borderChar("\u2502", solved, !solved && inCursorRow))
+		rowCells = append(rowCells, game.BorderChar("│", gridBorderColors, solved, !solved && inCursorRow))
 		rows = append(rows, lipgloss.JoinHorizontal(lipgloss.Top, rowCells...))
 	}
 
-	topRow := hBorderRow(w, c.X, "\u256D", "\u256E", solved)
-	botRow := hBorderRow(w, c.X, "\u2570", "\u256F", solved)
+	topRow := game.HBorderRow(w, c.X, cellWidth, "╭", "╮", gridBorderColors, solved)
+	botRow := game.HBorderRow(w, c.X, cellWidth, "╰", "╯", gridBorderColors, solved)
 
 	return lipgloss.JoinVertical(lipgloss.Left, topRow, lipgloss.JoinVertical(lipgloss.Left, rows...), botRow)
 }
 
-func borderChar(ch string, solved, highlight bool) string {
-	s := baseStyle.Foreground(borderFG).Background(backgroundColor)
-	if solved {
-		s = baseStyle.Foreground(lipgloss.AdaptiveColor{Light: "22", Dark: "149"}).Background(solvedBG)
-	} else if highlight {
-		s = s.Background(crosshairBG)
-	}
-	return s.Render(ch)
-}
-
-func hBorderRow(w, cursorX int, left, right string, solved bool) string {
-	var parts []string
-	parts = append(parts, borderChar(left, solved, false))
-	segment := "\u2500\u2500\u2500" // ───
-	for x := range w {
-		highlight := !solved && x == cursorX
-		s := baseStyle.Foreground(borderFG).Background(backgroundColor)
-		if solved {
-			s = baseStyle.Foreground(lipgloss.AdaptiveColor{Light: "22", Dark: "149"}).Background(solvedBG)
-		} else if highlight {
-			s = s.Background(crosshairBG)
-		}
-		parts = append(parts, s.Render(segment))
-	}
-	parts = append(parts, borderChar(right, solved, false))
-	return lipgloss.JoinHorizontal(lipgloss.Top, parts...)
-}
-
 func statusBarView(showFullHelp bool) string {
 	if showFullHelp {
-		return statusBarStyle.Render("arrows/wasd: move  x: shade  z: circle  bkspc: clear  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
+		return game.StatusBarStyle.Render("arrows/wasd: move  x: shade  z: circle  bkspc: clear  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
 	}
-	return statusBarStyle.Render("x: shade  z: circle  bkspc: clear")
+	return game.StatusBarStyle.Render("x: shade  z: circle  bkspc: clear")
 }

@@ -4,26 +4,56 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
+	"charm.land/lipgloss/v2/compat"
+)
+
+// Shared cursor color tokens, used both in style construction and for
+// composite styling where a cursor color is applied on top of another style.
+var (
+	CursorFG     = compat.AdaptiveColor{Light: lipgloss.Color("255"), Dark: lipgloss.Color("235")}
+	CursorBG     = compat.AdaptiveColor{Light: lipgloss.Color("130"), Dark: lipgloss.Color("173")}
+	CursorWarmBG = compat.AdaptiveColor{Light: lipgloss.Color("130"), Dark: lipgloss.Color("214")}
+	ConflictFG   = compat.AdaptiveColor{Light: lipgloss.Color("160"), Dark: lipgloss.Color("167")}
+	ConflictBG   = compat.AdaptiveColor{Light: lipgloss.Color("224"), Dark: lipgloss.Color("52")}
 )
 
 var (
 	titleStyle = lipgloss.NewStyle().
 			Bold(true).
-			Foreground(lipgloss.AdaptiveColor{Light: "255", Dark: "255"}).
-			Background(lipgloss.AdaptiveColor{Light: "130", Dark: "173"}).
+			Foreground(compat.AdaptiveColor{Light: lipgloss.Color("255"), Dark: lipgloss.Color("255")}).
+			Background(CursorBG).
 			Padding(0, 1)
 
 	solvedBadgeStyle = lipgloss.NewStyle().
 				Bold(true).
-				Foreground(lipgloss.AdaptiveColor{Light: "28", Dark: "78"})
+				Foreground(compat.AdaptiveColor{Light: lipgloss.Color("28"), Dark: lipgloss.Color("78")})
+
+	// CursorStyle highlights the cursor position with an accent background.
+	// Used by lightsout, sudoku, wordsearch.
+	CursorStyle = lipgloss.NewStyle().
+			Bold(true).
+			Foreground(CursorFG).
+			Background(CursorBG)
+
+	// CursorWarmStyle highlights the cursor with a warmer background.
+	// Used by hitori, takuzu, nonogram.
+	CursorWarmStyle = lipgloss.NewStyle().
+			Bold(true).
+			Foreground(CursorFG).
+			Background(CursorWarmBG)
 
 	// CursorSolvedStyle highlights the cursor position on a solved grid.
 	// Shared across all puzzle types.
 	CursorSolvedStyle = lipgloss.NewStyle().
 				Bold(true).
-				Foreground(lipgloss.AdaptiveColor{Light: "255", Dark: "235"}).
-				Background(lipgloss.AdaptiveColor{Light: "28", Dark: "28"})
+				Foreground(CursorFG).
+				Background(compat.AdaptiveColor{Light: lipgloss.Color("28"), Dark: lipgloss.Color("28")})
+
+	// StatusBarStyle is the shared style for the status/help bar below each puzzle grid.
+	StatusBarStyle = lipgloss.NewStyle().
+			Foreground(compat.AdaptiveColor{Light: lipgloss.Color("244"), Dark: lipgloss.Color("244")}).
+			MarginTop(1)
 )
 
 // TitleBarView renders a title bar with the game name, mode name, and optional solved badge.

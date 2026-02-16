@@ -9,7 +9,7 @@ import (
 	"github.com/FelineStateMachine/puzzletea/namegen"
 	"github.com/FelineStateMachine/puzzletea/store"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 )
 
 // spawnCmd returns a tea.Cmd that runs Spawn() off the main goroutine.
@@ -63,6 +63,7 @@ func (m model) handleSpawnComplete(msg game.SpawnCompleteMsg) (tea.Model, tea.Cm
 		m.game = msg.Game.SetTitle(name)
 	}
 	m.game, _ = m.game.Update(game.HelpToggleMsg{Show: m.showFullHelp})
+	m.game, _ = m.game.Update(tea.WindowSizeMsg{Width: m.width, Height: m.height})
 	m.state = gameView
 	m.completionSaved = false
 

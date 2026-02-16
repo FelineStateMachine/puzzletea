@@ -6,9 +6,9 @@ import (
 
 	"github.com/FelineStateMachine/puzzletea/game"
 
-	"github.com/charmbracelet/bubbles/key"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/key"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 )
 
 // Model implements game.Gamer for Hitori.
@@ -64,12 +64,7 @@ func (m Model) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 	switch msg := msg.(type) {
 	case game.HelpToggleMsg:
 		m.showFullHelp = msg.Show
-	case game.ResetMsg:
-		m.marks = cloneMarks(m.initialMarks)
-		m.solved = m.checkSolved()
-		m.conflicts = computeConflicts(m.numbers, m.marks, m.size)
-		m.cursor = game.Cursor{}
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		switch {
 		case key.Matches(msg, m.keys.ShadeCell):
 			if !m.solved {

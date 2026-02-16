@@ -5,20 +5,24 @@ import (
 
 	"github.com/FelineStateMachine/puzzletea/ui"
 
-	"github.com/charmbracelet/lipgloss"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
+	"charm.land/lipgloss/v2/compat"
 )
 
-func (m model) View() string {
+func (m model) View() tea.View {
+	var content string
+
 	switch m.state {
 	case mainMenuView:
-		return ui.RootStyle.Render(lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, m.mainMenuList.View()))
+		content = ui.CenterView(m.width, m.height, m.mainMenuList.View())
 	case gameSelectView:
-		return ui.RootStyle.Render(lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, m.gameSelectList.View()))
+		content = ui.CenterView(m.width, m.height, m.gameSelectList.View())
 	case modeSelectView:
-		return ui.RootStyle.Render(lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, m.modeSelectList.View()))
+		content = ui.CenterView(m.width, m.height, m.modeSelectList.View())
 	case generatingView:
 		s := m.spinner.View() + " Generating puzzle..."
-		return ui.RootStyle.Render(lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, s))
+		content = ui.CenterView(m.width, m.height, s)
 	case continueView:
 		var s string
 		if len(m.continueGames) == 0 {
@@ -26,28 +30,29 @@ func (m model) View() string {
 		} else {
 			title := lipgloss.NewStyle().
 				Bold(true).
-				Foreground(lipgloss.AdaptiveColor{Light: "255", Dark: "255"}).
+				Foreground(compat.AdaptiveColor{Light: lipgloss.Color("255"), Dark: lipgloss.Color("255")}).
 				Background(ui.MenuAccent).
 				Padding(0, 1).
 				Render("Saved Games")
 			s = lipgloss.JoinVertical(lipgloss.Left, title, "", m.continueTable.View())
 		}
-		return ui.RootStyle.Render(lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, s))
+		content = ui.CenterView(m.width, m.height, s)
 	case gameView:
 		if m.game == nil {
-			return ""
+			content = ""
+		} else {
+			gameView := lipgloss.NewStyle().MaxWidth(m.width).Render(m.game.View())
+			centered := gameView
+			if m.debug {
+				debugInfo := lipgloss.NewStyle().MaxWidth(m.width).Render(
+					ui.DebugStyle.Render(m.debuginfo),
+				)
+				centered = lipgloss.JoinVertical(lipgloss.Center, gameView, debugInfo)
+			}
+			content = ui.CenterView(m.width, m.height, centered)
 		}
-		var debugInfo string
-		if m.debug {
-			debugInfo = ui.DebugStyle.Render(m.debuginfo)
-		}
-		s := lipgloss.JoinVertical(lipgloss.Center,
-			m.game.View(),
-			debugInfo,
-		)
-		return ui.RootStyle.Render(lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, s))
 	case helpSelectView:
-		return ui.RootStyle.Render(lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, m.helpSelectList.View()))
+		content = ui.CenterView(m.width, m.height, m.helpSelectList.View())
 	case helpDetailView:
 		footer := lipgloss.NewStyle().
 			Foreground(ui.MenuTextDim).
@@ -56,9 +61,16 @@ func (m model) View() string {
 			m.helpViewport.View(),
 			footer,
 		)
-		return ui.RootStyle.Render(lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, s))
+		content = ui.CenterView(m.width, m.height, s)
 	default:
-		s := fmt.Sprintf("unknown state: %d", m.state)
-		panic(s)
+		content = fmt.Sprintf("unknown state: %d", m.state)
 	}
+
+	v := tea.NewView(content)
+	v.AltScreen = true
+	if m.state == gameView {
+		v.MouseMode = tea.MouseModeCellMotion
+		v.KeyboardEnhancements.ReportEventTypes = true
+	}
+	return v
 }

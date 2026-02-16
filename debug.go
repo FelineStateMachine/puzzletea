@@ -9,15 +9,18 @@ func initDebugRenderer() *glamour.TermRenderer {
 		glamour.WithChromaFormatter("terminal16m"),
 	)
 	if err != nil {
-		panic(err)
+		return nil
 	}
 	return renderer
 }
 
 func (m model) renderDebugInfo() string {
+	if m.debugRenderer == nil {
+		return m.game.GetDebugInfo()
+	}
 	s, err := m.debugRenderer.Render(m.game.GetDebugInfo())
 	if err != nil {
-		panic(err)
+		return m.game.GetDebugInfo()
 	}
 	return s
 }

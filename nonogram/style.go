@@ -4,47 +4,41 @@ import (
 	"fmt"
 	"strings"
 
+	"charm.land/lipgloss/v2"
+	"charm.land/lipgloss/v2/compat"
 	"github.com/FelineStateMachine/puzzletea/game"
-	"github.com/charmbracelet/lipgloss"
 )
 
 var (
-	baseStyle = lipgloss.NewStyle()
+	baseStyle       = lipgloss.NewStyle()
+	backgroundColor = compat.AdaptiveColor{Light: lipgloss.Color("254"), Dark: lipgloss.Color("235")}
 
 	filledStyle = baseStyle.
-			Foreground(lipgloss.AdaptiveColor{Light: "130", Dark: "222"}).
-			Background(lipgloss.AdaptiveColor{Light: "223", Dark: "58"})
+			Foreground(compat.AdaptiveColor{Light: lipgloss.Color("130"), Dark: lipgloss.Color("222")}).
+			Background(compat.AdaptiveColor{Light: lipgloss.Color("223"), Dark: lipgloss.Color("58")})
 
 	markedStyle = baseStyle.
-			Foreground(lipgloss.AdaptiveColor{Light: "131", Dark: "173"}).
-			Background(lipgloss.AdaptiveColor{Light: "224", Dark: "236"})
+			Foreground(compat.AdaptiveColor{Light: lipgloss.Color("131"), Dark: lipgloss.Color("173")}).
+			Background(compat.AdaptiveColor{Light: lipgloss.Color("224"), Dark: lipgloss.Color("236")})
 
 	emptyStyle = baseStyle.
-			Foreground(lipgloss.AdaptiveColor{Light: "250", Dark: "240"}).
-			Background(lipgloss.AdaptiveColor{Light: "254", Dark: "235"})
+			Foreground(compat.AdaptiveColor{Light: lipgloss.Color("250"), Dark: lipgloss.Color("240")}).
+			Background(backgroundColor)
 
-	cursorStyle = baseStyle.
-			Bold(true).
-			Foreground(lipgloss.AdaptiveColor{Light: "255", Dark: "235"}).
-			Background(lipgloss.AdaptiveColor{Light: "130", Dark: "214"})
-
+	cursorStyle       = game.CursorWarmStyle
 	cursorSolvedStyle = game.CursorSolvedStyle
 
-	crosshairBG       = lipgloss.AdaptiveColor{Light: "254", Dark: "237"}
-	crosshairFilledBG = lipgloss.AdaptiveColor{Light: "223", Dark: "100"}
-	solvedBG          = lipgloss.AdaptiveColor{Light: "151", Dark: "22"}
+	crosshairBG       = compat.AdaptiveColor{Light: lipgloss.Color("254"), Dark: lipgloss.Color("237")}
+	crosshairFilledBG = compat.AdaptiveColor{Light: lipgloss.Color("223"), Dark: lipgloss.Color("100")}
+	solvedBG          = compat.AdaptiveColor{Light: lipgloss.Color("151"), Dark: lipgloss.Color("22")}
 
 	hintStyle = baseStyle.
-			Foreground(lipgloss.AdaptiveColor{Light: "137", Dark: "137"})
+			Foreground(compat.AdaptiveColor{Light: lipgloss.Color("137"), Dark: lipgloss.Color("137")})
 
 	hintSatisfiedStyle = baseStyle.
-				Foreground(lipgloss.AdaptiveColor{Light: "22", Dark: "149"})
+				Foreground(compat.AdaptiveColor{Light: lipgloss.Color("22"), Dark: lipgloss.Color("149")})
 
-	statusBarStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.AdaptiveColor{Light: "244", Dark: "244"}).
-			MarginTop(1)
-
-	separatorFG = lipgloss.AdaptiveColor{Light: "250", Dark: "240"}
+	separatorFG = compat.AdaptiveColor{Light: lipgloss.Color("250"), Dark: lipgloss.Color("240")}
 )
 
 const (
@@ -77,7 +71,7 @@ func needsSpacer(i, n int) bool {
 // hSeparator builds a horizontal separator row using box-drawing characters.
 // w is the number of grid columns. cursorX is the cursor column (-1 to disable crosshair).
 // bg is the default background, crossBG is the crosshair-highlighted background.
-func hSeparator(w, cursorX int, bg, crossBG lipgloss.TerminalColor) string {
+func hSeparator(w, cursorX int, bg, crossBG compat.AdaptiveColor) string {
 	defStyle := baseStyle.Foreground(separatorFG).Background(bg)
 	highStyle := baseStyle.Foreground(separatorFG).Background(crossBG)
 	segment := strings.Repeat("─", cellWidth)
@@ -191,7 +185,7 @@ func gridView(g grid, c game.Cursor, solved bool) string {
 	sepStyle := baseStyle.Foreground(separatorFG)
 
 	// Determine background for horizontal separators (matches grid background).
-	gridBG := emptyStyle.GetBackground()
+	gridBG := backgroundColor
 	if solved {
 		gridBG = solvedBG
 	}
@@ -260,9 +254,9 @@ func tileView(val rune, isCursor, inCursorRow, inCursorCol, solved bool) string 
 
 func statusBarView(showFullHelp bool) string {
 	if showFullHelp {
-		return statusBarStyle.Render("arrows/wasd: move  z: fill  x: mark  bkspc: clear  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
+		return game.StatusBarStyle.Render("arrows/wasd: move  z: fill (hold+move)  x: mark (hold+move)  bkspc: clear  LMB: fill  RMB: mark  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
 	}
-	return statusBarStyle.Render("z: fill  x: mark  bkspc: clear")
+	return game.StatusBarStyle.Render("z: fill  x: mark  bkspc: clear  mouse: click/drag")
 }
 
 func intSliceEqual(a, b []int) bool {

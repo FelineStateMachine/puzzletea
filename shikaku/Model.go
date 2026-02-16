@@ -5,9 +5,9 @@ import (
 
 	"github.com/FelineStateMachine/puzzletea/game"
 
-	"github.com/charmbracelet/bubbles/key"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/key"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 )
 
 // expansion tracks how far the preview rectangle extends from the clue cell.
@@ -56,11 +56,7 @@ func (m Model) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 	switch msg := msg.(type) {
 	case game.HelpToggleMsg:
 		m.showFullHelp = msg.Show
-	case game.ResetMsg:
-		m.puzzle.Rectangles = nil
-		m.cursor = game.Cursor{}
-		m.selectedClue = nil
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		if m.puzzle.IsSolved() {
 			m.cursor.Move(m.keys.CursorKeyMap, msg, m.puzzle.Width-1, m.puzzle.Height-1)
 		} else if m.selectedClue != nil {
@@ -72,7 +68,7 @@ func (m Model) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 	return m, nil
 }
 
-func (m Model) handleNavMode(msg tea.KeyMsg) Model {
+func (m Model) handleNavMode(msg tea.KeyPressMsg) Model {
 	switch {
 	case key.Matches(msg, m.keys.Select):
 		clue := m.puzzle.FindClueAt(m.cursor.X, m.cursor.Y)
@@ -99,7 +95,7 @@ func (m Model) handleNavMode(msg tea.KeyMsg) Model {
 	return m
 }
 
-func (m Model) handleExpansionMode(msg tea.KeyMsg) Model {
+func (m Model) handleExpansionMode(msg tea.KeyPressMsg) Model {
 	clue := m.puzzle.FindClueByID(*m.selectedClue)
 	if clue == nil {
 		m.selectedClue = nil
