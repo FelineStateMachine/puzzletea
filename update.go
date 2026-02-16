@@ -43,7 +43,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.helpViewport.SetHeight(m.height - 2)
 		}
 
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		// During generation, only allow Escape (to cancel) and Ctrl+C (to quit).
 		if m.state == generatingView {
 			switch {
