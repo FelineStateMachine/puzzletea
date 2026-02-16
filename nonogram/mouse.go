@@ -1,5 +1,10 @@
 package nonogram
 
+import (
+	"charm.land/lipgloss/v2"
+	"github.com/FelineStateMachine/puzzletea/game"
+)
+
 // screenToGrid converts terminal screen coordinates to grid cell coordinates.
 // Returns (col, row, ok) where ok is false if the click landed outside the grid
 // or on a separator.
@@ -63,49 +68,47 @@ func localToCell(pos, count, unitWidth int) int {
 }
 
 // gridOrigin computes the screen position of the top-left corner of the
-// first grid cell. This depends on the hint areas, title bar, centering
-// offsets, and the status bar.
+// first grid cell by rendering the same components as View() and measuring
+// their dimensions.
 func (m *Model) gridOrigin() (x, y int) {
-	rowHintWidth := m.rowHints.RequiredLen() * cellWidth
-	colHintHeight := m.colHints.RequiredLen()
+	// Render the same components View() renders to get exact measurements.
+	maxWidth := m.rowHints.RequiredLen() * cellWidth
+	maxHeight := m.colHints.RequiredLen()
 
-	// Grid content dimensions (the entire View output of the nonogram).
-	gridRenderWidth := rowHintWidth + gridPixelWidth(m.width)
-	gridRenderHeight := colHintHeight + gridPixelHeight(m.height)
+	title := game.TitleBarView("Nonogram", m.modeTitle, m.solved)
+	rowHints := rowHintView(m.rowHints, maxWidth, m.currentHints.rows)
+	colHints := colHintView(m.colHints, maxHeight, m.currentHints.cols)
+	spacer := baseStyle.Width(maxWidth).Height(maxHeight).Render("")
+	g := gridView(m.grid, m.cursor, m.solved)
+	status := statusBarView(m.showFullHelp)
 
-	// Title bar is 1 line of text. The overall View joins:
-	//   title (1 line) + grid block + status bar (2 lines with MarginTop 1).
-	titleHeight := 1
-	statusHeight := 2 // 1 line text + 1 line margin
-	totalContentHeight := titleHeight + gridRenderHeight + statusHeight
+	// Reproduce the exact layout from View().
+	s1 := lipgloss.JoinHorizontal(lipgloss.Bottom, spacer, colHints)
+	s2 := lipgloss.JoinHorizontal(lipgloss.Top, rowHints, g)
+	gridBlock := lipgloss.JoinVertical(lipgloss.Center, s1, s2)
+	fullContent := lipgloss.JoinVertical(lipgloss.Center, title, gridBlock, status)
 
-	// The content width is the max of the title width and grid block width.
-	// Title is short, so grid block dominates.
-	totalContentWidth := gridRenderWidth
+	// Measure the full content dimensions for centering.
+	contentWidth := lipgloss.Width(fullContent)
+	contentHeight := lipgloss.Height(fullContent)
 
-	// CenterView uses lipgloss.Place which centers within termWidth x termHeight.
-	centerOffsetX := max((m.termWidth-totalContentWidth)/2, 0)
-	centerOffsetY := max((m.termHeight-totalContentHeight)/2, 0)
+	// CenterView uses lipgloss.Place(termWidth, termHeight, Center, Center, ...).
+	centerOffsetX := max((m.termWidth-contentWidth)/2, 0)
+	centerOffsetY := max((m.termHeight-contentHeight)/2, 0)
 
-	x = centerOffsetX + rowHintWidth
-	y = centerOffsetY + titleHeight + colHintHeight
+	// Grid cell (0,0) is offset from the content's top-left by:
+	// - X: the row hint area width
+	// - Y: title height + column hint area height
+	hintAreaWidth := lipgloss.Width(rowHints)
+	titleAreaHeight := lipgloss.Height(title)
+	colHintAreaHeight := lipgloss.Height(s1)
+
+	// Within the full content, JoinVertical(Center) pads all lines to max
+	// width. The grid block may be centered within that width.
+	gridBlockWidth := lipgloss.Width(gridBlock)
+	gridBlockPadLeft := max((contentWidth-gridBlockWidth)/2, 0)
+
+	x = centerOffsetX + gridBlockPadLeft + hintAreaWidth
+	y = centerOffsetY + titleAreaHeight + colHintAreaHeight
 	return x, y
-}
-
-// gridPixelWidth returns the terminal character width of the grid area.
-func gridPixelWidth(w int) int {
-	pw := w * cellWidth
-	if w > spacerEvery {
-		pw += (w - 1) / spacerEvery
-	}
-	return pw
-}
-
-// gridPixelHeight returns the terminal line height of the grid area.
-func gridPixelHeight(h int) int {
-	ph := h
-	if h > spacerEvery {
-		ph += (h - 1) / spacerEvery
-	}
-	return ph
 }

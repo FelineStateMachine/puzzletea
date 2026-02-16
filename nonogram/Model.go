@@ -110,7 +110,11 @@ func (m Model) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 		}
 
 	case tea.KeyReleaseMsg:
-		if key.Matches(msg, m.keys.FillTile) || key.Matches(msg, m.keys.MarkTile) {
+		// Clear paint brush on key release. Cannot use key.Matches here
+		// because updateKeyBindings may have disabled the binding after the
+		// key was pressed (e.g. filling a cell disables FillTile).
+		switch msg.String() {
+		case "z", "x":
 			m.paintBrush = 0
 		}
 
