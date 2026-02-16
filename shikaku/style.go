@@ -58,12 +58,10 @@ var (
 
 	gridBorderStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
-			Padding(1).
 			BorderForeground(borderColor)
 
 	gridBorderSolvedStyle = lipgloss.NewStyle().
 				Border(lipgloss.RoundedBorder()).
-				Padding(1).
 				BorderForeground(solvedBorder)
 )
 
