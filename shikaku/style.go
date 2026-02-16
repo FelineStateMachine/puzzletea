@@ -52,10 +52,6 @@ var (
 	infoSatisfied = lipgloss.AdaptiveColor{Dark: "22", Light: "149"}
 	infoText      = lipgloss.AdaptiveColor{Dark: "137", Light: "137"}
 
-	statusBarStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.AdaptiveColor{Light: "244", Dark: "244"}).
-			MarginTop(1)
-
 	gridBorderStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(borderColor)
@@ -180,12 +176,12 @@ func infoView(p *Puzzle) string {
 func statusBarView(selected, showFullHelp bool) string {
 	if selected {
 		if showFullHelp {
-			return statusBarStyle.Render("arrows: expand  shift+arrows: shrink  enter: confirm  esc: cancel  bkspc: delete  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
+			return game.StatusBarStyle.Render("arrows: expand  shift+arrows: shrink  enter: confirm  esc: cancel  bkspc: delete  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
 		}
-		return statusBarStyle.Render("arrows: expand  shift+arrows: shrink  enter: confirm  esc: cancel")
+		return game.StatusBarStyle.Render("arrows: expand  shift+arrows: shrink  enter: confirm  esc: cancel")
 	}
 	if showFullHelp {
-		return statusBarStyle.Render("arrows/wasd: move  enter/space: select clue  bkspc: delete  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
+		return game.StatusBarStyle.Render("arrows/wasd: move  enter/space: select clue  bkspc: delete  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
 	}
-	return statusBarStyle.Render("enter/space: select clue  bkspc: delete")
+	return game.StatusBarStyle.Render("enter/space: select clue  bkspc: delete")
 }

@@ -14,5 +14,5 @@ var (
 	RootStyle  = lipgloss.NewStyle().Margin(1, 2)
 	DebugStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder(), true).
-			BorderForeground(lipgloss.Color("124"))
+			BorderForeground(lipgloss.AdaptiveColor{Light: "124", Dark: "124"})
 )

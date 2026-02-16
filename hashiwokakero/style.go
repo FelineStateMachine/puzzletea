@@ -18,8 +18,6 @@ var (
 	colorSatisfiedBg   = lipgloss.AdaptiveColor{Dark: "194", Light: "236"}
 	colorOverFg        = lipgloss.AdaptiveColor{Dark: "160", Light: "167"}
 	colorOverBg        = lipgloss.AdaptiveColor{Dark: "224", Light: "52"}
-	colorCursorFg      = lipgloss.AdaptiveColor{Dark: "255", Light: "235"}
-	colorCursorBg      = lipgloss.AdaptiveColor{Dark: "130", Light: "173"}
 	colorSelectedFg    = lipgloss.AdaptiveColor{Dark: "255", Light: "235"}
 	colorSelectedBg    = lipgloss.AdaptiveColor{Dark: "172", Light: "179"}
 	colorAdjacentBg    = lipgloss.AdaptiveColor{Dark: "223", Light: "58"}
@@ -49,11 +47,7 @@ var (
 			Background(colorOverBg).
 			Bold(true)
 
-	islandCursorStyle = baseStyle.
-				Foreground(colorCursorFg).
-				Background(colorCursorBg).
-				Bold(true)
-
+	islandCursorStyle       = game.CursorStyle
 	islandCursorSolvedStyle = game.CursorSolvedStyle
 
 	islandSelectedStyle = baseStyle.
@@ -80,10 +74,6 @@ var (
 
 	emptyStyle = baseStyle.
 			Foreground(colorEmptyDot)
-
-	statusBarStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.AdaptiveColor{Light: "244", Dark: "244"}).
-			MarginTop(1)
 
 	gridBorderStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
@@ -285,14 +275,14 @@ func bridgeVView(count int, solved bool) string {
 func statusBarView(selected, showFullHelp bool) string {
 	if selected {
 		if showFullHelp {
-			return statusBarStyle.Render("arrows/wasd: build bridge  enter/space/esc: cancel  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
+			return game.StatusBarStyle.Render("arrows/wasd: build bridge  enter/space/esc: cancel  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
 		}
-		return statusBarStyle.Render("arrows/wasd: build bridge  enter/space/esc: cancel")
+		return game.StatusBarStyle.Render("arrows/wasd: build bridge  enter/space/esc: cancel")
 	}
 	if showFullHelp {
-		return statusBarStyle.Render("arrows/wasd: move  enter/space: select island  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
+		return game.StatusBarStyle.Render("arrows/wasd: move  enter/space: select island  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
 	}
-	return statusBarStyle.Render("enter/space: select island")
+	return game.StatusBarStyle.Render("enter/space: select island")
 }
 
 func infoView(p *Puzzle) string {

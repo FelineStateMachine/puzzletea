@@ -18,12 +18,31 @@ var (
 				Bold(true).
 				Foreground(lipgloss.AdaptiveColor{Light: "28", Dark: "78"})
 
+	// CursorStyle highlights the cursor position with an accent background.
+	// Used by lightsout, sudoku, wordsearch.
+	CursorStyle = lipgloss.NewStyle().
+			Bold(true).
+			Foreground(lipgloss.AdaptiveColor{Light: "255", Dark: "235"}).
+			Background(lipgloss.AdaptiveColor{Light: "130", Dark: "173"})
+
+	// CursorWarmStyle highlights the cursor with a warmer background.
+	// Used by hitori, takuzu, nonogram.
+	CursorWarmStyle = lipgloss.NewStyle().
+			Bold(true).
+			Foreground(lipgloss.AdaptiveColor{Light: "255", Dark: "235"}).
+			Background(lipgloss.AdaptiveColor{Light: "130", Dark: "214"})
+
 	// CursorSolvedStyle highlights the cursor position on a solved grid.
 	// Shared across all puzzle types.
 	CursorSolvedStyle = lipgloss.NewStyle().
 				Bold(true).
 				Foreground(lipgloss.AdaptiveColor{Light: "255", Dark: "235"}).
 				Background(lipgloss.AdaptiveColor{Light: "28", Dark: "28"})
+
+	// StatusBarStyle is the shared style for the status/help bar below each puzzle grid.
+	StatusBarStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.AdaptiveColor{Light: "244", Dark: "244"}).
+			MarginTop(1)
 )
 
 // TitleBarView renders a title bar with the game name, mode name, and optional solved badge.

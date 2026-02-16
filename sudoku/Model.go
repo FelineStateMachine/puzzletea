@@ -20,6 +20,7 @@ type Model struct {
 	grid         grid
 	provided     []cell
 	providedGrid [gridSize][gridSize]bool
+	conflicts    [gridSize][gridSize]bool
 	keys         KeyMap
 	modeTitle    string
 	showFullHelp bool
@@ -39,6 +40,7 @@ func New(mode SudokuMode, provided []cell) (game.Gamer, error) {
 		grid:         g,
 		provided:     provided,
 		providedGrid: buildProvidedGrid(provided),
+		conflicts:    computeConflicts(g),
 		keys:         DefaultKeyMap,
 		modeTitle:    mode.Title(),
 	}
@@ -83,6 +85,7 @@ func (m Model) IsSolved() bool {
 // Reset implements game.Gamer.
 func (m Model) Reset() game.Gamer {
 	m.grid = newGrid(m.provided)
+	m.conflicts = computeConflicts(m.grid)
 	return m
 }
 
@@ -91,14 +94,14 @@ func (m *Model) updateCell(v int) {
 		return
 	}
 	m.grid[m.cursor.Y][m.cursor.X].v = v
+	m.conflicts = computeConflicts(m.grid)
 }
 
 // View implements game.Gamer.
 func (m Model) View() string {
-	conflicts := computeConflicts(m.grid)
-	solved := isSolvedWith(m.grid, conflicts)
+	solved := isSolvedWith(m.grid, m.conflicts)
 	title := game.TitleBarView("Sudoku", m.modeTitle, solved)
-	grid := renderGrid(m, solved, conflicts)
+	grid := renderGrid(m, solved, m.conflicts)
 	status := statusBarView(m.showFullHelp)
 
 	return lipgloss.JoinVertical(lipgloss.Center, title, grid, status)
@@ -106,10 +109,9 @@ func (m Model) View() string {
 
 // GetDebugInfo implements game.Gamer.
 func (m Model) GetDebugInfo() string {
-	conflicts := computeConflicts(m.grid)
 	cursorCell := m.grid[m.cursor.Y][m.cursor.X]
 	isProvided := m.providedGrid[m.cursor.Y][m.cursor.X]
-	conflict := conflicts[m.cursor.Y][m.cursor.X]
+	conflict := m.conflicts[m.cursor.Y][m.cursor.X]
 	solved := m.isSolved()
 
 	filledCount := 0
@@ -119,7 +121,7 @@ func (m Model) GetDebugInfo() string {
 			if m.grid[y][x].v != 0 {
 				filledCount++
 			}
-			if conflicts[y][x] {
+			if m.conflicts[y][x] {
 				conflictCount++
 			}
 		}

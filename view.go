@@ -58,7 +58,6 @@ func (m model) View() string {
 		)
 		return ui.RootStyle.Render(lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, s))
 	default:
-		s := fmt.Sprintf("unknown state: %d", m.state)
-		panic(s)
+		return fmt.Sprintf("unknown state: %d", m.state)
 	}
 }

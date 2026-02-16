@@ -58,6 +58,7 @@ func ImportModel(data []byte) (*Model, error) {
 		grid:         g,
 		provided:     provided,
 		providedGrid: buildProvidedGrid(provided),
+		conflicts:    computeConflicts(g),
 		keys:         DefaultKeyMap,
 	}, nil
 }

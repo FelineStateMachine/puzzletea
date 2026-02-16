@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -23,10 +24,7 @@ var (
 			Foreground(lipgloss.AdaptiveColor{Light: "236", Dark: "187"}).
 			Background(backgroundColor)
 
-	cursorCellStyle = lipgloss.NewStyle().
-			Bold(true).
-			Foreground(lipgloss.AdaptiveColor{Light: "255", Dark: "235"}).
-			Background(lipgloss.AdaptiveColor{Light: "130", Dark: "173"})
+	cursorCellStyle = game.CursorStyle
 
 	conflictCellStyle = lipgloss.NewStyle().
 				Foreground(lipgloss.AdaptiveColor{Light: "160", Dark: "167"}).
@@ -49,10 +47,6 @@ var (
 				Border(lipgloss.RoundedBorder()).
 				BorderForeground(lipgloss.AdaptiveColor{Light: "22", Dark: "149"}).
 				BorderBackground(backgroundColor)
-
-	statusBarStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.AdaptiveColor{Light: "244", Dark: "244"}).
-			MarginTop(1)
 
 	sudokuCellWidth = 2
 )
@@ -230,7 +224,7 @@ func computeConflicts(g grid) [gridSize][gridSize]bool {
 
 func statusBarView(showFullHelp bool) string {
 	if showFullHelp {
-		return statusBarStyle.Render("arrows/wasd: move  1-9: fill  bkspc: clear  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
+		return game.StatusBarStyle.Render("arrows/wasd: move  1-9: fill  bkspc: clear  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
 	}
-	return statusBarStyle.Render("1-9: fill  bkspc: clear")
+	return game.StatusBarStyle.Render("1-9: fill  bkspc: clear")
 }

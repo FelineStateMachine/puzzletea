@@ -19,11 +19,7 @@ var (
 	styleOff = baseStyle.
 			Background(colorOff)
 
-	cursorStyle = baseStyle.
-			Bold(true).
-			Foreground(lipgloss.AdaptiveColor{Light: "255", Dark: "235"}).
-			Background(lipgloss.AdaptiveColor{Light: "130", Dark: "173"})
-
+	cursorStyle       = game.CursorStyle
 	cursorSolvedStyle = game.CursorSolvedStyle
 
 	solvedStyle = baseStyle.
@@ -38,10 +34,6 @@ var (
 				Border(lipgloss.RoundedBorder()).
 				BorderForeground(lipgloss.AdaptiveColor{Light: "22", Dark: "149"}).
 				BorderBackground(lipgloss.AdaptiveColor{Light: "151", Dark: "22"})
-
-	statusBarStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.AdaptiveColor{Light: "244", Dark: "244"}).
-			MarginTop(1)
 )
 
 const (
@@ -87,7 +79,7 @@ func gridView(g [][]bool, c game.Cursor, solved bool) string {
 
 func statusBarView(showFullHelp bool) string {
 	if showFullHelp {
-		return statusBarStyle.Render("arrows/wasd: move  enter/space: toggle  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
+		return game.StatusBarStyle.Render("arrows/wasd: move  enter/space: toggle  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
 	}
-	return statusBarStyle.Render("enter/space: toggle")
+	return game.StatusBarStyle.Render("enter/space: toggle")
 }

@@ -64,11 +64,6 @@ func (m Model) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 	switch msg := msg.(type) {
 	case game.HelpToggleMsg:
 		m.showFullHelp = msg.Show
-	case game.ResetMsg:
-		m.marks = cloneMarks(m.initialMarks)
-		m.solved = m.checkSolved()
-		m.conflicts = computeConflicts(m.numbers, m.marks, m.size)
-		m.cursor = game.Cursor{}
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, m.keys.ShadeCell):

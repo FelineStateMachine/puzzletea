@@ -56,10 +56,6 @@ func (m Model) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 	switch msg := msg.(type) {
 	case game.HelpToggleMsg:
 		m.showFullHelp = msg.Show
-	case game.ResetMsg:
-		m.puzzle.Rectangles = nil
-		m.cursor = game.Cursor{}
-		m.selectedClue = nil
 	case tea.KeyMsg:
 		if m.puzzle.IsSolved() {
 			m.cursor.Move(m.keys.CursorKeyMap, msg, m.puzzle.Width-1, m.puzzle.Height-1)

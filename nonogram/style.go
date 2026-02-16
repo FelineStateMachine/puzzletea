@@ -23,11 +23,7 @@ var (
 			Foreground(lipgloss.AdaptiveColor{Light: "250", Dark: "240"}).
 			Background(lipgloss.AdaptiveColor{Light: "254", Dark: "235"})
 
-	cursorStyle = baseStyle.
-			Bold(true).
-			Foreground(lipgloss.AdaptiveColor{Light: "255", Dark: "235"}).
-			Background(lipgloss.AdaptiveColor{Light: "130", Dark: "214"})
-
+	cursorStyle       = game.CursorWarmStyle
 	cursorSolvedStyle = game.CursorSolvedStyle
 
 	crosshairBG       = lipgloss.AdaptiveColor{Light: "254", Dark: "237"}
@@ -39,10 +35,6 @@ var (
 
 	hintSatisfiedStyle = baseStyle.
 				Foreground(lipgloss.AdaptiveColor{Light: "22", Dark: "149"})
-
-	statusBarStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.AdaptiveColor{Light: "244", Dark: "244"}).
-			MarginTop(1)
 
 	separatorFG = lipgloss.AdaptiveColor{Light: "250", Dark: "240"}
 )
@@ -260,9 +252,9 @@ func tileView(val rune, isCursor, inCursorRow, inCursorCol, solved bool) string 
 
 func statusBarView(showFullHelp bool) string {
 	if showFullHelp {
-		return statusBarStyle.Render("arrows/wasd: move  z: fill  x: mark  bkspc: clear  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
+		return game.StatusBarStyle.Render("arrows/wasd: move  z: fill  x: mark  bkspc: clear  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
 	}
-	return statusBarStyle.Render("z: fill  x: mark  bkspc: clear")
+	return game.StatusBarStyle.Render("z: fill  x: mark  bkspc: clear")
 }
 
 func intSliceEqual(a, b []int) bool {
