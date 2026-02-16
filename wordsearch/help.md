@@ -15,6 +15,8 @@ Press `Escape` to cancel a selection.
 
 ## Controls
 
+### Keyboard
+
 | Key | Action |
 |-----|--------|
 | `Arrows` / `wasd` / `hjkl` | Move cursor |
@@ -23,6 +25,18 @@ Press `Escape` to cancel a selection.
 | `Ctrl+H` | Toggle help bar |
 | `Ctrl+R` | Reset puzzle |
 | `Ctrl+N` | Return to main menu |
+
+### Mouse
+
+| Action | Effect |
+|--------|--------|
+| Left click + drag | Select a word by dragging from first to last letter |
+| Left click | Set the start of a selection (release and click end to confirm) |
+| Right click | Cancel current selection |
+
+Drag along a horizontal, vertical, or diagonal line to select a word.
+If the selection matches a hidden word (in either direction), it is
+automatically found on release.
 
 ## Tips
 

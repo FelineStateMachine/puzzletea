@@ -566,6 +566,57 @@ func TestGenerateWordSearch(t *testing.T) {
 	})
 }
 
+// --- screenToGrid (P1) ---
+
+func TestScreenToGrid(t *testing.T) {
+	m := &Model{
+		width:      10,
+		height:     10,
+		grid:       createEmptyGrid(10, 10),
+		words:      nil,
+		keys:       DefaultKeyMap,
+		modeTitle:  "Test",
+		foundCells: buildFoundCells(10, 10, nil),
+		termWidth:  120,
+		termHeight: 40,
+	}
+
+	ox, oy := m.gridOrigin()
+
+	tests := []struct {
+		name    string
+		screenX int
+		screenY int
+		wantCol int
+		wantRow int
+		wantOk  bool
+	}{
+		{"origin cell", ox, oy, 0, 0, true},
+		{"cell (1,0)", ox + cellWidth, oy, 1, 0, true},
+		{"cell (0,1)", ox, oy + 1, 0, 1, true},
+		{"cell (2,3)", ox + 2*cellWidth, oy + 3, 2, 3, true},
+		{"cell (9,9) last", ox + 9*cellWidth, oy + 9, 9, 9, true},
+		{"outside left", ox - 1, oy, 0, 0, false},
+		{"outside top", ox, oy - 1, 0, 0, false},
+		{"outside right", ox + 10*cellWidth, oy, 0, 0, false},
+		{"outside bottom", ox, oy + 10, 0, 0, false},
+		{"far outside", 0, 0, 0, 0, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			col, row, ok := m.screenToGrid(tt.screenX, tt.screenY)
+			if ok != tt.wantOk {
+				t.Errorf("ok = %v, want %v", ok, tt.wantOk)
+			}
+			if ok && (col != tt.wantCol || row != tt.wantRow) {
+				t.Errorf("screenToGrid(%d, %d) = (%d, %d), want (%d, %d)",
+					tt.screenX, tt.screenY, col, row, tt.wantCol, tt.wantRow)
+			}
+		})
+	}
+}
+
 // --- Save/Load round-trip (P1) ---
 
 func TestSaveLoadRoundTrip(t *testing.T) {

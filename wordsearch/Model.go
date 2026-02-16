@@ -31,6 +31,23 @@ type Model struct {
 	solved         bool
 	showFullHelp   bool
 	foundCells     [][]bool
+
+	// Mouse drag support: true while left-button is held after clicking a cell.
+	mouseDragging bool
+
+	// Screen geometry for mouse hit-testing.
+	termWidth, termHeight int
+
+	// Cached grid origin for mouse hit-testing (recomputed on resize/solve).
+	originX, originY int
+	originValid      bool
+
+	// Debug: last mouse event info.
+	lastMouseX, lastMouseY int
+	lastMouseBtn           string
+	lastMouseGridCol       int
+	lastMouseGridRow       int
+	lastMouseHit           bool
 }
 
 func buildFoundCells(width, height int, words []Word) [][]bool {
@@ -71,10 +88,88 @@ func (m Model) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 	switch msg := msg.(type) {
 	case game.HelpToggleMsg:
 		m.showFullHelp = msg.Show
+
+	case tea.WindowSizeMsg:
+		m.termWidth = msg.Width
+		m.termHeight = msg.Height
+		m.originValid = false
+
 	case tea.KeyPressMsg:
 		return m.handleKeyPress(msg)
+
+	case tea.MouseClickMsg:
+		m.handleMouseClick(msg)
+
+	case tea.MouseMotionMsg:
+		m.handleMouseMotion(msg)
+
+	case tea.MouseReleaseMsg:
+		m.handleMouseRelease()
 	}
 	return m, nil
+}
+
+func (m *Model) handleMouseClick(msg tea.MouseClickMsg) {
+	m.lastMouseX, m.lastMouseY = msg.X, msg.Y
+	m.lastMouseBtn = msg.String()
+
+	col, row, ok := m.screenToGrid(msg.X, msg.Y)
+	m.lastMouseGridCol, m.lastMouseGridRow = col, row
+	m.lastMouseHit = ok
+
+	if m.solved || !ok {
+		return
+	}
+
+	switch msg.Button {
+	case tea.MouseLeft:
+		// Click sets the selection start and begins a drag.
+		m.cursor.X, m.cursor.Y = col, row
+		m.selectionStart = m.cursor
+		m.selection = startSelected
+		m.mouseDragging = true
+
+	case tea.MouseRight:
+		// Right-click cancels the current selection.
+		m.selection = noSelection
+		m.mouseDragging = false
+	}
+}
+
+func (m *Model) handleMouseMotion(msg tea.MouseMotionMsg) {
+	if m.solved || !m.mouseDragging || m.selection != startSelected {
+		return
+	}
+
+	col, row, ok := m.screenToGrid(msg.X, msg.Y)
+	if !ok {
+		return
+	}
+
+	// Move cursor to track the drag endpoint; the existing selection
+	// rendering uses selectionStart → cursor.
+	m.cursor.X, m.cursor.Y = col, row
+}
+
+func (m *Model) handleMouseRelease() {
+	if !m.mouseDragging {
+		return
+	}
+	m.mouseDragging = false
+
+	if m.selection != startSelected {
+		return
+	}
+
+	// Same cell as start: keep selection active (start is set, waiting
+	// for a second click/drag to define the end — mirrors keyboard flow).
+	if m.cursor.X == m.selectionStart.X && m.cursor.Y == m.selectionStart.Y {
+		return
+	}
+
+	// Try to validate and submit the selection.
+	m.validateSelection()
+	m.selection = noSelection
 }
 
 func (m Model) handleKeyPress(msg tea.KeyPressMsg) (game.Gamer, tea.Cmd) {
@@ -137,6 +232,9 @@ func (m *Model) checkWin() {
 			break
 		}
 	}
+	if allFound != m.solved {
+		m.originValid = false
+	}
 	m.solved = allFound
 }
 
@@ -145,6 +243,12 @@ func (m Model) View() string {
 }
 
 func (m Model) GetDebugInfo() string {
+	ox, oy := m.gridOrigin()
+	hitStr := "miss"
+	if m.lastMouseHit {
+		hitStr = fmt.Sprintf("(%d, %d)", m.lastMouseGridCol, m.lastMouseGridRow)
+	}
+
 	rows := [][2]string{
 		{"Grid Size", fmt.Sprintf("%dx%d", m.width, m.height)},
 		{"Cursor", fmt.Sprintf("(%d, %d)", m.cursor.X, m.cursor.Y)},
@@ -156,6 +260,10 @@ func (m Model) GetDebugInfo() string {
 	rows = append(rows,
 		[2]string{"Words Found", fmt.Sprintf("%d/%d", m.countFoundWords(), len(m.words))},
 		[2]string{"Won", fmt.Sprintf("%v", m.solved)},
+		[2]string{"Term Size", fmt.Sprintf("%d x %d", m.termWidth, m.termHeight)},
+		[2]string{"Grid Origin", fmt.Sprintf("(%d, %d)", ox, oy)},
+		[2]string{"Last Mouse", fmt.Sprintf("screen=(%d, %d) btn=%s grid=%s", m.lastMouseX, m.lastMouseY, m.lastMouseBtn, hitStr)},
+		[2]string{"Mouse Drag", fmt.Sprintf("%v", m.mouseDragging)},
 	)
 
 	s := game.DebugHeader("Word Search", rows)
@@ -204,6 +312,8 @@ func (m Model) Reset() game.Gamer {
 	m.selection = noSelection
 	m.selectionStart = game.Cursor{}
 	m.cursor = game.Cursor{}
+	m.mouseDragging = false
+	m.originValid = false
 	return m
 }
 
