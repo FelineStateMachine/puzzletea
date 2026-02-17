@@ -132,6 +132,12 @@ func (m Model) View() string {
 	info := infoView(&m.puzzle)
 	status := statusBarView(m.selectedIsland != nil, m.showFullHelp)
 
+	// Pin info and status to the grid width so that variable-length text
+	// never widens the layout and causes centering shifts on re-render.
+	w := lipgloss.Width(grid)
+	info = lipgloss.NewStyle().Width(w).AlignHorizontal(lipgloss.Center).Render(info)
+	status = lipgloss.NewStyle().Width(w).AlignHorizontal(lipgloss.Center).Render(status)
+
 	return lipgloss.JoinVertical(lipgloss.Center, title, grid, info, status)
 }
 
@@ -146,6 +152,7 @@ func (m Model) IsSolved() bool {
 
 func (m Model) Reset() game.Gamer {
 	m.puzzle.Bridges = nil
+	m.puzzle.invalidateCache()
 	m.cursorIsland = 0
 	if len(m.puzzle.Islands) > 0 {
 		m.cursorIsland = m.puzzle.Islands[0].ID

@@ -140,7 +140,9 @@ func computeConflicts(numbers grid, marks [][]cellMark, size int) [][]bool {
 }
 
 // markDuplicateConflicts flags unshaded cells that share a number with
-// another unshaded cell in the same row or column.
+// another unshaded cell in the same row or column. A duplicate group is
+// only flagged when at least one cell in the group is circled, so that
+// the initial board is not immediately flooded with conflict markers.
 func markDuplicateConflicts(numbers grid, marks [][]cellMark, conflicts [][]bool, size int) {
 	// Check rows.
 	for y := range size {
@@ -153,7 +155,17 @@ func markDuplicateConflicts(numbers grid, marks [][]cellMark, conflicts [][]bool
 			seen[num] = append(seen[num], x)
 		}
 		for _, positions := range seen {
-			if len(positions) > 1 {
+			if len(positions) <= 1 {
+				continue
+			}
+			anyCircled := false
+			for _, x := range positions {
+				if marks[y][x] == circled {
+					anyCircled = true
+					break
+				}
+			}
+			if anyCircled {
 				for _, x := range positions {
 					conflicts[y][x] = true
 				}
@@ -172,7 +184,17 @@ func markDuplicateConflicts(numbers grid, marks [][]cellMark, conflicts [][]bool
 			seen[num] = append(seen[num], y)
 		}
 		for _, positions := range seen {
-			if len(positions) > 1 {
+			if len(positions) <= 1 {
+				continue
+			}
+			anyCircled := false
+			for _, y := range positions {
+				if marks[y][x] == circled {
+					anyCircled = true
+					break
+				}
+			}
+			if anyCircled {
 				for _, y := range positions {
 					conflicts[y][x] = true
 				}

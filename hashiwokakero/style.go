@@ -283,7 +283,7 @@ func statusBarView(selected, showFullHelp bool) string {
 	if showFullHelp {
 		return game.StatusBarStyle.Render("arrows/wasd: move  enter/space: select island  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
 	}
-	return game.StatusBarStyle.Render("enter/space: select island")
+	return game.StatusBarStyle.Render("arrows/wasd: move  enter/space: select island")
 }
 
 func infoView(p *Puzzle) string {

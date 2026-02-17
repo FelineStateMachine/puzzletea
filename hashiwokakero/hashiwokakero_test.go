@@ -1001,3 +1001,98 @@ func TestSaveJSON(t *testing.T) {
 		}
 	}
 }
+
+// --- Reset (P0) ---
+
+func TestReset(t *testing.T) {
+	t.Run("invalidates caches", func(t *testing.T) {
+		m := Model{
+			puzzle: Puzzle{
+				Width:  7,
+				Height: 7,
+				Islands: []Island{
+					{ID: 0, X: 0, Y: 0, Required: 2},
+					{ID: 1, X: 3, Y: 0, Required: 2},
+					{ID: 2, X: 0, Y: 3, Required: 2},
+					{ID: 3, X: 3, Y: 3, Required: 2},
+				},
+			},
+			keys: DefaultKeyMap,
+		}
+		m.puzzle.SetBridge(0, 1, 1)
+		m.puzzle.SetBridge(2, 3, 1)
+
+		// Populate caches.
+		_ = m.puzzle.BridgeCount(0)
+		_ = m.puzzle.CellContent(1, 0)
+		_ = m.puzzle.FindIslandAt(0, 0)
+
+		got := m.Reset().(Model)
+
+		if got.puzzle.bridgeCounts != nil {
+			t.Error("bridgeCounts should be nil after Reset")
+		}
+		if got.puzzle.cellCache != nil {
+			t.Error("cellCache should be nil after Reset")
+		}
+		if got.puzzle.posIndex != nil {
+			t.Error("posIndex should be nil after Reset")
+		}
+	})
+
+	t.Run("bridge counts reflect cleared state", func(t *testing.T) {
+		m := Model{
+			puzzle: Puzzle{
+				Width:  7,
+				Height: 7,
+				Islands: []Island{
+					{ID: 0, X: 0, Y: 0, Required: 2},
+					{ID: 1, X: 3, Y: 0, Required: 2},
+					{ID: 2, X: 0, Y: 3, Required: 2},
+					{ID: 3, X: 3, Y: 3, Required: 2},
+				},
+			},
+			keys: DefaultKeyMap,
+		}
+		m.puzzle.SetBridge(0, 1, 2)
+
+		// Populate the bridge count cache with stale data.
+		if cnt := m.puzzle.BridgeCount(0); cnt != 2 {
+			t.Fatalf("BridgeCount(0) before reset = %d, want 2", cnt)
+		}
+
+		got := m.Reset().(Model)
+
+		if cnt := got.puzzle.BridgeCount(0); cnt != 0 {
+			t.Errorf("BridgeCount(0) after reset = %d, want 0", cnt)
+		}
+	})
+
+	t.Run("cell cache reflects cleared state", func(t *testing.T) {
+		m := Model{
+			puzzle: Puzzle{
+				Width:  7,
+				Height: 7,
+				Islands: []Island{
+					{ID: 0, X: 0, Y: 0, Required: 2},
+					{ID: 1, X: 3, Y: 0, Required: 2},
+				},
+			},
+			keys: DefaultKeyMap,
+		}
+		m.puzzle.SetBridge(0, 1, 1)
+
+		// Populate cell cache with a bridge cell.
+		ci := m.puzzle.CellContent(1, 0)
+		if ci.Kind != cellBridgeH {
+			t.Fatalf("CellContent(1,0) before reset = %d, want cellBridgeH(%d)", ci.Kind, cellBridgeH)
+		}
+
+		got := m.Reset().(Model)
+
+		ci = got.puzzle.CellContent(1, 0)
+		if ci.Kind != cellEmpty {
+			t.Errorf("CellContent(1,0) after reset = %d, want cellEmpty(%d)", ci.Kind, cellEmpty)
+		}
+	})
+}

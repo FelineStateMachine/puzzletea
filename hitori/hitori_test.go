@@ -315,10 +315,19 @@ func TestComputeConflicts_NoConflicts(t *testing.T) {
 
 func TestComputeConflicts_RowDuplicate(t *testing.T) {
 	// Row 0 has two unshaded 1s at (0,0) and (1,0).
+	// Duplicates are only flagged when at least one cell is circled.
 	numbers := makeGrid("113", "231", "312")
+
+	// All unmarked: no duplicate conflicts shown.
 	marks := makeMarks("...", "...", "...")
 	conflicts := computeConflicts(numbers, marks, 3)
+	if conflicts[0][0] || conflicts[0][1] {
+		t.Error("unmarked duplicates should not be flagged")
+	}
 
+	// Circle one of the duplicates: entire group is flagged.
+	marks = makeMarks("O..", "...", "...")
+	conflicts = computeConflicts(numbers, marks, 3)
 	if !conflicts[0][0] {
 		t.Error("expected conflict at (0,0)")
 	}
@@ -332,10 +341,19 @@ func TestComputeConflicts_RowDuplicate(t *testing.T) {
 
 func TestComputeConflicts_ColDuplicate(t *testing.T) {
 	// Column 0 has two unshaded 1s at (0,0) and (0,2).
+	// Duplicates are only flagged when at least one cell is circled.
 	numbers := makeGrid("123", "231", "112")
+
+	// All unmarked: no duplicate conflicts shown.
 	marks := makeMarks("...", "...", "...")
 	conflicts := computeConflicts(numbers, marks, 3)
+	if conflicts[0][0] || conflicts[2][0] {
+		t.Error("unmarked duplicates should not be flagged")
+	}
 
+	// Circle one of the duplicates: entire group is flagged.
+	marks = makeMarks("O..", "...", "...")
+	conflicts = computeConflicts(numbers, marks, 3)
 	if !conflicts[0][0] {
 		t.Error("expected conflict at (0,0)")
 	}
@@ -439,19 +457,34 @@ func TestComputeConflicts_MultipleViolations(t *testing.T) {
 
 func TestComputeConflicts_EmptyBoard(t *testing.T) {
 	// No shaded cells -- the entire board is one connected white region.
-	// There may be duplicate conflicts but no adjacency or connectivity issues.
+	// All cells are unmarked, so no duplicate conflicts are shown.
 	numbers := makeGrid("123", "123", "123")
 	marks := makeMarks("...", "...", "...")
 	conflicts := computeConflicts(numbers, marks, 3)
 
-	// Rows all have unique numbers, but columns have duplicates:
-	// col 0: 1,1,1 -- all three conflict.
-	// col 1: 2,2,2 -- all three conflict.
-	// col 2: 3,3,3 -- all three conflict.
 	for y := range 3 {
 		for x := range 3 {
-			if !conflicts[y][x] {
-				t.Errorf("expected column duplicate conflict at (%d,%d)", x, y)
+			if conflicts[y][x] {
+				t.Errorf("unmarked duplicates should not conflict at (%d,%d)", x, y)
+			}
+		}
+	}
+
+	// Circle one cell: its entire column duplicate group is flagged.
+	marks = makeMarks("O..", "...", "...")
+	conflicts = computeConflicts(numbers, marks, 3)
+
+	// col 0: 1,1,1 -- all three should conflict (one is circled).
+	for y := range 3 {
+		if !conflicts[y][0] {
+			t.Errorf("expected column duplicate conflict at (0,%d)", y)
+		}
+	}
+	// col 1 and col 2 still have no circled cells, so no conflicts.
+	for y := range 3 {
+		for x := 1; x < 3; x++ {
+			if conflicts[y][x] {
+				t.Errorf("unexpected conflict at (%d,%d)", x, y)
 			}
 		}
 	}

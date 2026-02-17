@@ -42,7 +42,7 @@ func cellView(num rune, mark cellMark, isCursor, inCursorRow, inCursorCol, solve
 	switch mark {
 	case shaded:
 		s = shadedStyle
-		display = " ▒ "
+		display = "   "
 	case circled:
 		s = circledStyle
 		display = fmt.Sprintf(" %c ", num)
@@ -55,14 +55,17 @@ func cellView(num rune, mark cellMark, isCursor, inCursorRow, inCursorCol, solve
 	if isCursor && solved {
 		s = cursorSolvedStyle
 	} else if isCursor {
-		s = s.Background(game.CursorWarmBG).
-			Foreground(game.CursorFG).
-			Bold(true)
+		s = s.Background(game.CursorWarmBG).Bold(true)
+		if mark != circled {
+			s = s.Foreground(game.CursorFG)
+		}
 	} else if solved {
 		s = s.Background(solvedBG)
 	} else if conflict {
-		s = s.Background(game.ConflictBG).
-			Foreground(game.ConflictFG)
+		s = s.Background(game.ConflictBG)
+		if mark != circled {
+			s = s.Foreground(game.ConflictFG)
+		}
 	} else if inCursorRow || inCursorCol {
 		s = s.Background(crosshairBG)
 	}
