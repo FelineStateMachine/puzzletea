@@ -5,13 +5,13 @@ import (
 	"testing"
 
 	"github.com/FelineStateMachine/puzzletea/game"
-	"github.com/FelineStateMachine/puzzletea/game/hashiwokakero"
-	"github.com/FelineStateMachine/puzzletea/game/hitori"
-	"github.com/FelineStateMachine/puzzletea/game/lightsout"
-	"github.com/FelineStateMachine/puzzletea/game/nonogram"
-	"github.com/FelineStateMachine/puzzletea/game/sudoku"
-	"github.com/FelineStateMachine/puzzletea/game/takuzu"
-	"github.com/FelineStateMachine/puzzletea/game/wordsearch"
+	"github.com/FelineStateMachine/puzzletea/hashiwokakero"
+	"github.com/FelineStateMachine/puzzletea/hitori"
+	"github.com/FelineStateMachine/puzzletea/lightsout"
+	"github.com/FelineStateMachine/puzzletea/nonogram"
+	"github.com/FelineStateMachine/puzzletea/sudoku"
+	"github.com/FelineStateMachine/puzzletea/takuzu"
+	"github.com/FelineStateMachine/puzzletea/wordsearch"
 
 	"charm.land/bubbles/v2/list"
 )

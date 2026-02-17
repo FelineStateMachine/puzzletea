@@ -47,24 +47,14 @@ puzzletea/
 ├── stats/              # Stats & progression system
 │   ├── stats.go        #   XP/level math, streaks, card data + rendering
 │   └── stats_test.go   #   Tests for XP, levels, streaks, cards
-├── game/                # Plugin interfaces + all puzzle implementations
-│   ├── gamer.go         #   Gamer, Mode, Spawner interfaces, Category, Registry
-│   ├── cursor.go        #   Shared cursor logic
-│   ├── keys.go          #   Global game key bindings
-│   ├── style.go         #   Shared game styles (border, colors)
-│   ├── hashiwokakero/   #   Connect islands with bridges
-│   ├── hitori/          #   Shade cells to eliminate duplicates
-│   ├── lightsout/       #   Turn off all the lights
-│   ├── nonogram/        #   Fill cells to match row/column hints
-│   ├── shikaku/         #   Divide the grid into rectangles
-│   ├── sudoku/          #   Classic 9x9 sudoku
-│   ├── takuzu/          #   Binary puzzle (fill with circles)
-│   └── wordsearch/      #   Find hidden words in a letter grid
+├── game/       # Plugin interfaces (Gamer, Mode, Spawner), cursor, keys, style
 ├── store/      # SQLite persistence (GameRecord, CRUD, stats queries)
 ├── ui/         # Shared UI: menu list, table, panel, styles, MenuItem
 ├── daily/      # Daily puzzle seeding, RNG, mode selection
 ├── resolve/    # CLI argument resolution (category/mode name matching)
 ├── namegen/    # Adjective-noun name generator
+├── hashiwokakero/, hitori/, lightsout/, nonogram/
+├── shikaku/, sudoku/, takuzu/, wordsearch/  # Puzzle game packages
 ├── plan/       # Design/planning documents
 └── vhs/        # GIF preview tapes
 ```
