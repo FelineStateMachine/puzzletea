@@ -50,3 +50,4 @@ vhs: build
     vhs vhs/help.tape
     vhs vhs/hitori.tape
     vhs vhs/lightsout.tape
+    vhs vhs/stats.tape

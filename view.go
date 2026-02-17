@@ -81,6 +81,28 @@ func (m model) View() tea.View {
 			"↑/↓ scroll • esc back",
 		)
 		content = ui.CenterView(m.width, m.height, panel)
+	case statsView:
+		var statsBody string
+		if len(m.statsCards) == 0 {
+			statsBody = m.statsViewport.View()
+		} else {
+			bannerWidth := statsContentWidth(m.width)
+			if bannerWidth > 70 {
+				bannerWidth = 70
+			}
+			banner := renderBanner(m.statsProfile, bannerWidth)
+			statsBody = lipgloss.JoinVertical(lipgloss.Left,
+				banner,
+				"",
+				m.statsViewport.View(),
+			)
+		}
+		panel := ui.Panel(
+			"Stats",
+			statsBody,
+			"↑/↓ scroll • esc back",
+		)
+		content = ui.CenterView(m.width, m.height, panel)
 	default:
 		content = fmt.Sprintf("unknown state: %d", m.state)
 	}

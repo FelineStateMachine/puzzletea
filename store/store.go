@@ -27,6 +27,36 @@ CREATE TABLE IF NOT EXISTS games (
     completed_at  DATETIME
 );`
 
+const createCategoryStatsViewSQL = `
+CREATE VIEW IF NOT EXISTS category_stats AS
+SELECT
+    game_type,
+    COUNT(*)                                              AS total_attempts,
+    COUNT(*) FILTER (WHERE status = 'completed')          AS total_victories,
+    COUNT(*) FILTER (WHERE status = 'abandoned')          AS total_abandoned,
+    COUNT(*) FILTER (WHERE name LIKE 'Daily %')           AS times_daily,
+    COUNT(*) FILTER (WHERE status = 'completed'
+                       AND name LIKE 'Daily %')           AS daily_victories,
+    (SELECT mode FROM games g2
+     WHERE g2.game_type = games.game_type
+       AND g2.status = 'completed'
+     GROUP BY mode
+     ORDER BY COUNT(*) DESC, mode ASC
+     LIMIT 1)                                             AS preferred_mode
+FROM games
+GROUP BY game_type;`
+
+const createModeStatsViewSQL = `
+CREATE VIEW IF NOT EXISTS mode_stats AS
+SELECT
+    game_type,
+    mode,
+    COUNT(*) FILTER (WHERE status = 'completed')          AS victories,
+    COUNT(*) FILTER (WHERE status = 'completed'
+                       AND name LIKE 'Daily %')           AS daily_victories
+FROM games
+GROUP BY game_type, mode;`
+
 type Store struct {
 	db *sql.DB
 }
@@ -58,6 +88,16 @@ func Open(dbPath string) (*Store, error) {
 	if _, err := db.Exec(createTableSQL); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("creating table: %w", err)
+	}
+
+	if _, err := db.Exec(createCategoryStatsViewSQL); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("creating category_stats view: %w", err)
+	}
+
+	if _, err := db.Exec(createModeStatsViewSQL); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("creating mode_stats view: %w", err)
 	}
 
 	return &Store{db: db}, nil

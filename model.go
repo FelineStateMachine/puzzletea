@@ -40,6 +40,7 @@ var (
 		{ItemTitle: "Daily Puzzle", Desc: time.Now().Format("Jan _2 06")},
 		{ItemTitle: "Generate", Desc: "a new puzzle"},
 		{ItemTitle: "Continue", Desc: "a saved puzzle"},
+		{ItemTitle: "Stats", Desc: "your progress"},
 		{ItemTitle: "Guides", Desc: "learn the rules"},
 		{ItemTitle: "Quit", Desc: "exit puzzletea"},
 	}
@@ -54,6 +55,7 @@ const (
 	continueView
 	helpSelectView
 	helpDetailView
+	statsView
 )
 
 type model struct {
@@ -97,6 +99,11 @@ type model struct {
 	helpViewport      viewport.Model
 	helpRenderer      *glamour.TermRenderer
 	helpRendererWidth int
+
+	// Stats page state
+	statsCards    []statsCard
+	statsProfile  profileBanner
+	statsViewport viewport.Model
 }
 
 func initialModel(s *store.Store) model {
