@@ -1,9 +1,13 @@
 package main
 
-import "os"
+import (
+	"os"
+
+	"github.com/FelineStateMachine/puzzletea/cmd"
+)
 
 func main() {
-	if err := rootCmd.Execute(); err != nil {
+	if err := cmd.RootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}
 }

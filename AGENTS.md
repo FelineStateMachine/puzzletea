@@ -9,7 +9,7 @@ just run          # build and run
 just install      # install to $GOPATH/bin
 just clean        # remove binary and dist/
 ```
-Without `just`: `go build -ldflags "-X main.version=$(git describe --tags --always --dirty)" -o puzzletea`
+Without `just`: `go build -ldflags "-X github.com/FelineStateMachine/puzzletea/cmd.Version=$(git describe --tags --always --dirty)" -o puzzletea`
 
 ### Testing
 ```bash
@@ -34,17 +34,27 @@ just tidy         # go mod tidy
 ## Project Structure
 ```
 puzzletea/
-├── main.go, cmd.go, model.go   # Entry point, CLI (cobra), root TUI model
-├── update.go, view.go          # Root model update loop, view rendering
-├── spawn.go, debug.go          # Game spawn/save lifecycle, debug overlay
+├── main.go             # Minimal entry point: wires cmd package
+├── app/                # Root TUI model (Elm architecture)
+│   ├── model.go        #   GameCategories registry, model struct, constructors
+│   ├── update.go       #   Update loop, keyboard/event handling, state transitions
+│   ├── view.go         #   View rendering for each screen state
+│   ├── keys.go         #   Root-level keybinding definitions
+│   ├── spawn.go        #   Async game spawning, save/load, unique name generation
+│   └── debug.go        #   Debug overlay rendering (glamour markdown)
+├── cmd/                # CLI commands (Cobra)
+│   └── cmd.go          #   rootCmd, newCmd, continueCmd, listCmd
+├── stats/              # Stats & progression system
+│   ├── stats.go        #   XP/level math, streaks, card data + rendering
+│   └── stats_test.go   #   Tests for XP, levels, streaks, cards
 ├── game/       # Plugin interfaces (Gamer, Mode, Spawner), cursor, keys, style
-├── store/      # SQLite persistence (GameRecord, CRUD)
-├── ui/         # Shared UI: menu list, table, styles, MenuItem
+├── store/      # SQLite persistence (GameRecord, CRUD, stats queries)
+├── ui/         # Shared UI: menu list, table, panel, styles, MenuItem
 ├── daily/      # Daily puzzle seeding, RNG, mode selection
 ├── resolve/    # CLI argument resolution (category/mode name matching)
 ├── namegen/    # Adjective-noun name generator
 ├── hashiwokakero/, hitori/, lightsout/, nonogram/
-├── sudoku/, takuzu/, wordsearch/       # Puzzle game packages
+├── shikaku/, sudoku/, takuzu/, wordsearch/  # Puzzle game packages
 ├── plan/       # Design/planning documents
 └── vhs/        # GIF preview tapes
 ```

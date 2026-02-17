@@ -1,8 +1,9 @@
-package main
+package app
 
 import (
 	"fmt"
 
+	"github.com/FelineStateMachine/puzzletea/stats"
 	"github.com/FelineStateMachine/puzzletea/ui"
 
 	tea "charm.land/bubbletea/v2"
@@ -86,11 +87,11 @@ func (m model) View() tea.View {
 		if len(m.statsCards) == 0 {
 			statsBody = m.statsViewport.View()
 		} else {
-			bannerWidth := statsContentWidth(m.width)
+			bannerWidth := stats.ContentWidth(m.width)
 			if bannerWidth > 70 {
 				bannerWidth = 70
 			}
-			banner := renderBanner(m.statsProfile, bannerWidth)
+			banner := stats.RenderBanner(m.statsProfile, bannerWidth)
 			statsBody = lipgloss.JoinVertical(lipgloss.Left,
 				banner,
 				"",

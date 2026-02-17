@@ -1,4 +1,4 @@
-package main
+package app
 
 import (
 	"log"
@@ -57,7 +57,7 @@ func (m model) handleSpawnComplete(msg game.SpawnCompleteMsg) (tea.Model, tea.Cm
 		modeTitle = m.dailyModeTitle
 		m.game = msg.Game.SetTitle(name)
 	} else {
-		name = generateUniqueName(m.store)
+		name = GenerateUniqueName(m.store)
 		gameType = m.selectedCategory.Name
 		modeTitle = m.mode.Title()
 		m.game = msg.Game.SetTitle(name)
@@ -109,8 +109,8 @@ func saveCurrentGame(m model, status store.GameStatus) model {
 	return m
 }
 
-// generateUniqueName generates a unique adjective-noun name, retrying if needed.
-func generateUniqueName(s *store.Store) string {
+// GenerateUniqueName generates a unique adjective-noun name, retrying if needed.
+func GenerateUniqueName(s *store.Store) string {
 	for range 100 {
 		name := namegen.Generate()
 		exists, err := s.NameExists(name)

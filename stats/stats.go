@@ -1,4 +1,4 @@
-package main
+package stats
 
 import (
 	"fmt"
@@ -12,21 +12,24 @@ import (
 	"github.com/FelineStateMachine/puzzletea/store"
 	"github.com/FelineStateMachine/puzzletea/ui"
 
+	"charm.land/bubbles/v2/list"
 	"charm.land/lipgloss/v2"
 )
 
-// modeKey identifies a specific mode within a game category.
-type modeKey struct {
-	gameType string
-	mode     string
+// ModeKey identifies a specific mode within a game category.
+type ModeKey struct {
+	GameType string
+	Mode     string
 }
 
-// modeXP maps each mode to its base XP award per completion.
-var modeXP map[modeKey]int
+// ModeXP maps each mode to its base XP award per completion.
+var ModeXP map[ModeKey]int
 
-func init() {
-	modeXP = make(map[modeKey]int, 64)
-	for _, item := range GameCategories {
+// InitModeXP builds the ModeXP map from the provided game categories.
+// Must be called once at startup before any stats operations.
+func InitModeXP(categories []list.Item) {
+	ModeXP = make(map[ModeKey]int, 64)
+	for _, item := range categories {
 		cat := item.(game.Category)
 		count := len(cat.Modes)
 		for i, m := range cat.Modes {
@@ -35,38 +38,38 @@ func init() {
 			if xp < 1 {
 				xp = 1
 			}
-			modeXP[modeKey{cat.Name, mode.Title()}] = xp
+			ModeXP[ModeKey{cat.Name, mode.Title()}] = xp
 		}
 	}
 }
 
-// levelFromXP returns the level for the given total XP.
-// Uses the inverse of xpForLevel: level = floor((xp / 5) ^ (1/1.6))
-func levelFromXP(xp int) int {
+// LevelFromXP returns the level for the given total XP.
+// Uses the inverse of XPForLevel: level = floor((xp / 5) ^ (1/1.6))
+func LevelFromXP(xp int) int {
 	if xp <= 0 {
 		return 0
 	}
 	return int(math.Floor(math.Pow(float64(xp)/5.0, 1.0/1.6)))
 }
 
-// xpForLevel returns the total XP required to reach the given level.
+// XPForLevel returns the total XP required to reach the given level.
 // Formula: ceil(5 * level^1.6)
-func xpForLevel(level int) int {
+func XPForLevel(level int) int {
 	if level <= 0 {
 		return 0
 	}
 	return int(math.Ceil(5.0 * math.Pow(float64(level), 1.6)))
 }
 
-// computeCategoryXP calculates total XP for a game category by summing
+// ComputeCategoryXP calculates total XP for a game category by summing
 // XP across all modes. Daily victories earn 2x XP.
-func computeCategoryXP(gameType string, modeStats []store.ModeStat) int {
+func ComputeCategoryXP(gameType string, modeStats []store.ModeStat) int {
 	total := 0
 	for _, ms := range modeStats {
 		if ms.GameType != gameType {
 			continue
 		}
-		baseXP := modeXP[modeKey{ms.GameType, ms.Mode}]
+		baseXP := ModeXP[ModeKey{ms.GameType, ms.Mode}]
 		if baseXP == 0 {
 			baseXP = 1
 		}
@@ -77,18 +80,18 @@ func computeCategoryXP(gameType string, modeStats []store.ModeStat) int {
 	return total
 }
 
-// computeDailyStreak calculates the length of the current daily completion
+// ComputeDailyStreak calculates the length of the current daily completion
 // streak. The streak is "alive" if the most recent completion is today or
 // yesterday (giving the player until end of day to extend it).
-func computeDailyStreak(dates []time.Time, now time.Time) int {
+func ComputeDailyStreak(dates []time.Time, now time.Time) int {
 	if len(dates) == 0 {
 		return 0
 	}
 
-	today := truncateToDate(now)
+	today := TruncateToDate(now)
 	yesterday := today.AddDate(0, 0, -1)
 
-	most := truncateToDate(dates[0])
+	most := TruncateToDate(dates[0])
 	var start time.Time
 	switch {
 	case most.Equal(today):
@@ -102,7 +105,7 @@ func computeDailyStreak(dates []time.Time, now time.Time) int {
 	streak := 0
 	expected := start
 	for _, d := range dates {
-		dt := truncateToDate(d)
+		dt := TruncateToDate(d)
 		if dt.Equal(expected) {
 			streak++
 			expected = expected.AddDate(0, 0, -1)
@@ -113,60 +116,61 @@ func computeDailyStreak(dates []time.Time, now time.Time) int {
 	return streak
 }
 
-// truncateToDate strips the time component, returning midnight local time.
-func truncateToDate(t time.Time) time.Time {
+// TruncateToDate strips the time component, returning midnight local time.
+func TruncateToDate(t time.Time) time.Time {
 	y, m, d := t.Date()
 	return time.Date(y, m, d, 0, 0, 0, 0, t.Location())
 }
 
 // --- Stats card ---
 
-type statsCard struct {
-	gameType      string
-	level         int
-	preferredMode string
-	victories     int
-	attempts      int
-	dailyPlayed   int
-	currentXP     int
-	nextLevelXP   int
+// Card holds the computed stats for a single game category.
+type Card struct {
+	GameType      string
+	Level         int
+	PreferredMode string
+	Victories     int
+	Attempts      int
+	DailyPlayed   int
+	CurrentXP     int
+	NextLevelXP   int
 }
 
-// buildStatsCards constructs a statsCard for each category the player has
+// BuildCards constructs a Card for each category the player has
 // interacted with. Categories with zero attempts are excluded.
-func buildStatsCards(catStats []store.CategoryStat, modeStats []store.ModeStat) []statsCard {
-	var cards []statsCard
+func BuildCards(catStats []store.CategoryStat, modeStats []store.ModeStat) []Card {
+	var cards []Card
 	for _, cs := range catStats {
 		if cs.TotalAttempts == 0 {
 			continue
 		}
-		totalXP := computeCategoryXP(cs.GameType, modeStats)
-		lvl := levelFromXP(totalXP)
-		nextXP := xpForLevel(lvl + 1)
+		totalXP := ComputeCategoryXP(cs.GameType, modeStats)
+		lvl := LevelFromXP(totalXP)
+		nextXP := XPForLevel(lvl + 1)
 
 		preferred := cs.PreferredMode
 		if preferred == "" {
 			preferred = "\u2014" // em dash
 		}
 
-		cards = append(cards, statsCard{
-			gameType:      cs.GameType,
-			level:         lvl,
-			preferredMode: preferred,
-			victories:     cs.TotalVictories,
-			attempts:      cs.TotalAttempts,
-			dailyPlayed:   cs.TimesDaily,
-			currentXP:     totalXP,
-			nextLevelXP:   nextXP,
+		cards = append(cards, Card{
+			GameType:      cs.GameType,
+			Level:         lvl,
+			PreferredMode: preferred,
+			Victories:     cs.TotalVictories,
+			Attempts:      cs.TotalAttempts,
+			DailyPlayed:   cs.TimesDaily,
+			CurrentXP:     totalXP,
+			NextLevelXP:   nextXP,
 		})
 	}
 
 	// Sort by level descending, then by XP descending for ties.
-	slices.SortStableFunc(cards, func(a, b statsCard) int {
-		if a.level != b.level {
-			return b.level - a.level
+	slices.SortStableFunc(cards, func(a, b Card) int {
+		if a.Level != b.Level {
+			return b.Level - a.Level
 		}
-		return b.currentXP - a.currentXP
+		return b.CurrentXP - a.CurrentXP
 	})
 
 	return cards
@@ -174,30 +178,31 @@ func buildStatsCards(catStats []store.CategoryStat, modeStats []store.ModeStat) 
 
 // --- Profile banner ---
 
-type profileBanner struct {
-	profileLevel int
-	dailyStreak  int
-	totalDailies int
-	currentDaily bool
+// ProfileBanner holds the summary data shown above the card grid.
+type ProfileBanner struct {
+	ProfileLevel int
+	DailyStreak  int
+	TotalDailies int
+	CurrentDaily bool
 }
 
-// buildProfileBanner constructs the summary banner shown above the card grid.
-func buildProfileBanner(
+// BuildProfileBanner constructs the summary banner shown above the card grid.
+func BuildProfileBanner(
 	catStats []store.CategoryStat,
 	modeStats []store.ModeStat,
 	streakDates []time.Time,
 	s *store.Store,
-) profileBanner {
+) ProfileBanner {
 	profileLevel := 0
 	totalDailies := 0
 	for _, cs := range catStats {
-		xp := computeCategoryXP(cs.GameType, modeStats)
-		profileLevel += levelFromXP(xp)
+		xp := ComputeCategoryXP(cs.GameType, modeStats)
+		profileLevel += LevelFromXP(xp)
 		totalDailies += cs.TimesDaily
 	}
 
 	now := time.Now()
-	streak := computeDailyStreak(streakDates, now)
+	streak := ComputeDailyStreak(streakDates, now)
 
 	// Check if today's daily exists in the DB.
 	rng := daily.RNG(now)
@@ -205,21 +210,21 @@ func buildProfileBanner(
 	rec, _ := s.GetDailyGame(todayName)
 	currentDaily := rec != nil
 
-	return profileBanner{
-		profileLevel: profileLevel,
-		dailyStreak:  streak,
-		totalDailies: totalDailies,
-		currentDaily: currentDaily,
+	return ProfileBanner{
+		ProfileLevel: profileLevel,
+		DailyStreak:  streak,
+		TotalDailies: totalDailies,
+		CurrentDaily: currentDaily,
 	}
 }
 
 // --- Rendering ---
 
 const (
-	cardInnerWidth = 30
-	// cardHeight is the rendered height of a single stats card in lines.
+	CardInnerWidth = 30
+	// CardHeight is the rendered height of a single stats card in lines.
 	// 7 inner lines (title + 4 stats + blank + XP bar) + 2 border lines = 9.
-	cardHeight = 9
+	CardHeight = 9
 )
 
 // Panel chrome: border top (1) + padding top (1) + title (1) + blank (1)
@@ -230,37 +235,37 @@ const panelChrome = 8
 // bannerHeight is the rendered banner (4 lines) plus a blank separator line.
 const bannerHeight = 5
 
-// statsStaticHeight returns the total lines consumed by non-scrollable parts
+// StaticHeight returns the total lines consumed by non-scrollable parts
 // of the stats view: panel chrome + banner (when cards exist).
-func statsStaticHeight(cards []statsCard) int {
+func StaticHeight(cards []Card) int {
 	if len(cards) == 0 {
 		return panelChrome
 	}
 	return panelChrome + bannerHeight
 }
 
-// cardFullWidth is the rendered width of a single card including border + padding.
-const cardFullWidth = cardInnerWidth + 4 // 34
+// CardFullWidth is the rendered width of a single card including border + padding.
+const CardFullWidth = CardInnerWidth + 4 // 34
 
-// statsContentWidth returns the inner content width for the stats panel.
+// ContentWidth returns the inner content width for the stats panel.
 // In 2-column mode the content is two cards wide; in 1-column mode it is
 // one card wide. The result is clamped so it never exceeds the available
 // terminal width minus the panel chrome (border + padding = 6 horizontal chars).
-func statsContentWidth(termWidth int) int {
-	twoCol := cardFullWidth * 2 // 68
+func ContentWidth(termWidth int) int {
+	twoCol := CardFullWidth * 2 // 68
 	available := termWidth - 6  // panel border (1+1) + padding (2+2)
 	if available >= twoCol {
 		return twoCol
 	}
-	return max(cardFullWidth, min(available, cardFullWidth))
+	return max(CardFullWidth, min(available, CardFullWidth))
 }
 
-// statsViewportHeight computes the viewport height for the card grid.
+// ViewportHeight computes the viewport height for the card grid.
 // Shows at most 2.5 card rows and at least 1 full card row, clamped
 // to the available terminal height minus the static chrome.
-func statsViewportHeight(availableHeight int) int {
-	maxRows := cardHeight*2 + cardHeight/2 // ~2.5 cards = 22
-	minRows := cardHeight                  // 1 full card = 9
+func ViewportHeight(availableHeight int) int {
+	maxRows := CardHeight*2 + CardHeight/2 // ~2.5 cards = 22
+	minRows := CardHeight                  // 1 full card = 9
 	h := min(availableHeight, maxRows)
 	return max(h, minRows)
 }
@@ -270,7 +275,7 @@ var (
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(ui.MenuDim).
 			Padding(0, 1).
-			Width(cardInnerWidth + 4) // +4 for border + padding
+			Width(CardInnerWidth + 4) // +4 for border + padding
 
 	cardTitle = lipgloss.NewStyle().
 			Bold(true).
@@ -303,19 +308,20 @@ var (
 			Bold(true)
 )
 
-func renderCard(c statsCard) string {
+// RenderCard renders a single stats card.
+func RenderCard(c Card) string {
 	title := cardTitle.Render(
-		fmt.Sprintf("%s \u2014 LVL %d", strings.ToUpper(c.gameType), c.level),
+		fmt.Sprintf("%s \u2014 LVL %d", strings.ToUpper(c.GameType), c.Level),
 	)
 
 	lines := []string{
 		title,
-		renderStatLine("Preferred Mode:", c.preferredMode),
-		renderStatLine("Total Victories:", fmt.Sprintf("%d", c.victories)),
-		renderStatLine("Total Attempts:", fmt.Sprintf("%d", c.attempts)),
-		renderStatLine("Daily Played:", fmt.Sprintf("%d", c.dailyPlayed)),
+		renderStatLine("Preferred Mode:", c.PreferredMode),
+		renderStatLine("Total Victories:", fmt.Sprintf("%d", c.Victories)),
+		renderStatLine("Total Attempts:", fmt.Sprintf("%d", c.Attempts)),
+		renderStatLine("Daily Played:", fmt.Sprintf("%d", c.DailyPlayed)),
 		"",
-		renderXPBar(c.currentXP, c.level),
+		renderXPBar(c.CurrentXP, c.Level),
 	}
 
 	inner := strings.Join(lines, "\n")
@@ -326,7 +332,7 @@ func renderStatLine(label, value string) string {
 	l := statLabel.Render(label)
 	v := statValue.Render(value)
 	// Right-align value within card width.
-	gap := cardInnerWidth - lipgloss.Width(l) - lipgloss.Width(v)
+	gap := CardInnerWidth - lipgloss.Width(l) - lipgloss.Width(v)
 	if gap < 1 {
 		gap = 1
 	}
@@ -334,8 +340,8 @@ func renderStatLine(label, value string) string {
 }
 
 func renderXPBar(currentXP, level int) string {
-	currentLevelXP := xpForLevel(level)
-	nextLevelXP := xpForLevel(level + 1)
+	currentLevelXP := XPForLevel(level)
+	nextLevelXP := XPForLevel(level + 1)
 	xpIntoLevel := currentXP - currentLevelXP
 	xpNeeded := nextLevelXP - currentLevelXP
 	if xpNeeded <= 0 {
@@ -362,7 +368,8 @@ func renderXPBar(currentXP, level int) string {
 	return statLabel.Render("XP ") + bar + frac
 }
 
-func renderBanner(b profileBanner, width int) string {
+// RenderBanner renders the profile summary banner.
+func RenderBanner(b ProfileBanner, width int) string {
 	if width < 20 {
 		width = 40
 	}
@@ -372,18 +379,18 @@ func renderBanner(b profileBanner, width int) string {
 	)
 
 	check := bannerValue.Render("\u2714")
-	if !b.currentDaily {
+	if !b.CurrentDaily {
 		check = lipgloss.NewStyle().Foreground(ui.MenuTextDim).Render("\u2014")
 	}
 
-	streakStr := fmt.Sprintf("%d days", b.dailyStreak)
-	if b.dailyStreak == 1 {
+	streakStr := fmt.Sprintf("%d days", b.DailyStreak)
+	if b.DailyStreak == 1 {
 		streakStr = "1 day"
 	}
 
-	col1 := bannerLabel.Render("Profile Level: ") + bannerValue.Render(fmt.Sprintf("%d", b.profileLevel))
+	col1 := bannerLabel.Render("Profile Level: ") + bannerValue.Render(fmt.Sprintf("%d", b.ProfileLevel))
 	col2 := bannerLabel.Render("Daily Streak: ") + bannerValue.Render(streakStr)
-	col3 := bannerLabel.Render("Total Dailies: ") + bannerValue.Render(fmt.Sprintf("%d", b.totalDailies))
+	col3 := bannerLabel.Render("Total Dailies: ") + bannerValue.Render(fmt.Sprintf("%d", b.TotalDailies))
 	col4 := bannerLabel.Render("Current daily: ") + check
 
 	// Two-column layout: left side + gap + right side.
@@ -404,24 +411,24 @@ func renderBanner(b profileBanner, width int) string {
 	return strings.Join([]string{ruleStr, row1, row2, bottomRule}, "\n")
 }
 
-// renderStatsCardGrid renders just the card grid (no banner). This is the
+// RenderCardGrid renders just the card grid (no banner). This is the
 // content placed inside the scrollable viewport.
-func renderStatsCardGrid(cards []statsCard, width int) string {
+func RenderCardGrid(cards []Card, width int) string {
 	if len(cards) == 0 {
 		return lipgloss.NewStyle().
 			Foreground(ui.MenuTextDim).
 			Render("No stats yet \u2014 play some puzzles!")
 	}
 
-	if width >= cardFullWidth*2 {
+	if width >= CardFullWidth*2 {
 		return renderCardColumns(cards, 2)
 	}
 	return renderCardColumns(cards, 1)
 }
 
-// renderStatsView renders the full stats view (banner + card grid) as a single
+// RenderView renders the full stats view (banner + card grid) as a single
 // string. Used only by tests and the empty-state path.
-func renderStatsView(banner profileBanner, cards []statsCard, width int) string {
+func RenderView(banner ProfileBanner, cards []Card, width int) string {
 	if len(cards) == 0 {
 		return lipgloss.NewStyle().
 			Foreground(ui.MenuTextDim).
@@ -432,8 +439,8 @@ func renderStatsView(banner profileBanner, cards []statsCard, width int) string 
 	if bannerWidth > 70 {
 		bannerWidth = 70
 	}
-	bannerStr := renderBanner(banner, bannerWidth)
-	cardGrid := renderStatsCardGrid(cards, width)
+	bannerStr := RenderBanner(banner, bannerWidth)
+	cardGrid := RenderCardGrid(cards, width)
 
 	return lipgloss.JoinVertical(lipgloss.Left,
 		bannerStr,
@@ -442,7 +449,7 @@ func renderStatsView(banner profileBanner, cards []statsCard, width int) string 
 	)
 }
 
-func renderCardColumns(cards []statsCard, cols int) string {
+func renderCardColumns(cards []Card, cols int) string {
 	if cols < 1 {
 		cols = 1
 	}
@@ -450,7 +457,7 @@ func renderCardColumns(cards []statsCard, cols int) string {
 	columns := make([][]string, cols)
 	for i, c := range cards {
 		col := i % cols
-		columns[col] = append(columns[col], renderCard(c))
+		columns[col] = append(columns[col], RenderCard(c))
 	}
 
 	rendered := make([]string, cols)
