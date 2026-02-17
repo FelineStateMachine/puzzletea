@@ -36,12 +36,12 @@ var (
 		game.Category{Name: "Word Search", Desc: "Find hidden words in a letter grid.", Modes: wordsearch.Modes, Help: wordsearch.HelpContent},
 	}
 
-	mainMenuItems = []list.Item{
-		ui.MenuItem{ItemTitle: "Daily Puzzle", Desc: time.Now().Format("Jan _2 06")},
-		ui.MenuItem{ItemTitle: "Generate", Desc: "a new puzzle."},
-		ui.MenuItem{ItemTitle: "Continue", Desc: "a previous puzzle."},
-		ui.MenuItem{ItemTitle: "Guides", Desc: "to learn."},
-		ui.MenuItem{ItemTitle: "Quit", Desc: "the game."},
+	mainMenuItems = []ui.MenuItem{
+		{ItemTitle: "Daily Puzzle", Desc: time.Now().Format("Jan _2 06")},
+		{ItemTitle: "Generate", Desc: "a new puzzle"},
+		{ItemTitle: "Continue", Desc: "a saved puzzle"},
+		{ItemTitle: "Guides", Desc: "learn the rules"},
+		{ItemTitle: "Quit", Desc: "exit puzzletea"},
 	}
 )
 
@@ -59,7 +59,7 @@ const (
 type model struct {
 	state int
 
-	mainMenuList     list.Model
+	mainMenu         ui.MainMenu
 	gameSelectList   list.Model
 	modeSelectList   list.Model
 	selectedCategory game.Category
@@ -102,7 +102,7 @@ type model struct {
 func initialModel(s *store.Store) model {
 	r := initDebugRenderer()
 	l := ui.InitList(GameCategories, "Select Category")
-	ml := ui.InitList(mainMenuItems, "puzzletea")
+	mm := ui.NewMainMenu(mainMenuItems)
 	sp := spinner.New()
 	sp.Spinner = spinner.Dot
 	sp.Style = lipgloss.NewStyle().Foreground(ui.MenuAccent)
@@ -110,7 +110,7 @@ func initialModel(s *store.Store) model {
 		state:          mainMenuView,
 		debugRenderer:  r,
 		gameSelectList: l,
-		mainMenuList:   ml,
+		mainMenu:       mm,
 		spinner:        sp,
 		store:          s,
 	}
@@ -121,7 +121,7 @@ func initialModel(s *store.Store) model {
 func initialModelWithGame(s *store.Store, g game.Gamer, activeGameID int64, completionSaved bool) model {
 	r := initDebugRenderer()
 	l := ui.InitList(GameCategories, "Select Category")
-	ml := ui.InitList(mainMenuItems, "puzzletea")
+	mm := ui.NewMainMenu(mainMenuItems)
 	sp := spinner.New()
 	sp.Spinner = spinner.Dot
 	sp.Style = lipgloss.NewStyle().Foreground(ui.MenuAccent)
@@ -129,7 +129,7 @@ func initialModelWithGame(s *store.Store, g game.Gamer, activeGameID int64, comp
 		state:           gameView,
 		debugRenderer:   r,
 		gameSelectList:  l,
-		mainMenuList:    ml,
+		mainMenu:        mm,
 		spinner:         sp,
 		store:           s,
 		game:            g,

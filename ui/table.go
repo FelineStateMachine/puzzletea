@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"log"
 
 	"charm.land/bubbles/v2/table"
@@ -8,6 +9,9 @@ import (
 	"charm.land/lipgloss/v2/compat"
 	"github.com/FelineStateMachine/puzzletea/store"
 )
+
+// MaxTableRows is the maximum number of rows visible in the continue table.
+const MaxTableRows = 20
 
 // FormatStatus converts a GameStatus enum to a human-readable display string.
 func FormatStatus(s store.GameStatus) string {
@@ -58,12 +62,13 @@ func InitContinueTable(s *store.Store, height int) (table.Model, []store.GameRec
 	// Account for column gaps (2 chars between each column).
 	tableWidth += (len(columns) - 1) * 2
 
+	visibleRows := min(len(rows), MaxTableRows)
 	t := table.New(
 		table.WithColumns(columns),
 		table.WithRows(rows),
 		table.WithFocused(true),
 		table.WithWidth(tableWidth),
-		table.WithHeight(max(height-2, 1)),
+		table.WithHeight(min(max(height-2, 1), visibleRows)),
 	)
 
 	st := table.DefaultStyles()
@@ -82,4 +87,28 @@ func InitContinueTable(s *store.Store, height int) (table.Model, []store.GameRec
 	t.SetStyles(st)
 
 	return t, games
+}
+
+// TablePagination returns a pagination string like "1-20 of 45" for the
+// continue table, or an empty string if all rows fit on one page.
+func TablePagination(t table.Model) string {
+	total := len(t.Rows())
+	if total <= MaxTableRows {
+		return ""
+	}
+	cursor := t.Cursor()
+	height := t.Height()
+
+	// Estimate the visible window based on cursor and table height.
+	start := cursor - height + 1
+	if start < 0 {
+		start = 0
+	}
+	end := start + height
+	if end > total {
+		end = total
+		start = end - height
+	}
+
+	return FooterHint.Render(fmt.Sprintf("%d–%d of %d", start+1, end, total))
 }

@@ -26,14 +26,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 		menuW := min(m.width, 64)
-		m.mainMenuList.SetSize(menuW, min(m.height, ui.ListHeight(m.mainMenuList)))
 		m.gameSelectList.SetSize(menuW, min(m.height, ui.ListHeight(m.gameSelectList)))
 		if m.state == modeSelectView {
 			m.modeSelectList.SetSize(menuW, min(m.height, ui.ListHeight(m.modeSelectList)))
 		}
 		if m.state == continueView {
 			m.continueTable.SetWidth(m.width)
-			m.continueTable.SetHeight(m.height)
+			visibleRows := min(len(m.continueGames), ui.MaxTableRows)
+			m.continueTable.SetHeight(min(m.height, visibleRows))
 		}
 		if m.state == helpSelectView {
 			m.helpSelectList.SetSize(menuW, min(m.height, ui.ListHeight(m.helpSelectList)))
@@ -90,7 +90,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch m.state {
 	case mainMenuView:
-		m.mainMenuList, cmd = m.mainMenuList.Update(msg)
+		if msg, ok := msg.(tea.KeyPressMsg); ok {
+			switch msg.String() {
+			case "up", "k":
+				m.mainMenu.CursorUp()
+			case "down", "j":
+				m.mainMenu.CursorDown()
+			}
+		}
 	case generatingView:
 		m.spinner, cmd = m.spinner.Update(msg)
 	case gameView:
@@ -138,10 +145,7 @@ func (m model) handleEnter() (tea.Model, tea.Cmd) {
 }
 
 func (m model) handleMainMenuEnter() (tea.Model, tea.Cmd) {
-	item, ok := m.mainMenuList.SelectedItem().(ui.MenuItem)
-	if !ok {
-		return m, nil
-	}
+	item := m.mainMenu.Selected()
 	switch item.Title() {
 	case "Daily Puzzle":
 		return m.handleDailyPuzzle()
