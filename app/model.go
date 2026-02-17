@@ -1,4 +1,6 @@
-package main
+// Package app implements the root TUI model for PuzzleTea, including
+// the Elm-architecture update/view loop, game spawning, and debug overlay.
+package app
 
 import (
 	"time"
@@ -9,6 +11,7 @@ import (
 	"github.com/FelineStateMachine/puzzletea/lightsout"
 	"github.com/FelineStateMachine/puzzletea/nonogram"
 	"github.com/FelineStateMachine/puzzletea/shikaku"
+	"github.com/FelineStateMachine/puzzletea/stats"
 	"github.com/FelineStateMachine/puzzletea/store"
 	"github.com/FelineStateMachine/puzzletea/sudoku"
 	"github.com/FelineStateMachine/puzzletea/takuzu"
@@ -24,27 +27,26 @@ import (
 	"github.com/charmbracelet/glamour"
 )
 
-var (
-	GameCategories = []list.Item{
-		game.Category{Name: "Hashiwokakero", Desc: "Connect islands with bridges.", Modes: hashiwokakero.Modes, Help: hashiwokakero.HelpContent},
-		game.Category{Name: "Hitori", Desc: "Shade cells to eliminate duplicates.", Modes: hitori.Modes, Help: hitori.HelpContent},
-		game.Category{Name: "Lights Out", Desc: "Turn off all the lights.", Modes: lightsout.Modes, Help: lightsout.HelpContent},
-		game.Category{Name: "Nonogram", Desc: "Fill cells to match row and column hints.", Modes: nonogram.Modes, Help: nonogram.HelpContent},
-		game.Category{Name: "Shikaku", Desc: "Divide the grid into rectangles.", Modes: shikaku.Modes, Help: shikaku.HelpContent},
-		game.Category{Name: "Sudoku", Desc: "Fill the 9x9 grid following sudoku rules.", Modes: sudoku.Modes, Help: sudoku.HelpContent},
-		game.Category{Name: "Takuzu", Desc: "Fill the grid with ● and ○.", Modes: takuzu.Modes, Help: takuzu.HelpContent},
-		game.Category{Name: "Word Search", Desc: "Find hidden words in a letter grid.", Modes: wordsearch.Modes, Help: wordsearch.HelpContent},
-	}
+// GameCategories is the master registry of all puzzle types.
+var GameCategories = []list.Item{
+	game.Category{Name: "Hashiwokakero", Desc: "Connect islands with bridges.", Modes: hashiwokakero.Modes, Help: hashiwokakero.HelpContent},
+	game.Category{Name: "Hitori", Desc: "Shade cells to eliminate duplicates.", Modes: hitori.Modes, Help: hitori.HelpContent},
+	game.Category{Name: "Lights Out", Desc: "Turn off all the lights.", Modes: lightsout.Modes, Help: lightsout.HelpContent},
+	game.Category{Name: "Nonogram", Desc: "Fill cells to match row and column hints.", Modes: nonogram.Modes, Help: nonogram.HelpContent},
+	game.Category{Name: "Shikaku", Desc: "Divide the grid into rectangles.", Modes: shikaku.Modes, Help: shikaku.HelpContent},
+	game.Category{Name: "Sudoku", Desc: "Fill the 9x9 grid following sudoku rules.", Modes: sudoku.Modes, Help: sudoku.HelpContent},
+	game.Category{Name: "Takuzu", Desc: "Fill the grid with ● and ○.", Modes: takuzu.Modes, Help: takuzu.HelpContent},
+	game.Category{Name: "Word Search", Desc: "Find hidden words in a letter grid.", Modes: wordsearch.Modes, Help: wordsearch.HelpContent},
+}
 
-	mainMenuItems = []ui.MenuItem{
-		{ItemTitle: "Daily Puzzle", Desc: time.Now().Format("Jan _2 06")},
-		{ItemTitle: "Generate", Desc: "a new puzzle"},
-		{ItemTitle: "Continue", Desc: "a saved puzzle"},
-		{ItemTitle: "Stats", Desc: "your progress"},
-		{ItemTitle: "Guides", Desc: "learn the rules"},
-		{ItemTitle: "Quit", Desc: "exit puzzletea"},
-	}
-)
+var mainMenuItems = []ui.MenuItem{
+	{ItemTitle: "Daily Puzzle", Desc: time.Now().Format("Jan _2 06")},
+	{ItemTitle: "Generate", Desc: "a new puzzle"},
+	{ItemTitle: "Continue", Desc: "a saved puzzle"},
+	{ItemTitle: "Stats", Desc: "your progress"},
+	{ItemTitle: "Guides", Desc: "learn the rules"},
+	{ItemTitle: "Quit", Desc: "exit puzzletea"},
+}
 
 const (
 	mainMenuView = iota
@@ -101,12 +103,13 @@ type model struct {
 	helpRendererWidth int
 
 	// Stats page state
-	statsCards    []statsCard
-	statsProfile  profileBanner
+	statsCards    []stats.Card
+	statsProfile  stats.ProfileBanner
 	statsViewport viewport.Model
 }
 
-func initialModel(s *store.Store) model {
+// InitialModel creates the root TUI model for the main menu.
+func InitialModel(s *store.Store) model {
 	r := initDebugRenderer()
 	l := ui.InitList(GameCategories, "Select Category")
 	mm := ui.NewMainMenu(mainMenuItems)
@@ -123,9 +126,9 @@ func initialModel(s *store.Store) model {
 	}
 }
 
-// initialModelWithGame creates a model that starts directly in gameView,
+// InitialModelWithGame creates a model that starts directly in gameView,
 // bypassing the menu. Used by CLI flags (--new, --continue).
-func initialModelWithGame(s *store.Store, g game.Gamer, activeGameID int64, completionSaved bool) model {
+func InitialModelWithGame(s *store.Store, g game.Gamer, activeGameID int64, completionSaved bool) model {
 	r := initDebugRenderer()
 	l := ui.InitList(GameCategories, "Select Category")
 	mm := ui.NewMainMenu(mainMenuItems)

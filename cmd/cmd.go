@@ -1,4 +1,5 @@
-package main
+// Package cmd defines the CLI commands for PuzzleTea using Cobra.
+package cmd
 
 import (
 	"fmt"
@@ -7,27 +8,30 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"github.com/FelineStateMachine/puzzletea/app"
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/resolve"
+	"github.com/FelineStateMachine/puzzletea/stats"
 	"github.com/FelineStateMachine/puzzletea/store"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/spf13/cobra"
 )
 
-// version is set at build time via ldflags:
+// Version is set at build time via ldflags:
 //
-//	go build -ldflags "-X main.version=v1.0.0"
-var version = "dev"
+//	go build -ldflags "-X github.com/FelineStateMachine/puzzletea/cmd.Version=v1.0.0"
+var Version = "dev"
 
 var (
 	flagNew      string
 	flagContinue string
 )
 
-var rootCmd = &cobra.Command{
+// RootCmd is the top-level Cobra command.
+var RootCmd = &cobra.Command{
 	Use:     "puzzletea",
-	Version: version,
+	Version: Version,
 	Short:   "A terminal-based puzzle game framework",
 	Long:    "PuzzleTea is a terminal-based puzzle game framework featuring Nonogram, Sudoku, Word Search, Hashiwokakero, and Lights Out.",
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -49,7 +53,8 @@ var rootCmd = &cobra.Command{
 			return err
 		}
 		defer s.Close()
-		p := tea.NewProgram(initialModel(s))
+		stats.InitModeXP(app.GameCategories)
+		p := tea.NewProgram(app.InitialModel(s))
 		_, err = p.Run()
 		return err
 	},
@@ -59,7 +64,7 @@ var newCmd = &cobra.Command{
 	Use:   "new <game> [mode]",
 	Short: "Start a new puzzle game",
 	Long: fmt.Sprintf("Start a new puzzle game, optionally specifying the difficulty mode.\n\nAvailable games:\n  %s",
-		strings.Join(resolve.CategoryNames(GameCategories), "\n  ")),
+		strings.Join(resolve.CategoryNames(app.GameCategories), "\n  ")),
 	Args: cobra.RangeArgs(1, 2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		gameArg := args[0]
@@ -125,17 +130,17 @@ var listCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.Flags().StringVar(&flagNew, "new", "", "start a new game (game:mode)")
-	rootCmd.Flags().StringVar(&flagContinue, "continue", "", "resume a saved game by name")
+	RootCmd.Flags().StringVar(&flagNew, "new", "", "start a new game (game:mode)")
+	RootCmd.Flags().StringVar(&flagContinue, "continue", "", "resume a saved game by name")
 
 	listCmd.Flags().BoolVar(&listAll, "all", false, "include abandoned games")
 
-	rootCmd.AddCommand(newCmd, continueCmd, listCmd)
+	RootCmd.AddCommand(newCmd, continueCmd, listCmd)
 }
 
 // launchNewGame resolves the game/mode, spawns a new game, and launches the TUI.
 func launchNewGame(gameArg, modeArg string) error {
-	cat, err := resolve.Category(gameArg, GameCategories)
+	cat, err := resolve.Category(gameArg, app.GameCategories)
 	if err != nil {
 		return err
 	}
@@ -156,7 +161,9 @@ func launchNewGame(gameArg, modeArg string) error {
 	}
 	defer s.Close()
 
-	name := generateUniqueName(s)
+	stats.InitModeXP(app.GameCategories)
+
+	name := app.GenerateUniqueName(s)
 	g = g.SetTitle(name)
 
 	initialState, err := g.GetSave()
@@ -176,7 +183,7 @@ func launchNewGame(gameArg, modeArg string) error {
 		log.Printf("failed to create game record: %v", err)
 	}
 
-	m := initialModelWithGame(s, g, rec.ID, false)
+	m := app.InitialModelWithGame(s, g, rec.ID, false)
 	p := tea.NewProgram(m)
 	_, err = p.Run()
 	return err
@@ -189,6 +196,8 @@ func continueGame(name string) error {
 		return err
 	}
 	defer s.Close()
+
+	stats.InitModeXP(app.GameCategories)
 
 	rec, err := s.GetGameByName(name)
 	if err != nil {
@@ -210,7 +219,7 @@ func continueGame(name string) error {
 	g = g.SetTitle(rec.Name)
 
 	completed := rec.Status == store.StatusCompleted
-	m := initialModelWithGame(s, g, rec.ID, completed)
+	m := app.InitialModelWithGame(s, g, rec.ID, completed)
 	p := tea.NewProgram(m)
 	_, err = p.Run()
 	return err

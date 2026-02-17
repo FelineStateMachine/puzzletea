@@ -1,4 +1,4 @@
-package main
+package app
 
 import (
 	"log"
@@ -6,6 +6,7 @@ import (
 
 	"github.com/FelineStateMachine/puzzletea/daily"
 	"github.com/FelineStateMachine/puzzletea/game"
+	"github.com/FelineStateMachine/puzzletea/stats"
 	"github.com/FelineStateMachine/puzzletea/store"
 	"github.com/FelineStateMachine/puzzletea/ui"
 
@@ -43,11 +44,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.helpViewport.SetHeight(m.height - 2)
 		}
 		if m.state == statsView {
-			cw := statsContentWidth(m.width)
+			cw := stats.ContentWidth(m.width)
 			m.statsViewport.SetWidth(cw)
-			vpH := statsViewportHeight(m.height - statsStaticHeight(m.statsCards))
+			vpH := stats.ViewportHeight(m.height - stats.StaticHeight(m.statsCards))
 			m.statsViewport.SetHeight(vpH)
-			m.statsViewport.SetContent(renderStatsCardGrid(m.statsCards, cw))
+			m.statsViewport.SetContent(stats.RenderCardGrid(m.statsCards, cw))
 		}
 
 	case tea.KeyPressMsg:
@@ -337,18 +338,18 @@ func (m model) handleStatsEnter() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	m.statsCards = buildStatsCards(catStats, modeStats)
-	m.statsProfile = buildProfileBanner(catStats, modeStats, streakDates, m.store)
+	m.statsCards = stats.BuildCards(catStats, modeStats)
+	m.statsProfile = stats.BuildProfileBanner(catStats, modeStats, streakDates, m.store)
 
 	// Banner is rendered as static chrome above the viewport; only the
 	// card grid scrolls. Compute available height for the viewport after
 	// accounting for the panel frame and banner.
-	vpHeight := statsViewportHeight(m.height - statsStaticHeight(m.statsCards))
+	vpHeight := stats.ViewportHeight(m.height - stats.StaticHeight(m.statsCards))
 	m.statsViewport = viewport.New(
-		viewport.WithWidth(statsContentWidth(m.width)),
+		viewport.WithWidth(stats.ContentWidth(m.width)),
 		viewport.WithHeight(vpHeight),
 	)
-	m.statsViewport.SetContent(renderStatsCardGrid(m.statsCards, statsContentWidth(m.width)))
+	m.statsViewport.SetContent(stats.RenderCardGrid(m.statsCards, stats.ContentWidth(m.width)))
 	m.state = statsView
 	return m, nil
 }

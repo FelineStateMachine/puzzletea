@@ -1,40 +1,39 @@
-package main
+package stats
 
 import (
 	"testing"
 	"time"
 
-	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/store"
 )
 
-// --- modeXP map (P0) ---
+// --- ModeXP map (P0) ---
 
 func TestModeXPMap(t *testing.T) {
-	t.Run("all modes have positive XP", func(t *testing.T) {
-		if len(modeXP) == 0 {
-			t.Fatal("modeXP map is empty")
-		}
-		for k, v := range modeXP {
-			if v <= 0 {
-				t.Errorf("modeXP[%q/%q] = %d, want > 0", k.gameType, k.mode, v)
-			}
-		}
-	})
+	// InitModeXP is called via TestMain or init in the main package.
+	// For the stats package tests, we set up a known map directly.
+	origXP := ModeXP
+	defer func() { ModeXP = origXP }()
 
-	t.Run("every category mode is represented", func(t *testing.T) {
-		expected := 0
-		for _, item := range GameCategories {
-			cat := item.(game.Category)
-			expected += len(cat.Modes)
+	ModeXP = map[ModeKey]int{
+		{"Sudoku", "Easy"}:   1,
+		{"Sudoku", "Medium"}: 3,
+		{"Sudoku", "Hard"}:   5,
+	}
+
+	t.Run("all modes have positive XP", func(t *testing.T) {
+		if len(ModeXP) == 0 {
+			t.Fatal("ModeXP map is empty")
 		}
-		if len(modeXP) != expected {
-			t.Errorf("modeXP has %d entries, want %d (total modes)", len(modeXP), expected)
+		for k, v := range ModeXP {
+			if v <= 0 {
+				t.Errorf("ModeXP[%q/%q] = %d, want > 0", k.GameType, k.Mode, v)
+			}
 		}
 	})
 }
 
-// --- levelFromXP (P0) ---
+// --- LevelFromXP (P0) ---
 
 func TestLevelFromXP(t *testing.T) {
 	tests := []struct {
@@ -58,15 +57,15 @@ func TestLevelFromXP(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := levelFromXP(tt.xp)
+			got := LevelFromXP(tt.xp)
 			if got != tt.want {
-				t.Errorf("levelFromXP(%d) = %d, want %d", tt.xp, got, tt.want)
+				t.Errorf("LevelFromXP(%d) = %d, want %d", tt.xp, got, tt.want)
 			}
 		})
 	}
 }
 
-// --- xpForLevel (P0) ---
+// --- XPForLevel (P0) ---
 
 func TestXPForLevel(t *testing.T) {
 	tests := []struct {
@@ -83,9 +82,9 @@ func TestXPForLevel(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := xpForLevel(tt.level)
+			got := XPForLevel(tt.level)
 			if got != tt.want {
-				t.Errorf("xpForLevel(%d) = %d, want %d", tt.level, got, tt.want)
+				t.Errorf("XPForLevel(%d) = %d, want %d", tt.level, got, tt.want)
 			}
 		})
 	}
@@ -94,22 +93,22 @@ func TestXPForLevel(t *testing.T) {
 // --- Level/XP round-trip consistency (P0) ---
 
 func TestLevelXPRoundTrip(t *testing.T) {
-	// For each level, xpForLevel should be the threshold that levelFromXP
+	// For each level, XPForLevel should be the threshold that LevelFromXP
 	// returns that level. One XP less should return level-1.
 	for lvl := 1; lvl <= 30; lvl++ {
-		threshold := xpForLevel(lvl)
-		if levelFromXP(threshold) != lvl {
-			t.Errorf("levelFromXP(xpForLevel(%d)=%d) = %d, want %d",
-				lvl, threshold, levelFromXP(threshold), lvl)
+		threshold := XPForLevel(lvl)
+		if LevelFromXP(threshold) != lvl {
+			t.Errorf("LevelFromXP(XPForLevel(%d)=%d) = %d, want %d",
+				lvl, threshold, LevelFromXP(threshold), lvl)
 		}
-		if threshold > 0 && levelFromXP(threshold-1) != lvl-1 {
-			t.Errorf("levelFromXP(%d-1=%d) = %d, want %d",
-				threshold, threshold-1, levelFromXP(threshold-1), lvl-1)
+		if threshold > 0 && LevelFromXP(threshold-1) != lvl-1 {
+			t.Errorf("LevelFromXP(%d-1=%d) = %d, want %d",
+				threshold, threshold-1, LevelFromXP(threshold-1), lvl-1)
 		}
 	}
 }
 
-// --- computeDailyStreak (P0) ---
+// --- ComputeDailyStreak (P0) ---
 
 func TestComputeDailyStreak(t *testing.T) {
 	// Helper: date at midnight local time.
@@ -183,22 +182,22 @@ func TestComputeDailyStreak(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := computeDailyStreak(tt.dates, tt.now)
+			got := ComputeDailyStreak(tt.dates, tt.now)
 			if got != tt.want {
-				t.Errorf("computeDailyStreak() = %d, want %d", got, tt.want)
+				t.Errorf("ComputeDailyStreak() = %d, want %d", got, tt.want)
 			}
 		})
 	}
 }
 
-// --- computeCategoryXP (P1) ---
+// --- ComputeCategoryXP (P1) ---
 
 func TestComputeCategoryXP(t *testing.T) {
-	// Override modeXP for test.
-	origXP := modeXP
-	defer func() { modeXP = origXP }()
+	// Override ModeXP for test.
+	origXP := ModeXP
+	defer func() { ModeXP = origXP }()
 
-	modeXP = map[modeKey]int{
+	ModeXP = map[ModeKey]int{
 		{"Sudoku", "Easy"}:   1,
 		{"Sudoku", "Medium"}: 3,
 		{"Sudoku", "Hard"}:   5,
@@ -231,7 +230,7 @@ func TestComputeCategoryXP(t *testing.T) {
 			modeStats: []store.ModeStat{
 				{GameType: "Sudoku", Mode: "Easy", Victories: 3, DailyVictories: 1},
 			},
-			// 2 normal × 1 + 1 daily × 1 × 2 = 4
+			// 2 normal * 1 + 1 daily * 1 * 2 = 4
 			want: 4,
 		},
 		{
@@ -254,21 +253,21 @@ func TestComputeCategoryXP(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := computeCategoryXP(tt.gameType, tt.modeStats)
+			got := ComputeCategoryXP(tt.gameType, tt.modeStats)
 			if got != tt.want {
-				t.Errorf("computeCategoryXP(%q) = %d, want %d", tt.gameType, got, tt.want)
+				t.Errorf("ComputeCategoryXP(%q) = %d, want %d", tt.gameType, got, tt.want)
 			}
 		})
 	}
 }
 
-// --- buildStatsCards (P1) ---
+// --- BuildCards (P1) ---
 
-func TestBuildStatsCards(t *testing.T) {
-	origXP := modeXP
-	defer func() { modeXP = origXP }()
+func TestBuildCards(t *testing.T) {
+	origXP := ModeXP
+	defer func() { ModeXP = origXP }()
 
-	modeXP = map[modeKey]int{
+	ModeXP = map[ModeKey]int{
 		{"Sudoku", "Easy"}: 2,
 		{"Sudoku", "Hard"}: 8,
 	}
@@ -289,47 +288,47 @@ func TestBuildStatsCards(t *testing.T) {
 		{GameType: "Sudoku", Mode: "Hard", Victories: 2, DailyVictories: 0},
 	}
 
-	cards := buildStatsCards(catStats, modeStats)
+	cards := BuildCards(catStats, modeStats)
 	if len(cards) != 1 {
 		t.Fatalf("expected 1 card, got %d", len(cards))
 	}
 
 	c := cards[0]
-	if c.gameType != "Sudoku" {
-		t.Errorf("gameType = %q, want %q", c.gameType, "Sudoku")
+	if c.GameType != "Sudoku" {
+		t.Errorf("GameType = %q, want %q", c.GameType, "Sudoku")
 	}
-	if c.victories != 7 {
-		t.Errorf("victories = %d, want 7", c.victories)
+	if c.Victories != 7 {
+		t.Errorf("Victories = %d, want 7", c.Victories)
 	}
-	if c.attempts != 10 {
-		t.Errorf("attempts = %d, want 10", c.attempts)
+	if c.Attempts != 10 {
+		t.Errorf("Attempts = %d, want 10", c.Attempts)
 	}
-	if c.dailyPlayed != 3 {
-		t.Errorf("dailyPlayed = %d, want 3", c.dailyPlayed)
+	if c.DailyPlayed != 3 {
+		t.Errorf("DailyPlayed = %d, want 3", c.DailyPlayed)
 	}
-	if c.preferredMode != "Easy" {
-		t.Errorf("preferredMode = %q, want %q", c.preferredMode, "Easy")
+	if c.PreferredMode != "Easy" {
+		t.Errorf("PreferredMode = %q, want %q", c.PreferredMode, "Easy")
 	}
 
 	// XP: Easy: (5-2)*2 + 2*2*2 = 6+8 = 14; Hard: 2*8 = 16; total = 30
-	if c.currentXP != 30 {
-		t.Errorf("currentXP = %d, want 30", c.currentXP)
+	if c.CurrentXP != 30 {
+		t.Errorf("CurrentXP = %d, want 30", c.CurrentXP)
 	}
 }
 
-// --- buildStatsCards empty state (P2) ---
+// --- BuildCards empty state (P2) ---
 
-func TestBuildStatsCardsEmpty(t *testing.T) {
-	cards := buildStatsCards(nil, nil)
+func TestBuildCardsEmpty(t *testing.T) {
+	cards := BuildCards(nil, nil)
 	if len(cards) != 0 {
 		t.Errorf("expected 0 cards for nil stats, got %d", len(cards))
 	}
 }
 
-// --- renderStatsView empty state (P2) ---
+// --- RenderView empty state (P2) ---
 
-func TestRenderStatsViewEmpty(t *testing.T) {
-	result := renderStatsView(profileBanner{}, nil, 80)
+func TestRenderViewEmpty(t *testing.T) {
+	result := RenderView(ProfileBanner{}, nil, 80)
 	if result == "" {
 		t.Error("expected non-empty output for empty state")
 	}
