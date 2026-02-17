@@ -26,14 +26,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 		menuW := min(m.width, 64)
-		m.mainMenuList.SetSize(menuW, min(m.height, ui.ListHeight(m.mainMenuList)))
 		m.gameSelectList.SetSize(menuW, min(m.height, ui.ListHeight(m.gameSelectList)))
 		if m.state == modeSelectView {
 			m.modeSelectList.SetSize(menuW, min(m.height, ui.ListHeight(m.modeSelectList)))
 		}
 		if m.state == continueView {
 			m.continueTable.SetWidth(m.width)
-			m.continueTable.SetHeight(m.height)
+			visibleRows := min(len(m.continueGames), ui.MaxTableRows)
+			m.continueTable.SetHeight(min(m.height, visibleRows))
 		}
 		if m.state == helpSelectView {
 			m.helpSelectList.SetSize(menuW, min(m.height, ui.ListHeight(m.helpSelectList)))
@@ -41,6 +41,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.state == helpDetailView {
 			m.helpViewport.SetWidth(m.width)
 			m.helpViewport.SetHeight(m.height - 2)
+		}
+		if m.state == statsView {
+			cw := statsContentWidth(m.width)
+			m.statsViewport.SetWidth(cw)
+			vpH := statsViewportHeight(m.height - statsStaticHeight(m.statsCards))
+			m.statsViewport.SetHeight(vpH)
+			m.statsViewport.SetContent(renderStatsCardGrid(m.statsCards, cw))
 		}
 
 	case tea.KeyPressMsg:
@@ -90,7 +97,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch m.state {
 	case mainMenuView:
-		m.mainMenuList, cmd = m.mainMenuList.Update(msg)
+		if msg, ok := msg.(tea.KeyPressMsg); ok {
+			switch msg.String() {
+			case "up", "k":
+				m.mainMenu.CursorUp()
+			case "down", "j":
+				m.mainMenu.CursorDown()
+			}
+		}
 	case generatingView:
 		m.spinner, cmd = m.spinner.Update(msg)
 	case gameView:
@@ -116,6 +130,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.helpSelectList, cmd = m.helpSelectList.Update(msg)
 	case helpDetailView:
 		m.helpViewport, cmd = m.helpViewport.Update(msg)
+	case statsView:
+		m.statsViewport, cmd = m.statsViewport.Update(msg)
 	}
 
 	return m, cmd
@@ -138,10 +154,7 @@ func (m model) handleEnter() (tea.Model, tea.Cmd) {
 }
 
 func (m model) handleMainMenuEnter() (tea.Model, tea.Cmd) {
-	item, ok := m.mainMenuList.SelectedItem().(ui.MenuItem)
-	if !ok {
-		return m, nil
-	}
+	item := m.mainMenu.Selected()
 	switch item.Title() {
 	case "Daily Puzzle":
 		return m.handleDailyPuzzle()
@@ -150,6 +163,8 @@ func (m model) handleMainMenuEnter() (tea.Model, tea.Cmd) {
 	case "Continue":
 		m.continueTable, m.continueGames = ui.InitContinueTable(m.store, m.height)
 		m.state = continueView
+	case "Stats":
+		return m.handleStatsEnter()
 	case "Guides":
 		m.helpSelectList = ui.InitList(GameCategories, "How to Play")
 		m.helpSelectList.SetSize(min(m.width, 64), min(m.height, ui.ListHeight(m.helpSelectList)))
@@ -299,6 +314,41 @@ func (m model) handleEscape() (tea.Model, tea.Cmd) {
 		m.state = helpSelectView
 	case helpSelectView:
 		m.state = mainMenuView
+	case statsView:
+		m.state = mainMenuView
 	}
+	return m, nil
+}
+
+func (m model) handleStatsEnter() (tea.Model, tea.Cmd) {
+	catStats, err := m.store.GetCategoryStats()
+	if err != nil {
+		log.Printf("failed to get category stats: %v", err)
+		return m, nil
+	}
+	modeStats, err := m.store.GetModeStats()
+	if err != nil {
+		log.Printf("failed to get mode stats: %v", err)
+		return m, nil
+	}
+	streakDates, err := m.store.GetDailyStreakDates()
+	if err != nil {
+		log.Printf("failed to get daily streak dates: %v", err)
+		return m, nil
+	}
+
+	m.statsCards = buildStatsCards(catStats, modeStats)
+	m.statsProfile = buildProfileBanner(catStats, modeStats, streakDates, m.store)
+
+	// Banner is rendered as static chrome above the viewport; only the
+	// card grid scrolls. Compute available height for the viewport after
+	// accounting for the panel frame and banner.
+	vpHeight := statsViewportHeight(m.height - statsStaticHeight(m.statsCards))
+	m.statsViewport = viewport.New(
+		viewport.WithWidth(statsContentWidth(m.width)),
+		viewport.WithHeight(vpHeight),
+	)
+	m.statsViewport.SetContent(renderStatsCardGrid(m.statsCards, statsContentWidth(m.width)))
+	m.state = statsView
 	return m, nil
 }

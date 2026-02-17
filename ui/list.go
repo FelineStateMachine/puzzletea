@@ -2,11 +2,11 @@ package ui
 
 import (
 	"charm.land/bubbles/v2/list"
-	"charm.land/lipgloss/v2"
-	"charm.land/lipgloss/v2/compat"
 )
 
 // InitList creates a styled list widget with the standard puzzletea theme.
+// The list title is hidden because lists are rendered inside Panel frames
+// that provide their own styled title.
 func InitList(items []list.Item, title string) list.Model {
 	d := list.NewDefaultDelegate()
 	d.Styles.SelectedTitle = d.Styles.SelectedTitle.
@@ -22,11 +22,7 @@ func InitList(items []list.Item, title string) list.Model {
 
 	l := list.New(items, d, 64, 64)
 	l.Title = title
-	l.Styles.Title = lipgloss.NewStyle().
-		Bold(true).
-		Foreground(compat.AdaptiveColor{Light: lipgloss.Color("255"), Dark: lipgloss.Color("255")}).
-		Background(MenuAccent).
-		Padding(0, 1)
+	l.SetShowTitle(false)
 	l.DisableQuitKeybindings()
 	l.SetFilteringEnabled(false)
 	l.SetShowHelp(false)
@@ -42,9 +38,8 @@ func InitList(items []list.Item, title string) list.Model {
 // prevent pagination entirely when the terminal is tall enough.
 func ListHeight(l list.Model) int {
 	n := len(l.Items())
-	// title bar (title line + bottom padding) = 2 lines
-	const titleHeight = 2
 	// Default delegate: height=2, spacing=1 → 3 lines per item.
+	// Title is hidden (rendered by Panel), so no extra title height needed.
 	const itemSlot = 3
-	return titleHeight + itemSlot*n
+	return itemSlot * n
 }

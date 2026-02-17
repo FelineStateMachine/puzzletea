@@ -7,7 +7,6 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"charm.land/lipgloss/v2/compat"
 )
 
 func (m model) View() tea.View {
@@ -15,26 +14,43 @@ func (m model) View() tea.View {
 
 	switch m.state {
 	case mainMenuView:
-		content = ui.CenterView(m.width, m.height, m.mainMenuList.View())
+		content = ui.CenterView(m.width, m.height, m.mainMenu.View())
 	case gameSelectView:
-		content = ui.CenterView(m.width, m.height, m.gameSelectList.View())
+		panel := ui.Panel(
+			"Select Category",
+			m.gameSelectList.View(),
+			"↑/↓ navigate • enter select • esc back",
+		)
+		content = ui.CenterView(m.width, m.height, panel)
 	case modeSelectView:
-		content = ui.CenterView(m.width, m.height, m.modeSelectList.View())
+		panel := ui.Panel(
+			m.selectedCategory.Name+" — Select Mode",
+			m.modeSelectList.View(),
+			"↑/↓ navigate • enter select • esc back",
+		)
+		content = ui.CenterView(m.width, m.height, panel)
 	case generatingView:
 		s := m.spinner.View() + " Generating puzzle..."
-		content = ui.CenterView(m.width, m.height, s)
+		box := ui.GeneratingFrame.Render(s)
+		content = ui.CenterView(m.width, m.height, box)
 	case continueView:
 		var s string
 		if len(m.continueGames) == 0 {
-			s = "No saved games yet.\n\nPress Escape to return."
+			s = ui.Panel(
+				"Saved Games",
+				"No saved games yet.",
+				"esc back",
+			)
 		} else {
-			title := lipgloss.NewStyle().
-				Bold(true).
-				Foreground(compat.AdaptiveColor{Light: lipgloss.Color("255"), Dark: lipgloss.Color("255")}).
-				Background(ui.MenuAccent).
-				Padding(0, 1).
-				Render("Saved Games")
-			s = lipgloss.JoinVertical(lipgloss.Left, title, "", m.continueTable.View())
+			footer := "↑/↓ navigate • enter resume • esc back"
+			if pg := ui.TablePagination(m.continueTable); pg != "" {
+				footer = pg + "  " + footer
+			}
+			s = ui.Panel(
+				"Saved Games",
+				m.continueTable.View(),
+				footer,
+			)
 		}
 		content = ui.CenterView(m.width, m.height, s)
 	case gameView:
@@ -52,16 +68,41 @@ func (m model) View() tea.View {
 			content = ui.CenterView(m.width, m.height, centered)
 		}
 	case helpSelectView:
-		content = ui.CenterView(m.width, m.height, m.helpSelectList.View())
-	case helpDetailView:
-		footer := lipgloss.NewStyle().
-			Foreground(ui.MenuTextDim).
-			Render("↑/↓ scroll • esc back")
-		s := lipgloss.JoinVertical(lipgloss.Left,
-			m.helpViewport.View(),
-			footer,
+		panel := ui.Panel(
+			"How to Play",
+			m.helpSelectList.View(),
+			"↑/↓ navigate • enter select • esc back",
 		)
-		content = ui.CenterView(m.width, m.height, s)
+		content = ui.CenterView(m.width, m.height, panel)
+	case helpDetailView:
+		panel := ui.Panel(
+			m.helpCategory.Name+" — Guide",
+			m.helpViewport.View(),
+			"↑/↓ scroll • esc back",
+		)
+		content = ui.CenterView(m.width, m.height, panel)
+	case statsView:
+		var statsBody string
+		if len(m.statsCards) == 0 {
+			statsBody = m.statsViewport.View()
+		} else {
+			bannerWidth := statsContentWidth(m.width)
+			if bannerWidth > 70 {
+				bannerWidth = 70
+			}
+			banner := renderBanner(m.statsProfile, bannerWidth)
+			statsBody = lipgloss.JoinVertical(lipgloss.Left,
+				banner,
+				"",
+				m.statsViewport.View(),
+			)
+		}
+		panel := ui.Panel(
+			"Stats",
+			statsBody,
+			"↑/↓ scroll • esc back",
+		)
+		content = ui.CenterView(m.width, m.height, panel)
 	default:
 		content = fmt.Sprintf("unknown state: %d", m.state)
 	}
