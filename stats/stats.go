@@ -205,8 +205,7 @@ func BuildProfileBanner(
 	streak := ComputeDailyStreak(streakDates, now)
 
 	// Check if today's daily exists in the DB.
-	rng := daily.RNG(now)
-	todayName := daily.Name(now, rng)
+	todayName := daily.Name(now)
 	rec, _ := s.GetDailyGame(todayName)
 	currentDaily := rec != nil
 

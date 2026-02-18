@@ -2,6 +2,7 @@
 package cmd
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/FelineStateMachine/puzzletea/app"
@@ -20,6 +21,7 @@ var Version = "dev"
 var (
 	flagNew      string
 	flagContinue string
+	// flagSetSeed is declared in new.go and shared across root and new commands.
 )
 
 // RootCmd is the top-level Cobra command.
@@ -29,6 +31,12 @@ var RootCmd = &cobra.Command{
 	Short:   "A terminal-based puzzle game framework",
 	Long:    "PuzzleTea is a terminal-based puzzle game framework featuring Nonogram, Sudoku, Word Search, Hashiwokakero, and Lights Out.",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if flagSetSeed != "" {
+			if flagNew != "" || flagContinue != "" {
+				return fmt.Errorf("--set-seed cannot be combined with --new or --continue")
+			}
+			return launchSeededGame(flagSetSeed)
+		}
 		if flagNew != "" {
 			parts := strings.SplitN(flagNew, ":", 2)
 			gameArg := parts[0]
@@ -57,6 +65,7 @@ var RootCmd = &cobra.Command{
 func init() {
 	RootCmd.Flags().StringVar(&flagNew, "new", "", "start a new game (game:mode)")
 	RootCmd.Flags().StringVar(&flagContinue, "continue", "", "resume a saved game by name")
+	RootCmd.Flags().StringVar(&flagSetSeed, "set-seed", "", "seed string for deterministic puzzle selection and generation")
 
 	RootCmd.AddCommand(newCmd, continueCmd, listCmd)
 }

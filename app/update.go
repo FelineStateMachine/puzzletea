@@ -178,8 +178,7 @@ func (m model) handleMainMenuEnter() (tea.Model, tea.Cmd) {
 
 func (m model) handleDailyPuzzle() (tea.Model, tea.Cmd) {
 	today := time.Now()
-	rng := daily.RNG(today)
-	name := daily.Name(today, rng)
+	name := daily.Name(today)
 
 	// Check if a daily game already exists for today.
 	rec, err := m.store.GetDailyGame(name)
@@ -215,7 +214,10 @@ func (m model) handleDailyPuzzle() (tea.Model, tea.Cmd) {
 	}
 
 	// No existing daily - generate a new one.
-	spawner, gameType, modeTitle := daily.Mode(rng)
+	// Mode selection uses rendezvous hashing (independent of RNG).
+	// RNG is reserved purely for puzzle content generation.
+	spawner, gameType, modeTitle := daily.Mode(today)
+	rng := daily.RNG(today)
 	m.dailyPending = true
 	m.dailyName = name
 	m.dailyGameType = gameType

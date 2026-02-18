@@ -77,16 +77,40 @@ func RNG(date time.Time) *rand.Rand {
 // Name generates the daily puzzle name in the format:
 // "Daily Feb 14 26 - amber-falcon"
 //
-// NOTE: this must be called before Mode on the same RNG — the number
-// of draws here determines which mode is selected. Changing this function
-// will shift daily puzzles for all future dates.
-func Name(date time.Time, rng *rand.Rand) string {
-	return "Daily " + date.Format("Jan _2 06") + " - " + namegen.GenerateSeeded(rng)
+// Name uses its own sub-RNG derived from the date so that changes to
+// the namegen word lists cannot affect mode selection or puzzle generation.
+func Name(date time.Time) string {
+	h := fnv.New64a()
+	h.Write([]byte("name:"))
+	h.Write([]byte(date.Format("2006-01-02")))
+	seed := h.Sum64()
+	nameRNG := rand.New(rand.NewPCG(seed, ^seed))
+	return "Daily " + date.Format("Jan _2 06") + " - " + namegen.GenerateSeeded(nameRNG)
 }
 
-// Mode selects the daily mode from the eligible pool using the seeded RNG.
-// Returns the spawner, game type name, and mode title.
-func Mode(rng *rand.Rand) (game.SeededSpawner, string, string) {
-	entry := eligibleModes[rng.IntN(len(eligibleModes))]
-	return entry.Spawner, entry.GameType, entry.Mode
+// Mode selects the daily mode from the eligible pool using rendezvous
+// hashing (highest random weight). Each entry is scored by hashing the
+// date together with its (GameType, Mode) pair; the highest score wins.
+//
+// This is resilient to changes in the pool: adding or removing an entry
+// only affects dates where the changed entry would have been the winner.
+func Mode(date time.Time) (game.SeededSpawner, string, string) {
+	dateStr := date.Format("2006-01-02")
+
+	var best Entry
+	var bestHash uint64
+	for _, entry := range eligibleModes {
+		h := fnv.New64a()
+		h.Write([]byte(dateStr))
+		h.Write([]byte{0})
+		h.Write([]byte(entry.GameType))
+		h.Write([]byte{0})
+		h.Write([]byte(entry.Mode))
+		score := h.Sum64()
+		if score > bestHash {
+			bestHash = score
+			best = entry
+		}
+	}
+	return best.Spawner, best.GameType, best.Mode
 }

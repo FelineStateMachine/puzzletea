@@ -1,7 +1,6 @@
 package daily
 
 import (
-	"math/rand/v2"
 	"strings"
 	"testing"
 	"time"
@@ -89,8 +88,7 @@ func TestRNGDifferentDates(t *testing.T) {
 
 func TestName(t *testing.T) {
 	date := time.Date(2026, 2, 14, 0, 0, 0, 0, time.UTC)
-	rng := RNG(date)
-	name := Name(date, rng)
+	name := Name(date)
 
 	if !strings.HasPrefix(name, "Daily Feb 14 26 - ") {
 		t.Errorf("Name = %q, want prefix %q", name, "Daily Feb 14 26 - ")
@@ -99,8 +97,8 @@ func TestName(t *testing.T) {
 
 func TestNameDeterministic(t *testing.T) {
 	date := time.Date(2026, 7, 4, 0, 0, 0, 0, time.UTC)
-	name1 := Name(date, RNG(date))
-	name2 := Name(date, RNG(date))
+	name1 := Name(date)
+	name2 := Name(date)
 	if name1 != name2 {
 		t.Errorf("Name not deterministic: %q != %q", name1, name2)
 	}
@@ -109,8 +107,8 @@ func TestNameDeterministic(t *testing.T) {
 // --- Mode (P1) ---
 
 func TestMode(t *testing.T) {
-	rng := rand.New(rand.NewPCG(42, 99))
-	spawner, gameType, mode := Mode(rng)
+	date := time.Date(2026, 3, 15, 0, 0, 0, 0, time.UTC)
+	spawner, gameType, mode := Mode(date)
 
 	if spawner == nil {
 		t.Fatal("Mode returned nil spawner")
@@ -124,14 +122,62 @@ func TestMode(t *testing.T) {
 }
 
 func TestModeDeterministic(t *testing.T) {
-	rng1 := rand.New(rand.NewPCG(100, 200))
-	rng2 := rand.New(rand.NewPCG(100, 200))
+	date := time.Date(2026, 5, 20, 0, 0, 0, 0, time.UTC)
 
-	_, gt1, m1 := Mode(rng1)
-	_, gt2, m2 := Mode(rng2)
+	_, gt1, m1 := Mode(date)
+	_, gt2, m2 := Mode(date)
 
 	if gt1 != gt2 || m1 != m2 {
 		t.Errorf("Mode not deterministic: (%q,%q) vs (%q,%q)", gt1, m1, gt2, m2)
+	}
+}
+
+func TestModeStableOnPoolChange(t *testing.T) {
+	// Verify the core property of rendezvous hashing: for a given date,
+	// the selected entry depends only on the (date, gameType, mode) triple,
+	// not on the total number of entries in the pool.
+	//
+	// We test this by recording the mode for a set of dates, then adding
+	// a synthetic entry to eligibleModes and confirming that dates which
+	// did NOT select the new entry still return the same mode as before.
+	dates := make([]time.Time, 30)
+	for i := range dates {
+		dates[i] = time.Date(2026, 1, 1+i, 0, 0, 0, 0, time.UTC)
+	}
+
+	// Record original selections.
+	type selection struct {
+		gameType string
+		mode     string
+	}
+	original := make([]selection, len(dates))
+	for i, d := range dates {
+		_, gt, m := Mode(d)
+		original[i] = selection{gt, m}
+	}
+
+	// Temporarily add a synthetic entry.
+	synth := Entry{
+		Spawner:  eligibleModes[0].Spawner,
+		GameType: "SyntheticGame",
+		Mode:     "SyntheticMode",
+	}
+	eligibleModes = append(eligibleModes, synth)
+	defer func() {
+		eligibleModes = eligibleModes[:len(eligibleModes)-1]
+	}()
+
+	for i, d := range dates {
+		_, gt, m := Mode(d)
+		if gt == "SyntheticGame" && m == "SyntheticMode" {
+			// This date was "stolen" by the new entry — expected for some dates.
+			continue
+		}
+		if gt != original[i].gameType || m != original[i].mode {
+			t.Errorf("date %s: selection changed from (%q,%q) to (%q,%q) after adding unrelated entry",
+				d.Format("2006-01-02"),
+				original[i].gameType, original[i].mode, gt, m)
+		}
 	}
 }
 
