@@ -26,6 +26,7 @@ bridges and all islands are connected.
 |-----|--------|
 | Arrow keys / WASD / hjkl | Jump to nearest island |
 | `Enter` / `Space` | Select island for bridging |
+| `Ctrl+R` | Reset puzzle |
 | `Ctrl+H` | Toggle full help |
 | `Ctrl+E` | Toggle debug overlay |
 | `Ctrl+N` | Return to main menu |

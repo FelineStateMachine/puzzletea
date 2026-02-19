@@ -44,7 +44,6 @@ var CategoryAliases = map[string]string{
 func Category(name string, categories []list.Item) (game.Category, error) {
 	norm := Normalize(name)
 
-	// Check aliases first.
 	if canonical, ok := CategoryAliases[norm]; ok {
 		norm = canonical
 	}

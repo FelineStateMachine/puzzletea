@@ -5,7 +5,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
-// Cursor represents a 2D grid cursor position.
 type Cursor struct {
 	X, Y int
 }

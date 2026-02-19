@@ -121,6 +121,9 @@ func (m Model) cycleBridge(dx, dy int) Model {
 	}
 
 	m.puzzle.SetBridge(*m.selectedIsland, adj.ID, newCount)
+	if m.puzzle.IsSolved() {
+		m.selectedIsland = nil
+	}
 	return m
 }
 

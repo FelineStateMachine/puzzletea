@@ -2,77 +2,82 @@ package takuzu
 
 import (
 	"charm.land/lipgloss/v2"
-	"charm.land/lipgloss/v2/compat"
 	"github.com/FelineStateMachine/puzzletea/game"
-)
-
-var (
-	baseStyle       = lipgloss.NewStyle()
-	backgroundColor = compat.AdaptiveColor{Light: lipgloss.Color("254"), Dark: lipgloss.Color("235")}
-	zeroStyle       = baseStyle.
-			Foreground(compat.AdaptiveColor{Light: lipgloss.Color("130"), Dark: lipgloss.Color("222")}).
-			Background(backgroundColor)
-
-	oneStyle = baseStyle.
-			Foreground(compat.AdaptiveColor{Light: lipgloss.Color("68"), Dark: lipgloss.Color("111")}).
-			Background(backgroundColor)
-
-	emptyStyle = baseStyle.
-			Foreground(compat.AdaptiveColor{Light: lipgloss.Color("250"), Dark: lipgloss.Color("240")}).
-			Background(backgroundColor)
-
-	// cursorSolvedStyle resolved at render time via game.CursorSolvedStyle().
-
-	crosshairBG = compat.AdaptiveColor{Light: lipgloss.Color("254"), Dark: lipgloss.Color("237")}
-	solvedBG    = compat.AdaptiveColor{Light: lipgloss.Color("151"), Dark: lipgloss.Color("22")}
-
-	borderFG = compat.AdaptiveColor{Light: lipgloss.Color("250"), Dark: lipgloss.Color("240")}
+	"github.com/FelineStateMachine/puzzletea/theme"
 )
 
 const cellWidth = 3
 
-var (
-	renderStyleMap = map[rune]lipgloss.Style{
-		zeroCell:  zeroStyle,
-		oneCell:   oneStyle,
-		emptyCell: emptyStyle,
-	}
+var renderRuneMap = map[rune]string{
+	zeroCell:  " \u25cf ",
+	oneCell:   " \u25cb ",
+	emptyCell: " \u00b7 ",
+}
 
-	renderRuneMap = map[rune]string{
-		zeroCell:  " ● ",
-		oneCell:   " ○ ",
-		emptyCell: " · ",
+func zeroStyle() lipgloss.Style {
+	p := theme.Current()
+	return lipgloss.NewStyle().
+		Foreground(p.Accent).
+		Background(p.BG)
+}
+
+func oneStyle() lipgloss.Style {
+	p := theme.Current()
+	return lipgloss.NewStyle().
+		Foreground(p.Secondary).
+		Background(p.BG)
+}
+
+func emptyStyle() lipgloss.Style {
+	p := theme.Current()
+	return lipgloss.NewStyle().
+		Foreground(p.TextDim).
+		Background(p.BG)
+}
+
+func renderStyleMap() map[rune]lipgloss.Style {
+	return map[rune]lipgloss.Style{
+		zeroCell:  zeroStyle(),
+		oneCell:   oneStyle(),
+		emptyCell: emptyStyle(),
 	}
-)
+}
 
 func cellView(val rune, isProvided, isCursor, inCursorRow, inCursorCol, solved bool) string {
-	s, ok := renderStyleMap[val]
+	p := theme.Current()
+	styles := renderStyleMap()
+	s, ok := styles[val]
 	if !ok {
-		s = emptyStyle
+		s = emptyStyle()
 	}
 
 	if isProvided && val != emptyCell {
 		s = s.Bold(true)
 	}
 
-	if isCursor && solved {
-		s = game.CursorSolvedStyle()
-	} else if isCursor {
-		s = s.Background(game.CursorWarmBG()).Bold(true)
-	} else if solved {
-		s = s.Background(solvedBG)
-	} else if inCursorRow || inCursorCol {
-		s = s.Background(crosshairBG)
-	}
-
 	r, ok := renderRuneMap[val]
 	if !ok {
 		r = renderRuneMap[emptyCell]
 	}
+
+	if isCursor && solved {
+		s = game.CursorSolvedStyle()
+		r = game.CursorLeft + string([]rune(r)[1]) + game.CursorRight
+	} else if isCursor {
+		s = game.CursorStyle()
+		r = game.CursorLeft + string([]rune(r)[1]) + game.CursorRight
+	} else if solved {
+		s = s.Foreground(p.SolvedFG).Background(p.SuccessBG)
+	} else if inCursorRow || inCursorCol {
+		s = s.Background(p.Surface)
+	}
+
 	return s.Width(cellWidth).AlignHorizontal(lipgloss.Center).Render(r)
 }
 
 func gridView(g grid, provided [][]bool, c game.Cursor, solved bool) string {
+	colors := game.DefaultBorderColors()
+
 	w := 0
 	if len(g) > 0 {
 		w = len(g[0])
@@ -84,7 +89,7 @@ func gridView(g grid, provided [][]bool, c game.Cursor, solved bool) string {
 		inCursorRow := y == c.Y
 
 		// Left border segment for this row.
-		rowCells = append(rowCells, game.BorderChar("│", gridBorderColors, solved, !solved && inCursorRow))
+		rowCells = append(rowCells, game.BorderChar("\u2502", colors, solved, !solved && inCursorRow))
 
 		for x, val := range row {
 			isCursor := x == c.X && y == c.Y
@@ -94,29 +99,21 @@ func gridView(g grid, provided [][]bool, c game.Cursor, solved bool) string {
 		}
 
 		// Right border segment for this row.
-		rowCells = append(rowCells, game.BorderChar("│", gridBorderColors, solved, !solved && inCursorRow))
+		rowCells = append(rowCells, game.BorderChar("\u2502", colors, solved, !solved && inCursorRow))
 
 		rows = append(rows, lipgloss.JoinHorizontal(lipgloss.Top, rowCells...))
 	}
 
 	// Build top and bottom border rows with per-column crosshair highlighting.
-	topRow := game.HBorderRow(w, c.X, cellWidth, "╭", "╮", gridBorderColors, solved)
-	botRow := game.HBorderRow(w, c.X, cellWidth, "╰", "╯", gridBorderColors, solved)
+	topRow := game.HBorderRow(w, c.X, cellWidth, "\u256d", "\u256e", colors, solved)
+	botRow := game.HBorderRow(w, c.X, cellWidth, "\u2570", "\u256f", colors, solved)
 
 	return lipgloss.JoinVertical(lipgloss.Left, topRow, lipgloss.JoinVertical(lipgloss.Left, rows...), botRow)
 }
 
-var gridBorderColors = game.GridBorderColors{
-	BorderFG:       borderFG,
-	BackgroundBG:   backgroundColor,
-	CrosshairBG:    crosshairBG,
-	SolvedBorderFG: compat.AdaptiveColor{Light: lipgloss.Color("22"), Dark: lipgloss.Color("149")},
-	SolvedBG:       solvedBG,
-}
-
 func statusBarView(showFullHelp bool) string {
 	if showFullHelp {
-		return game.StatusBarStyle().Render("arrows/wasd: move  z: ●  x: ○  bkspc: clear  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
+		return game.StatusBarStyle().Render("arrows/wasd: move  z: \u25cf  x: \u25cb  bkspc: clear  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
 	}
-	return game.StatusBarStyle().Render("z: ●  x: ○  bkspc: clear")
+	return game.StatusBarStyle().Render("z: \u25cf  x: \u25cb  bkspc: clear")
 }

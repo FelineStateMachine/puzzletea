@@ -4,8 +4,8 @@ import (
 	"strings"
 
 	"charm.land/lipgloss/v2"
-	"charm.land/lipgloss/v2/compat"
 	"github.com/FelineStateMachine/puzzletea/game"
+	"github.com/FelineStateMachine/puzzletea/theme"
 )
 
 // screenToGrid converts terminal screen coordinates to grid cell coordinates.
@@ -51,52 +51,69 @@ func (m *Model) screenToGrid(screenX, screenY int) (col, row int, ok bool) {
 	return col, row, true
 }
 
-var (
-	baseStyle = lipgloss.NewStyle()
-
-	colorOn  = compat.AdaptiveColor{Light: lipgloss.Color("222"), Dark: lipgloss.Color("180")}
-	colorOff = compat.AdaptiveColor{Light: lipgloss.Color("254"), Dark: lipgloss.Color("236")}
-
-	styleOn = baseStyle.
-		Background(colorOn)
-
-	styleOff = baseStyle.
-			Background(colorOff)
-
-	// cursorStyle and cursorSolvedStyle resolved at render time
-	// via game.CursorStyle() and game.CursorSolvedStyle().
-
-	solvedStyle = baseStyle.
-			Background(compat.AdaptiveColor{Light: lipgloss.Color("151"), Dark: lipgloss.Color("22")})
-
-	gridBorderStyle = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(compat.AdaptiveColor{Light: lipgloss.Color("250"), Dark: lipgloss.Color("240")}).
-			BorderBackground(colorOff)
-
-	gridBorderSolvedStyle = lipgloss.NewStyle().
-				Border(lipgloss.RoundedBorder()).
-				BorderForeground(compat.AdaptiveColor{Light: lipgloss.Color("22"), Dark: lipgloss.Color("149")}).
-				BorderBackground(compat.AdaptiveColor{Light: lipgloss.Color("151"), Dark: lipgloss.Color("22")})
-)
-
 const (
 	cellWidth  = 4
 	cellHeight = 2
 )
 
+func lightOnStyle() lipgloss.Style {
+	p := theme.Current()
+	return lipgloss.NewStyle().
+		Background(theme.Blend(p.BG, p.Accent, 0.85))
+}
+
+func lightOffStyle() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Background(theme.Current().BG)
+}
+
+func solvedCellStyle() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Background(theme.Current().SuccessBG)
+}
+
+func gridBorderStyle() lipgloss.Style {
+	p := theme.Current()
+	return lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(p.Border).
+		BorderBackground(p.BG)
+}
+
+func gridBorderSolvedStyle() lipgloss.Style {
+	p := theme.Current()
+	return lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(p.SuccessBorder).
+		BorderBackground(p.SuccessBG)
+}
+
+func cursorOnStyle() lipgloss.Style {
+	p := theme.Current()
+	return lipgloss.NewStyle().
+		Background(theme.Blend(p.Accent, p.AccentText, 0.25))
+}
+
+func cursorOffStyle() lipgloss.Style {
+	p := theme.Current()
+	return lipgloss.NewStyle().
+		Background(theme.Blend(p.BG, p.Accent, 0.45))
+}
+
 func cellView(isOn, isCursor, solved bool) string {
-	s := styleOff
+	s := lightOffStyle()
 	if isOn {
-		s = styleOn
+		s = lightOnStyle()
 	}
 
 	if isCursor && solved {
 		s = game.CursorSolvedStyle()
 	} else if solved {
-		s = solvedStyle
+		s = solvedCellStyle()
+	} else if isCursor && isOn {
+		s = cursorOnStyle()
 	} else if isCursor {
-		s = game.CursorStyle()
+		s = cursorOffStyle()
 	}
 
 	content := strings.Repeat(" ", cellWidth)
@@ -116,9 +133,9 @@ func gridView(g [][]bool, c game.Cursor, solved bool) string {
 	grid := lipgloss.JoinVertical(lipgloss.Left, rows...)
 
 	if solved {
-		return gridBorderSolvedStyle.Render(grid)
+		return gridBorderSolvedStyle().Render(grid)
 	}
-	return gridBorderStyle.Render(grid)
+	return gridBorderStyle().Render(grid)
 }
 
 func statusBarView(showFullHelp bool) string {

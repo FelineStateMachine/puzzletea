@@ -53,7 +53,6 @@ type BaseMode struct {
 	description string
 }
 
-// NewBaseMode creates a BaseMode with the given title and description.
 func NewBaseMode(title, description string) BaseMode {
 	return BaseMode{title: title, description: description}
 }
@@ -87,7 +86,6 @@ type HelpToggleMsg struct{ Show bool }
 // Registry maps game type names to their import functions.
 var Registry = map[string]func([]byte) (Gamer, error){}
 
-// Register adds an import function for a game type to the registry.
 func Register(name string, fn func([]byte) (Gamer, error)) {
 	Registry[name] = fn
 }

@@ -65,7 +65,6 @@ func hasNoAdjacentShaded(marks [][]cellMark, size int) bool {
 // allWhiteConnected returns true if all non-shaded cells form a single
 // orthogonally connected region. Uses BFS.
 func allWhiteConnected(marks [][]cellMark, size int) bool {
-	// Find first non-shaded cell.
 	startX, startY := -1, -1
 	whiteCount := 0
 	for y := range size {
@@ -144,7 +143,6 @@ func computeConflicts(numbers grid, marks [][]cellMark, size int) [][]bool {
 // only flagged when at least one cell in the group is circled, so that
 // the initial board is not immediately flooded with conflict markers.
 func markDuplicateConflicts(numbers grid, marks [][]cellMark, conflicts [][]bool, size int) {
-	// Check rows.
 	for y := range size {
 		seen := map[rune][]int{}
 		for x := range size {
@@ -173,7 +171,6 @@ func markDuplicateConflicts(numbers grid, marks [][]cellMark, conflicts [][]bool
 		}
 	}
 
-	// Check columns.
 	for x := range size {
 		seen := map[rune][]int{}
 		for y := range size {

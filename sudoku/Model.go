@@ -47,12 +47,10 @@ func New(mode SudokuMode, provided []cell) (game.Gamer, error) {
 	return m, nil
 }
 
-// Init implements game.Gamer.
 func (m Model) Init() tea.Cmd {
 	return nil
 }
 
-// Update implements game.Gamer.
 func (m Model) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 	switch msg := msg.(type) {
 	case game.HelpToggleMsg:
@@ -77,12 +75,10 @@ func (m Model) SetTitle(t string) game.Gamer {
 	return m
 }
 
-// IsSolved implements game.Gamer.
 func (m Model) IsSolved() bool {
 	return m.isSolved()
 }
 
-// Reset implements game.Gamer.
 func (m Model) Reset() game.Gamer {
 	m.grid = newGrid(m.provided)
 	m.conflicts = computeConflicts(m.grid)
@@ -97,7 +93,6 @@ func (m *Model) updateCell(v int) {
 	m.conflicts = computeConflicts(m.grid)
 }
 
-// View implements game.Gamer.
 func (m Model) View() string {
 	solved := isSolvedWith(m.grid, m.conflicts)
 	title := game.TitleBarView("Sudoku", m.modeTitle, solved)
@@ -107,7 +102,6 @@ func (m Model) View() string {
 	return lipgloss.JoinVertical(lipgloss.Center, title, grid, status)
 }
 
-// GetDebugInfo implements game.Gamer.
 func (m Model) GetDebugInfo() string {
 	cursorCell := m.grid[m.cursor.Y][m.cursor.X]
 	isProvided := m.providedGrid[m.cursor.Y][m.cursor.X]

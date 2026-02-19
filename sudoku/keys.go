@@ -37,7 +37,6 @@ func (m Model) IsProvidedCell() bool {
 	return m.providedGrid[m.cursor.Y][m.cursor.X]
 }
 
-// GetFullHelp implements game.Gamer.
 func (m Model) GetFullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{m.keys.Up, m.keys.Down, m.keys.Left, m.keys.Right},

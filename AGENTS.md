@@ -45,7 +45,7 @@ puzzletea/
 ├── theme/              # Color theming (WCAG-compliant palettes, contrast utils)
 ├── stats/              # XP/level math, streaks, card rendering
 ├── game/               # Plugin interfaces, cursor, keys, style, border helpers
-├── store/              # SQLite persistence (~/.puzzletea/puzzletea.db)
+├── store/              # SQLite persistence (~/.puzzletea/history.db)
 ├── ui/                 # Shared UI: menu list, main menu, table, panel, styles
 ├── daily/              # Daily puzzle seeding, RNG, mode selection
 ├── resolve/            # CLI argument resolution (category/mode name matching)

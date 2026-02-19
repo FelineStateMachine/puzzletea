@@ -2,94 +2,90 @@ package hashiwokakero
 
 import (
 	"fmt"
+	"image/color"
 	"strings"
 
 	"charm.land/lipgloss/v2"
-	"charm.land/lipgloss/v2/compat"
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/theme"
 )
 
 const cellWidth = 3
 
-// Color palette — warm earth-tone theme (ANSI 256, adaptive for light/dark terminals)
-var (
-	colorIslandFg      = compat.AdaptiveColor{Dark: lipgloss.Color("236"), Light: lipgloss.Color("187")}
-	colorIslandBg      = compat.AdaptiveColor{Dark: lipgloss.Color("187"), Light: lipgloss.Color("58")}
-	colorSatisfiedFg   = compat.AdaptiveColor{Dark: lipgloss.Color("22"), Light: lipgloss.Color("149")}
-	colorSatisfiedBg   = compat.AdaptiveColor{Dark: lipgloss.Color("194"), Light: lipgloss.Color("236")}
-	colorOverFg        = compat.AdaptiveColor{Dark: lipgloss.Color("160"), Light: lipgloss.Color("167")}
-	colorOverBg        = compat.AdaptiveColor{Dark: lipgloss.Color("224"), Light: lipgloss.Color("52")}
-	colorAdjacentBg    = compat.AdaptiveColor{Dark: lipgloss.Color("223"), Light: lipgloss.Color("58")}
-	colorBridge        = compat.AdaptiveColor{Dark: lipgloss.Color("180"), Light: lipgloss.Color("95")}
-	colorBridgeSolved  = compat.AdaptiveColor{Dark: lipgloss.Color("22"), Light: lipgloss.Color("149")}
-	colorEmptyDot      = compat.AdaptiveColor{Dark: lipgloss.Color("252"), Light: lipgloss.Color("239")}
-	colorEmptySolved   = compat.AdaptiveColor{Dark: lipgloss.Color("151"), Light: lipgloss.Color("107")}
-	colorInfoSatisfied = compat.AdaptiveColor{Dark: lipgloss.Color("22"), Light: lipgloss.Color("149")}
-	colorInfoText      = compat.AdaptiveColor{Dark: lipgloss.Color("180"), Light: lipgloss.Color("95")}
-)
+func islandColors() []color.Color { return theme.Current().CardColors() }
 
-var (
-	baseStyle = lipgloss.NewStyle()
+func islandDefaultStyle(islandID int) lipgloss.Style {
+	colors := islandColors()
+	bg := colors[islandID%len(colors)]
+	return lipgloss.NewStyle().
+		Foreground(theme.TextOnBG(bg)).
+		Background(bg).
+		Bold(true)
+}
 
-	islandDefaultStyle = baseStyle.
-				Foreground(colorIslandFg).
-				Background(colorIslandBg).
-				Bold(true)
+func islandSatisfiedStyle() lipgloss.Style {
+	p := theme.Current()
+	return lipgloss.NewStyle().
+		Foreground(p.SuccessBorder).
+		Background(p.SuccessBG).
+		Bold(true)
+}
 
-	islandSatisfiedStyle = baseStyle.
-				Foreground(colorSatisfiedFg).
-				Background(colorSatisfiedBg).
-				Bold(true)
+func islandOverStyle() lipgloss.Style {
+	p := theme.Current()
+	return lipgloss.NewStyle().
+		Foreground(p.Error).
+		Background(p.ErrorBG).
+		Bold(true)
+}
 
-	islandOverStyle = baseStyle.
-			Foreground(colorOverFg).
-			Background(colorOverBg).
-			Bold(true)
+// islandHighlightBGStyle returns the style for adjacent/neighbor islands.
 
-	// islandCursorStyle and islandCursorSolvedStyle resolved at render
-	// time via game.CursorStyle() and game.CursorSolvedStyle().
+func islandAdjacentStyle(islandID int) lipgloss.Style {
+	colors := islandColors()
+	bg := colors[islandID%len(colors)]
+	return lipgloss.NewStyle().
+		Foreground(theme.TextOnBG(bg)).
+		Background(bg).
+		Bold(true)
+}
 
-	// islandSelectedStyle resolved at render time via islandSelectedStyle().
+func bridgeStyle() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Foreground(theme.Current().Linked)
+}
 
-	islandAdjacentStyle = baseStyle.
-				Foreground(colorIslandFg).
-				Background(colorAdjacentBg).
-				Bold(true)
+func bridgeSolvedStyle() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Foreground(theme.Current().SuccessBorder)
+}
 
-	bridgeHStyle = baseStyle.
-			Foreground(colorBridge)
+func emptyDotStyle() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Foreground(theme.Current().TextDim)
+}
 
-	bridgeVStyle = baseStyle.
-			Foreground(colorBridge)
+func gridBorderStyle() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		Padding(1).
+		BorderForeground(theme.Current().TextDim)
+}
 
-	bridgeHSolvedStyle = baseStyle.
-				Foreground(colorBridgeSolved)
-
-	bridgeVSolvedStyle = baseStyle.
-				Foreground(colorBridgeSolved)
-
-	emptyStyle = baseStyle.
-			Foreground(colorEmptyDot)
-
-	gridBorderStyle = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			Padding(1).
-			BorderForeground(colorEmptyDot)
-
-	gridBorderSolvedStyle = lipgloss.NewStyle().
-				Border(lipgloss.RoundedBorder()).
-				Padding(1).
-				BorderForeground(colorBridgeSolved)
-)
+func gridBorderSolvedStyle() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		Padding(1).
+		BorderForeground(theme.Current().SuccessBorder)
+}
 
 // islandSelectedStyle returns the style for a selected island, using the
 // current theme's Highlight color for the background.
 func islandSelectedStyle() lipgloss.Style {
-	bg := theme.Current().Highlight
-	return baseStyle.
-		Foreground(theme.TextOnBG(bg)).
-		Background(bg).
+	p := theme.Current()
+	return lipgloss.NewStyle().
+		Foreground(p.Highlight).
+		Background(p.SelectionBG).
 		Bold(true)
 }
 
@@ -114,11 +110,12 @@ func isHighlightedNeighbor(m Model, islandID int) bool {
 
 // emptyCellView renders an empty grid cell as a subtle dot.
 func emptyCellView(solved bool) string {
-	s := emptyStyle
+	p := theme.Current()
+	s := emptyDotStyle()
 	if solved {
-		s = s.Foreground(colorEmptySolved)
+		s = s.Foreground(p.SolvedFG).Background(p.SuccessBG)
 	}
-	return s.Width(cellWidth).AlignHorizontal(lipgloss.Center).Render("·")
+	return s.Width(cellWidth).AlignHorizontal(lipgloss.Center).Render("\u00b7")
 }
 
 // gridView renders the puzzle using a display grid with gap cells between
@@ -140,9 +137,9 @@ func gridView(m Model, solved bool) string {
 	grid := lipgloss.JoinVertical(lipgloss.Left, rows...)
 
 	if solved {
-		return gridBorderSolvedStyle.Render(grid)
+		return gridBorderSolvedStyle().Render(grid)
 	}
-	return gridBorderStyle.Render(grid)
+	return gridBorderStyle().Render(grid)
 }
 
 // displayCellView renders a single cell in the display grid.
@@ -179,7 +176,7 @@ func displayCellView(m Model, dx, dy int, solved bool) string {
 	}
 
 	// Odd x and odd y — intersection of gaps, always empty
-	return baseStyle.Width(cellWidth).Render(" ")
+	return lipgloss.NewStyle().Width(cellWidth).Render(" ")
 }
 
 // hGapView renders the horizontal gap between logical cell (lx,ly) and (lx+1,ly).
@@ -201,7 +198,7 @@ func hGapView(m Model, lx, ly int, solved bool) string {
 	if ciR.Kind == cellBridgeH {
 		return bridgeHView(ciR.BridgeCount, solved)
 	}
-	return baseStyle.Width(cellWidth).Render(" ")
+	return lipgloss.NewStyle().Width(cellWidth).Render(" ")
 }
 
 // vGapView renders the vertical gap between logical cell (lx,ly) and (lx,ly+1).
@@ -223,58 +220,68 @@ func vGapView(m Model, lx, ly int, solved bool) string {
 	if ciB.Kind == cellBridgeV {
 		return bridgeVView(ciB.BridgeCount, solved)
 	}
-	return baseStyle.Width(cellWidth).Render(" ")
+	return lipgloss.NewStyle().Width(cellWidth).Render(" ")
 }
 
 func islandView(m Model, islandID int, solved bool) string {
 	isl := m.puzzle.FindIslandByID(islandID)
 	if isl == nil {
-		return emptyStyle.Width(cellWidth).Render(" ")
+		return emptyDotStyle().Width(cellWidth).Render(" ")
 	}
 
-	style := islandDefaultStyle
+	style := islandDefaultStyle(islandID)
 	current := m.puzzle.BridgeCount(islandID)
+	isCursor := m.cursorIsland == islandID
 
-	if solved && m.cursorIsland == islandID {
+	if solved && isCursor {
 		style = game.CursorSolvedStyle()
 	} else if solved {
-		style = islandSatisfiedStyle
+		colors := islandColors()
+		bg := colors[islandID%len(colors)]
+		style = lipgloss.NewStyle().
+			Foreground(theme.TextOnBG(bg)).
+			Background(bg).
+			Bold(true)
 	} else if m.selectedIsland != nil && *m.selectedIsland == islandID {
 		style = islandSelectedStyle()
-	} else if m.cursorIsland == islandID {
+	} else if isCursor {
 		style = game.CursorStyle()
 	} else if current == isl.Required {
-		style = islandSatisfiedStyle
+		style = islandSatisfiedStyle()
 	} else if current > isl.Required {
-		style = islandOverStyle
+		style = islandOverStyle()
 	} else if isHighlightedNeighbor(m, islandID) {
-		style = islandAdjacentStyle
+		style = islandAdjacentStyle(islandID)
 	}
 
 	label := fmt.Sprintf("%d", isl.Required)
+	if isCursor && !solved {
+		label = game.CursorLeft + fmt.Sprintf("%d", isl.Required) + game.CursorRight
+		return style.Render(label)
+	}
 	return style.Width(cellWidth).AlignHorizontal(lipgloss.Center).Render(label)
 }
 
 func bridgeHView(count int, solved bool) string {
-	r := "───"
+	r := "\u2500\u2500\u2500"
 	if count == 2 {
-		r = "═══"
+		r = "\u2550\u2550\u2550"
 	}
-	s := bridgeHStyle
+	s := bridgeStyle()
 	if solved {
-		s = bridgeHSolvedStyle
+		s = bridgeSolvedStyle()
 	}
 	return s.Width(cellWidth).AlignHorizontal(lipgloss.Center).Render(r)
 }
 
 func bridgeVView(count int, solved bool) string {
-	r := "│"
+	r := "\u2502"
 	if count == 2 {
-		r = "║"
+		r = "\u2551"
 	}
-	s := bridgeVStyle
+	s := bridgeStyle()
 	if solved {
-		s = bridgeVSolvedStyle
+		s = bridgeSolvedStyle()
 	}
 	return s.Width(cellWidth).AlignHorizontal(lipgloss.Center).Render(r)
 }
@@ -293,6 +300,8 @@ func statusBarView(selected, showFullHelp bool) string {
 }
 
 func infoView(p *Puzzle) string {
+	pal := theme.Current()
+
 	satisfied := 0
 	total := len(p.Islands)
 	for _, isl := range p.Islands {
@@ -301,8 +310,8 @@ func infoView(p *Puzzle) string {
 		}
 	}
 
-	satisfiedStyle := lipgloss.NewStyle().Foreground(colorInfoSatisfied)
-	infoStyle := lipgloss.NewStyle().Foreground(colorInfoText)
+	satisfiedStyle := lipgloss.NewStyle().Foreground(pal.SuccessBorder)
+	infoStyle := lipgloss.NewStyle().Foreground(pal.Info)
 
 	var sb strings.Builder
 	sb.WriteString(infoStyle.Render("Islands: "))

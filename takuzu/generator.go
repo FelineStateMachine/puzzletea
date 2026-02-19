@@ -16,7 +16,6 @@ func generateCompleteSeeded(size int, rng *rand.Rand) grid {
 
 	const maxRetries = 10
 	for attempt := 0; attempt < maxRetries; attempt++ {
-		// Reset grid
 		for y := range size {
 			for x := range size {
 				g[y][x] = emptyCell

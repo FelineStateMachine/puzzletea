@@ -182,7 +182,7 @@ func (m Model) View() string {
 	g := gridView(m.grid, m.cursor, m.solved)
 	r := rowHintView(m.rowHints, maxWidth, m.currentHints.rows)
 	c := colHintView(m.colHints, maxHeight, m.currentHints.cols)
-	spacer := baseStyle.Width(maxWidth).Height(maxHeight).Render("")
+	spacer := lipgloss.NewStyle().Width(maxWidth).Height(maxHeight).Render("")
 	status := statusBarView(m.showFullHelp)
 
 	s1 := lipgloss.JoinHorizontal(lipgloss.Bottom, spacer, c)

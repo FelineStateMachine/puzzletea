@@ -25,6 +25,7 @@ clue and the clue's value equals the rectangle's area.
 | Arrow keys / WASD / hjkl | Move cursor |
 | `Enter` / `Space` | Select clue for expansion |
 | `Backspace` | Delete rectangle at cursor |
+| `Ctrl+R` | Reset puzzle |
 | `Ctrl+H` | Toggle full help |
 | `Ctrl+E` | Toggle debug overlay |
 | `Ctrl+N` | Return to main menu |

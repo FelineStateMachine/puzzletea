@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"charm.land/lipgloss/v2"
-	"charm.land/lipgloss/v2/compat"
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/theme"
 )
@@ -18,33 +17,17 @@ const cellWidth = 3
 // adapt automatically when the user switches themes.
 func rectColors() []color.Color { return theme.Current().CardColors() }
 
-var (
-	baseStyle = lipgloss.NewStyle()
+func gridBorderStyle() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(theme.Current().Border)
+}
 
-	emptyDotColor = compat.AdaptiveColor{Dark: lipgloss.Color("242"), Light: lipgloss.Color("249")}
-	clueColor     = compat.AdaptiveColor{Dark: lipgloss.Color("230"), Light: lipgloss.Color("236")}
-	clueBgColor   = compat.AdaptiveColor{Dark: lipgloss.Color("238"), Light: lipgloss.Color("254")}
-
-	// Cursor colors resolved at render time via game.CursorStyle().
-
-	previewGoodBg = compat.AdaptiveColor{Dark: lipgloss.Color("28"), Light: lipgloss.Color("157")}
-	previewBadBg  = compat.AdaptiveColor{Dark: lipgloss.Color("124"), Light: lipgloss.Color("217")}
-
-	solvedBg     = compat.AdaptiveColor{Dark: lipgloss.Color("22"), Light: lipgloss.Color("151")}
-	solvedBorder = compat.AdaptiveColor{Dark: lipgloss.Color("149"), Light: lipgloss.Color("22")}
-	borderColor  = compat.AdaptiveColor{Dark: lipgloss.Color("240"), Light: lipgloss.Color("250")}
-
-	infoSatisfied = compat.AdaptiveColor{Dark: lipgloss.Color("22"), Light: lipgloss.Color("149")}
-	infoText      = compat.AdaptiveColor{Dark: lipgloss.Color("180"), Light: lipgloss.Color("95")}
-
-	gridBorderStyle = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(borderColor)
-
-	gridBorderSolvedStyle = lipgloss.NewStyle().
-				Border(lipgloss.RoundedBorder()).
-				BorderForeground(solvedBorder)
-)
+func gridBorderSolvedStyle() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(theme.Current().SuccessBorder)
+}
 
 func gridView(m Model, solved bool) string {
 	// Build preview rectangle for visual feedback.
@@ -78,18 +61,19 @@ func gridView(m Model, solved bool) string {
 	grid := lipgloss.JoinVertical(lipgloss.Left, rows...)
 
 	if solved {
-		return gridBorderSolvedStyle.Render(grid)
+		return gridBorderSolvedStyle().Render(grid)
 	}
-	return gridBorderStyle.Render(grid)
+	return gridBorderStyle().Render(grid)
 }
 
 func cellView(m Model, x, y int, solved bool, preview *Rectangle, previewClue *Clue) string {
+	p := theme.Current()
 	isCursor := m.cursor.X == x && m.cursor.Y == y
 	clue := m.puzzle.FindClueAt(x, y)
 	owner := m.puzzle.CellOwner(x, y)
 
 	// Determine display text.
-	display := " · "
+	display := " \u00b7 "
 	if clue != nil {
 		display = fmt.Sprintf("%2d ", clue.Value)
 		if clue.Value < 10 {
@@ -98,10 +82,10 @@ func cellView(m Model, x, y int, solved bool, preview *Rectangle, previewClue *C
 	}
 
 	// Base style.
-	s := baseStyle.Foreground(emptyDotColor)
+	s := lipgloss.NewStyle().Foreground(p.TextDim)
 
 	if clue != nil {
-		s = baseStyle.Foreground(clueColor).Background(clueBgColor).Bold(true)
+		s = lipgloss.NewStyle().Foreground(p.Given).Background(p.Surface).Bold(true)
 	}
 
 	// Rectangle background color (from current theme palette).
@@ -121,16 +105,15 @@ func cellView(m Model, x, y int, solved bool, preview *Rectangle, previewClue *C
 			preview.Area() == previewClue.Value &&
 			!m.puzzle.Overlaps(*preview, previewClue.ID)
 		if good {
-			s = s.Background(previewGoodBg).Foreground(theme.TextOnBG(previewGoodBg))
+			s = s.Background(p.SuccessBG).Foreground(theme.TextOnBG(p.SuccessBG))
 		} else {
-			s = s.Background(previewBadBg).Foreground(theme.TextOnBG(previewBadBg))
+			s = s.Background(p.ErrorBG).Foreground(theme.TextOnBG(p.ErrorBG))
 		}
 	}
 
 	// Selected clue highlight.
 	if m.selectedClue != nil && clue != nil && clue.ID == *m.selectedClue && !inPreview {
-		bg := theme.Current().Highlight
-		s = s.Background(bg).Foreground(theme.TextOnBG(bg)).Bold(true)
+		s = s.Background(p.SelectionBG).Foreground(theme.TextOnBG(p.SelectionBG)).Bold(true)
 	}
 
 	// Solved styling.
@@ -139,7 +122,7 @@ func cellView(m Model, x, y int, solved bool, preview *Rectangle, previewClue *C
 			bg := colors[owner%len(colors)]
 			s = s.Background(bg).Foreground(theme.TextOnBG(bg))
 		} else {
-			s = s.Background(solvedBg)
+			s = s.Foreground(p.SolvedFG).Background(p.SuccessBG)
 		}
 		if isCursor {
 			s = game.CursorSolvedStyle()
@@ -151,19 +134,21 @@ func cellView(m Model, x, y int, solved bool, preview *Rectangle, previewClue *C
 	return s.Width(cellWidth).AlignHorizontal(lipgloss.Center).Render(display)
 }
 
-func infoView(p *Puzzle) string {
-	placed := len(p.Rectangles)
-	total := len(p.Clues)
+func infoView(puzzle *Puzzle) string {
+	p := theme.Current()
+
+	placed := len(puzzle.Rectangles)
+	total := len(puzzle.Clues)
 	correct := 0
-	for _, r := range p.Rectangles {
-		clue := p.FindClueByID(r.ClueID)
+	for _, r := range puzzle.Rectangles {
+		clue := puzzle.FindClueByID(r.ClueID)
 		if clue != nil && r.Area() == clue.Value {
 			correct++
 		}
 	}
 
-	satisfiedStyle := lipgloss.NewStyle().Foreground(infoSatisfied)
-	infoStyle := lipgloss.NewStyle().Foreground(infoText)
+	satisfiedStyle := lipgloss.NewStyle().Foreground(p.SuccessBorder)
+	infoStyle := lipgloss.NewStyle().Foreground(p.Info)
 
 	var sb strings.Builder
 	sb.WriteString(infoStyle.Render("Rectangles: "))

@@ -20,7 +20,9 @@ func (m model) View() tea.View {
 	case playMenuView:
 		content = ui.CenterView(m.width, m.height, m.playMenu.ViewAsPanel("Play"))
 	case optionsMenuView:
-		content = ui.CenterView(m.width, m.height, m.optionsMenu.ViewAsPanel("Options"))
+		items := m.optionsMenu.RenderItems() + "\n\n" + ui.DimItemStyle().Render("- Dami")
+		panel := ui.Panel("Options", items, "↑/↓ navigate • enter select • esc back")
+		content = ui.CenterView(m.width, m.height, panel)
 	case seedInputView:
 		panel := ui.Panel(
 			"Enter Seed",

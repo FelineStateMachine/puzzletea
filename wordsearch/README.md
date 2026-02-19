@@ -22,6 +22,7 @@ The puzzle is solved when all words are found.
 | Arrow keys / WASD / hjkl | Move cursor |
 | `Enter` / `Space` | Select start or confirm end |
 | `Escape` | Cancel current selection |
+| `Ctrl+R` | Reset puzzle |
 | `Ctrl+H` | Toggle full help |
 | `Ctrl+E` | Toggle debug overlay |
 | `Ctrl+N` | Return to main menu |

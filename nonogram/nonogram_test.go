@@ -894,8 +894,6 @@ func TestGenerateRandomTomography_5x5_VerifyUnique(t *testing.T) {
 	}
 }
 
-// Ensure the game import is used (it's needed for the init() registration side effect
-// and the NewMode constructor uses game.NewBaseMode internally).
 var _ game.Gamer = Model{}
 
 // --- Spawn Performance Benchmark (P2) ---

@@ -2,43 +2,12 @@ package nonogram
 
 import (
 	"fmt"
+	"image/color"
 	"strings"
 
 	"charm.land/lipgloss/v2"
-	"charm.land/lipgloss/v2/compat"
 	"github.com/FelineStateMachine/puzzletea/game"
-)
-
-var (
-	baseStyle       = lipgloss.NewStyle()
-	backgroundColor = compat.AdaptiveColor{Light: lipgloss.Color("254"), Dark: lipgloss.Color("235")}
-
-	filledStyle = baseStyle.
-			Foreground(compat.AdaptiveColor{Light: lipgloss.Color("130"), Dark: lipgloss.Color("222")}).
-			Background(compat.AdaptiveColor{Light: lipgloss.Color("223"), Dark: lipgloss.Color("58")})
-
-	markedStyle = baseStyle.
-			Foreground(compat.AdaptiveColor{Light: lipgloss.Color("131"), Dark: lipgloss.Color("173")}).
-			Background(compat.AdaptiveColor{Light: lipgloss.Color("224"), Dark: lipgloss.Color("236")})
-
-	emptyStyle = baseStyle.
-			Foreground(compat.AdaptiveColor{Light: lipgloss.Color("250"), Dark: lipgloss.Color("240")}).
-			Background(backgroundColor)
-
-	// cursorStyle and cursorSolvedStyle are resolved at render time
-	// via game.CursorWarmStyle() and game.CursorSolvedStyle().
-
-	crosshairBG       = compat.AdaptiveColor{Light: lipgloss.Color("254"), Dark: lipgloss.Color("237")}
-	crosshairFilledBG = compat.AdaptiveColor{Light: lipgloss.Color("223"), Dark: lipgloss.Color("100")}
-	solvedBG          = compat.AdaptiveColor{Light: lipgloss.Color("151"), Dark: lipgloss.Color("22")}
-
-	hintStyle = baseStyle.
-			Foreground(compat.AdaptiveColor{Light: lipgloss.Color("137"), Dark: lipgloss.Color("137")})
-
-	hintSatisfiedStyle = baseStyle.
-				Foreground(compat.AdaptiveColor{Light: lipgloss.Color("22"), Dark: lipgloss.Color("149")})
-
-	separatorFG = compat.AdaptiveColor{Light: lipgloss.Color("250"), Dark: lipgloss.Color("240")}
+	"github.com/FelineStateMachine/puzzletea/theme"
 )
 
 const (
@@ -46,21 +15,50 @@ const (
 	spacerEvery = 5
 )
 
-var (
-	hintCellStyle = baseStyle.Width(cellWidth)
+var renderRuneMap = map[rune]string{
+	filledTile: " \u25a0 ",
+	markedTile: " \u2715 ",
+	emptyTile:  " \u00b7 ",
+}
 
-	renderStyleMap = map[rune]lipgloss.Style{
-		filledTile: filledStyle,
-		markedTile: markedStyle,
-		emptyTile:  emptyStyle,
-	}
+func filledStyle() lipgloss.Style {
+	p := theme.Current()
+	return lipgloss.NewStyle().
+		Foreground(p.AccentText).
+		Background(p.AccentBG)
+}
 
-	renderRuneMap = map[rune]string{
-		filledTile: " ■ ",
-		markedTile: " ✕ ",
-		emptyTile:  " · ",
+func markedStyle() lipgloss.Style {
+	p := theme.Current()
+	return lipgloss.NewStyle().
+		Foreground(p.AccentSoft).
+		Background(p.BG)
+}
+
+func emptyStyle() lipgloss.Style {
+	p := theme.Current()
+	return lipgloss.NewStyle().
+		Foreground(p.TextDim).
+		Background(p.BG)
+}
+
+func hintStyle() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Foreground(theme.Current().Info)
+}
+
+func hintSatisfiedStyle() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Foreground(theme.Current().SuccessBorder)
+}
+
+func renderStyleMap() map[rune]lipgloss.Style {
+	return map[rune]lipgloss.Style{
+		filledTile: filledStyle(),
+		markedTile: markedStyle(),
+		emptyTile:  emptyStyle(),
 	}
-)
+}
 
 // needsSpacer reports whether a separator should be inserted after index i
 // in a dimension of size n (i.e. after every spacerEvery cells, except the last).
@@ -71,10 +69,11 @@ func needsSpacer(i, n int) bool {
 // hSeparator builds a horizontal separator row using box-drawing characters.
 // w is the number of grid columns. cursorX is the cursor column (-1 to disable crosshair).
 // bg is the default background, crossBG is the crosshair-highlighted background.
-func hSeparator(w, cursorX int, bg, crossBG compat.AdaptiveColor) string {
-	defStyle := baseStyle.Foreground(separatorFG).Background(bg)
-	highStyle := baseStyle.Foreground(separatorFG).Background(crossBG)
-	segment := strings.Repeat("─", cellWidth)
+func hSeparator(w, cursorX int, bg, crossBG color.Color) string {
+	p := theme.Current()
+	defStyle := lipgloss.NewStyle().Foreground(p.Border).Background(bg)
+	highStyle := lipgloss.NewStyle().Foreground(p.Border).Background(crossBG)
+	segment := strings.Repeat("\u2500", cellWidth)
 
 	var parts []string
 	for x := range w {
@@ -84,7 +83,7 @@ func hSeparator(w, cursorX int, bg, crossBG compat.AdaptiveColor) string {
 		}
 		parts = append(parts, style.Render(segment))
 		if needsSpacer(x, w) {
-			parts = append(parts, defStyle.Render("┼"))
+			parts = append(parts, defStyle.Render("\u253c"))
 		}
 	}
 	return lipgloss.JoinHorizontal(lipgloss.Top, parts...)
@@ -98,6 +97,8 @@ func colHintView(c TomographyDefinition, height int, current ...TomographyDefini
 		curr = current[0]
 	}
 
+	hintCellStyle := lipgloss.NewStyle().Width(cellWidth)
+
 	n := len(c)
 	var renderedCols []string
 	for i, hints := range c {
@@ -110,9 +111,9 @@ func colHintView(c TomographyDefinition, height int, current ...TomographyDefini
 		satisfied := hasCurrent && i < len(curr) && intSliceEqual(hints, curr[i])
 
 		for _, hint := range hints {
-			style := hintStyle
+			style := hintStyle()
 			if satisfied {
-				style = hintSatisfiedStyle
+				style = hintSatisfiedStyle()
 			}
 			hintCell := style.Width(cellWidth).
 				Align(lipgloss.Center).
@@ -123,12 +124,12 @@ func colHintView(c TomographyDefinition, height int, current ...TomographyDefini
 		renderedCols = append(renderedCols, renderedCol)
 
 		if needsSpacer(i, n) {
-			sepStyle := baseStyle.Foreground(separatorFG)
+			sepStyle := lipgloss.NewStyle().Foreground(theme.Current().Border)
 			var lines []string
 			for range height - 1 {
 				lines = append(lines, " ")
 			}
-			lines = append(lines, sepStyle.Render("│"))
+			lines = append(lines, sepStyle.Render("\u2502"))
 			renderedCols = append(renderedCols, lipgloss.JoinVertical(lipgloss.Left, lines...))
 		}
 	}
@@ -148,9 +149,9 @@ func rowHintView(r TomographyDefinition, width int, current ...TomographyDefinit
 	for i, hints := range r {
 		satisfied := hasCurrent && i < len(curr) && intSliceEqual(hints, curr[i])
 
-		style := hintStyle
+		style := hintStyle()
 		if satisfied {
-			style = hintSatisfiedStyle
+			style = hintSatisfiedStyle()
 		}
 
 		var rowHints []string
@@ -164,10 +165,10 @@ func rowHintView(r TomographyDefinition, width int, current ...TomographyDefinit
 		renderedRows = append(renderedRows, renderedRow)
 
 		if needsSpacer(i, n) {
-			sep := baseStyle.Foreground(separatorFG).
+			sep := lipgloss.NewStyle().Foreground(theme.Current().Border).
 				Width(width).
 				Align(lipgloss.Right).
-				Render("─")
+				Render("\u2500")
 			renderedRows = append(renderedRows, sep)
 		}
 	}
@@ -176,18 +177,21 @@ func rowHintView(r TomographyDefinition, width int, current ...TomographyDefinit
 }
 
 func gridView(g grid, c game.Cursor, solved bool) string {
+	p := theme.Current()
+
 	h := len(g)
 	w := 0
 	if h > 0 {
 		w = len(g[0])
 	}
 
-	sepStyle := baseStyle.Foreground(separatorFG)
+	sepStyle := lipgloss.NewStyle().Foreground(p.Border)
 
 	// Determine background for horizontal separators (matches grid background).
-	gridBG := backgroundColor
+	gridBG := p.BG
+	crosshairBG := p.Surface
 	if solved {
-		gridBG = solvedBG
+		gridBG = p.SuccessBG
 	}
 
 	var rows []string
@@ -206,7 +210,7 @@ func gridView(g grid, c game.Cursor, solved bool) string {
 				if !solved && inCursorRow {
 					bg = crosshairBG
 				}
-				rowBuilder = append(rowBuilder, sepStyle.Background(bg).Render("│"))
+				rowBuilder = append(rowBuilder, sepStyle.Background(bg).Render("\u2502"))
 			}
 		}
 		row := lipgloss.JoinHorizontal(lipgloss.Top, rowBuilder...)
@@ -225,30 +229,35 @@ func gridView(g grid, c game.Cursor, solved bool) string {
 }
 
 func tileView(val rune, isCursor, inCursorRow, inCursorCol, solved bool) string {
-	s, ok := renderStyleMap[val]
+	p := theme.Current()
+	styles := renderStyleMap()
+	s, ok := styles[val]
 	if !ok {
-		s = renderStyleMap[emptyTile]
-	}
-
-	if isCursor && solved {
-		s = game.CursorSolvedStyle()
-	} else if isCursor {
-		s = game.CursorWarmStyle()
-	} else if solved {
-		s = s.Background(solvedBG)
-	} else if inCursorRow || inCursorCol {
-		// Apply crosshair background tint — filled cells get a more active color
-		if val == filledTile {
-			s = s.Background(crosshairFilledBG)
-		} else {
-			s = s.Background(crosshairBG)
-		}
+		s = styles[emptyTile]
 	}
 
 	r, ok := renderRuneMap[val]
 	if !ok {
 		r = renderRuneMap[emptyTile]
 	}
+
+	if isCursor && solved {
+		s = game.CursorSolvedStyle()
+		r = game.CursorLeft + string([]rune(r)[1]) + game.CursorRight
+	} else if isCursor {
+		s = game.CursorStyle()
+		r = game.CursorLeft + string([]rune(r)[1]) + game.CursorRight
+	} else if solved {
+		s = s.Foreground(p.SolvedFG).Background(p.SuccessBG)
+	} else if inCursorRow || inCursorCol {
+		// Apply crosshair background tint — filled cells get a more active color
+		if val == filledTile {
+			s = s.Background(theme.MidTone(p.Surface, p.AccentBG))
+		} else {
+			s = s.Background(p.Surface)
+		}
+	}
+
 	return s.Width(cellWidth).AlignHorizontal(lipgloss.Center).Render(r)
 }
 

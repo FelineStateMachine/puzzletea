@@ -17,7 +17,6 @@ func init() {
 	})
 }
 
-// HitoriMode represents a specific difficulty configuration for Hitori.
 type HitoriMode struct {
 	game.BaseMode
 	Size       int
@@ -30,7 +29,6 @@ var (
 	_ game.SeededSpawner = HitoriMode{}
 )
 
-// NewMode creates a new Hitori game mode.
 func NewMode(title, desc string, size int, blackRatio float64) HitoriMode {
 	return HitoriMode{
 		BaseMode:   game.NewBaseMode(title, desc),
@@ -39,7 +37,6 @@ func NewMode(title, desc string, size int, blackRatio float64) HitoriMode {
 	}
 }
 
-// Spawn creates a new game instance for this mode.
 func (h HitoriMode) Spawn() (game.Gamer, error) {
 	puzzle, err := Generate(h.Size, h.BlackRatio)
 	if err != nil {
@@ -56,10 +53,6 @@ func (h HitoriMode) SpawnSeeded(rng *rand.Rand) (game.Gamer, error) {
 	return New(h, puzzle)
 }
 
-// Modes defines the available difficulty levels.
-// Difficulty is controlled by grid size and the ratio of black cells.
-// Smaller grids with fewer black cells are easier to deduce; larger grids
-// with more black cells require deeper chains of logic.
 var Modes = []list.Item{
 	NewMode("Mini", "5\u00d75 grid, gentle introduction.", 5, 0.32),
 	NewMode("Easy", "6\u00d76 grid, straightforward logic.", 6, 0.32),
@@ -69,7 +62,6 @@ var Modes = []list.Item{
 	NewMode("Expert", "12\u00d712 grid, maximum challenge.", 12, 0.28),
 }
 
-// DailyModes is the subset of Modes eligible for daily puzzle rotation.
 var DailyModes = []list.Item{
 	Modes[1], // Easy 6x6
 	Modes[2], // Medium 8x8

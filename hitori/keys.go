@@ -6,7 +6,6 @@ import (
 	"charm.land/bubbles/v2/key"
 )
 
-// KeyMap defines the keybindings for Hitori.
 type KeyMap struct {
 	game.CursorKeyMap
 	ShadeCell  key.Binding
@@ -14,7 +13,6 @@ type KeyMap struct {
 	ClearCell  key.Binding
 }
 
-// DefaultKeyMap provides the standard keybindings.
 var DefaultKeyMap = KeyMap{
 	CursorKeyMap: game.DefaultCursorKeyMap,
 	ShadeCell: key.NewBinding(
@@ -43,7 +41,6 @@ func (m *Model) updateKeyBindings() {
 	m.keys.ClearCell.SetEnabled(!solved)
 }
 
-// GetFullHelp implements game.Gamer.
 func (m Model) GetFullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{m.keys.Up, m.keys.Down, m.keys.Left, m.keys.Right},

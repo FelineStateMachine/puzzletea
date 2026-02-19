@@ -120,11 +120,9 @@ func (p *Puzzle) FindAdjacentIsland(fromID, dx, dy int) *Island {
 	}
 	x, y := from.X+dx, from.Y+dy
 	for x >= 0 && x < p.Width && y >= 0 && y < p.Height {
-		// Check for island at this position
 		if isl := p.FindIslandAt(x, y); isl != nil {
 			return isl
 		}
-		// Check if a perpendicular bridge crosses this cell
 		ci := p.CellContent(x, y)
 		if dx == 0 && ci.Kind == cellBridgeH {
 			return nil // horizontal bridge blocks vertical ray
@@ -146,7 +144,6 @@ func (p *Puzzle) WouldCross(id1, id2 int) bool {
 		return true
 	}
 
-	// Determine direction of new bridge
 	horizontal := isl1.Y == isl2.Y
 	vertical := isl1.X == isl2.X
 	if !horizontal && !vertical {

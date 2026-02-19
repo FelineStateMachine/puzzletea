@@ -17,7 +17,6 @@ func init() {
 	})
 }
 
-// TakuzuMode represents a specific difficulty configuration for Takuzu.
 type TakuzuMode struct {
 	game.BaseMode
 	Size      int
@@ -30,7 +29,6 @@ var (
 	_ game.SeededSpawner = TakuzuMode{}
 )
 
-// NewMode creates a new Takuzu game mode.
 func NewMode(title, desc string, size int, prefilled float64) TakuzuMode {
 	return TakuzuMode{
 		BaseMode:  game.NewBaseMode(title, desc),
@@ -39,7 +37,6 @@ func NewMode(title, desc string, size int, prefilled float64) TakuzuMode {
 	}
 }
 
-// Spawn creates a new game instance for this mode.
 func (t TakuzuMode) Spawn() (game.Gamer, error) {
 	complete := generateComplete(t.Size)
 	puzzle, provided := generatePuzzle(complete, t.Size, t.Prefilled)
@@ -52,11 +49,6 @@ func (t TakuzuMode) SpawnSeeded(rng *rand.Rand) (game.Gamer, error) {
 	return New(t, puzzle, provided)
 }
 
-// Modes defines the available difficulty levels.
-// Difficulty is controlled by two axes: grid size and clue density.
-// Smaller grids with more clues need only basic pattern recognition (doubles,
-// sandwich patterns). Larger grids with fewer clues require counting, uniqueness
-// elimination, and deeper chains of deduction.
 var Modes = []list.Item{
 	NewMode("Beginner", "6×6 grid, ~50% clues. Doubles and sandwich patterns.", 6, 0.50),
 	NewMode("Easy", "6×6 grid, ~40% clues. Counting required.", 6, 0.40),
@@ -67,7 +59,6 @@ var Modes = []list.Item{
 	NewMode("Extreme", "14×14 grid, ~28% clues. Maximum challenge.", 14, 0.28),
 }
 
-// DailyModes is the subset of Modes eligible for daily puzzle rotation.
 var DailyModes = []list.Item{
 	Modes[2], // Medium 8x8
 	Modes[3], // Tricky 10x10

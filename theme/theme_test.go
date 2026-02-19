@@ -172,14 +172,23 @@ func assertPaletteContrast(t *testing.T, name string, p Palette) {
 	}
 
 	pairs := []pair{
+		// FG tokens on main BG (normal text → 4.5:1)
 		{"FG on BG", p.FG, p.BG, minContrastNormal},
 		{"TextDim on BG", p.TextDim, p.BG, minContrastNormal},
-		{"Info on BG", p.Info, p.BG, minContrastNormal},
 		{"Accent on BG", p.Accent, p.BG, minContrastNormal},
-		{"AccentText on Accent (cursor)", p.AccentText, p.Accent, minContrastLarge},
-		{"WarmText on Warm (warm cursor)", p.WarmText, p.Warm, minContrastLarge},
-		{"SuccessBorder on Success (solved)", p.SuccessBorder, p.Success, minContrastLarge},
-		{"Error on ErrorBG (conflict)", p.Error, p.ErrorBG, minContrastLarge},
+		{"AccentSoft on BG", p.AccentSoft, p.BG, minContrastNormal},
+		{"Info on BG", p.Info, p.BG, minContrastNormal},
+		{"Error on BG", p.Error, p.BG, minContrastNormal},
+		{"Success on BG", p.Success, p.BG, minContrastNormal},
+		{"Given on BG", p.Given, p.BG, minContrastNormal},
+		{"Linked on BG", p.Linked, p.BG, minContrastNormal},
+		{"Secondary on BG", p.Secondary, p.BG, minContrastNormal},
+		{"Tertiary on BG", p.Tertiary, p.BG, minContrastNormal},
+		{"Highlight on BG", p.Highlight, p.BG, minContrastNormal},
+		// FG tokens on derived BGs (bold text → 3:1)
+		{"AccentText on AccentBG (cursor)", p.AccentText, p.AccentBG, minContrastLarge},
+		{"SolvedFG on SuccessBG (solved text)", p.SolvedFG, p.SuccessBG, minContrastNormal},
+		{"SuccessBorder on SuccessBG (solved)", p.SuccessBorder, p.SuccessBG, minContrastLarge},
 	}
 
 	for _, pp := range pairs {
@@ -194,7 +203,7 @@ func assertPaletteContrast(t *testing.T, name string, p Palette) {
 func TestMidTone(t *testing.T) {
 	black := color.NRGBA{R: 0, G: 0, B: 0, A: 255}
 	white := color.NRGBA{R: 255, G: 255, B: 255, A: 255}
-	mid := midTone(black, white)
+	mid := MidTone(black, white)
 	r, g, b, _ := mid.RGBA()
 	// Should be roughly 127/128 for each channel.
 	got := fmt.Sprintf("%d,%d,%d", r>>8, g>>8, b>>8)

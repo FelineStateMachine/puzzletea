@@ -12,15 +12,13 @@ import (
 // Shared cursor / conflict color accessors. Puzzle packages that compose
 // styles on top of the cursor colors read these at render time.
 
-func CursorFG() color.Color     { return theme.Current().AccentText }
-func CursorBG() color.Color     { return theme.Current().Accent }
-func CursorWarmFG() color.Color { return theme.Current().WarmText }
-func CursorWarmBG() color.Color { return theme.Current().Warm }
-func ConflictFG() color.Color   { return theme.Current().Error }
-func ConflictBG() color.Color   { return theme.Current().ErrorBG }
+func CursorFG() color.Color   { return theme.Current().AccentText }
+func CursorBG() color.Color   { return theme.Current().AccentBG }
+func ConflictFG() color.Color { return theme.Current().Error }
+func ConflictBG() color.Color { return theme.Current().ErrorBG }
+func SolvedFG() color.Color   { return theme.Current().SolvedFG }
 
 // CursorStyle highlights the cursor position with an accent background.
-// Used by lightsout, sudoku, wordsearch.
 func CursorStyle() lipgloss.Style {
 	return lipgloss.NewStyle().
 		Bold(true).
@@ -28,23 +26,20 @@ func CursorStyle() lipgloss.Style {
 		Background(CursorBG())
 }
 
-// CursorWarmStyle highlights the cursor with a warmer background.
-// Used by hitori, takuzu, nonogram.
-func CursorWarmStyle() lipgloss.Style {
-	return lipgloss.NewStyle().
-		Bold(true).
-		Foreground(CursorWarmFG()).
-		Background(CursorWarmBG())
-}
-
 // CursorSolvedStyle highlights the cursor position on a solved grid.
-// Shared across all puzzle types.
 func CursorSolvedStyle() lipgloss.Style {
 	return lipgloss.NewStyle().
 		Bold(true).
 		Foreground(CursorFG()).
-		Background(theme.Current().Success)
+		Background(theme.Current().SuccessBG)
 }
+
+// Bracket markers for cursor identification. These are prepended/appended
+// to cell content so the cursor is identifiable independent of BG contrast.
+const (
+	CursorLeft  = "\u25b8" // ▸
+	CursorRight = "\u25c2" // ◂
+)
 
 // StatusBarStyle returns the shared style for the status/help bar below each puzzle grid.
 func StatusBarStyle() lipgloss.Style {

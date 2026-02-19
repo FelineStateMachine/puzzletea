@@ -5,7 +5,6 @@ import (
 	"strings"
 )
 
-// GenerateWordSearch creates a new word search grid with the specified parameters
 func GenerateWordSearch(width, height, wordCount, minLen, maxLen int, allowedDirs []Direction) (grid, []Word) {
 	rng := rand.New(rand.NewPCG(rand.Uint64(), rand.Uint64()))
 	return GenerateWordSearchSeeded(width, height, wordCount, minLen, maxLen, allowedDirs, rng)
@@ -16,7 +15,6 @@ func GenerateWordSearchSeeded(width, height, wordCount, minLen, maxLen int, allo
 	words := selectWordsSeeded(wordCount, minLen, maxLen, rng)
 	placedWords := make([]Word, 0, len(words))
 
-	// Try to place each word
 	for _, wordText := range words {
 		word := tryPlaceWordSeeded(g, wordText, allowedDirs, 100, rng)
 		if word != nil {
@@ -24,20 +22,17 @@ func GenerateWordSearchSeeded(width, height, wordCount, minLen, maxLen int, allo
 		}
 	}
 
-	// Fill remaining empty cells with random letters
 	fillEmptyCellsSeeded(g, rng)
 
 	return g, placedWords
 }
 
-// selectWords randomly selects words from the word list
 func selectWords(count, minLen, maxLen int) []string {
 	rng := rand.New(rand.NewPCG(rand.Uint64(), rand.Uint64()))
 	return selectWordsSeeded(count, minLen, maxLen, rng)
 }
 
 func selectWordsSeeded(count, minLen, maxLen int, rng *rand.Rand) []string {
-	// Collect all valid words
 	var candidates []string
 	for length := minLen; length <= maxLen; length++ {
 		if words, ok := wordsByLength[length]; ok {
@@ -45,7 +40,6 @@ func selectWordsSeeded(count, minLen, maxLen int, rng *rand.Rand) []string {
 		}
 	}
 
-	// Shuffle and take first 'count' words
 	rng.Shuffle(len(candidates), func(i, j int) {
 		candidates[i], candidates[j] = candidates[j], candidates[i]
 	})
@@ -57,7 +51,6 @@ func selectWordsSeeded(count, minLen, maxLen int, rng *rand.Rand) []string {
 	return candidates[:count]
 }
 
-// tryPlaceWord attempts to place a word in the grid
 func tryPlaceWord(g grid, text string, allowedDirs []Direction, maxAttempts int) *Word {
 	rng := rand.New(rand.NewPCG(rand.Uint64(), rand.Uint64()))
 	return tryPlaceWordSeeded(g, text, allowedDirs, maxAttempts, rng)
@@ -69,15 +62,12 @@ func tryPlaceWordSeeded(g grid, text string, allowedDirs []Direction, maxAttempt
 	width := len(g[0])
 
 	for range maxAttempts {
-		// Random starting position
 		x := rng.IntN(width)
 		y := rng.IntN(height)
 
-		// Random direction
 		dir := allowedDirs[rng.IntN(len(allowedDirs))]
 		dx, dy := dir.Vector()
 
-		// Check if word fits in this direction
 		endX := x + dx*(len(text)-1)
 		endY := y + dy*(len(text)-1)
 
@@ -85,7 +75,6 @@ func tryPlaceWordSeeded(g grid, text string, allowedDirs []Direction, maxAttempt
 			continue
 		}
 
-		// Check if placement is valid (no conflicts, allow letter overlap)
 		valid := true
 		for i := range len(text) {
 			cx := x + dx*i
@@ -102,7 +91,6 @@ func tryPlaceWordSeeded(g grid, text string, allowedDirs []Direction, maxAttempt
 			continue
 		}
 
-		// Place the word
 		for i := range len(text) {
 			cx := x + dx*i
 			cy := y + dy*i
@@ -121,7 +109,6 @@ func tryPlaceWordSeeded(g grid, text string, allowedDirs []Direction, maxAttempt
 	return nil
 }
 
-// fillEmptyCells fills all empty cells with random letters
 func fillEmptyCells(g grid) {
 	rng := rand.New(rand.NewPCG(rand.Uint64(), rand.Uint64()))
 	fillEmptyCellsSeeded(g, rng)

@@ -65,7 +65,6 @@ func buildFoundCells(width, height int, words []Word) [][]bool {
 	return fc
 }
 
-// New creates a new word search game
 func New(mode WordSearchMode, g grid, words []Word) (game.Gamer, error) {
 	return &Model{
 		width:      mode.Width,

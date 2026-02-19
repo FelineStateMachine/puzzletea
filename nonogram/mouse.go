@@ -118,7 +118,7 @@ func (m *Model) gridOrigin() (x, y int) {
 	title := game.TitleBarView("Nonogram", m.modeTitle, m.solved)
 	rowHints := rowHintView(m.rowHints, maxWidth, m.currentHints.rows)
 	colHints := colHintView(m.colHints, maxHeight, m.currentHints.cols)
-	spacer := baseStyle.Width(maxWidth).Height(maxHeight).Render("")
+	spacer := lipgloss.NewStyle().Width(maxWidth).Height(maxHeight).Render("")
 
 	s1 := lipgloss.JoinHorizontal(lipgloss.Bottom, spacer, colHints)
 	gridBlock := lipgloss.JoinVertical(lipgloss.Center, s1, "placeholder")

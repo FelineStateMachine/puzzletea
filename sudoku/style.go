@@ -5,90 +5,101 @@ import (
 	"strings"
 
 	"charm.land/lipgloss/v2"
-	"charm.land/lipgloss/v2/compat"
 	"github.com/FelineStateMachine/puzzletea/game"
+	"github.com/FelineStateMachine/puzzletea/theme"
 )
 
-var (
-	backgroundColor = compat.AdaptiveColor{Light: lipgloss.Color("254"), Dark: lipgloss.Color("235")}
+var sudokuCellWidth = 2
 
-	emptyCellStyle = lipgloss.NewStyle().
-			Foreground(compat.AdaptiveColor{Light: lipgloss.Color("250"), Dark: lipgloss.Color("240")}).
-			Background(backgroundColor)
+func emptyCellStyle() lipgloss.Style {
+	p := theme.Current()
+	return lipgloss.NewStyle().
+		Foreground(p.TextDim).
+		Background(p.BG)
+}
 
-	providedCellStyle = lipgloss.NewStyle().
-				Bold(true).
-				Foreground(compat.AdaptiveColor{Light: lipgloss.Color("130"), Dark: lipgloss.Color("179")}).
-				Background(backgroundColor)
+func providedCellStyle() lipgloss.Style {
+	p := theme.Current()
+	return lipgloss.NewStyle().
+		Bold(true).
+		Foreground(p.Given).
+		Background(p.BG)
+}
 
-	userCellStyle = lipgloss.NewStyle().
-			Foreground(compat.AdaptiveColor{Light: lipgloss.Color("236"), Dark: lipgloss.Color("187")}).
-			Background(backgroundColor)
+func userCellStyle() lipgloss.Style {
+	p := theme.Current()
+	return lipgloss.NewStyle().
+		Foreground(p.AccentSoft).
+		Background(p.BG)
+}
 
-	// cursorCellStyle resolved at render time via game.CursorStyle().
+func conflictCellStyle() lipgloss.Style {
+	p := theme.Current()
+	return lipgloss.NewStyle().
+		Foreground(p.Error).
+		Background(p.ErrorBG)
+}
 
-	conflictCellStyle = lipgloss.NewStyle().
-				Foreground(compat.AdaptiveColor{Light: lipgloss.Color("160"), Dark: lipgloss.Color("167")}).
-				Background(compat.AdaptiveColor{Light: lipgloss.Color("224"), Dark: lipgloss.Color("52")})
+func sameNumberStyle() lipgloss.Style {
+	p := theme.Current()
+	return lipgloss.NewStyle().
+		Bold(true).
+		Foreground(p.Accent)
+}
 
-	sameNumberStyle = lipgloss.NewStyle().
-			Bold(true).
-			Foreground(compat.AdaptiveColor{Light: lipgloss.Color("130"), Dark: lipgloss.Color("187")})
+func gridBorderStyle() lipgloss.Style {
+	p := theme.Current()
+	return lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(p.Border).
+		BorderBackground(p.BG)
+}
 
-	crosshairBG = compat.AdaptiveColor{Light: lipgloss.Color("254"), Dark: lipgloss.Color("237")}
-
-	boxBorderFG = compat.AdaptiveColor{Light: lipgloss.Color("250"), Dark: lipgloss.Color("240")}
-
-	gridBorderStyle = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(compat.AdaptiveColor{Light: lipgloss.Color("250"), Dark: lipgloss.Color("240")}).
-			BorderBackground(backgroundColor)
-
-	gridBorderSolvedStyle = lipgloss.NewStyle().
-				Border(lipgloss.RoundedBorder()).
-				BorderForeground(compat.AdaptiveColor{Light: lipgloss.Color("22"), Dark: lipgloss.Color("149")}).
-				BorderBackground(backgroundColor)
-
-	sudokuCellWidth = 2
-)
+func gridBorderSolvedStyle() lipgloss.Style {
+	p := theme.Current()
+	return lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(p.SuccessBorder).
+		BorderBackground(p.BG)
+}
 
 func renderGrid(m Model, solved bool, conflicts [gridSize][gridSize]bool) string {
+	p := theme.Current()
+
 	var rows []string
 
 	for y := range gridSize {
 		var cells []string
 		for x := range gridSize {
 			c := m.grid[y][x]
-			style := getCellStyle(m, c, x, y, conflicts[y][x])
+			style := getCellStyle(m, c, x, y, conflicts[y][x], solved)
 			content := cellContent(c)
 			rendered := style.Width(sudokuCellWidth).Align(lipgloss.Center).Render(content)
 			cells = append(cells, rendered)
 
-			// Insert vertical box separator after columns 3 and 6
 			if x == 2 || x == 5 {
-				bg := backgroundColor
+				bg := p.BG
 				if m.cursor.Y == y {
-					bg = crosshairBG
+					bg = p.Surface
 				}
-				sep := lipgloss.NewStyle().Foreground(boxBorderFG).Background(bg).Render("│")
+				sep := lipgloss.NewStyle().Foreground(p.Border).Background(bg).Render("\u2502")
 				cells = append(cells, sep)
 			}
 		}
 		row := lipgloss.JoinHorizontal(lipgloss.Top, cells...)
 		rows = append(rows, row)
 
-		// Insert horizontal box separator after rows 3 and 6
 		if y == 2 || y == 5 {
-			sepLine := strings.Repeat("─", sudokuCellWidth)
+			sepLine := strings.Repeat("\u2500", sudokuCellWidth)
 			var renderedParts []string
 			for x := range gridSize {
-				bg := backgroundColor
+				bg := p.BG
 				if m.cursor.X == x {
-					bg = crosshairBG
+					bg = p.Surface
 				}
-				renderedParts = append(renderedParts, lipgloss.NewStyle().Foreground(boxBorderFG).Background(bg).Render(sepLine))
+				renderedParts = append(renderedParts, lipgloss.NewStyle().Foreground(p.Border).Background(bg).Render(sepLine))
 				if x == 2 || x == 5 {
-					renderedParts = append(renderedParts, lipgloss.NewStyle().Foreground(boxBorderFG).Background(backgroundColor).Render("┼"))
+					renderedParts = append(renderedParts, lipgloss.NewStyle().Foreground(p.Border).Background(p.BG).Render("\u253c"))
 				}
 			}
 			rows = append(rows, lipgloss.JoinHorizontal(lipgloss.Top, renderedParts...))
@@ -98,25 +109,35 @@ func renderGrid(m Model, solved bool, conflicts [gridSize][gridSize]bool) string
 	grid := lipgloss.JoinVertical(lipgloss.Left, rows...)
 
 	if solved {
-		return gridBorderSolvedStyle.Render(grid)
+		return gridBorderSolvedStyle().Render(grid)
 	}
-	return gridBorderStyle.Render(grid)
+	return gridBorderStyle().Render(grid)
 }
 
-func getCellStyle(m Model, c cell, x, y int, conflict bool) lipgloss.Style {
+func getCellStyle(m Model, c cell, x, y int, conflict, solved bool) lipgloss.Style {
+	p := theme.Current()
+	isCursor := m.cursor.X == x && m.cursor.Y == y
 	cursorVal := m.grid[m.cursor.Y][m.cursor.X].v
 
-	// Priority: cursor > conflict > same number > provided > user > empty
-	if m.cursor.X == x && m.cursor.Y == y {
+	// Priority: cursor+solved > cursor > conflict > same number > provided > user > empty
+	if isCursor && solved {
+		return game.CursorSolvedStyle()
+	}
+
+	if isCursor {
 		return game.CursorStyle()
 	}
 
+	if solved {
+		return lipgloss.NewStyle().Foreground(p.SolvedFG).Background(p.SuccessBG)
+	}
+
 	if conflict {
-		return conflictCellStyle
+		return conflictCellStyle()
 	}
 
 	if cursorVal != 0 && c.v == cursorVal {
-		return sameNumberStyle
+		return sameNumberStyle()
 	}
 
 	isProvided := m.providedGrid[y][x]
@@ -126,31 +147,31 @@ func getCellStyle(m Model, c cell, x, y int, conflict bool) lipgloss.Style {
 	inCrosshair := inCursorRow || inCursorCol || inCursorBox
 
 	if isProvided {
-		s := providedCellStyle
+		s := providedCellStyle()
 		if inCrosshair {
-			s = s.Background(crosshairBG)
+			s = s.Background(p.Surface)
 		}
 		return s
 	}
 
 	if c.v != 0 {
-		s := userCellStyle
+		s := userCellStyle()
 		if inCrosshair {
-			s = s.Background(crosshairBG)
+			s = s.Background(p.Surface)
 		}
 		return s
 	}
 
-	s := emptyCellStyle
+	s := emptyCellStyle()
 	if inCrosshair {
-		s = s.Background(crosshairBG)
+		s = s.Background(p.Surface)
 	}
 	return s
 }
 
 func cellContent(c cell) string {
 	if c.v == 0 {
-		return "·"
+		return "\u00b7"
 	}
 	return fmt.Sprintf("%d", c.v)
 }
@@ -160,9 +181,8 @@ func cellContent(c cell) string {
 func computeConflicts(g grid) [gridSize][gridSize]bool {
 	var conflicts [gridSize][gridSize]bool
 
-	// Check rows
 	for y := range gridSize {
-		var seen [10][]int // value → list of x positions
+		var seen [10][]int // value -> list of x positions
 		for x := range gridSize {
 			v := g[y][x].v
 			if v != 0 {
@@ -178,7 +198,6 @@ func computeConflicts(g grid) [gridSize][gridSize]bool {
 		}
 	}
 
-	// Check columns
 	for x := range gridSize {
 		var seen [10][]int
 		for y := range gridSize {
@@ -196,7 +215,6 @@ func computeConflicts(g grid) [gridSize][gridSize]bool {
 		}
 	}
 
-	// Check 3x3 boxes
 	for boxY := range 3 {
 		for boxX := range 3 {
 			type pos struct{ y, x int }

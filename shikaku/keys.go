@@ -5,7 +5,6 @@ import (
 	"github.com/FelineStateMachine/puzzletea/game"
 )
 
-// KeyMap defines the keybindings for Shikaku.
 type KeyMap struct {
 	game.CursorKeyMap
 	ShrinkUp    key.Binding
@@ -17,7 +16,6 @@ type KeyMap struct {
 	Delete      key.Binding
 }
 
-// DefaultKeyMap provides the standard keybindings.
 var DefaultKeyMap = KeyMap{
 	CursorKeyMap: game.DefaultCursorKeyMap,
 	ShrinkUp: key.NewBinding(
@@ -50,7 +48,6 @@ var DefaultKeyMap = KeyMap{
 	),
 }
 
-// GetFullHelp implements game.Gamer.
 func (m Model) GetFullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{m.keys.Up, m.keys.Down, m.keys.Left, m.keys.Right},

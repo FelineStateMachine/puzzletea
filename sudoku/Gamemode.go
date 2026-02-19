@@ -23,9 +23,9 @@ type SudokuMode struct {
 }
 
 var (
-	_ game.Mode          = SudokuMode{} // compile-time interface check
-	_ game.Spawner       = SudokuMode{} // compile-time interface check
-	_ game.SeededSpawner = SudokuMode{} // compile-time interface check
+	_ game.Mode          = SudokuMode{}
+	_ game.Spawner       = SudokuMode{}
+	_ game.SeededSpawner = SudokuMode{}
 )
 
 func NewMode(title, description string, providedCount int) SudokuMode {
@@ -52,7 +52,6 @@ var Modes = []list.Item{
 	NewMode("Diabolical", "17–21 clues. Swordfish / XY-Chains.", 17),
 }
 
-// DailyModes is the subset of Modes eligible for daily puzzle rotation.
 var DailyModes = []list.Item{
 	Modes[1], // Easy
 	Modes[2], // Medium

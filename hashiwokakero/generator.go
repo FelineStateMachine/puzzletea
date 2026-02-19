@@ -37,27 +37,22 @@ func tryGenerateSeeded(width, height, islandCount int, rng *rand.Rand) *Puzzle {
 		Islands: islands,
 	}
 
-	// Build a spanning tree to ensure connectivity
 	if !buildSpanningTreeSeeded(p, rng) {
 		return nil
 	}
 
-	// Add extra bridges for complexity
 	addExtraBridgesSeeded(p, rng)
 
-	// Set required counts from the solution
 	for i := range p.Islands {
 		p.Islands[i].Required = p.BridgeCount(p.Islands[i].ID)
 	}
 
-	// Verify all islands have Required >= 1
 	for _, isl := range p.Islands {
 		if isl.Required < 1 {
 			return nil
 		}
 	}
 
-	// Clear bridges — player starts with none
 	p.Bridges = nil
 	p.invalidateCache()
 
@@ -128,7 +123,6 @@ func buildSpanningTreeSeeded(p *Puzzle, rng *rand.Rand) bool {
 		return true
 	}
 
-	// Find all valid pairs (share row or column, no island in between)
 	type pair struct{ id1, id2 int }
 	var pairs []pair
 
@@ -141,14 +135,12 @@ func buildSpanningTreeSeeded(p *Puzzle, rng *rand.Rand) bool {
 				continue // not aligned
 			}
 
-			// Check no island in between
 			if isDirectlyConnectable(p, a, b) {
 				pairs = append(pairs, pair{a.ID, b.ID})
 			}
 		}
 	}
 
-	// Shuffle pairs for randomness
 	rng.Shuffle(len(pairs), func(i, j int) {
 		pairs[i], pairs[j] = pairs[j], pairs[i]
 	})
@@ -301,7 +293,6 @@ func isDirectlyConnectable(p *Puzzle, a, b Island) bool {
 	return false
 }
 
-// abs returns the absolute value of an integer.
 func abs(x int) int {
 	if x < 0 {
 		return -x

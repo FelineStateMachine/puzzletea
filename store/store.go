@@ -280,7 +280,6 @@ func (s *Store) ListAllGames() ([]GameRecord, error) {
 	return games, rows.Err()
 }
 
-// Close closes the database connection.
 func (s *Store) Close() error {
 	return s.db.Close()
 }

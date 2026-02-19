@@ -24,6 +24,7 @@ every cell is filled and all three rules are satisfied.
 | `z` / `0` | Place ● |
 | `x` / `1` | Place ○ |
 | `Backspace` | Clear cell |
+| `Ctrl+R` | Reset puzzle |
 | `Ctrl+H` | Toggle full help |
 | `Ctrl+E` | Toggle debug overlay |
 | `Ctrl+N` | Return to main menu |

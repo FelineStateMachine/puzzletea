@@ -25,7 +25,7 @@ func DefaultBorderColors() GridBorderColors {
 		BackgroundBG:   p.BG,
 		CrosshairBG:    p.Surface,
 		SolvedBorderFG: p.SuccessBorder,
-		SolvedBG:       p.Success,
+		SolvedBG:       p.SuccessBG,
 	}
 }
 

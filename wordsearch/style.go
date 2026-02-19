@@ -5,65 +5,76 @@ import (
 	"strings"
 
 	"charm.land/lipgloss/v2"
-	"charm.land/lipgloss/v2/compat"
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/theme"
 )
 
-var (
-	normalStyle = lipgloss.NewStyle().
-			Foreground(compat.AdaptiveColor{Light: lipgloss.Color("236"), Dark: lipgloss.Color("252")}).
-			Background(compat.AdaptiveColor{Light: lipgloss.Color("254"), Dark: lipgloss.Color("236")})
+func normalStyle() lipgloss.Style {
+	p := theme.Current()
+	return lipgloss.NewStyle().
+		Foreground(p.FG).
+		Background(p.BG)
+}
 
-	// cursorStyle resolved at render time via game.CursorStyle().
+func foundStyle() lipgloss.Style {
+	p := theme.Current()
+	return lipgloss.NewStyle().
+		Foreground(p.SolvedFG).
+		Background(p.SuccessBG)
+}
 
-	// selectionStyle resolved at render time via selectionStyle().
+func wordListHeaderStyle() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Foreground(theme.Current().Accent).
+		Bold(true).
+		Underline(true)
+}
 
-	foundStyle = lipgloss.NewStyle().
-			Foreground(compat.AdaptiveColor{Light: lipgloss.Color("22"), Dark: lipgloss.Color("151")}).
-			Background(compat.AdaptiveColor{Light: lipgloss.Color("194"), Dark: lipgloss.Color("237")})
+func foundWordStyle() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Foreground(theme.Current().SuccessBorder).
+		Strikethrough(true)
+}
 
-	wordListHeaderStyle = lipgloss.NewStyle().
-				Foreground(compat.AdaptiveColor{Light: lipgloss.Color("130"), Dark: lipgloss.Color("173")}).
-				Bold(true).
-				Underline(true)
+func unfoundWordStyle() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Foreground(theme.Current().Info)
+}
 
-	foundWordStyle = lipgloss.NewStyle().
-			Foreground(compat.AdaptiveColor{Light: lipgloss.Color("28"), Dark: lipgloss.Color("115")}).
-			Strikethrough(true)
+func gridBorderStyle() lipgloss.Style {
+	p := theme.Current()
+	return lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(p.Border).
+		BorderBackground(p.BG)
+}
 
-	unfoundWordStyle = lipgloss.NewStyle().
-				Foreground(compat.AdaptiveColor{Light: lipgloss.Color("95"), Dark: lipgloss.Color("180")})
+func gridBorderSolvedStyle() lipgloss.Style {
+	p := theme.Current()
+	return lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(p.SuccessBorder).
+		BorderBackground(p.BG)
+}
 
-	borderFG    = compat.AdaptiveColor{Light: lipgloss.Color("250"), Dark: lipgloss.Color("240")}
-	gridBG      = compat.AdaptiveColor{Light: lipgloss.Color("254"), Dark: lipgloss.Color("236")}
-	solvedBdrFG = compat.AdaptiveColor{Light: lipgloss.Color("22"), Dark: lipgloss.Color("149")}
+func wordListBorderStyle() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(theme.Current().Border).
+		Padding(0, 1)
+}
 
-	gridBorderStyle = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(borderFG).
-			BorderBackground(gridBG)
-
-	gridBorderSolvedStyle = lipgloss.NewStyle().
-				Border(lipgloss.RoundedBorder()).
-				BorderForeground(solvedBdrFG).
-				BorderBackground(gridBG)
-
-	wordListBorderStyle = lipgloss.NewStyle().
-				Border(lipgloss.RoundedBorder()).
-				BorderForeground(borderFG).
-				Padding(0, 1)
-
-	wordListBorderSolvedStyle = lipgloss.NewStyle().
-					Border(lipgloss.RoundedBorder()).
-					BorderForeground(solvedBdrFG).
-					Padding(0, 1)
-)
+func wordListBorderSolvedStyle() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(theme.Current().SuccessBorder).
+		Padding(0, 1)
+}
 
 // selectionStyle returns the style for cells in the active drag selection,
-// using the current theme's Highlight color for the background.
+// using the current theme's SelectionBG color for the background.
 func selectionStyle() lipgloss.Style {
-	bg := theme.Current().Highlight
+	bg := theme.Current().SelectionBG
 	return lipgloss.NewStyle().
 		Foreground(theme.TextOnBG(bg)).
 		Background(bg)
@@ -74,11 +85,11 @@ func renderView(m Model) string {
 	gridContent := renderGrid(m)
 	wordListContent := renderWordList(m)
 
-	gBorder := gridBorderStyle
-	wBorder := wordListBorderStyle
+	gBorder := gridBorderStyle()
+	wBorder := wordListBorderStyle()
 	if m.solved {
-		gBorder = gridBorderSolvedStyle
-		wBorder = wordListBorderSolvedStyle
+		gBorder = gridBorderSolvedStyle()
+		wBorder = wordListBorderSolvedStyle()
 	}
 
 	gridView := gBorder.Render(gridContent)
@@ -110,7 +121,11 @@ func renderGrid(m Model) string {
 		for x := 0; x < m.width; x++ {
 			letter := m.grid.Get(x, y)
 			style := getCellStyle(m, x, y)
-			cells = append(cells, style.Render(fmt.Sprintf(" %c ", letter)))
+			display := fmt.Sprintf(" %c ", letter)
+			if m.cursor.X == x && m.cursor.Y == y {
+				display = game.CursorLeft + fmt.Sprintf("%c", letter) + game.CursorRight
+			}
+			cells = append(cells, style.Render(display))
 		}
 		rows = append(rows, lipgloss.JoinHorizontal(lipgloss.Top, cells...))
 	}
@@ -121,22 +136,19 @@ func renderGrid(m Model) string {
 func getCellStyle(m Model, x, y int) lipgloss.Style {
 	// Priority order: cursor > selection > found word > normal
 
-	// Check if cursor position
 	if m.cursor.X == x && m.cursor.Y == y {
 		return game.CursorStyle()
 	}
 
-	// Check if in current selection
 	if m.selection == startSelected && isInSelection(m, x, y) {
 		return selectionStyle()
 	}
 
-	// Check if part of found word
 	if m.foundCells[y][x] {
-		return foundStyle
+		return foundStyle()
 	}
 
-	return normalStyle
+	return normalStyle()
 }
 
 func isInSelection(m Model, x, y int) bool {
@@ -152,14 +164,14 @@ func isInSelection(m Model, x, y int) bool {
 func renderWordList(m Model) string {
 	var sb strings.Builder
 
-	sb.WriteString(wordListHeaderStyle.Render("Words to Find:"))
+	sb.WriteString(wordListHeaderStyle().Render("Words to Find:"))
 	sb.WriteString("\n\n")
 
 	for _, word := range m.words {
 		if word.Found {
-			sb.WriteString(foundWordStyle.Render(fmt.Sprintf("✓ %s", word.Text)))
+			sb.WriteString(foundWordStyle().Render(fmt.Sprintf("\u2713 %s", word.Text)))
 		} else {
-			sb.WriteString(unfoundWordStyle.Render(fmt.Sprintf("○ %s", word.Text)))
+			sb.WriteString(unfoundWordStyle().Render(fmt.Sprintf("\u25cb %s", word.Text)))
 		}
 		sb.WriteString("\n")
 	}

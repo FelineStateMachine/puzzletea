@@ -39,7 +39,6 @@ func (m *MainMenu) CursorDown() {
 	}
 }
 
-// Selected returns the currently highlighted menu item.
 func (m MainMenu) Selected() MenuItem {
 	return m.items[m.cursor]
 }
@@ -48,7 +47,7 @@ func (m MainMenu) Selected() MenuItem {
 func (m MainMenu) View() string {
 	styledLogo := LogoStyle().Render(logo)
 
-	items := m.renderItems()
+	items := m.RenderItems()
 
 	footer := FooterHint().Render("↑/↓ navigate • enter select • ctrl+c quit")
 
@@ -67,11 +66,25 @@ func (m MainMenu) View() string {
 // suitable for submenus that should look visually distinct from the
 // root main menu.
 func (m MainMenu) ViewAsPanel(title string) string {
-	return Panel(title, m.renderItems(), "↑/↓ navigate • enter select • esc back")
+	return Panel(title, m.RenderItems(), "↑/↓ navigate • enter select • esc back")
 }
 
-// renderItems returns the styled item list shared by View and ViewAsPanel.
-func (m MainMenu) renderItems() string {
+// RenderItems returns the styled item list shared by View and ViewAsPanel.
+func (m MainMenu) RenderItems() string {
+	// Pre-compute the widest item line so the block has a stable width
+	// regardless of which item is selected.
+	maxW := 0
+	for _, item := range m.items {
+		// Selected cursor prefix ("⦾  ") is the widest variant at 3 chars.
+		w := lipgloss.Width("⦾  " + item.ItemTitle)
+		if dw := lipgloss.Width("  " + item.Desc); dw > w {
+			w = dw
+		}
+		if w > maxW {
+			maxW = w
+		}
+	}
+
 	var itemLines []string
 	for i, item := range m.items {
 		var line, cursor, title string
@@ -86,5 +99,7 @@ func (m MainMenu) renderItems() string {
 		line = cursor + title + desc + "\n"
 		itemLines = append(itemLines, line)
 	}
-	return strings.Join(itemLines, "\n")
+
+	content := strings.Join(itemLines, "\n")
+	return lipgloss.NewStyle().Width(maxW).Render(content)
 }

@@ -17,7 +17,6 @@ func init() {
 	})
 }
 
-// WordSearchMode implements game.Mode for word search puzzles
 type WordSearchMode struct {
 	game.BaseMode
 	Width       int
@@ -29,12 +28,11 @@ type WordSearchMode struct {
 }
 
 var (
-	_ game.Mode          = WordSearchMode{} // compile-time interface check
-	_ game.Spawner       = WordSearchMode{} // compile-time interface check
-	_ game.SeededSpawner = WordSearchMode{} // compile-time interface check
+	_ game.Mode          = WordSearchMode{}
+	_ game.Spawner       = WordSearchMode{}
+	_ game.SeededSpawner = WordSearchMode{}
 )
 
-// NewMode creates a new WordSearchMode with the given parameters
 func NewMode(title, description string, width, height, wordCount, minLen, maxLen int, allowedDirs []Direction) WordSearchMode {
 	return WordSearchMode{
 		BaseMode:    game.NewBaseMode(title, description),
@@ -63,7 +61,6 @@ var Modes = []list.Item{
 	NewMode("Hard 20x20", "Find 15 words in a 20x20 grid.", 20, 20, 15, 5, 10, []Direction{Right, Down, DownRight, DownLeft, Left, Up, UpRight, UpLeft}),
 }
 
-// DailyModes is the subset of Modes eligible for daily puzzle rotation.
 var DailyModes = []list.Item{
 	Modes[0], // Easy 10x10
 }

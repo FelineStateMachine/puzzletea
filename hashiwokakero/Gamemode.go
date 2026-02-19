@@ -17,7 +17,6 @@ func init() {
 	})
 }
 
-// HashiMode defines a hashiwokakero difficulty/configuration.
 type HashiMode struct {
 	game.BaseMode
 	Width      int
@@ -27,9 +26,9 @@ type HashiMode struct {
 }
 
 var (
-	_ game.Mode          = HashiMode{} // compile-time interface check
-	_ game.Spawner       = HashiMode{} // compile-time interface check
-	_ game.SeededSpawner = HashiMode{} // compile-time interface check
+	_ game.Mode          = HashiMode{}
+	_ game.Spawner       = HashiMode{}
+	_ game.SeededSpawner = HashiMode{}
 )
 
 func NewMode(title, description string, width, height, minIslands, maxIslands int) HashiMode {
@@ -73,7 +72,6 @@ var Modes = []list.Item{
 	NewMode("Hard 13x13", "13x13 grid with 59-68 islands.", 13, 13, 59, 68),
 }
 
-// DailyModes is the subset of Modes eligible for daily puzzle rotation.
 var DailyModes = []list.Item{
 	Modes[3], // Easy 9x9
 	Modes[1], // Medium 7x7

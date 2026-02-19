@@ -24,9 +24,9 @@ type NonogramMode struct {
 }
 
 var (
-	_ game.Mode          = NonogramMode{} // compile-time interface check
-	_ game.Spawner       = NonogramMode{} // compile-time interface check
-	_ game.SeededSpawner = NonogramMode{} // compile-time interface check
+	_ game.Mode          = NonogramMode{}
+	_ game.Spawner       = NonogramMode{}
+	_ game.SeededSpawner = NonogramMode{}
 )
 
 func NewMode(title, description string, width, height int, density float64) NonogramMode {
@@ -65,7 +65,6 @@ var Modes = []list.Item{
 	NewMode("Massive", "20x20 grid, ~56% filled. Truly massive puzzle.", 20, 20, 0.56),
 }
 
-// DailyModes is the subset of Modes eligible for daily puzzle rotation.
 var DailyModes = []list.Item{
 	Modes[3], // Standard 10x10
 	Modes[4], // Classic 10x10

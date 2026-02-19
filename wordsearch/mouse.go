@@ -80,16 +80,16 @@ func (m *Model) gridOrigin() (x, y int) {
 	// The mainView (grid + spacer + word list) is centered within the
 	// overall view. Measure its width to compute left padding.
 	gridContent := renderGrid(*m)
-	gBorder := gridBorderStyle
+	gBorder := gridBorderStyle()
 	if m.solved {
-		gBorder = gridBorderSolvedStyle
+		gBorder = gridBorderSolvedStyle()
 	}
 	gridRendered := gBorder.Render(gridContent)
 
 	wordListContent := renderWordList(*m)
-	wBorder := wordListBorderStyle
+	wBorder := wordListBorderStyle()
 	if m.solved {
-		wBorder = wordListBorderSolvedStyle
+		wBorder = wordListBorderSolvedStyle()
 	}
 	gridHeight := lipgloss.Height(gridRendered)
 	wBorder = wBorder.Height(gridHeight - 2)

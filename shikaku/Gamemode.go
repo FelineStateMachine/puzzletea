@@ -17,7 +17,6 @@ func init() {
 	})
 }
 
-// ShikakuMode defines a Shikaku difficulty/configuration.
 type ShikakuMode struct {
 	game.BaseMode
 	Width       int
@@ -31,7 +30,6 @@ var (
 	_ game.SeededSpawner = ShikakuMode{}
 )
 
-// NewMode creates a new Shikaku game mode.
 func NewMode(title, description string, width, height, maxRectSize int) ShikakuMode {
 	return ShikakuMode{
 		BaseMode:    game.NewBaseMode(title, description),
@@ -41,7 +39,6 @@ func NewMode(title, description string, width, height, maxRectSize int) ShikakuM
 	}
 }
 
-// Spawn creates a new game instance for this mode.
 func (s ShikakuMode) Spawn() (game.Gamer, error) {
 	puzzle, err := GeneratePuzzle(s.Width, s.Height, s.MaxRectSize)
 	if err != nil {
@@ -50,7 +47,6 @@ func (s ShikakuMode) Spawn() (game.Gamer, error) {
 	return New(s, puzzle), nil
 }
 
-// SpawnSeeded creates a new game instance using a deterministic RNG.
 func (s ShikakuMode) SpawnSeeded(rng *rand.Rand) (game.Gamer, error) {
 	puzzle, err := GeneratePuzzleSeeded(s.Width, s.Height, s.MaxRectSize, rng)
 	if err != nil {
@@ -59,7 +55,6 @@ func (s ShikakuMode) SpawnSeeded(rng *rand.Rand) (game.Gamer, error) {
 	return New(s, puzzle), nil
 }
 
-// Modes defines the available difficulty levels.
 var Modes = []list.Item{
 	NewMode("Mini 5x5", "5x5 grid, gentle introduction.", 5, 5, 5),
 	NewMode("Easy 7x7", "7x7 grid, straightforward puzzles.", 7, 7, 8),
@@ -68,7 +63,6 @@ var Modes = []list.Item{
 	NewMode("Expert 12x12", "12x12 grid, maximum challenge.", 12, 12, 20),
 }
 
-// DailyModes is the subset of Modes eligible for daily puzzle rotation.
 var DailyModes = []list.Item{
 	Modes[1], // Easy 7x7
 	Modes[2], // Medium 8x8

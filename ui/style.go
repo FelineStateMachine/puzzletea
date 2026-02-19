@@ -20,7 +20,7 @@ func LogoStyle() lipgloss.Style {
 	p := theme.Current()
 	return lipgloss.NewStyle().
 		Bold(true).
-		Foreground(p.FG).
+		Foreground(theme.TextOnBG(p.Accent)).
 		Background(p.Accent).
 		Padding(0, 1).
 		Margin(1, 0)

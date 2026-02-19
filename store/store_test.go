@@ -510,7 +510,6 @@ func TestGetGameByName(t *testing.T) {
 func TestFullLifecycle(t *testing.T) {
 	s := openTestStore(t)
 
-	// Create a game.
 	rec := newTestRecord("lifecycle")
 	if err := s.CreateGame(rec); err != nil {
 		t.Fatal(err)
@@ -519,17 +518,14 @@ func TestFullLifecycle(t *testing.T) {
 		t.Errorf("initial status = %q, want %q", rec.Status, StatusNew)
 	}
 
-	// Start playing.
 	if err := s.UpdateStatus(rec.ID, StatusInProgress); err != nil {
 		t.Fatal(err)
 	}
 
-	// Save progress.
 	if err := s.UpdateSaveState(rec.ID, `{"progress":"halfway"}`); err != nil {
 		t.Fatal(err)
 	}
 
-	// Verify mid-game state.
 	mid, _ := s.GetGameByName("lifecycle")
 	if mid.Status != StatusInProgress {
 		t.Errorf("mid-game status = %q, want %q", mid.Status, StatusInProgress)
@@ -538,12 +534,10 @@ func TestFullLifecycle(t *testing.T) {
 		t.Errorf("mid-game SaveState = %q", mid.SaveState)
 	}
 
-	// Complete the game.
 	if err := s.UpdateStatus(rec.ID, StatusCompleted); err != nil {
 		t.Fatal(err)
 	}
 
-	// Verify completed state.
 	done, _ := s.GetGameByName("lifecycle")
 	if done.Status != StatusCompleted {
 		t.Errorf("final status = %q, want %q", done.Status, StatusCompleted)
@@ -552,7 +546,6 @@ func TestFullLifecycle(t *testing.T) {
 		t.Error("expected CompletedAt to be set")
 	}
 
-	// Appears in list.
 	games, _ := s.ListGames()
 	found := false
 	for _, g := range games {

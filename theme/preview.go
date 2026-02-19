@@ -43,11 +43,15 @@ func PreviewPanel(themeName string, height int) string {
 	lines = append(lines, "")
 
 	// Semantic color swatches: two per row to keep labels readable.
-	lines = append(lines, dim.Render("Semantic"))
+	lines = append(lines, dim.Render("FG Tokens"))
 	lines = append(lines, swatchPair(p, "Accent", p.Accent, "Soft", p.AccentSoft))
-	lines = append(lines, swatchPair(p, "Info", p.Info, "Warm", p.Warm))
 	lines = append(lines, swatchPair(p, "OK", p.Success, "Error", p.Error))
-	lines = append(lines, swatchPair(p, "FG", p.FG, "Dim", p.TextDim))
+	lines = append(lines, swatchPair(p, "Info", p.Info, "Given", p.Given))
+	lines = append(lines, swatchPair(p, "Linked", p.Linked, "2nd", p.Secondary))
+	lines = append(lines, "")
+	lines = append(lines, dim.Render("Derived BGs"))
+	lines = append(lines, swatchPair(p, "Cursor", p.AccentBG, "Solved", p.SuccessBG))
+	lines = append(lines, swatchPair(p, "Error", p.ErrorBG, "Select", p.SelectionBG))
 	lines = append(lines, "")
 
 	// ANSI 16-color grid: 8 per row, compact 3-char swatches.
@@ -59,11 +63,11 @@ func PreviewPanel(themeName string, height int) string {
 	// Game state previews.
 	lines = append(lines, dim.Render("Game States"))
 	lines = append(lines, lipgloss.NewStyle().
-		Background(p.Accent).Foreground(p.AccentText).Bold(true).
+		Background(p.AccentBG).Foreground(p.AccentText).Bold(true).
 		Width(previewW).Padding(0, 1).
 		Render("Cursor"))
 	lines = append(lines, lipgloss.NewStyle().
-		Background(p.Success).Foreground(p.SuccessBorder).Bold(true).
+		Background(p.SuccessBG).Foreground(p.SolvedFG).Bold(true).
 		Width(previewW).Padding(0, 1).
 		Render("Solved"))
 	lines = append(lines, lipgloss.NewStyle().

@@ -5,7 +5,6 @@ import (
 	"github.com/FelineStateMachine/puzzletea/game"
 )
 
-// KeyMap defines the keybindings for Takuzu.
 type KeyMap struct {
 	game.CursorKeyMap
 	PlaceZero key.Binding
@@ -13,7 +12,6 @@ type KeyMap struct {
 	Clear     key.Binding
 }
 
-// DefaultKeyMap provides the standard keybindings.
 var DefaultKeyMap = KeyMap{
 	CursorKeyMap: game.DefaultCursorKeyMap,
 	PlaceZero: key.NewBinding(
@@ -43,7 +41,6 @@ func (m *Model) updateKeyBindings() {
 	m.keys.Clear.SetEnabled(!onProvided && !solved)
 }
 
-// GetFullHelp implements game.Gamer.
 func (m Model) GetFullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{m.keys.Up, m.keys.Down, m.keys.Left, m.keys.Right},

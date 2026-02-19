@@ -23,31 +23,30 @@ correctly satisfied.
 | `z` | Fill cell |
 | `x` | Mark cell |
 | `Backspace` | Clear cell |
+| `Ctrl+R` | Reset puzzle |
 | `Ctrl+H` | Toggle full help |
 | `Ctrl+E` | Toggle debug overlay |
 | `Ctrl+N` | Return to main menu |
 
 ## Modes
 
-| Mode | Grid | Density | Description |
-|------|------|---------|-------------|
-| Easy 5x5 | 5x5 | ~35% | Simple hints |
-| Medium 5x5 | 5x5 | ~50% | Balanced challenge |
-| Hard 5x5 | 5x5 | ~65% | Dense hints |
-| Easy 10x10 | 10x10 | ~35% | Simple hints |
-| Medium 10x10 | 10x10 | ~50% | Balanced challenge |
-| Hard 10x10 | 10x10 | ~65% | Dense hints |
-| Easy 15x15 | 15x15 | ~35% | Simple hints |
-| Medium 15x15 | 15x15 | ~50% | Balanced challenge |
-| Hard 15x15 | 15x15 | ~65% | Dense hints |
-| Easy 20x20 | 20x20 | ~35% | Simple hints |
-| Medium 20x20 | 20x20 | ~50% | Balanced challenge |
-| Hard 20x20 | 20x20 | ~65% | Dense hints |
+| Mode | Grid | Fill | Description |
+|------|------|------|-------------|
+| Mini | 5x5 | ~65% | Quick puzzle, straightforward hints |
+| Pocket | 5x5 | ~50% | Compact but balanced |
+| Teaser | 5x5 | ~35% | Small but tricky |
+| Standard | 10x10 | ~67% | Classic size, dense hints |
+| Classic | 10x10 | ~52% | The typical nonogram experience |
+| Tricky | 10x10 | ~37% | Sparse hints require reasoning |
+| Large | 15x15 | ~69% | Bigger grid, constraining hints |
+| Grand | 15x15 | ~54% | A substantial challenge |
+| Epic | 20x20 | ~71% | A epic undertaking |
+| Massive | 20x20 | ~56% | Truly massive puzzle |
 
 ## Quick Start
 
 ```bash
-puzzletea new nonogram easy-5x5
-puzzletea new nonogram medium-10x10
-puzzletea new nonogram hard-20x20
+puzzletea new nonogram mini
+puzzletea new nonogram classic
+puzzletea new nonogram massive
 ```

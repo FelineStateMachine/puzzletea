@@ -46,18 +46,17 @@ func Toggle(grid [][]bool, x, y int) {
 	}
 	w := len(grid[0])
 
-	// Helper to safely toggle
 	safeToggle := func(c, r int) {
 		if c >= 0 && c < w && r >= 0 && r < h {
 			grid[r][c] = !grid[r][c]
 		}
 	}
 
-	safeToggle(x, y)   // Center
-	safeToggle(x, y-1) // Up
-	safeToggle(x, y+1) // Down
-	safeToggle(x-1, y) // Left
-	safeToggle(x+1, y) // Right
+	safeToggle(x, y)
+	safeToggle(x, y-1)
+	safeToggle(x, y+1)
+	safeToggle(x-1, y)
+	safeToggle(x+1, y)
 }
 
 func IsSolved(grid [][]bool) bool {

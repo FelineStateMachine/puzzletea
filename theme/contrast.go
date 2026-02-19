@@ -148,10 +148,20 @@ func TextOnBG(bg color.Color) color.Color {
 	return p.BG
 }
 
-// midTone returns a color perceptually halfway between a and b by
+// Blend returns a color that is t fraction of the way from a toward b.
+// t=0 returns a, t=1 returns b. Used to derive muted background colors
+// from foreground accent colors.
+func Blend(a, b color.Color, t float64) color.Color {
+	ar, ag, ab, _ := a.RGBA()
+	br, bg, bb, _ := b.RGBA()
+	return blendRGB(uint8(ar>>8), uint8(ag>>8), uint8(ab>>8),
+		uint8(br>>8), uint8(bg>>8), uint8(bb>>8), t)
+}
+
+// MidTone returns a color perceptually halfway between a and b by
 // blending their sRGB channels. This produces a muted tone suitable for
 // dim/secondary text that is guaranteed to sit between the two anchors.
-func midTone(a, b color.Color) color.Color {
+func MidTone(a, b color.Color) color.Color {
 	ar, ag, ab, _ := a.RGBA()
 	br, bg, bb, _ := b.RGBA()
 	return color.NRGBA{

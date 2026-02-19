@@ -2,9 +2,20 @@
 
 A terminal-based puzzle game collection built with [Bubble Tea](https://github.com/charmbracelet/bubbletea).
 
-Eight puzzle types, multiple difficulty modes, save/load persistence, and a plugin architecture for adding new games.
+Eight puzzle types, multiple difficulty modes, daily challenges, XP progression, 365 color themes, and a plugin architecture for adding new games.
 
 ![PuzzleTea menu](vhs/menu.gif)
+
+## Features
+
+- **8 puzzle games** -- Nonogram, Sudoku, Shikaku, Word Search, Hashiwokakero, Hitori, Lights Out, Takuzu
+- **Daily puzzles** -- A unique puzzle generated each day using deterministic seeding. Same date, same puzzle for everyone. Streak tracking rewards consecutive daily completions.
+- **XP and leveling** -- Per-category levels based on victories. Harder modes yield more XP. Daily puzzles grant 2x XP.
+- **Stats dashboard** -- Profile level, daily streak, victory counts, and XP progress bars per category.
+- **365 color themes** -- Live-preview theme picker with WCAG-compliant contrast enforcement. Dark and light themes included.
+- **Mouse support** -- Click and drag in Nonogram, Shikaku, Word Search, and Lights Out.
+- **Seeded puzzles** -- Share a seed string to generate identical puzzles across sessions and machines.
+- **Save/load persistence** -- Games auto-save to SQLite. Resume any in-progress game by name.
 
 ## Games
 
@@ -17,7 +28,121 @@ Eight puzzle types, multiple difficulty modes, save/load persistence, and a plug
 | **Hashiwokakero** | Connect islands with bridges | 12 modes across 7x7 to 13x13 grids |
 | **Hitori** | Shade cells to eliminate duplicates | 6 modes from 5x5 to 12x12 |
 | **Lights Out** | Toggle lights to turn all off | Easy (3x3) to Extreme (9x9) |
-| **Takuzu** | Fill grid with two symbols (●/○) | 7 modes from 6x6 to 14x14 |
+| **Takuzu** | Fill grid with two symbols | 7 modes from 6x6 to 14x14 |
+
+## Install
+
+### Homebrew (macOS / Linux)
+
+```bash
+brew install FelineStateMachine/homebrew-tap/puzzletea
+```
+
+### AUR (Arch Linux)
+
+```bash
+yay -S puzzletea
+```
+
+### WinGet (Windows)
+
+```powershell
+winget install FelineStateMachine.puzzletea
+```
+
+### From release binaries
+
+Download the latest binary for your platform from the [Releases](https://github.com/FelineStateMachine/puzzletea/releases) page.
+
+### From source
+
+Requires Go 1.24+.
+
+```bash
+go install github.com/FelineStateMachine/puzzletea@latest
+```
+
+Or clone and build:
+
+```bash
+git clone https://github.com/FelineStateMachine/puzzletea.git
+cd puzzletea
+just        # or: go build -o puzzletea
+```
+
+## Usage
+
+Launch the interactive menu:
+
+```
+puzzletea
+```
+
+Start a new game directly:
+
+```bash
+puzzletea new nonogram medium
+puzzletea new sudoku hard
+puzzletea new lights-out
+puzzletea new hashi easy
+```
+
+Resume and manage saved games:
+
+```bash
+puzzletea list                     # show saved games
+puzzletea list --all               # include abandoned games
+puzzletea continue amber-falcon    # resume by name
+```
+
+Use a seed for deterministic puzzle generation:
+
+```bash
+puzzletea new --set-seed myseed
+```
+
+Override the color theme:
+
+```bash
+puzzletea --theme "Catppuccin Mocha"
+```
+
+Flag aliases on the root command also work:
+
+```bash
+puzzletea --new nonogram:medium
+puzzletea --continue amber-falcon
+```
+
+### CLI Aliases
+
+Several shorthand names are accepted for games: `hashi`/`bridges` for Hashiwokakero, `lights` for Lights Out, `binairo`/`binary` for Takuzu, `words`/`ws` for Word Search, `rectangles` for Shikaku.
+
+## Controls
+
+### Global
+
+| Key | Action |
+|-----|--------|
+| `Enter` | Select |
+| `Escape` | Go back |
+| `Ctrl+N` | Return to main menu |
+| `Ctrl+R` | Reset puzzle |
+| `Ctrl+H` | Toggle full help |
+| `Ctrl+E` | Toggle debug overlay |
+| `Ctrl+C` | Quit |
+
+### Navigation
+
+Arrow keys, WASD, and Vim bindings (`hjkl`) are supported for grid movement across all games.
+
+### Mouse
+
+Nonogram, Shikaku, and Word Search support click and drag. Lights Out supports click to toggle. See each game's help for details.
+
+## Game Persistence
+
+Games are automatically saved to `~/.puzzletea/history.db` (SQLite). Navigating away saves progress; quitting with `Ctrl+C` marks the game as abandoned. Completed games are preserved and can be revisited.
 
 ## Previews
 
@@ -77,98 +202,6 @@ Fill the grid with two symbols following three simple rules.
 
 [Game details and controls](takuzu/README.md)
 
-## Install
-
-### Homebrew (macOS / Linux)
-
-```bash
-brew install FelineStateMachine/homebrew-tap/puzzletea
-```
-
-### AUR (Arch Linux)
-
-```bash
-yay -S puzzletea
-```
-
-### WinGet (Windows)
-
-```powershell
-winget install FelineStateMachine.puzzletea
-```
-
-### From release binaries
-
-Download the latest binary for your platform from the [Releases](https://github.com/FelineStateMachine/puzzletea/releases) page.
-
-### From source
-
-Requires Go 1.24+.
-
-```bash
-go install github.com/FelineStateMachine/puzzletea@latest
-```
-
-Or clone and build:
-
-```bash
-git clone https://github.com/FelineStateMachine/puzzletea.git
-cd puzzletea
-just        # or: go build -o puzzletea
-```
-
-## Usage
-
-Launch the interactive menu:
-
-```
-puzzletea
-```
-
-Or jump straight into a game:
-
-```bash
-puzzletea new nonogram medium
-puzzletea new sudoku hard
-puzzletea new lights-out
-puzzletea new hashi easy
-```
-
-Manage saved games:
-
-```bash
-puzzletea list                     # show saved games
-puzzletea continue amber-falcon    # resume by name
-```
-
-Flag aliases also work:
-
-```bash
-puzzletea --new nonogram:medium
-puzzletea --continue amber-falcon
-```
-
-## Controls
-
-### Global
-
-| Key | Action |
-|-----|--------|
-| `Enter` | Select |
-| `Escape` | Go back |
-| `Ctrl+N` | Return to main menu |
-| `Ctrl+C` | Quit |
-| `Ctrl+E` | Toggle debug overlay |
-| `Ctrl+H` | Toggle full help |
-
-### Navigation
-
-Arrow keys, WASD, and Vim bindings (hjkl) are supported for grid movement across all games.
-
-## Game Persistence
-
-Games are automatically saved to `~/.puzzletea/history.db` (SQLite). Navigating away saves progress; quitting with `Ctrl+C` marks the game as abandoned. Completed games are preserved and can be revisited.
-
 ## Building and Testing
 
 [just](https://github.com/casey/just) is used as the command runner:
@@ -177,6 +210,7 @@ Games are automatically saved to `~/.puzzletea/history.db` (SQLite). Navigating 
 just              # build
 just run          # build and run
 just test         # run tests (go test ./...)
+just test-short   # run tests, skipping slow generator tests
 just lint         # run golangci-lint
 just fmt          # format with gofumpt
 just tidy         # go mod tidy
@@ -218,7 +252,7 @@ Create a directory (e.g., `mypuzzle/`) with these files:
 
 These files in the project root must be edited:
 
-- **`model.go`**: Import the package and add a `game.Category` entry to `GameCategories` (maintain alphabetical order). The import triggers `init()`, which registers save/load — no blank import needed.
+- **`model.go`**: Import the package and add a `game.Category` entry to `GameCategories` (maintain alphabetical order). The import triggers `init()`, which registers save/load -- no blank import needed.
 - **`resolve.go`**: Add the canonical name and any CLI aliases to `categoryAliases`.
 
 ### 3. Add a VHS preview
@@ -232,11 +266,11 @@ These files in the project root must be edited:
 just fmt && just lint && just test
 ```
 
-See any existing game package (e.g., `nonogram/`) for the full pattern, and `CLAUDE.md` for detailed conventions.
+See any existing game package (e.g., `nonogram/`) for the full pattern, and `AGENTS.md` for detailed conventions.
 
 ## License
 
-See [LICENSE](LICENSE) for details.
+[MIT](LICENSE)
 
 ## Built With
 

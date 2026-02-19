@@ -16,6 +16,7 @@ goal is to turn every light off.
 |-----|--------|
 | Arrow keys / WASD / hjkl | Move cursor |
 | `Enter` / `Space` | Toggle light |
+| `Ctrl+R` | Reset puzzle |
 | `Ctrl+H` | Toggle full help |
 | `Ctrl+E` | Toggle debug overlay |
 | `Ctrl+N` | Return to main menu |
