@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/FelineStateMachine/puzzletea/app"
+	"github.com/FelineStateMachine/puzzletea/config"
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/stats"
 	"github.com/FelineStateMachine/puzzletea/store"
@@ -18,12 +19,13 @@ var continueCmd = &cobra.Command{
 	Long:  "Resume a previously saved game using its unique name.\nUse 'puzzletea list' to see available saved games.",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return continueGame(args[0])
+		cfg := loadConfig()
+		return continueGame(args[0], cfg)
 	},
 }
 
 // continueGame looks up a saved game by name and launches the TUI.
-func continueGame(name string) error {
+func continueGame(name string, cfg *config.Config) error {
 	s, err := store.Open(store.DefaultDBPath())
 	if err != nil {
 		return err
@@ -52,7 +54,7 @@ func continueGame(name string) error {
 	g = g.SetTitle(rec.Name)
 
 	completed := rec.Status == store.StatusCompleted
-	m := app.InitialModelWithGame(s, g, rec.ID, completed)
+	m := app.InitialModelWithGame(s, cfg, g, rec.ID, completed)
 	p := tea.NewProgram(m)
 	_, err = p.Run()
 	return err

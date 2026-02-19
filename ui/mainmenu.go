@@ -46,27 +46,11 @@ func (m MainMenu) Selected() MenuItem {
 
 // View renders the main menu as a framed panel with logo and items.
 func (m MainMenu) View() string {
-	styledLogo := LogoStyle.Render(logo)
+	styledLogo := LogoStyle().Render(logo)
 
-	var itemLines []string
-	for i, item := range m.items {
-		var line, cursor, title string
-		if i == m.cursor {
-			cursor = CursorStyle.Render("⦾  ")
-			title = SelectedItemStyle.Render(item.ItemTitle)
+	items := m.renderItems()
 
-		} else {
-			cursor = CursorStyle.Render("◦ ")
-			title = NormalItemStyle.Render(item.ItemTitle)
-
-		}
-		desc := DimItemStyle.Render("\n  " + item.Desc)
-		line = cursor + title + desc + "\n"
-		itemLines = append(itemLines, line)
-	}
-	items := strings.Join(itemLines, "\n")
-
-	footer := FooterHint.Render("↑/↓ navigate • enter select • ctrl+c quit")
+	footer := FooterHint().Render("↑/↓ navigate • enter select • ctrl+c quit")
 
 	inner := lipgloss.JoinVertical(lipgloss.Left,
 		styledLogo,
@@ -76,5 +60,31 @@ func (m MainMenu) View() string {
 		footer,
 	)
 
-	return inner
+	return HeavyPanel(inner)
+}
+
+// ViewAsPanel renders the menu items inside a rounded-border Panel,
+// suitable for submenus that should look visually distinct from the
+// root main menu.
+func (m MainMenu) ViewAsPanel(title string) string {
+	return Panel(title, m.renderItems(), "↑/↓ navigate • enter select • esc back")
+}
+
+// renderItems returns the styled item list shared by View and ViewAsPanel.
+func (m MainMenu) renderItems() string {
+	var itemLines []string
+	for i, item := range m.items {
+		var line, cursor, title string
+		if i == m.cursor {
+			cursor = CursorStyle().Render("⦾  ")
+			title = SelectedItemStyle().Render(item.ItemTitle)
+		} else {
+			cursor = CursorStyle().Render("◦ ")
+			title = NormalItemStyle().Render(item.ItemTitle)
+		}
+		desc := DimItemStyle().Render("\n  " + item.Desc)
+		line = cursor + title + desc + "\n"
+		itemLines = append(itemLines, line)
+	}
+	return strings.Join(itemLines, "\n")
 }

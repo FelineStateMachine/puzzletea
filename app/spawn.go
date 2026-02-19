@@ -33,7 +33,9 @@ func spawnSeededCmd(spawner game.SeededSpawner, rng *rand.Rand) tea.Cmd {
 func (m model) handleSpawnComplete(msg game.SpawnCompleteMsg) (tea.Model, tea.Cmd) {
 	m.generating = false
 	isDaily := m.dailyPending
+	isSeed := m.seedPending
 	m.dailyPending = false
+	m.seedPending = false
 
 	// If the user navigated away while generating, discard the result.
 	if m.state != generatingView {
@@ -42,8 +44,8 @@ func (m model) handleSpawnComplete(msg game.SpawnCompleteMsg) (tea.Model, tea.Cm
 
 	if msg.Err != nil {
 		log.Printf("failed to spawn game: %v", msg.Err)
-		if isDaily {
-			m.state = mainMenuView
+		if isDaily || isSeed {
+			m.state = playMenuView
 		} else {
 			m.state = modeSelectView
 		}
@@ -55,6 +57,11 @@ func (m model) handleSpawnComplete(msg game.SpawnCompleteMsg) (tea.Model, tea.Cm
 		name = m.dailyName
 		gameType = m.dailyGameType
 		modeTitle = m.dailyModeTitle
+		m.game = msg.Game.SetTitle(name)
+	} else if isSeed {
+		name = m.seedName
+		gameType = m.seedGameType
+		modeTitle = m.seedModeTitle
 		m.game = msg.Game.SetTitle(name)
 	} else {
 		name = GenerateUniqueName(m.store)

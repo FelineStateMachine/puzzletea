@@ -25,7 +25,7 @@ var (
 			Foreground(compat.AdaptiveColor{Light: lipgloss.Color("25"), Dark: lipgloss.Color("75")}).
 			Background(backgroundColor)
 
-	cursorSolvedStyle = game.CursorSolvedStyle
+	// cursorSolvedStyle resolved at render time via game.CursorSolvedStyle().
 
 	crosshairBG = compat.AdaptiveColor{Light: lipgloss.Color("254"), Dark: lipgloss.Color("237")}
 	solvedBG    = compat.AdaptiveColor{Light: lipgloss.Color("151"), Dark: lipgloss.Color("22")}
@@ -53,18 +53,18 @@ func cellView(num rune, mark cellMark, isCursor, inCursorRow, inCursorCol, solve
 
 	// Priority: cursor+solved > cursor > conflict > crosshair > solved > base.
 	if isCursor && solved {
-		s = cursorSolvedStyle
+		s = game.CursorSolvedStyle()
 	} else if isCursor {
-		s = s.Background(game.CursorWarmBG).Bold(true)
+		s = s.Background(game.CursorWarmBG()).Bold(true)
 		if mark != circled {
-			s = s.Foreground(game.CursorFG)
+			s = s.Foreground(game.CursorWarmFG())
 		}
 	} else if solved {
 		s = s.Background(solvedBG)
 	} else if conflict {
-		s = s.Background(game.ConflictBG)
+		s = s.Background(game.ConflictBG())
 		if mark != circled {
-			s = s.Foreground(game.ConflictFG)
+			s = s.Foreground(game.ConflictFG())
 		}
 	} else if inCursorRow || inCursorCol {
 		s = s.Background(crosshairBG)
@@ -113,7 +113,7 @@ func gridView(numbers grid, marks [][]cellMark, c game.Cursor, solved bool, conf
 
 func statusBarView(showFullHelp bool) string {
 	if showFullHelp {
-		return game.StatusBarStyle.Render("arrows/wasd: move  x: shade  z: circle  bkspc: clear  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
+		return game.StatusBarStyle().Render("arrows/wasd: move  x: shade  z: circle  bkspc: clear  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
 	}
-	return game.StatusBarStyle.Render("x: shade  z: circle  bkspc: clear")
+	return game.StatusBarStyle().Render("x: shade  z: circle  bkspc: clear")
 }

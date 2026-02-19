@@ -38,13 +38,16 @@ func ImportModel(data []byte) (*Model, error) {
 		return nil, fmt.Errorf("failed to unmarshal shikaku save: %w", err)
 	}
 
+	p := Puzzle{
+		Width:      s.Width,
+		Height:     s.Height,
+		Clues:      s.Clues,
+		Rectangles: s.Rectangles,
+	}
+	p.autoPlaceSingles()
+
 	return &Model{
-		puzzle: Puzzle{
-			Width:      s.Width,
-			Height:     s.Height,
-			Clues:      s.Clues,
-			Rectangles: s.Rectangles,
-		},
+		puzzle:    p,
 		cursor:    game.Cursor{X: 0, Y: 0},
 		keys:      DefaultKeyMap,
 		modeTitle: s.ModeTitle,

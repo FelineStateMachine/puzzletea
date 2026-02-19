@@ -76,6 +76,9 @@ func (m Model) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 func (m Model) View() string {
 	title := game.TitleBarView("Takuzu", m.modeTitle, m.solved)
 	grid := gridView(m.grid, m.provided, m.cursor, m.solved)
+	if m.solved {
+		return lipgloss.JoinVertical(lipgloss.Center, title, grid)
+	}
 	status := statusBarView(m.showFullHelp)
 	return lipgloss.JoinVertical(lipgloss.Center, title, grid, status)
 }

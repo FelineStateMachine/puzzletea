@@ -63,8 +63,8 @@ var (
 	styleOff = baseStyle.
 			Background(colorOff)
 
-	cursorStyle       = game.CursorStyle
-	cursorSolvedStyle = game.CursorSolvedStyle
+	// cursorStyle and cursorSolvedStyle resolved at render time
+	// via game.CursorStyle() and game.CursorSolvedStyle().
 
 	solvedStyle = baseStyle.
 			Background(compat.AdaptiveColor{Light: lipgloss.Color("151"), Dark: lipgloss.Color("22")})
@@ -92,11 +92,11 @@ func cellView(isOn, isCursor, solved bool) string {
 	}
 
 	if isCursor && solved {
-		s = cursorSolvedStyle
+		s = game.CursorSolvedStyle()
 	} else if solved {
 		s = solvedStyle
 	} else if isCursor {
-		s = cursorStyle
+		s = game.CursorStyle()
 	}
 
 	content := strings.Repeat(" ", cellWidth)
@@ -123,7 +123,7 @@ func gridView(g [][]bool, c game.Cursor, solved bool) string {
 
 func statusBarView(showFullHelp bool) string {
 	if showFullHelp {
-		return game.StatusBarStyle.Render("arrows/wasd: move  enter/space/click: toggle  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
+		return game.StatusBarStyle().Render("arrows/wasd: move  enter/space/click: toggle  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
 	}
-	return game.StatusBarStyle.Render("enter/space/click: toggle")
+	return game.StatusBarStyle().Render("enter/space/click: toggle")
 }

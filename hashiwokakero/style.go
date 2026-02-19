@@ -7,6 +7,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"charm.land/lipgloss/v2/compat"
 	"github.com/FelineStateMachine/puzzletea/game"
+	"github.com/FelineStateMachine/puzzletea/theme"
 )
 
 const cellWidth = 3
@@ -19,15 +20,13 @@ var (
 	colorSatisfiedBg   = compat.AdaptiveColor{Dark: lipgloss.Color("194"), Light: lipgloss.Color("236")}
 	colorOverFg        = compat.AdaptiveColor{Dark: lipgloss.Color("160"), Light: lipgloss.Color("167")}
 	colorOverBg        = compat.AdaptiveColor{Dark: lipgloss.Color("224"), Light: lipgloss.Color("52")}
-	colorSelectedFg    = compat.AdaptiveColor{Dark: lipgloss.Color("255"), Light: lipgloss.Color("235")}
-	colorSelectedBg    = compat.AdaptiveColor{Dark: lipgloss.Color("172"), Light: lipgloss.Color("179")}
 	colorAdjacentBg    = compat.AdaptiveColor{Dark: lipgloss.Color("223"), Light: lipgloss.Color("58")}
-	colorBridge        = compat.AdaptiveColor{Dark: lipgloss.Color("137"), Light: lipgloss.Color("137")}
+	colorBridge        = compat.AdaptiveColor{Dark: lipgloss.Color("180"), Light: lipgloss.Color("95")}
 	colorBridgeSolved  = compat.AdaptiveColor{Dark: lipgloss.Color("22"), Light: lipgloss.Color("149")}
 	colorEmptyDot      = compat.AdaptiveColor{Dark: lipgloss.Color("252"), Light: lipgloss.Color("239")}
 	colorEmptySolved   = compat.AdaptiveColor{Dark: lipgloss.Color("151"), Light: lipgloss.Color("107")}
 	colorInfoSatisfied = compat.AdaptiveColor{Dark: lipgloss.Color("22"), Light: lipgloss.Color("149")}
-	colorInfoText      = compat.AdaptiveColor{Dark: lipgloss.Color("137"), Light: lipgloss.Color("137")}
+	colorInfoText      = compat.AdaptiveColor{Dark: lipgloss.Color("180"), Light: lipgloss.Color("95")}
 )
 
 var (
@@ -48,13 +47,10 @@ var (
 			Background(colorOverBg).
 			Bold(true)
 
-	islandCursorStyle       = game.CursorStyle
-	islandCursorSolvedStyle = game.CursorSolvedStyle
+	// islandCursorStyle and islandCursorSolvedStyle resolved at render
+	// time via game.CursorStyle() and game.CursorSolvedStyle().
 
-	islandSelectedStyle = baseStyle.
-				Foreground(colorSelectedFg).
-				Background(colorSelectedBg).
-				Bold(true)
+	// islandSelectedStyle resolved at render time via islandSelectedStyle().
 
 	islandAdjacentStyle = baseStyle.
 				Foreground(colorIslandFg).
@@ -86,6 +82,16 @@ var (
 				Padding(1).
 				BorderForeground(colorBridgeSolved)
 )
+
+// islandSelectedStyle returns the style for a selected island, using the
+// current theme's Highlight color for the background.
+func islandSelectedStyle() lipgloss.Style {
+	bg := theme.Current().Highlight
+	return baseStyle.
+		Foreground(theme.TextOnBG(bg)).
+		Background(bg).
+		Bold(true)
+}
 
 // isHighlightedNeighbor returns true if islandID is directly connectable
 // to the cursor (or selected) island in any cardinal direction.
@@ -230,13 +236,13 @@ func islandView(m Model, islandID int, solved bool) string {
 	current := m.puzzle.BridgeCount(islandID)
 
 	if solved && m.cursorIsland == islandID {
-		style = islandCursorSolvedStyle
+		style = game.CursorSolvedStyle()
 	} else if solved {
 		style = islandSatisfiedStyle
 	} else if m.selectedIsland != nil && *m.selectedIsland == islandID {
-		style = islandSelectedStyle
+		style = islandSelectedStyle()
 	} else if m.cursorIsland == islandID {
-		style = islandCursorStyle
+		style = game.CursorStyle()
 	} else if current == isl.Required {
 		style = islandSatisfiedStyle
 	} else if current > isl.Required {
@@ -276,14 +282,14 @@ func bridgeVView(count int, solved bool) string {
 func statusBarView(selected, showFullHelp bool) string {
 	if selected {
 		if showFullHelp {
-			return game.StatusBarStyle.Render("arrows/wasd: build bridge  enter/space/esc: cancel  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
+			return game.StatusBarStyle().Render("arrows/wasd: build bridge  enter/space/esc: cancel  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
 		}
-		return game.StatusBarStyle.Render("arrows/wasd: build bridge  enter/space/esc: cancel")
+		return game.StatusBarStyle().Render("arrows/wasd: build bridge  enter/space/esc: cancel")
 	}
 	if showFullHelp {
-		return game.StatusBarStyle.Render("arrows/wasd: move  enter/space: select island  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
+		return game.StatusBarStyle().Render("arrows/wasd: move  enter/space: select island  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
 	}
-	return game.StatusBarStyle.Render("arrows/wasd: move  enter/space: select island")
+	return game.StatusBarStyle().Render("arrows/wasd: move  enter/space: select island")
 }
 
 func infoView(p *Puzzle) string {

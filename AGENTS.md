@@ -29,48 +29,46 @@ just tidy         # go mod tidy
 
 **Always run `just fmt` and `just lint` before committing.**
 
+Enabled linters (`.golangci.yml`): errcheck, gofumpt (extra-rules), gosimple, govet, ineffassign, misspell (US locale), staticcheck, unused.
+
 ---
 
 ## Project Structure
 ```
 puzzletea/
-├── main.go             # Minimal entry point: wires cmd package
+├── main.go             # Entry point: wires cmd package
 ├── app/                # Root TUI model (Elm architecture)
-│   ├── model.go        #   GameCategories registry, model struct, constructors
-│   ├── update.go       #   Update loop, keyboard/event handling, state transitions
-│   ├── view.go         #   View rendering for each screen state
-│   ├── keys.go         #   Root-level keybinding definitions
-│   ├── spawn.go        #   Async game spawning, save/load, unique name generation
-│   └── debug.go        #   Debug overlay rendering (glamour markdown)
+│   ├── model.go, update.go, view.go, keys.go, spawn.go, debug.go
 ├── cmd/                # CLI commands (Cobra)
-│   └── cmd.go          #   rootCmd, newCmd, continueCmd, listCmd
-├── stats/              # Stats & progression system
-│   ├── stats.go        #   XP/level math, streaks, card data + rendering
-│   └── stats_test.go   #   Tests for XP, levels, streaks, cards
-├── game/       # Plugin interfaces (Gamer, Mode, Spawner), cursor, keys, style
-├── store/      # SQLite persistence (GameRecord, CRUD, stats queries)
-├── ui/         # Shared UI: menu list, table, panel, styles, MenuItem
-├── daily/      # Daily puzzle seeding, RNG, mode selection
-├── resolve/    # CLI argument resolution (category/mode name matching)
-├── namegen/    # Adjective-noun name generator
+│   ├── root.go, new.go, continue.go, list.go
+├── config/             # Persistent JSON config (~/.puzzletea/config.json)
+├── theme/              # Color theming (WCAG-compliant palettes, contrast utils)
+├── stats/              # XP/level math, streaks, card rendering
+├── game/               # Plugin interfaces, cursor, keys, style, border helpers
+├── store/              # SQLite persistence (~/.puzzletea/puzzletea.db)
+├── ui/                 # Shared UI: menu list, main menu, table, panel, styles
+├── daily/              # Daily puzzle seeding, RNG, mode selection
+├── resolve/            # CLI argument resolution (category/mode name matching)
+├── namegen/            # Adjective-noun name generator
 ├── hashiwokakero/, hitori/, lightsout/, nonogram/
 ├── shikaku/, sudoku/, takuzu/, wordsearch/  # Puzzle game packages
-├── plan/       # Design/planning documents
-└── vhs/        # GIF preview tapes
+└── vhs/                # VHS tape files for GIF previews
 ```
 
 Each puzzle package follows a consistent file structure:
 - **Capitalized**: `Model.go`, `Gamemode.go`, `Export.go`
-- **Lowercase**: `grid.go`, `keys.go`, `style.go`, `generator.go`, `<game>_test.go`
+- **Lowercase**: `grid.go`, `keys.go`, `style.go`, `generator.go`, `mouse.go`, `<game>_test.go`
+- **Docs**: `help.md` (embedded via `//go:embed`), `README.md`
 
 ---
 
 ## Code Style Guidelines
 
 ### Formatting
-- Use `gofumpt` (stricter than gofmt) -- run `just fmt`
+- Use `gofumpt` (stricter than gofmt, extra-rules enabled) -- run `just fmt`
 - No comments required unless explaining non-obvious logic
 - Keep lines under ~100 characters
+- US English spelling enforced by misspell linter
 
 ### Imports
 Two groups separated by a blank line: stdlib, then everything else (internal + external sorted together). When there are many internal imports, a third group separating internal from external is acceptable.
@@ -80,11 +78,12 @@ import (
     "fmt"
 
     "github.com/FelineStateMachine/puzzletea/game"
-    "github.com/charmbracelet/bubbles/key"
-    tea "github.com/charmbracelet/bubbletea"
-    "github.com/charmbracelet/lipgloss"
+    "charm.land/bubbles/v2/key"
+    tea "charm.land/bubbletea/v2"
+    "charm.land/lipgloss/v2"
 )
 ```
+Note: always alias bubbletea as `tea`.
 
 ### Naming Conventions
 - **Types**: PascalCase (`Model`, `NonogramMode`, `Entry`)
@@ -94,17 +93,25 @@ import (
 - **Interfaces**: PascalCase (`Gamer`, `Spawner`, `Mode`)
 
 ### Type Declarations
-Prefer grouped type aliases: `type ( grid [][]rune; state string )`
+Prefer grouped type blocks: `type ( grid [][]rune; state string )`
 
 ### Interface Compliance
-Use compile-time checks: `var _ game.Gamer = Model{}`, `var _ game.Spawner = NonogramMode{}`
+Use compile-time checks in grouped var blocks:
+```go
+var (
+    _ game.Mode          = NonogramMode{}
+    _ game.Spawner       = NonogramMode{}
+    _ game.SeededSpawner = NonogramMode{}
+)
+```
 
 ### Error Handling
 - Return descriptive errors: `errors.New("puzzle width does not support row tomography definition")`
 - Check errors immediately; use `fmt.Errorf` with `%w` only when wrapping adds context
+- No assertion libraries in tests -- use `t.Errorf` / `t.Fatalf` only
 
 ### Styling
-Use `lipgloss.AdaptiveColor` with ANSI 256 palette numbers. Avoid hex colors.
+Use the `theme` package for colors (`theme.Current().Accent`, etc.) and `game/style.go` shared accessors (`CursorFG()`, `CursorBG()`, `ConflictFG()`). Use `compat.AdaptiveColor` from `charm.land/lipgloss/v2/compat` for adaptive light/dark colors.
 
 ---
 
@@ -135,10 +142,12 @@ type SeededSpawner interface {
 }
 ```
 
-### Puzzle Package Exports
-Every puzzle package exports `Modes`, `DailyModes` (`[]list.Item`), `HelpContent` (`string`), `NewMode(...)`, `New(...)`, `ImportModel([]byte) (*Model, error)`, and `DefaultKeyMap`.
+Every mode type embeds `game.BaseMode` via `game.NewBaseMode(title, description)`.
 
-Each package registers itself via `init()`:
+### Puzzle Package Exports
+Every puzzle package exports: `Modes`, `DailyModes` (`[]list.Item`), `HelpContent` (`string`, from `//go:embed help.md`), `NewMode(...)`, `New(...)`, `ImportModel([]byte) (*Model, error)`, and `DefaultKeyMap`.
+
+Each package registers itself via `init()` in `Gamemode.go`:
 ```go
 func init() {
     game.Register("Nonogram", func(data []byte) (game.Gamer, error) {
@@ -156,6 +165,7 @@ func init() {
 // --- generateTomography (P0) ---     // P0 = critical
 // --- Grid serialization (P1) ---     // P1 = important
 // --- generateRandomState (P2) ---    // P2 = generators/slow
+// --- TitleBarView (P3) ---           // P3 = low-priority UI
 ```
 
 ### Table-Driven Tests with Subtests

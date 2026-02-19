@@ -2,68 +2,79 @@ package game
 
 import (
 	"fmt"
+	"image/color"
 	"strings"
 
 	"charm.land/lipgloss/v2"
-	"charm.land/lipgloss/v2/compat"
+	"github.com/FelineStateMachine/puzzletea/theme"
 )
 
-// Shared cursor color tokens, used both in style construction and for
-// composite styling where a cursor color is applied on top of another style.
-var (
-	CursorFG     = compat.AdaptiveColor{Light: lipgloss.Color("255"), Dark: lipgloss.Color("235")}
-	CursorBG     = compat.AdaptiveColor{Light: lipgloss.Color("130"), Dark: lipgloss.Color("173")}
-	CursorWarmBG = compat.AdaptiveColor{Light: lipgloss.Color("130"), Dark: lipgloss.Color("214")}
-	ConflictFG   = compat.AdaptiveColor{Light: lipgloss.Color("160"), Dark: lipgloss.Color("167")}
-	ConflictBG   = compat.AdaptiveColor{Light: lipgloss.Color("224"), Dark: lipgloss.Color("52")}
-)
+// Shared cursor / conflict color accessors. Puzzle packages that compose
+// styles on top of the cursor colors read these at render time.
 
-var (
-	titleStyle = lipgloss.NewStyle().
-			Bold(true).
-			Foreground(compat.AdaptiveColor{Light: lipgloss.Color("255"), Dark: lipgloss.Color("255")}).
-			Background(CursorBG).
-			Padding(0, 1)
+func CursorFG() color.Color     { return theme.Current().AccentText }
+func CursorBG() color.Color     { return theme.Current().Accent }
+func CursorWarmFG() color.Color { return theme.Current().WarmText }
+func CursorWarmBG() color.Color { return theme.Current().Warm }
+func ConflictFG() color.Color   { return theme.Current().Error }
+func ConflictBG() color.Color   { return theme.Current().ErrorBG }
 
-	solvedBadgeStyle = lipgloss.NewStyle().
-				Bold(true).
-				Foreground(compat.AdaptiveColor{Light: lipgloss.Color("28"), Dark: lipgloss.Color("78")})
+// CursorStyle highlights the cursor position with an accent background.
+// Used by lightsout, sudoku, wordsearch.
+func CursorStyle() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Bold(true).
+		Foreground(CursorFG()).
+		Background(CursorBG())
+}
 
-	// CursorStyle highlights the cursor position with an accent background.
-	// Used by lightsout, sudoku, wordsearch.
-	CursorStyle = lipgloss.NewStyle().
-			Bold(true).
-			Foreground(CursorFG).
-			Background(CursorBG)
+// CursorWarmStyle highlights the cursor with a warmer background.
+// Used by hitori, takuzu, nonogram.
+func CursorWarmStyle() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Bold(true).
+		Foreground(CursorWarmFG()).
+		Background(CursorWarmBG())
+}
 
-	// CursorWarmStyle highlights the cursor with a warmer background.
-	// Used by hitori, takuzu, nonogram.
-	CursorWarmStyle = lipgloss.NewStyle().
-			Bold(true).
-			Foreground(CursorFG).
-			Background(CursorWarmBG)
+// CursorSolvedStyle highlights the cursor position on a solved grid.
+// Shared across all puzzle types.
+func CursorSolvedStyle() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Bold(true).
+		Foreground(CursorFG()).
+		Background(theme.Current().Success)
+}
 
-	// CursorSolvedStyle highlights the cursor position on a solved grid.
-	// Shared across all puzzle types.
-	CursorSolvedStyle = lipgloss.NewStyle().
-				Bold(true).
-				Foreground(CursorFG).
-				Background(compat.AdaptiveColor{Light: lipgloss.Color("28"), Dark: lipgloss.Color("28")})
+// StatusBarStyle returns the shared style for the status/help bar below each puzzle grid.
+func StatusBarStyle() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Foreground(theme.Current().TextDim).
+		MarginTop(1)
+}
 
-	// StatusBarStyle is the shared style for the status/help bar below each puzzle grid.
-	StatusBarStyle = lipgloss.NewStyle().
-			Foreground(compat.AdaptiveColor{Light: lipgloss.Color("244"), Dark: lipgloss.Color("244")}).
-			MarginTop(1)
-)
+func titleStyle() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Bold(true).
+		Foreground(theme.Current().AccentText).
+		Background(CursorBG()).
+		Padding(0, 1)
+}
+
+func solvedBadgeStyle() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Bold(true).
+		Foreground(theme.Current().SuccessBorder)
+}
 
 // TitleBarView renders a title bar with the game name, mode name, and optional solved badge.
 func TitleBarView(gameName, modeName string, solved bool) string {
-	title := titleStyle.Render(gameName + " - " + modeName)
+	title := titleStyle().Render(gameName + " - " + modeName)
 	if solved {
-		badge := solvedBadgeStyle.Render("  SOLVED")
+		badge := solvedBadgeStyle().Render("  SOLVED")
 		return title + badge + "\nctrl+n to play again"
 	}
-	return title + "\n"
+	return lipgloss.NewStyle().PaddingBottom(1).Render(title)
 }
 
 // DebugHeader returns the markdown heading and property table header for debug info.

@@ -2,6 +2,7 @@ package stats
 
 import (
 	"fmt"
+	"image/color"
 	"math"
 	"slices"
 	"strings"
@@ -10,7 +11,7 @@ import (
 	"github.com/FelineStateMachine/puzzletea/daily"
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/store"
-	"github.com/FelineStateMachine/puzzletea/ui"
+	"github.com/FelineStateMachine/puzzletea/theme"
 
 	"charm.land/bubbles/v2/list"
 	"charm.land/lipgloss/v2"
@@ -269,47 +270,66 @@ func ViewportHeight(availableHeight int) int {
 	return max(h, minRows)
 }
 
-var (
-	cardFrame = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(ui.MenuDim).
-			Padding(0, 1).
-			Width(CardInnerWidth + 4) // +4 for border + padding
+func cardFrameStyle() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(theme.Current().Border).
+		Padding(0, 1).
+		Width(CardInnerWidth + 4) // +4 for border + padding
+}
 
-	cardTitle = lipgloss.NewStyle().
-			Bold(true).
-			Foreground(ui.MenuAccent)
+func cardTitleStyle(fg color.Color) lipgloss.Style {
+	return lipgloss.NewStyle().
+		Bold(true).
+		Foreground(fg)
+}
 
-	statLabel = lipgloss.NewStyle().
-			Foreground(ui.MenuTextDim)
+func statLabelStyle() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Foreground(theme.Current().TextDim)
+}
 
-	statValue = lipgloss.NewStyle().
-			Foreground(ui.MenuAccent).
-			Bold(true)
+func statValueStyle() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Foreground(theme.Current().Accent).
+		Bold(true)
+}
 
-	xpBarFilled = lipgloss.NewStyle().
-			Foreground(ui.MenuAccent)
+func xpBarFilledStyle() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Foreground(theme.Current().Accent)
+}
 
-	xpBarEmpty = lipgloss.NewStyle().
-			Foreground(ui.MenuDim)
+func xpBarEmptyStyle() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Foreground(theme.Current().Border)
+}
 
-	xpFraction = lipgloss.NewStyle().
-			Foreground(ui.MenuText)
+func xpFractionStyle() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Foreground(theme.Current().FG)
+}
 
-	bannerRule = lipgloss.NewStyle().
-			Foreground(ui.MenuDim)
+func bannerRuleStyle() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Foreground(theme.Current().Border)
+}
 
-	bannerLabel = lipgloss.NewStyle().
-			Foreground(ui.MenuText)
+func bannerLabelStyle() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Foreground(theme.Current().FG)
+}
 
-	bannerValue = lipgloss.NewStyle().
-			Foreground(ui.MenuAccent).
-			Bold(true)
-)
+func bannerValueStyle() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Foreground(theme.Current().Accent).
+		Bold(true)
+}
 
-// RenderCard renders a single stats card.
-func RenderCard(c Card) string {
-	title := cardTitle.Render(
+// RenderCard renders a single stats card. The titleColor determines
+// the foreground color used for the category name heading.
+func RenderCard(c Card, titleColor color.Color) string {
+	title := cardTitleStyle(titleColor).Render(
 		fmt.Sprintf("%s \u2014 LVL %d", strings.ToUpper(c.GameType), c.Level),
 	)
 
@@ -324,12 +344,12 @@ func RenderCard(c Card) string {
 	}
 
 	inner := strings.Join(lines, "\n")
-	return cardFrame.Render(inner)
+	return cardFrameStyle().Render(inner)
 }
 
 func renderStatLine(label, value string) string {
-	l := statLabel.Render(label)
-	v := statValue.Render(value)
+	l := statLabelStyle().Render(label)
+	v := statValueStyle().Render(value)
 	// Right-align value within card width.
 	gap := CardInnerWidth - lipgloss.Width(l) - lipgloss.Width(v)
 	if gap < 1 {
@@ -359,12 +379,12 @@ func renderXPBar(currentXP, level int) string {
 		filled = 0
 	}
 
-	bar := xpBarFilled.Render(strings.Repeat("\u2588", filled)) +
-		xpBarEmpty.Render(strings.Repeat("\u2591", barWidth-filled))
+	bar := xpBarFilledStyle().Render(strings.Repeat("\u2588", filled)) +
+		xpBarEmptyStyle().Render(strings.Repeat("\u2591", barWidth-filled))
 
-	frac := xpFraction.Render(fmt.Sprintf(" %d/%d", currentXP, nextLevelXP))
+	frac := xpFractionStyle().Render(fmt.Sprintf(" %d/%d", xpIntoLevel, xpNeeded))
 
-	return statLabel.Foreground(ui.MenuText).Render("XP ") + bar + frac
+	return statLabelStyle().Foreground(theme.Current().FG).Render("XP ") + bar + frac
 }
 
 // RenderBanner renders the profile summary banner.
@@ -373,13 +393,13 @@ func RenderBanner(b ProfileBanner, width int) string {
 		width = 40
 	}
 
-	ruleStr := bannerRule.Render(
+	ruleStr := bannerRuleStyle().Render(
 		"\u2500\u2500\u2500 Profile " + strings.Repeat("\u2500", max(width-12, 1)),
 	)
 
-	check := bannerValue.Render("\u2714")
+	check := bannerValueStyle().Render("\u2714")
 	if !b.CurrentDaily {
-		check = lipgloss.NewStyle().Foreground(ui.MenuTextDim).Render("\u2014")
+		check = lipgloss.NewStyle().Foreground(theme.Current().TextDim).Render("\u2014")
 	}
 
 	streakStr := fmt.Sprintf("%d days", b.DailyStreak)
@@ -387,10 +407,10 @@ func RenderBanner(b ProfileBanner, width int) string {
 		streakStr = "1 day"
 	}
 
-	col1 := bannerLabel.Render("Profile Level: ") + bannerValue.Render(fmt.Sprintf("%d", b.ProfileLevel))
-	col2 := bannerLabel.Render("Daily Streak: ") + bannerValue.Render(streakStr)
-	col3 := bannerLabel.Render("Total Dailies: ") + bannerValue.Render(fmt.Sprintf("%d", b.TotalDailies))
-	col4 := bannerLabel.Render("Current daily: ") + check
+	col1 := bannerLabelStyle().Render("Profile Level: ") + bannerValueStyle().Render(fmt.Sprintf("%d", b.ProfileLevel))
+	col2 := bannerLabelStyle().Render("Daily Streak: ") + bannerValueStyle().Render(streakStr)
+	col3 := bannerLabelStyle().Render("Total Dailies: ") + bannerValueStyle().Render(fmt.Sprintf("%d", b.TotalDailies))
+	col4 := bannerLabelStyle().Render("Current daily: ") + check
 
 	// Two-column layout: left side + gap + right side.
 	gap := width - lipgloss.Width(col1) - lipgloss.Width(col2)
@@ -405,7 +425,7 @@ func RenderBanner(b ProfileBanner, width int) string {
 	}
 	row2 := col3 + strings.Repeat(" ", gap2) + col4
 
-	bottomRule := bannerRule.Render(strings.Repeat("\u2500", max(width, 1)))
+	bottomRule := bannerRuleStyle().Render(strings.Repeat("\u2500", max(width, 1)))
 
 	return strings.Join([]string{ruleStr, row1, row2, bottomRule}, "\n")
 }
@@ -415,7 +435,7 @@ func RenderBanner(b ProfileBanner, width int) string {
 func RenderCardGrid(cards []Card, width int) string {
 	if len(cards) == 0 {
 		return lipgloss.NewStyle().
-			Foreground(ui.MenuTextDim).
+			Foreground(theme.Current().TextDim).
 			Render("No stats yet \u2014 play some puzzles!")
 	}
 
@@ -430,7 +450,7 @@ func RenderCardGrid(cards []Card, width int) string {
 func RenderView(banner ProfileBanner, cards []Card, width int) string {
 	if len(cards) == 0 {
 		return lipgloss.NewStyle().
-			Foreground(ui.MenuTextDim).
+			Foreground(theme.Current().TextDim).
 			Render("No stats yet \u2014 play some puzzles!")
 	}
 
@@ -453,10 +473,13 @@ func renderCardColumns(cards []Card, cols int) string {
 		cols = 1
 	}
 
+	palette := theme.Current().CardColors()
+
 	columns := make([][]string, cols)
 	for i, c := range cards {
 		col := i % cols
-		columns[col] = append(columns[col], RenderCard(c))
+		titleColor := palette[i%len(palette)]
+		columns[col] = append(columns[col], RenderCard(c, titleColor))
 	}
 
 	rendered := make([]string, cols)

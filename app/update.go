@@ -2,15 +2,22 @@ package app
 
 import (
 	"log"
+	"strings"
 	"time"
 
+	"github.com/FelineStateMachine/puzzletea/config"
 	"github.com/FelineStateMachine/puzzletea/daily"
 	"github.com/FelineStateMachine/puzzletea/game"
+	"github.com/FelineStateMachine/puzzletea/namegen"
+	"github.com/FelineStateMachine/puzzletea/resolve"
 	"github.com/FelineStateMachine/puzzletea/stats"
 	"github.com/FelineStateMachine/puzzletea/store"
+	"github.com/FelineStateMachine/puzzletea/theme"
 	"github.com/FelineStateMachine/puzzletea/ui"
 
 	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/list"
+	"charm.land/bubbles/v2/textinput"
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/glamour"
@@ -28,6 +35,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		menuW := min(m.width, 64)
 		m.gameSelectList.SetSize(menuW, min(m.height, ui.ListHeight(m.gameSelectList)))
+		if m.state == seedInputView {
+			m.seedInput.SetWidth(min(m.width, 48))
+		}
 		if m.state == modeSelectView {
 			m.modeSelectList.SetSize(menuW, min(m.height, ui.ListHeight(m.modeSelectList)))
 		}
@@ -43,6 +53,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.helpViewport.SetWidth(m.width)
 			m.helpViewport.SetHeight(m.height - 2)
 		}
+		if m.state == themeSelectView {
+			const maxVisibleItems = 8
+			listW := min(menuW, theme.MaxNameLen+4)
+			m.themeList.SetSize(listW, min(m.height, maxVisibleItems*3))
+		}
 		if m.state == statsView {
 			cw := stats.ContentWidth(m.width)
 			m.statsViewport.SetWidth(cw)
@@ -56,9 +71,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.state == generatingView {
 			switch {
 			case key.Matches(msg, rootKeys.Escape):
-				if m.dailyPending {
+				if m.dailyPending || m.seedPending {
 					m.dailyPending = false
-					m.state = mainMenuView
+					m.seedPending = false
+					m.state = playMenuView
 				} else {
 					m.state = modeSelectView
 				}
@@ -106,6 +122,26 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.mainMenu.CursorDown()
 			}
 		}
+	case playMenuView:
+		if msg, ok := msg.(tea.KeyPressMsg); ok {
+			switch msg.String() {
+			case "up", "k":
+				m.playMenu.CursorUp()
+			case "down", "j":
+				m.playMenu.CursorDown()
+			}
+		}
+	case optionsMenuView:
+		if msg, ok := msg.(tea.KeyPressMsg); ok {
+			switch msg.String() {
+			case "up", "k":
+				m.optionsMenu.CursorUp()
+			case "down", "j":
+				m.optionsMenu.CursorDown()
+			}
+		}
+	case seedInputView:
+		m.seedInput, cmd = m.seedInput.Update(msg)
 	case generatingView:
 		m.spinner, cmd = m.spinner.Update(msg)
 	case gameView:
@@ -133,6 +169,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.helpViewport, cmd = m.helpViewport.Update(msg)
 	case statsView:
 		m.statsViewport, cmd = m.statsViewport.Update(msg)
+	case themeSelectView:
+		prev := m.themeList.Index()
+		m.themeList, cmd = m.themeList.Update(msg)
+		// Live preview: apply theme when cursor moves.
+		if m.themeList.Index() != prev {
+			if item, ok := m.themeList.SelectedItem().(ui.MenuItem); ok {
+				_ = theme.Apply(item.ItemTitle)
+				ui.UpdateThemeListStyles(&m.themeList)
+			}
+		}
 	}
 
 	return m, cmd
@@ -142,6 +188,12 @@ func (m model) handleEnter() (tea.Model, tea.Cmd) {
 	switch m.state {
 	case mainMenuView:
 		return m.handleMainMenuEnter()
+	case playMenuView:
+		return m.handlePlayMenuEnter()
+	case optionsMenuView:
+		return m.handleOptionsMenuEnter()
+	case seedInputView:
+		return m.handleSeedConfirm()
 	case gameSelectView:
 		return m.handleGameSelectEnter()
 	case modeSelectView:
@@ -150,12 +202,31 @@ func (m model) handleEnter() (tea.Model, tea.Cmd) {
 		return m.handleContinueEnter()
 	case helpSelectView:
 		return m.handleHelpSelectEnter()
+	case themeSelectView:
+		return m.handleThemeConfirm()
 	}
 	return m, nil
 }
 
 func (m model) handleMainMenuEnter() (tea.Model, tea.Cmd) {
 	item := m.mainMenu.Selected()
+	switch item.Title() {
+	case "Play":
+		m.playMenu = ui.NewMainMenu(playMenuItems)
+		m.state = playMenuView
+	case "Stats":
+		return m.handleStatsEnter()
+	case "Options":
+		m.optionsMenu = ui.NewMainMenu(optionsMenuItems)
+		m.state = optionsMenuView
+	case "Quit":
+		return m, tea.Quit
+	}
+	return m, nil
+}
+
+func (m model) handlePlayMenuEnter() (tea.Model, tea.Cmd) {
+	item := m.playMenu.Selected()
 	switch item.Title() {
 	case "Daily Puzzle":
 		return m.handleDailyPuzzle()
@@ -164,16 +235,97 @@ func (m model) handleMainMenuEnter() (tea.Model, tea.Cmd) {
 	case "Continue":
 		m.continueTable, m.continueGames = ui.InitContinueTable(m.store, m.height)
 		m.state = continueView
-	case "Stats":
-		return m.handleStatsEnter()
+	case "Enter Seed":
+		ti := textinput.New()
+		ti.Placeholder = "any word or phrase"
+		ti.CharLimit = 64
+		ti.SetWidth(min(m.width, 48))
+		m.seedInput = ti
+		m.state = seedInputView
+		return m, m.seedInput.Focus()
+	}
+	return m, nil
+}
+
+func (m model) handleOptionsMenuEnter() (tea.Model, tea.Cmd) {
+	item := m.optionsMenu.Selected()
+	switch item.Title() {
+	case "Theme":
+		return m.handleThemeEnter()
 	case "Guides":
 		m.helpSelectList = ui.InitList(GameCategories, "How to Play")
 		m.helpSelectList.SetSize(min(m.width, 64), min(m.height, ui.ListHeight(m.helpSelectList)))
 		m.state = helpSelectView
-	case "Quit":
-		return m, tea.Quit
 	}
 	return m, nil
+}
+
+func (m model) handleSeedConfirm() (tea.Model, tea.Cmd) {
+	seed := strings.TrimSpace(m.seedInput.Value())
+	if seed == "" {
+		return m, nil
+	}
+
+	// Prevent seeded puzzles from mimicking daily puzzle names by
+	// silently lowercasing a "Daily" prefix so titles never start
+	// with the real daily prefix "Daily ".
+	if strings.HasPrefix(strings.ToLower(seed), "daily") {
+		seed = strings.ToLower(seed[:len("daily")]) + seed[len("daily"):]
+	}
+
+	// Deterministic name from seed, using an independent sub-RNG so
+	// namegen changes don't affect mode selection or puzzle content.
+	nameRNG := resolve.RNGFromString("name:" + seed)
+	name := seed + " - " + namegen.GenerateSeeded(nameRNG)
+
+	// Check if a game with this seed-derived name already exists.
+	rec, err := m.store.GetDailyGame(name)
+	if err != nil {
+		log.Printf("failed to check seeded game: %v", err)
+		return m, nil
+	}
+
+	if rec != nil {
+		// Seed game exists — resume it.
+		importFn, ok := game.Registry[rec.GameType]
+		if !ok {
+			log.Printf("unknown game type for seeded game: %s", rec.GameType)
+			return m, nil
+		}
+		g, err := importFn([]byte(rec.SaveState))
+		if err != nil {
+			log.Printf("failed to import seeded game: %v", err)
+			return m, nil
+		}
+		m.game = g.SetTitle(rec.Name)
+		m.game, _ = m.game.Update(game.HelpToggleMsg{Show: m.showFullHelp})
+		m.game, _ = m.game.Update(tea.WindowSizeMsg{Width: m.width, Height: m.height})
+		m.activeGameID = rec.ID
+		m.state = gameView
+		m.completionSaved = rec.Status == store.StatusCompleted
+
+		// Resume abandoned seeded games by resetting their status.
+		if rec.Status == store.StatusAbandoned {
+			_ = m.store.UpdateStatus(rec.ID, store.StatusInProgress)
+		}
+		return m, nil
+	}
+
+	// No existing game — generate a new seeded puzzle.
+	spawner, gameType, modeTitle, err := resolve.SeededMode(seed, GameCategories)
+	if err != nil {
+		log.Printf("failed to select seeded mode: %v", err)
+		return m, nil
+	}
+
+	rng := resolve.RNGFromString(seed)
+	m.seedPending = true
+	m.seedName = name
+	m.seedGameType = gameType
+	m.seedModeTitle = modeTitle
+	m.state = generatingView
+	m.generating = true
+	return m, tea.Batch(m.spinner.Tick, spawnSeededCmd(spawner, rng))
 }
 
 func (m model) handleDailyPuzzle() (tea.Model, tea.Cmd) {
@@ -307,19 +459,92 @@ func (m model) handleHelpSelectEnter() (tea.Model, tea.Cmd) {
 
 func (m model) handleEscape() (tea.Model, tea.Cmd) {
 	switch m.state {
+	case playMenuView:
+		m.state = mainMenuView
+	case optionsMenuView:
+		m.state = mainMenuView
+	case seedInputView:
+		m.state = playMenuView
 	case generatingView:
 		m.state = modeSelectView
 	case modeSelectView:
 		m.state = gameSelectView
 	case gameSelectView, continueView:
-		m.state = mainMenuView
+		m.state = playMenuView
 	case helpDetailView:
 		m.state = helpSelectView
 	case helpSelectView:
-		m.state = mainMenuView
+		m.state = optionsMenuView
 	case statsView:
 		m.state = mainMenuView
+	case themeSelectView:
+		// Revert to the previously saved theme.
+		_ = theme.Apply(m.previousTheme)
+		m.state = optionsMenuView
 	}
+	return m, nil
+}
+
+func (m model) handleThemeEnter() (tea.Model, tea.Cmd) {
+	m.previousTheme = m.cfg.Theme
+
+	names := theme.ThemeNames()
+	items := make([]list.Item, len(names))
+	for i, n := range names {
+		desc := "dark theme"
+		if n == theme.DefaultThemeName {
+			desc = "built-in earth-tone palette"
+		} else if t := theme.LookupTheme(n); t != nil && !t.Meta.IsDark {
+			desc = "light theme"
+		}
+		items[i] = ui.MenuItem{ItemTitle: n, Desc: desc}
+	}
+
+	// Cap list height to show ~8 items (like the continue table).
+	// Default delegate: height=2, spacing=1 → 3 lines per item.
+	const maxVisibleItems = 8
+	listH := min(m.height, maxVisibleItems*3)
+	listW := min(m.width, theme.MaxNameLen+4)
+
+	m.themeList = ui.InitThemeList(items, listW, listH)
+
+	// Position cursor on the currently active theme.
+	for i, item := range items {
+		if mi, ok := item.(ui.MenuItem); ok && mi.ItemTitle == m.previousTheme {
+			m.themeList.Select(i)
+			break
+		}
+	}
+	// If current theme is default (empty string), select index 0.
+	if m.previousTheme == "" {
+		m.themeList.Select(0)
+	}
+
+	m.state = themeSelectView
+	return m, nil
+}
+
+func (m model) handleThemeConfirm() (tea.Model, tea.Cmd) {
+	item, ok := m.themeList.SelectedItem().(ui.MenuItem)
+	if !ok {
+		return m, nil
+	}
+
+	themeName := item.ItemTitle
+	if themeName == theme.DefaultThemeName {
+		themeName = ""
+	}
+
+	// Apply the theme (already live-previewed, but ensure it's set).
+	_ = theme.Apply(item.ItemTitle)
+
+	// Persist the selection.
+	m.cfg.Theme = themeName
+	if err := m.cfg.Save(config.DefaultPath()); err != nil {
+		log.Printf("failed to save config: %v", err)
+	}
+
+	m.state = mainMenuView
 	return m, nil
 }
 

@@ -26,7 +26,7 @@ Sleep 500ms
 Enter
 Sleep 2s
 
-# Browse main menu (Daily Puzzle, Generate, Continue, Quit)
+# Browse main menu (Play, Stats, Options, Quit)
 Down
 Sleep 500ms
 Down
@@ -38,7 +38,23 @@ Up
 Up
 Sleep 500ms
 
-# Select "Generate" (second item)
+# Select "Play" (first item)
+Enter
+Sleep 1s
+
+# Browse Play submenu (Daily Puzzle, Generate, Continue, Find)
+Down
+Sleep 500ms
+Down
+Sleep 500ms
+Down
+Sleep 500ms
+Up
+Up
+Up
+Sleep 500ms
+
+# Select "Generate" (second item in Play submenu)
 Down
 Enter
 Sleep 1s
@@ -53,8 +69,7 @@ Sleep 400ms
 Down
 Sleep 400ms
 
-# Select Nonogram (third item)
-Up
+# Select Nonogram (fourth item)
 Up
 Enter
 Sleep 1s
@@ -78,6 +93,23 @@ Sleep 600ms
 # Go back through menus
 Escape
 Sleep 1s
+Escape
+Sleep 500ms
+Escape
+Sleep 500ms
+
+# Show Options submenu
+Down
+Down
+Enter
+Sleep 1s
+
+# Browse Options (Theme, Guides)
+Down
+Sleep 500ms
+Up
+Sleep 500ms
+
 Escape
 Sleep 500ms
 

@@ -131,6 +131,23 @@ func (p *Puzzle) CluesInRect(r Rectangle) []*Clue {
 	return result
 }
 
+// autoPlaceSingles places 1x1 rectangles for all clues with Value == 1
+// that don't already have a rectangle. These clues have only one possible
+// placement, so requiring manual input is unnecessary busywork.
+func (p *Puzzle) autoPlaceSingles() {
+	for _, c := range p.Clues {
+		if c.Value == 1 && p.FindRectangleForClue(c.ID) == nil {
+			p.SetRectangle(Rectangle{
+				ClueID: c.ID,
+				X:      c.X,
+				Y:      c.Y,
+				W:      1,
+				H:      1,
+			})
+		}
+	}
+}
+
 // IsSolved reports whether the puzzle is complete:
 // every cell is covered exactly once and each rectangle contains
 // exactly one clue whose value equals the rectangle's area.

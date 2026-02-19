@@ -25,7 +25,7 @@ var (
 			Foreground(compat.AdaptiveColor{Light: lipgloss.Color("236"), Dark: lipgloss.Color("187")}).
 			Background(backgroundColor)
 
-	cursorCellStyle = game.CursorStyle
+	// cursorCellStyle resolved at render time via game.CursorStyle().
 
 	conflictCellStyle = lipgloss.NewStyle().
 				Foreground(compat.AdaptiveColor{Light: lipgloss.Color("160"), Dark: lipgloss.Color("167")}).
@@ -108,7 +108,7 @@ func getCellStyle(m Model, c cell, x, y int, conflict bool) lipgloss.Style {
 
 	// Priority: cursor > conflict > same number > provided > user > empty
 	if m.cursor.X == x && m.cursor.Y == y {
-		return cursorCellStyle
+		return game.CursorStyle()
 	}
 
 	if conflict {
@@ -225,7 +225,7 @@ func computeConflicts(g grid) [gridSize][gridSize]bool {
 
 func statusBarView(showFullHelp bool) string {
 	if showFullHelp {
-		return game.StatusBarStyle.Render("arrows/wasd: move  1-9: fill  bkspc: clear  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
+		return game.StatusBarStyle().Render("arrows/wasd: move  1-9: fill  bkspc: clear  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
 	}
-	return game.StatusBarStyle.Render("1-9: fill  bkspc: clear")
+	return game.StatusBarStyle().Render("1-9: fill  bkspc: clear")
 }

@@ -21,7 +21,7 @@ var (
 			Foreground(compat.AdaptiveColor{Light: lipgloss.Color("250"), Dark: lipgloss.Color("240")}).
 			Background(backgroundColor)
 
-	cursorSolvedStyle = game.CursorSolvedStyle
+	// cursorSolvedStyle resolved at render time via game.CursorSolvedStyle().
 
 	crosshairBG = compat.AdaptiveColor{Light: lipgloss.Color("254"), Dark: lipgloss.Color("237")}
 	solvedBG    = compat.AdaptiveColor{Light: lipgloss.Color("151"), Dark: lipgloss.Color("22")}
@@ -56,9 +56,9 @@ func cellView(val rune, isProvided, isCursor, inCursorRow, inCursorCol, solved b
 	}
 
 	if isCursor && solved {
-		s = cursorSolvedStyle
+		s = game.CursorSolvedStyle()
 	} else if isCursor {
-		s = s.Background(game.CursorWarmBG).Bold(true)
+		s = s.Background(game.CursorWarmBG()).Bold(true)
 	} else if solved {
 		s = s.Background(solvedBG)
 	} else if inCursorRow || inCursorCol {
@@ -116,7 +116,7 @@ var gridBorderColors = game.GridBorderColors{
 
 func statusBarView(showFullHelp bool) string {
 	if showFullHelp {
-		return game.StatusBarStyle.Render("arrows/wasd: move  z: ●  x: ○  bkspc: clear  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
+		return game.StatusBarStyle().Render("arrows/wasd: move  z: ●  x: ○  bkspc: clear  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
 	}
-	return game.StatusBarStyle.Render("z: ●  x: ○  bkspc: clear")
+	return game.StatusBarStyle().Render("z: ●  x: ○  bkspc: clear")
 }

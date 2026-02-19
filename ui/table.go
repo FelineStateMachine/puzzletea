@@ -6,8 +6,8 @@ import (
 
 	"charm.land/bubbles/v2/table"
 	"charm.land/lipgloss/v2"
-	"charm.land/lipgloss/v2/compat"
 	"github.com/FelineStateMachine/puzzletea/store"
+	"github.com/FelineStateMachine/puzzletea/theme"
 )
 
 // MaxTableRows is the maximum number of rows visible in the continue table.
@@ -62,6 +62,8 @@ func InitContinueTable(s *store.Store, height int) (table.Model, []store.GameRec
 	// Account for column gaps (2 chars between each column).
 	tableWidth += (len(columns) - 1) * 2
 
+	p := theme.Current()
+
 	visibleRows := min(len(rows), MaxTableRows)
 	t := table.New(
 		table.WithColumns(columns),
@@ -74,16 +76,16 @@ func InitContinueTable(s *store.Store, height int) (table.Model, []store.GameRec
 	st := table.DefaultStyles()
 	st.Header = st.Header.
 		Bold(true).
-		Foreground(MenuTableHeader).
+		Foreground(p.Accent).
 		BorderStyle(lipgloss.NormalBorder()).
 		BorderBottom(true).
-		BorderForeground(MenuDim)
+		BorderForeground(p.Border)
 	st.Selected = st.Selected.
-		Foreground(compat.AdaptiveColor{Light: lipgloss.Color("255"), Dark: lipgloss.Color("255")}).
-		Background(MenuAccent).
+		Foreground(p.AccentText).
+		Background(p.Accent).
 		Bold(true)
 	st.Cell = st.Cell.
-		Foreground(MenuText)
+		Foreground(p.FG)
 	t.SetStyles(st)
 
 	return t, games
@@ -110,5 +112,5 @@ func TablePagination(t table.Model) string {
 		start = end - height
 	}
 
-	return FooterHint.Render(fmt.Sprintf("%d–%d of %d", start+1, end, total))
+	return FooterHint().Render(fmt.Sprintf("%d–%d of %d", start+1, end, total))
 }

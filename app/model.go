@@ -5,6 +5,7 @@ package app
 import (
 	"time"
 
+	"github.com/FelineStateMachine/puzzletea/config"
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/hashiwokakero"
 	"github.com/FelineStateMachine/puzzletea/hitori"
@@ -15,12 +16,14 @@ import (
 	"github.com/FelineStateMachine/puzzletea/store"
 	"github.com/FelineStateMachine/puzzletea/sudoku"
 	"github.com/FelineStateMachine/puzzletea/takuzu"
+	"github.com/FelineStateMachine/puzzletea/theme"
 	"github.com/FelineStateMachine/puzzletea/ui"
 	"github.com/FelineStateMachine/puzzletea/wordsearch"
 
 	"charm.land/bubbles/v2/list"
 	"charm.land/bubbles/v2/spinner"
 	"charm.land/bubbles/v2/table"
+	"charm.land/bubbles/v2/textinput"
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -40,16 +43,29 @@ var GameCategories = []list.Item{
 }
 
 var mainMenuItems = []ui.MenuItem{
+	{ItemTitle: "Play", Desc: "start or continue a puzzle"},
+	{ItemTitle: "Stats", Desc: "your progress"},
+	{ItemTitle: "Options", Desc: "configure and learn"},
+	{ItemTitle: "Quit", Desc: "exit puzzletea"},
+}
+
+var playMenuItems = []ui.MenuItem{
 	{ItemTitle: "Daily Puzzle", Desc: time.Now().Format("Jan _2 06")},
 	{ItemTitle: "Generate", Desc: "a new puzzle"},
-	{ItemTitle: "Continue", Desc: "a saved puzzle"},
-	{ItemTitle: "Stats", Desc: "your progress"},
+	{ItemTitle: "Continue", Desc: "a previously played puzzle"},
+	{ItemTitle: "Enter Seed", Desc: "for a set puzzle"},
+}
+
+var optionsMenuItems = []ui.MenuItem{
+	{ItemTitle: "Theme", Desc: "change colors"},
 	{ItemTitle: "Guides", Desc: "learn the rules"},
-	{ItemTitle: "Quit", Desc: "exit puzzletea"},
 }
 
 const (
 	mainMenuView = iota
+	playMenuView
+	optionsMenuView
+	seedInputView
 	gameSelectView
 	modeSelectView
 	generatingView
@@ -58,12 +74,15 @@ const (
 	helpSelectView
 	helpDetailView
 	statsView
+	themeSelectView
 )
 
 type model struct {
 	state int
 
 	mainMenu         ui.MainMenu
+	playMenu         ui.MainMenu
+	optionsMenu      ui.MainMenu
 	gameSelectList   list.Model
 	modeSelectList   list.Model
 	selectedCategory game.Category
@@ -95,6 +114,13 @@ type model struct {
 	dailyGameType  string // e.g. "Nonogram"
 	dailyModeTitle string // e.g. "Standard"
 
+	// Seed input state
+	seedInput     textinput.Model
+	seedPending   bool   // true while generating a seeded puzzle
+	seedName      string // pre-computed seed-derived name
+	seedGameType  string // game type from rendezvous hashing
+	seedModeTitle string // mode title from rendezvous hashing
+
 	// Help page state
 	helpSelectList    list.Model
 	helpCategory      game.Category
@@ -106,42 +132,53 @@ type model struct {
 	statsCards    []stats.Card
 	statsProfile  stats.ProfileBanner
 	statsViewport viewport.Model
+
+	// Theme picker state
+	themeList     list.Model
+	previousTheme string // for revert on Esc
+
+	// Config
+	cfg *config.Config
+}
+
+func newSpinner() spinner.Model {
+	p := theme.Current()
+	sp := spinner.New()
+	sp.Spinner = spinner.Dot
+	sp.Style = lipgloss.NewStyle().Foreground(p.Accent)
+	return sp
 }
 
 // InitialModel creates the root TUI model for the main menu.
-func InitialModel(s *store.Store) model {
+func InitialModel(s *store.Store, cfg *config.Config) model {
 	r := initDebugRenderer()
 	l := ui.InitList(GameCategories, "Select Category")
 	mm := ui.NewMainMenu(mainMenuItems)
-	sp := spinner.New()
-	sp.Spinner = spinner.Dot
-	sp.Style = lipgloss.NewStyle().Foreground(ui.MenuAccent)
 	return model{
 		state:          mainMenuView,
 		debugRenderer:  r,
 		gameSelectList: l,
 		mainMenu:       mm,
-		spinner:        sp,
+		spinner:        newSpinner(),
 		store:          s,
+		cfg:            cfg,
 	}
 }
 
 // InitialModelWithGame creates a model that starts directly in gameView,
 // bypassing the menu. Used by CLI flags (--new, --continue).
-func InitialModelWithGame(s *store.Store, g game.Gamer, activeGameID int64, completionSaved bool) model {
+func InitialModelWithGame(s *store.Store, cfg *config.Config, g game.Gamer, activeGameID int64, completionSaved bool) model {
 	r := initDebugRenderer()
 	l := ui.InitList(GameCategories, "Select Category")
 	mm := ui.NewMainMenu(mainMenuItems)
-	sp := spinner.New()
-	sp.Spinner = spinner.Dot
-	sp.Style = lipgloss.NewStyle().Foreground(ui.MenuAccent)
 	return model{
 		state:           gameView,
 		debugRenderer:   r,
 		gameSelectList:  l,
 		mainMenu:        mm,
-		spinner:         sp,
+		spinner:         newSpinner(),
 		store:           s,
+		cfg:             cfg,
 		game:            g,
 		activeGameID:    activeGameID,
 		completionSaved: completionSaved,

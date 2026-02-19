@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/FelineStateMachine/puzzletea/app"
+	"github.com/FelineStateMachine/puzzletea/config"
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/namegen"
 	"github.com/FelineStateMachine/puzzletea/resolve"
@@ -26,11 +27,13 @@ var newCmd = &cobra.Command{
 		strings.Join(resolve.CategoryNames(app.GameCategories), "\n  ")),
 	Args: cobra.RangeArgs(0, 2),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		cfg := loadConfig()
+
 		if flagSetSeed != "" {
 			if len(args) > 0 {
 				return fmt.Errorf("cannot specify game/mode arguments with --set-seed; the seed determines the puzzle type")
 			}
-			return launchSeededGame(flagSetSeed)
+			return launchSeededGame(flagSetSeed, cfg)
 		}
 		if len(args) == 0 {
 			return fmt.Errorf("requires at least 1 arg(s), only received 0")
@@ -40,7 +43,7 @@ var newCmd = &cobra.Command{
 		if len(args) > 1 {
 			modeArg = args[1]
 		}
-		return launchNewGame(gameArg, modeArg)
+		return launchNewGame(gameArg, modeArg, cfg)
 	},
 }
 
@@ -49,7 +52,7 @@ func init() {
 }
 
 // launchNewGame resolves the game/mode, spawns a new game, and launches the TUI.
-func launchNewGame(gameArg, modeArg string) error {
+func launchNewGame(gameArg, modeArg string, cfg *config.Config) error {
 	cat, err := resolve.Category(gameArg, app.GameCategories)
 	if err != nil {
 		return err
@@ -93,7 +96,7 @@ func launchNewGame(gameArg, modeArg string) error {
 		log.Printf("failed to create game record: %v", err)
 	}
 
-	m := app.InitialModelWithGame(s, g, rec.ID, false)
+	m := app.InitialModelWithGame(s, cfg, g, rec.ID, false)
 	p := tea.NewProgram(m)
 	_, err = p.Run()
 	return err
@@ -106,7 +109,14 @@ func launchNewGame(gameArg, modeArg string) error {
 // Name generation and mode selection each use independent hashing so that
 // changes to namegen word lists or mode lists don't cascade. The shared
 // RNG is reserved purely for puzzle content generation.
-func launchSeededGame(seed string) error {
+func launchSeededGame(seed string, cfg *config.Config) error {
+	// Prevent seeded puzzles from mimicking daily puzzle names by
+	// silently lowercasing a "Daily" prefix so titles never start
+	// with the real daily prefix "Daily ".
+	if strings.HasPrefix(strings.ToLower(seed), "daily") {
+		seed = strings.ToLower(seed[:len("daily")]) + seed[len("daily"):]
+	}
+
 	// Name uses its own sub-RNG so namegen changes can't affect mode
 	// selection or puzzle generation.
 	nameRNG := resolve.RNGFromString("name:" + seed)
@@ -140,7 +150,7 @@ func launchSeededGame(seed string) error {
 			_ = s.UpdateStatus(rec.ID, store.StatusInProgress)
 		}
 
-		m := app.InitialModelWithGame(s, g, rec.ID, completed)
+		m := app.InitialModelWithGame(s, cfg, g, rec.ID, completed)
 		p := tea.NewProgram(m)
 		_, err = p.Run()
 		return err
@@ -177,7 +187,7 @@ func launchSeededGame(seed string) error {
 		log.Printf("failed to create game record: %v", err)
 	}
 
-	m := app.InitialModelWithGame(s, g, rec.ID, false)
+	m := app.InitialModelWithGame(s, cfg, g, rec.ID, false)
 	p := tea.NewProgram(m)
 	_, err = p.Run()
 	return err

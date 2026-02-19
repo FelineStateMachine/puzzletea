@@ -2,75 +2,92 @@ package ui
 
 import (
 	"charm.land/lipgloss/v2"
-	"charm.land/lipgloss/v2/compat"
+	"github.com/FelineStateMachine/puzzletea/theme"
 )
 
-// Earth-tone palette for menus — ANSI 256 colors with light/dark adaptivity.
-var (
-	MenuAccent      = compat.AdaptiveColor{Light: lipgloss.Color("130"), Dark: lipgloss.Color("173")}
-	MenuAccentLight = compat.AdaptiveColor{Light: lipgloss.Color("137"), Dark: lipgloss.Color("180")}
-	MenuText        = compat.AdaptiveColor{Light: lipgloss.Color("235"), Dark: lipgloss.Color("252")}
-	MenuTextDim     = compat.AdaptiveColor{Light: lipgloss.Color("243"), Dark: lipgloss.Color("243")}
-	MenuDim         = compat.AdaptiveColor{Light: lipgloss.Color("250"), Dark: lipgloss.Color("238")}
-	MenuTableHeader = compat.AdaptiveColor{Light: lipgloss.Color("130"), Dark: lipgloss.Color("180")}
+// MenuAccent returns the primary accent color from the active theme.
+func MenuAccent() lipgloss.Style { return lipgloss.NewStyle().Foreground(theme.Current().Accent) }
 
-	DebugStyle = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder(), true).
-			BorderForeground(compat.AdaptiveColor{Light: lipgloss.Color("124"), Dark: lipgloss.Color("124")})
+// DebugStyle returns the style for the debug overlay border.
+func DebugStyle() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder(), true).
+		BorderForeground(theme.Current().Error)
+}
 
-	// LogoStyle renders the ASCII art brand logo.
-	LogoStyle = lipgloss.NewStyle().
-			Bold(true).
-			Foreground(MenuText).
-			Background(MenuAccent).
-			Padding(0, 1).
-			Margin(1, 0)
+// LogoStyle returns the style for the ASCII art brand logo.
+func LogoStyle() lipgloss.Style {
+	p := theme.Current()
+	return lipgloss.NewStyle().
+		Bold(true).
+		Foreground(p.FG).
+		Background(p.Accent).
+		Padding(0, 1).
+		Margin(1, 0)
+}
 
-	// MainMenuFrame wraps the main menu in a heavy double border.
-	MainMenuFrame = lipgloss.NewStyle().
-			Border(lipgloss.DoubleBorder()).
-			BorderForeground(MenuAccent).
-			Padding(2, 4)
+// MainMenuFrame returns the double-border frame for the main menu.
+func MainMenuFrame() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Border(lipgloss.DoubleBorder()).
+		BorderForeground(theme.Current().Accent).
+		Padding(2, 4)
+}
 
-	// PanelFrame wraps sub-menus in a lighter rounded border.
-	PanelFrame = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(MenuDim).
-			Padding(1, 2)
+// PanelFrame returns the rounded-border frame for sub-menus.
+func PanelFrame() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(theme.Current().Border).
+		Padding(1, 2)
+}
 
-	// PanelTitle styles the title line inside a panel.
-	PanelTitle = lipgloss.NewStyle().
-			Bold(true).
-			Foreground(MenuAccent)
+// PanelTitle returns the style for panel title text.
+func PanelTitle() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Bold(true).
+		Foreground(theme.Current().Accent)
+}
 
-	// FooterHint styles the navigation hint line at the bottom of panels.
-	FooterHint = lipgloss.NewStyle().
-			Foreground(MenuTextDim)
+// FooterHint returns the style for navigation hint text.
+func FooterHint() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Foreground(theme.Current().TextDim)
+}
 
-	// CursorStyle styles the active cursor indicator.
-	CursorStyle = lipgloss.NewStyle().
-			Foreground(MenuAccent).
-			Bold(true)
+// CursorStyle returns the style for the active cursor indicator in menus.
+func CursorStyle() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Foreground(theme.Current().Accent).
+		Bold(true)
+}
 
-	// SelectedItemStyle styles the currently highlighted menu item title.
-	SelectedItemStyle = lipgloss.NewStyle().
-				Foreground(MenuAccent).
-				Bold(true)
+// SelectedItemStyle returns the style for the highlighted menu item title.
+func SelectedItemStyle() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Foreground(theme.Current().Accent).
+		Bold(true)
+}
 
-	// NormalItemStyle styles non-selected menu item titles.
-	NormalItemStyle = lipgloss.NewStyle().
-			Foreground(MenuText)
+// NormalItemStyle returns the style for non-selected menu item titles.
+func NormalItemStyle() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Foreground(theme.Current().FG)
+}
 
-	// DimItemStyle styles descriptions and secondary text.
-	DimItemStyle = lipgloss.NewStyle().
-			Foreground(MenuTextDim)
+// DimItemStyle returns the style for descriptions and secondary text.
+func DimItemStyle() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Foreground(theme.Current().TextDim)
+}
 
-	// GeneratingFrame wraps the generating spinner in a small box.
-	GeneratingFrame = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(MenuAccent).
-			Padding(1, 3)
-)
+// GeneratingFrame returns the frame style for the generating spinner box.
+func GeneratingFrame() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(theme.Current().Accent).
+		Padding(1, 3)
+}
 
 // CenterView wraps content in centered placement within the available area.
 func CenterView(width, height int, content string) string {

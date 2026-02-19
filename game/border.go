@@ -1,18 +1,32 @@
 package game
 
 import (
+	"image/color"
+
 	"charm.land/lipgloss/v2"
-	"charm.land/lipgloss/v2/compat"
+	"github.com/FelineStateMachine/puzzletea/theme"
 )
 
 // GridBorderColors holds the color configuration for a grid border with
 // crosshair and solved-state highlighting.
 type GridBorderColors struct {
-	BorderFG       compat.AdaptiveColor
-	BackgroundBG   compat.AdaptiveColor
-	CrosshairBG    compat.AdaptiveColor
-	SolvedBorderFG compat.AdaptiveColor
-	SolvedBG       compat.AdaptiveColor
+	BorderFG       color.Color
+	BackgroundBG   color.Color
+	CrosshairBG    color.Color
+	SolvedBorderFG color.Color
+	SolvedBG       color.Color
+}
+
+// DefaultBorderColors returns border colors from the active theme.
+func DefaultBorderColors() GridBorderColors {
+	p := theme.Current()
+	return GridBorderColors{
+		BorderFG:       p.Border,
+		BackgroundBG:   p.BG,
+		CrosshairBG:    p.Surface,
+		SolvedBorderFG: p.SuccessBorder,
+		SolvedBG:       p.Success,
+	}
 }
 
 // BorderChar renders a single border character with optional crosshair highlighting.

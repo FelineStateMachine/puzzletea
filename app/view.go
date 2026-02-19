@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/FelineStateMachine/puzzletea/stats"
+	"github.com/FelineStateMachine/puzzletea/theme"
 	"github.com/FelineStateMachine/puzzletea/ui"
 
 	tea "charm.land/bubbletea/v2"
@@ -16,6 +17,17 @@ func (m model) View() tea.View {
 	switch m.state {
 	case mainMenuView:
 		content = ui.CenterView(m.width, m.height, m.mainMenu.View())
+	case playMenuView:
+		content = ui.CenterView(m.width, m.height, m.playMenu.ViewAsPanel("Play"))
+	case optionsMenuView:
+		content = ui.CenterView(m.width, m.height, m.optionsMenu.ViewAsPanel("Options"))
+	case seedInputView:
+		panel := ui.Panel(
+			"Enter Seed",
+			m.seedInput.View(),
+			"enter confirm • esc back",
+		)
+		content = ui.CenterView(m.width, m.height, panel)
 	case gameSelectView:
 		panel := ui.Panel(
 			"Select Category",
@@ -32,7 +44,7 @@ func (m model) View() tea.View {
 		content = ui.CenterView(m.width, m.height, panel)
 	case generatingView:
 		s := m.spinner.View() + " Generating puzzle..."
-		box := ui.GeneratingFrame.Render(s)
+		box := ui.GeneratingFrame().Render(s)
 		content = ui.CenterView(m.width, m.height, box)
 	case continueView:
 		var s string
@@ -62,7 +74,7 @@ func (m model) View() tea.View {
 			centered := gameView
 			if m.debug {
 				debugInfo := lipgloss.NewStyle().MaxWidth(m.width).Render(
-					ui.DebugStyle.Render(m.debuginfo),
+					ui.DebugStyle().Render(m.debuginfo),
 				)
 				centered = lipgloss.JoinVertical(lipgloss.Center, gameView, debugInfo)
 			}
@@ -82,6 +94,8 @@ func (m model) View() tea.View {
 			"↑/↓ scroll • esc back",
 		)
 		content = ui.CenterView(m.width, m.height, panel)
+	case themeSelectView:
+		content = m.themeSelectViewContent()
 	case statsView:
 		var statsBody string
 		if len(m.statsCards) == 0 {
@@ -115,4 +129,47 @@ func (m model) View() tea.View {
 		v.KeyboardEnhancements.ReportEventTypes = true
 	}
 	return v
+}
+
+// themeSelectViewContent renders the theme picker as a side-by-side layout:
+// theme list on the left, color preview panel on the right.
+func (m model) themeSelectViewContent() string {
+	p := theme.Current()
+
+	// Determine selected theme name for the preview.
+	themeName := theme.DefaultThemeName
+	if item, ok := m.themeList.SelectedItem().(ui.MenuItem); ok {
+		themeName = item.ItemTitle
+	}
+
+	// Compute available inner height for the panel content.
+	// Panel chrome: border (2) + padding (2) + title (1) + blank (1) + footer (1) + blank (1) = 8
+	const panelChrome = 8
+	innerH := m.height - panelChrome
+	if innerH < 10 {
+		innerH = 10
+	}
+
+	// Left side: theme list.
+	listView := m.themeList.View()
+
+	// Right side: color preview.
+	previewBorder := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(p.Border).
+		Padding(1, 2)
+
+	preview := theme.PreviewPanel(themeName, innerH-4)
+	previewBox := previewBorder.Render(preview)
+
+	// Join side by side with a gap.
+	spacer := "  "
+	body := lipgloss.JoinHorizontal(lipgloss.Top, listView, spacer, previewBox)
+
+	panel := ui.Panel(
+		"Select Theme",
+		body,
+		"↑/↓ navigate • / filter • enter select • esc back",
+	)
+	return ui.CenterView(m.width, m.height, panel)
 }

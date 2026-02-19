@@ -25,11 +25,7 @@ Sleep 500ms
 Enter
 Sleep 2s
 
-# Navigate to Stats (4th item in main menu)
-Down
-Sleep 400ms
-Down
-Sleep 400ms
+# Navigate to Stats (2nd item in main menu)
 Down
 Sleep 400ms
 

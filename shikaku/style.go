@@ -2,34 +2,21 @@ package shikaku
 
 import (
 	"fmt"
+	"image/color"
 	"strings"
 
 	"charm.land/lipgloss/v2"
 	"charm.land/lipgloss/v2/compat"
 	"github.com/FelineStateMachine/puzzletea/game"
+	"github.com/FelineStateMachine/puzzletea/theme"
 )
 
 const cellWidth = 3
 
-// 16-color palette for placed rectangles (ANSI 256).
-var rectColors = []compat.AdaptiveColor{
-	{Dark: lipgloss.Color("60"), Light: lipgloss.Color("60")},   // muted purple
-	{Dark: lipgloss.Color("66"), Light: lipgloss.Color("66")},   // teal
-	{Dark: lipgloss.Color("95"), Light: lipgloss.Color("95")},   // mauve
-	{Dark: lipgloss.Color("130"), Light: lipgloss.Color("130")}, // brown/amber
-	{Dark: lipgloss.Color("71"), Light: lipgloss.Color("71")},   // olive green
-	{Dark: lipgloss.Color("132"), Light: lipgloss.Color("132")}, // dusty rose
-	{Dark: lipgloss.Color("37"), Light: lipgloss.Color("37")},   // cyan
-	{Dark: lipgloss.Color("136"), Light: lipgloss.Color("136")}, // dark gold
-	{Dark: lipgloss.Color("97"), Light: lipgloss.Color("97")},   // plum
-	{Dark: lipgloss.Color("29"), Light: lipgloss.Color("29")},   // forest green
-	{Dark: lipgloss.Color("167"), Light: lipgloss.Color("167")}, // salmon
-	{Dark: lipgloss.Color("68"), Light: lipgloss.Color("68")},   // steel blue
-	{Dark: lipgloss.Color("94"), Light: lipgloss.Color("94")},   // rust
-	{Dark: lipgloss.Color("139"), Light: lipgloss.Color("139")}, // lavender
-	{Dark: lipgloss.Color("28"), Light: lipgloss.Color("28")},   // deep green
-	{Dark: lipgloss.Color("133"), Light: lipgloss.Color("133")}, // orchid
-}
+// rectColors returns the current theme's chromatic ANSI colors for
+// rectangle backgrounds. Colors follow the active palette, so they
+// adapt automatically when the user switches themes.
+func rectColors() []color.Color { return theme.Current().CardColors() }
 
 var (
 	baseStyle = lipgloss.NewStyle()
@@ -38,8 +25,7 @@ var (
 	clueColor     = compat.AdaptiveColor{Dark: lipgloss.Color("230"), Light: lipgloss.Color("236")}
 	clueBgColor   = compat.AdaptiveColor{Dark: lipgloss.Color("238"), Light: lipgloss.Color("254")}
 
-	cursorBgColor = compat.AdaptiveColor{Dark: lipgloss.Color("214"), Light: lipgloss.Color("173")}
-	cursorFgColor = compat.AdaptiveColor{Dark: lipgloss.Color("235"), Light: lipgloss.Color("255")}
+	// Cursor colors resolved at render time via game.CursorStyle().
 
 	previewGoodBg = compat.AdaptiveColor{Dark: lipgloss.Color("28"), Light: lipgloss.Color("157")}
 	previewBadBg  = compat.AdaptiveColor{Dark: lipgloss.Color("124"), Light: lipgloss.Color("217")}
@@ -48,10 +34,8 @@ var (
 	solvedBorder = compat.AdaptiveColor{Dark: lipgloss.Color("149"), Light: lipgloss.Color("22")}
 	borderColor  = compat.AdaptiveColor{Dark: lipgloss.Color("240"), Light: lipgloss.Color("250")}
 
-	selectedClueBg = compat.AdaptiveColor{Dark: lipgloss.Color("172"), Light: lipgloss.Color("179")}
-
 	infoSatisfied = compat.AdaptiveColor{Dark: lipgloss.Color("22"), Light: lipgloss.Color("149")}
-	infoText      = compat.AdaptiveColor{Dark: lipgloss.Color("137"), Light: lipgloss.Color("137")}
+	infoText      = compat.AdaptiveColor{Dark: lipgloss.Color("180"), Light: lipgloss.Color("95")}
 
 	gridBorderStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
@@ -120,12 +104,13 @@ func cellView(m Model, x, y int, solved bool, preview *Rectangle, previewClue *C
 		s = baseStyle.Foreground(clueColor).Background(clueBgColor).Bold(true)
 	}
 
-	// Rectangle background color.
+	// Rectangle background color (from current theme palette).
+	colors := rectColors()
 	if owner >= 0 {
-		colorIdx := owner % len(rectColors)
-		s = s.Background(rectColors[colorIdx]).Foreground(compat.AdaptiveColor{Dark: lipgloss.Color("255"), Light: lipgloss.Color("255")})
+		bg := colors[owner%len(colors)]
+		s = s.Background(bg).Foreground(theme.TextOnBG(bg))
 		if clue != nil {
-			s = s.Foreground(compat.AdaptiveColor{Dark: lipgloss.Color("255"), Light: lipgloss.Color("255")}).Bold(true)
+			s = s.Bold(true)
 		}
 	}
 
@@ -136,30 +121,31 @@ func cellView(m Model, x, y int, solved bool, preview *Rectangle, previewClue *C
 			preview.Area() == previewClue.Value &&
 			!m.puzzle.Overlaps(*preview, previewClue.ID)
 		if good {
-			s = s.Background(previewGoodBg).Foreground(compat.AdaptiveColor{Dark: lipgloss.Color("255"), Light: lipgloss.Color("255")})
+			s = s.Background(previewGoodBg).Foreground(theme.TextOnBG(previewGoodBg))
 		} else {
-			s = s.Background(previewBadBg).Foreground(compat.AdaptiveColor{Dark: lipgloss.Color("255"), Light: lipgloss.Color("255")})
+			s = s.Background(previewBadBg).Foreground(theme.TextOnBG(previewBadBg))
 		}
 	}
 
 	// Selected clue highlight.
 	if m.selectedClue != nil && clue != nil && clue.ID == *m.selectedClue && !inPreview {
-		s = s.Background(selectedClueBg).Foreground(compat.AdaptiveColor{Dark: lipgloss.Color("255"), Light: lipgloss.Color("235")}).Bold(true)
+		bg := theme.Current().Highlight
+		s = s.Background(bg).Foreground(theme.TextOnBG(bg)).Bold(true)
 	}
 
 	// Solved styling.
 	if solved {
 		if owner >= 0 {
-			colorIdx := owner % len(rectColors)
-			s = s.Background(rectColors[colorIdx]).Foreground(compat.AdaptiveColor{Dark: lipgloss.Color("255"), Light: lipgloss.Color("255")})
+			bg := colors[owner%len(colors)]
+			s = s.Background(bg).Foreground(theme.TextOnBG(bg))
 		} else {
 			s = s.Background(solvedBg)
 		}
 		if isCursor {
-			s = game.CursorSolvedStyle
+			s = game.CursorSolvedStyle()
 		}
 	} else if isCursor {
-		s = s.Background(cursorBgColor).Foreground(cursorFgColor).Bold(true)
+		s = game.CursorStyle()
 	}
 
 	return s.Width(cellWidth).AlignHorizontal(lipgloss.Center).Render(display)
@@ -189,12 +175,12 @@ func infoView(p *Puzzle) string {
 func statusBarView(selected, showFullHelp bool) string {
 	if selected {
 		if showFullHelp {
-			return game.StatusBarStyle.Render("arrows: expand  shift+arrows: shrink  enter: confirm  esc: cancel  bkspc: delete  mouse: drag rect  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
+			return game.StatusBarStyle().Render("arrows: expand  shift+arrows: shrink  enter: confirm  esc: cancel  bkspc: delete  mouse: drag rect  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
 		}
-		return game.StatusBarStyle.Render("arrows: expand  shift+arrows: shrink  enter: confirm  esc: cancel  mouse: drag")
+		return game.StatusBarStyle().Render("arrows: expand  shift+arrows: shrink  enter: confirm  esc: cancel  mouse: drag")
 	}
 	if showFullHelp {
-		return game.StatusBarStyle.Render("arrows/wasd: move  enter/space: select clue  bkspc: delete  mouse: click clue & drag  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
+		return game.StatusBarStyle().Render("arrows/wasd: move  enter/space: select clue  bkspc: delete  mouse: click clue & drag  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
 	}
-	return game.StatusBarStyle.Render("enter/space: select clue  bkspc: delete  mouse: click & drag")
+	return game.StatusBarStyle().Render("enter/space: select clue  bkspc: delete  mouse: click & drag")
 }

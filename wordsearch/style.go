@@ -7,6 +7,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"charm.land/lipgloss/v2/compat"
 	"github.com/FelineStateMachine/puzzletea/game"
+	"github.com/FelineStateMachine/puzzletea/theme"
 )
 
 var (
@@ -14,11 +15,9 @@ var (
 			Foreground(compat.AdaptiveColor{Light: lipgloss.Color("236"), Dark: lipgloss.Color("252")}).
 			Background(compat.AdaptiveColor{Light: lipgloss.Color("254"), Dark: lipgloss.Color("236")})
 
-	cursorStyle = game.CursorStyle
+	// cursorStyle resolved at render time via game.CursorStyle().
 
-	selectionStyle = lipgloss.NewStyle().
-			Foreground(compat.AdaptiveColor{Light: lipgloss.Color("235"), Dark: lipgloss.Color("235")}).
-			Background(compat.AdaptiveColor{Light: lipgloss.Color("172"), Dark: lipgloss.Color("180")})
+	// selectionStyle resolved at render time via selectionStyle().
 
 	foundStyle = lipgloss.NewStyle().
 			Foreground(compat.AdaptiveColor{Light: lipgloss.Color("22"), Dark: lipgloss.Color("151")}).
@@ -34,7 +33,7 @@ var (
 			Strikethrough(true)
 
 	unfoundWordStyle = lipgloss.NewStyle().
-				Foreground(compat.AdaptiveColor{Light: lipgloss.Color("137"), Dark: lipgloss.Color("137")})
+				Foreground(compat.AdaptiveColor{Light: lipgloss.Color("95"), Dark: lipgloss.Color("180")})
 
 	borderFG    = compat.AdaptiveColor{Light: lipgloss.Color("250"), Dark: lipgloss.Color("240")}
 	gridBG      = compat.AdaptiveColor{Light: lipgloss.Color("254"), Dark: lipgloss.Color("236")}
@@ -60,6 +59,15 @@ var (
 					BorderForeground(solvedBdrFG).
 					Padding(0, 1)
 )
+
+// selectionStyle returns the style for cells in the active drag selection,
+// using the current theme's Highlight color for the background.
+func selectionStyle() lipgloss.Style {
+	bg := theme.Current().Highlight
+	return lipgloss.NewStyle().
+		Foreground(theme.TextOnBG(bg)).
+		Background(bg)
+}
 
 func renderView(m Model) string {
 	title := game.TitleBarView("Word Search", m.modeTitle, m.solved)
@@ -89,9 +97,9 @@ func renderView(m Model) string {
 
 func statusBarView(showFullHelp bool) string {
 	if showFullHelp {
-		return game.StatusBarStyle.Render("arrows/wasd: move  enter/space: select  esc: cancel  mouse: click & drag  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
+		return game.StatusBarStyle().Render("arrows/wasd: move  enter/space: select  esc: cancel  mouse: click & drag  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
 	}
-	return game.StatusBarStyle.Render("enter/space: select  esc: cancel  mouse: click & drag")
+	return game.StatusBarStyle().Render("enter/space: select  esc: cancel  mouse: click & drag")
 }
 
 func renderGrid(m Model) string {
@@ -115,12 +123,12 @@ func getCellStyle(m Model, x, y int) lipgloss.Style {
 
 	// Check if cursor position
 	if m.cursor.X == x && m.cursor.Y == y {
-		return cursorStyle
+		return game.CursorStyle()
 	}
 
 	// Check if in current selection
 	if m.selection == startSelected && isInSelection(m, x, y) {
-		return selectionStyle
+		return selectionStyle()
 	}
 
 	// Check if part of found word

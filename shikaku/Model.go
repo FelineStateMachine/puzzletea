@@ -60,6 +60,7 @@ type Model struct {
 
 // New creates a new Shikaku game model.
 func New(mode ShikakuMode, puzzle Puzzle) game.Gamer {
+	puzzle.autoPlaceSingles()
 	return Model{
 		puzzle:    puzzle,
 		cursor:    game.Cursor{X: 0, Y: 0},
@@ -336,6 +337,9 @@ func (m Model) View() string {
 	solved := m.puzzle.IsSolved()
 	title := game.TitleBarView("Shikaku", m.modeTitle, solved)
 	grid := gridView(m, solved)
+	if solved {
+		return lipgloss.JoinVertical(lipgloss.Center, title, grid)
+	}
 	info := infoView(&m.puzzle)
 	status := statusBarView(m.selectedClue != nil, m.showFullHelp)
 	return lipgloss.JoinVertical(lipgloss.Center, title, grid, info, status)
@@ -352,6 +356,7 @@ func (m Model) IsSolved() bool {
 
 func (m Model) Reset() game.Gamer {
 	m.puzzle.Rectangles = nil
+	m.puzzle.autoPlaceSingles()
 	m.cursor = game.Cursor{}
 	m.selectedClue = nil
 	m.mouseDragAnchor = nil
