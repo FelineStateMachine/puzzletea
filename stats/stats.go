@@ -281,7 +281,7 @@ var (
 			Foreground(ui.MenuAccent)
 
 	statLabel = lipgloss.NewStyle().
-			Foreground(ui.MenuText)
+			Foreground(ui.MenuTextDim)
 
 	statValue = lipgloss.NewStyle().
 			Foreground(ui.MenuAccent).
@@ -294,7 +294,7 @@ var (
 			Foreground(ui.MenuDim)
 
 	xpFraction = lipgloss.NewStyle().
-			Foreground(ui.MenuTextDim)
+			Foreground(ui.MenuText)
 
 	bannerRule = lipgloss.NewStyle().
 			Foreground(ui.MenuDim)
@@ -364,7 +364,7 @@ func renderXPBar(currentXP, level int) string {
 
 	frac := xpFraction.Render(fmt.Sprintf(" %d/%d", currentXP, nextLevelXP))
 
-	return statLabel.Render("XP ") + bar + frac
+	return statLabel.Foreground(ui.MenuText).Render("XP ") + bar + frac
 }
 
 // RenderBanner renders the profile summary banner.

@@ -20,14 +20,17 @@ var (
 
 	// LogoStyle renders the ASCII art brand logo.
 	LogoStyle = lipgloss.NewStyle().
-			Foreground(MenuAccent).
-			Bold(true)
+			Bold(true).
+			Foreground(MenuText).
+			Background(MenuAccent).
+			Padding(0, 1).
+			Margin(1, 0)
 
 	// MainMenuFrame wraps the main menu in a heavy double border.
 	MainMenuFrame = lipgloss.NewStyle().
 			Border(lipgloss.DoubleBorder()).
 			BorderForeground(MenuAccent).
-			Padding(1, 3)
+			Padding(2, 4)
 
 	// PanelFrame wraps sub-menus in a lighter rounded border.
 	PanelFrame = lipgloss.NewStyle().

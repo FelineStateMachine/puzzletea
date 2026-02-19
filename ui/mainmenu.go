@@ -6,14 +6,7 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
-// logo is the pre-rendered "puzzletea" ASCII art (FIGlet "small" font).
-// Stored as a raw string to avoid a runtime dependency on go-figure.
-const logo = "" +
-	"                          _         _\n" +
-	"  _ __   _  _   ___  ___ | |  ___  | |_   ___   __ _\n" +
-	" | '_ \\ | || | |_ / |_ / | | / -_) |  _| / -_) / _` |\n" +
-	" | .__/  \\_,_| /__| /__| |_| \\___|  \\__| \\___| \\__,_|\n" +
-	" |_|"
+const logo = "puzzletea"
 
 // MainMenu is a custom main menu component with an ASCII art logo
 // and styled item list. It replaces the generic list.Model for the
@@ -57,17 +50,18 @@ func (m MainMenu) View() string {
 
 	var itemLines []string
 	for i, item := range m.items {
-		var line string
+		var line, cursor, title string
 		if i == m.cursor {
-			cursor := CursorStyle.Render("▸ ")
-			title := SelectedItemStyle.Render(item.ItemTitle)
-			desc := DimItemStyle.Render("  " + item.Desc)
-			line = cursor + title + desc
+			cursor = CursorStyle.Render("⦾  ")
+			title = SelectedItemStyle.Render(item.ItemTitle)
+
 		} else {
-			title := NormalItemStyle.Render(item.ItemTitle)
-			desc := DimItemStyle.Render("  " + item.Desc)
-			line = "  " + title + desc
+			cursor = CursorStyle.Render("◦ ")
+			title = NormalItemStyle.Render(item.ItemTitle)
+
 		}
+		desc := DimItemStyle.Render("\n  " + item.Desc)
+		line = cursor + title + desc + "\n"
 		itemLines = append(itemLines, line)
 	}
 	items := strings.Join(itemLines, "\n")
@@ -82,5 +76,5 @@ func (m MainMenu) View() string {
 		footer,
 	)
 
-	return HeavyPanel(inner)
+	return inner
 }
