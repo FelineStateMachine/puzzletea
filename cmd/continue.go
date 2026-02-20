@@ -5,11 +5,9 @@ import (
 
 	"github.com/FelineStateMachine/puzzletea/app"
 	"github.com/FelineStateMachine/puzzletea/config"
-	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/stats"
 	"github.com/FelineStateMachine/puzzletea/store"
 
-	tea "charm.land/bubbletea/v2"
 	"github.com/spf13/cobra"
 )
 
@@ -32,7 +30,7 @@ func continueGame(name string, cfg *config.Config) error {
 	}
 	defer s.Close()
 
-	stats.InitModeXP(app.GameCategories)
+	stats.InitModeXP(app.Categories)
 
 	rec, err := s.GetGameByName(name)
 	if err != nil {
@@ -42,20 +40,11 @@ func continueGame(name string, cfg *config.Config) error {
 		return fmt.Errorf("no saved game found with name %q\nRun 'puzzletea list' to see available games.", name)
 	}
 
-	importFn, ok := game.Registry[rec.GameType]
-	if !ok {
-		return fmt.Errorf("unknown game type %q in save data", rec.GameType)
-	}
-
-	g, err := importFn([]byte(rec.SaveState))
+	g, err := importSavedGame(rec)
 	if err != nil {
-		return fmt.Errorf("failed to import game: %w", err)
+		return err
 	}
-	g = g.SetTitle(rec.Name)
 
 	completed := rec.Status == store.StatusCompleted
-	m := app.InitialModelWithGame(s, cfg, g, rec.ID, completed)
-	p := tea.NewProgram(m)
-	_, err = p.Run()
-	return err
+	return runGameProgram(s, cfg, g, rec.ID, completed)
 }

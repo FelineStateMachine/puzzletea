@@ -5,6 +5,25 @@ import (
 	"github.com/FelineStateMachine/puzzletea/theme"
 )
 
+func applyThemeListStyles(d *list.DefaultDelegate, p theme.Palette, width int) {
+	// Title styles intentionally avoid fixed Width: bubbles uses them for
+	// rune-level filter highlighting and Width can force wrapped segments.
+	d.Styles.SelectedTitle = d.Styles.SelectedTitle.
+		Foreground(p.Accent).
+		BorderLeftForeground(p.Accent)
+	d.Styles.NormalTitle = d.Styles.NormalTitle.
+		Foreground(p.FG)
+
+	// Description lines carry the fixed width so the list column remains stable.
+	d.Styles.SelectedDesc = d.Styles.SelectedDesc.
+		Foreground(p.AccentSoft).
+		BorderLeftForeground(p.Accent).
+		Width(width)
+	d.Styles.NormalDesc = d.Styles.NormalDesc.
+		Foreground(p.TextDim).
+		Width(width)
+}
+
 // InitList creates a styled list widget with the active theme's colors.
 // The list title is hidden because lists are rendered inside Panel frames
 // that provide their own styled title.
@@ -39,20 +58,7 @@ func InitList(items []list.Item, title string) list.Model {
 func InitThemeList(items []list.Item, width, height int) list.Model {
 	p := theme.Current()
 	d := list.NewDefaultDelegate()
-	d.Styles.SelectedTitle = d.Styles.SelectedTitle.
-		Foreground(p.Accent).
-		BorderLeftForeground(p.Accent).
-		Width(width)
-	d.Styles.SelectedDesc = d.Styles.SelectedDesc.
-		Foreground(p.AccentSoft).
-		BorderLeftForeground(p.Accent).
-		Width(width)
-	d.Styles.NormalTitle = d.Styles.NormalTitle.
-		Foreground(p.FG).
-		Width(width)
-	d.Styles.NormalDesc = d.Styles.NormalDesc.
-		Foreground(p.TextDim).
-		Width(width)
+	applyThemeListStyles(&d, p, width)
 
 	l := list.New(items, d, width, height)
 	l.SetShowTitle(false)
@@ -71,20 +77,7 @@ func UpdateThemeListStyles(l *list.Model) {
 
 	// Preserve the width that was set when the list was created.
 	w := l.Width()
-	d.Styles.SelectedTitle = d.Styles.SelectedTitle.
-		Foreground(p.Accent).
-		BorderLeftForeground(p.Accent).
-		Width(w)
-	d.Styles.SelectedDesc = d.Styles.SelectedDesc.
-		Foreground(p.AccentSoft).
-		BorderLeftForeground(p.Accent).
-		Width(w)
-	d.Styles.NormalTitle = d.Styles.NormalTitle.
-		Foreground(p.FG).
-		Width(w)
-	d.Styles.NormalDesc = d.Styles.NormalDesc.
-		Foreground(p.TextDim).
-		Width(w)
+	applyThemeListStyles(&d, p, w)
 
 	l.SetDelegate(d)
 }

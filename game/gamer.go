@@ -2,6 +2,7 @@
 package game
 
 import (
+	"context"
 	"math/rand/v2"
 
 	"charm.land/bubbles/v2/key"
@@ -43,6 +44,19 @@ type Spawner interface {
 type SeededSpawner interface {
 	Spawner
 	SpawnSeeded(rng *rand.Rand) (Gamer, error)
+}
+
+// CancellableSpawner optionally supports context-aware generation so callers
+// can cancel long-running spawn work.
+type CancellableSpawner interface {
+	SpawnContext(ctx context.Context) (Gamer, error)
+}
+
+// CancellableSeededSpawner optionally supports context-aware deterministic
+// generation so callers can cancel long-running seeded spawn work.
+type CancellableSeededSpawner interface {
+	SeededSpawner
+	SpawnSeededContext(ctx context.Context, rng *rand.Rand) (Gamer, error)
 }
 
 // BaseMode provides the common title/description fields and the three

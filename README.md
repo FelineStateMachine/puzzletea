@@ -2,18 +2,18 @@
 
 A terminal-based puzzle game collection built with [Bubble Tea](https://github.com/charmbracelet/bubbletea).
 
-Eight puzzle types, multiple difficulty modes, daily challenges, XP progression, 365 color themes, and a plugin architecture for adding new games.
+Nine puzzle types, multiple difficulty modes, daily challenges, XP progression, 365 color themes, and a plugin architecture for adding new games.
 
 ![PuzzleTea menu](vhs/menu.gif)
 
 ## Features
 
-- **8 puzzle games** -- Nonogram, Sudoku, Shikaku, Word Search, Hashiwokakero, Hitori, Lights Out, Takuzu
+- **9 puzzle games** -- Nonogram, Nurikabe, Sudoku, Shikaku, Word Search, Hashiwokakero, Hitori, Lights Out, Takuzu
 - **Daily puzzles** -- A unique puzzle generated each day using deterministic seeding. Same date, same puzzle for everyone. Streak tracking rewards consecutive daily completions.
 - **XP and leveling** -- Per-category levels based on victories. Harder modes yield more XP. Daily puzzles grant 2x XP.
 - **Stats dashboard** -- Profile level, daily streak, victory counts, and XP progress bars per category.
 - **365 color themes** -- Live-preview theme picker with WCAG-compliant contrast enforcement. Dark and light themes included.
-- **Mouse support** -- Click and drag in Nonogram, Shikaku, Word Search, and Lights Out.
+- **Mouse support** -- Click and drag in Nonogram, Nurikabe, Shikaku, and Word Search. Lights Out supports click-to-toggle.
 - **Seeded puzzles** -- Share a seed string to generate identical puzzles across sessions and machines.
 - **Save/load persistence** -- Games auto-save to SQLite. Resume any in-progress game by name.
 
@@ -22,6 +22,7 @@ Eight puzzle types, multiple difficulty modes, daily challenges, XP progression,
 | Game | Description | Modes |
 |------|-------------|-------|
 | **Nonogram** | Fill cells to match row and column hints | Easy/Medium/Hard across 5x5, 10x10, 15x15, 20x20 |
+| **Nurikabe** | Build islands while keeping one connected sea | 5 modes from 5x5 to 12x12 |
 | **Shikaku** | Divide grid into rectangles matching cell counts | 5 modes from 7x7 to 11x11 |
 | **Sudoku** | Classic 9x9 grid | Beginner, Easy, Medium, Hard, Expert, Diabolical |
 | **Word Search** | Find hidden words in a letter grid | Easy, Medium, Hard (3-8 directions) |
@@ -116,7 +117,7 @@ puzzletea --continue amber-falcon
 
 ### CLI Aliases
 
-Several shorthand names are accepted for games: `hashi`/`bridges` for Hashiwokakero, `lights` for Lights Out, `binairo`/`binary` for Takuzu, `words`/`ws` for Word Search, `rectangles` for Shikaku.
+Several shorthand names are accepted for games: `hashi`/`bridges` for Hashiwokakero, `lights` for Lights Out, `islands`/`sea` for Nurikabe, `binairo`/`binary` for Takuzu, `words`/`ws` for Word Search, `rectangles` for Shikaku.
 
 ## Controls
 
@@ -138,7 +139,7 @@ Arrow keys, WASD, and Vim bindings (`hjkl`) are supported for grid movement acro
 
 ### Mouse
 
-Nonogram, Shikaku, and Word Search support click and drag. Lights Out supports click to toggle. See each game's help for details.
+Nonogram, Nurikabe, Shikaku, and Word Search support click and drag. Lights Out supports click to toggle. See each game's help for details.
 
 ## Game Persistence
 
@@ -152,6 +153,13 @@ Fill cells to match row and column hints.
 ![Nonogram](vhs/nonogram.gif)
 
 [Game details and controls](nonogram/README.md)
+
+### Nurikabe
+Build islands from clues while keeping one connected sea.
+
+Nurikabe preview GIF coming soon.
+
+[Game details and controls](nurikabe/README.md)
 
 ### Shikaku
 Divide the grid into rectangles, where each rectangle contains exactly the number of cells shown in its clue.

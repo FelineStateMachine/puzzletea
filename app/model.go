@@ -3,6 +3,7 @@
 package app
 
 import (
+	"context"
 	"time"
 
 	"github.com/FelineStateMachine/puzzletea/config"
@@ -11,6 +12,7 @@ import (
 	"github.com/FelineStateMachine/puzzletea/hitori"
 	"github.com/FelineStateMachine/puzzletea/lightsout"
 	"github.com/FelineStateMachine/puzzletea/nonogram"
+	"github.com/FelineStateMachine/puzzletea/nurikabe"
 	"github.com/FelineStateMachine/puzzletea/shikaku"
 	"github.com/FelineStateMachine/puzzletea/stats"
 	"github.com/FelineStateMachine/puzzletea/store"
@@ -30,16 +32,28 @@ import (
 	"github.com/charmbracelet/glamour"
 )
 
-// GameCategories is the master registry of all puzzle types.
-var GameCategories = []list.Item{
-	game.Category{Name: "Hashiwokakero", Desc: "Connect islands with bridges.", Modes: hashiwokakero.Modes, Help: hashiwokakero.HelpContent},
-	game.Category{Name: "Hitori", Desc: "Shade cells to eliminate duplicates.", Modes: hitori.Modes, Help: hitori.HelpContent},
-	game.Category{Name: "Lights Out", Desc: "Turn off all the lights.", Modes: lightsout.Modes, Help: lightsout.HelpContent},
-	game.Category{Name: "Nonogram", Desc: "Fill cells to match row and column hints.", Modes: nonogram.Modes, Help: nonogram.HelpContent},
-	game.Category{Name: "Shikaku", Desc: "Divide the grid into rectangles.", Modes: shikaku.Modes, Help: shikaku.HelpContent},
-	game.Category{Name: "Sudoku", Desc: "Fill the 9x9 grid following sudoku rules.", Modes: sudoku.Modes, Help: sudoku.HelpContent},
-	game.Category{Name: "Takuzu", Desc: "Fill the grid with ● and ○.", Modes: takuzu.Modes, Help: takuzu.HelpContent},
-	game.Category{Name: "Word Search", Desc: "Find hidden words in a letter grid.", Modes: wordsearch.Modes, Help: wordsearch.HelpContent},
+// Categories is the master typed registry of all puzzle types.
+var Categories = []game.Category{
+	{Name: "Hashiwokakero", Desc: "Connect islands with bridges.", Modes: hashiwokakero.Modes, Help: hashiwokakero.HelpContent},
+	{Name: "Hitori", Desc: "Shade cells to eliminate duplicates.", Modes: hitori.Modes, Help: hitori.HelpContent},
+	{Name: "Lights Out", Desc: "Turn off all the lights.", Modes: lightsout.Modes, Help: lightsout.HelpContent},
+	{Name: "Nonogram", Desc: "Fill cells to match row and column hints.", Modes: nonogram.Modes, Help: nonogram.HelpContent},
+	{Name: "Nurikabe", Desc: "Build islands while keeping one connected sea.", Modes: nurikabe.Modes, Help: nurikabe.HelpContent},
+	{Name: "Shikaku", Desc: "Divide the grid into rectangles.", Modes: shikaku.Modes, Help: shikaku.HelpContent},
+	{Name: "Sudoku", Desc: "Fill the 9x9 grid following sudoku rules.", Modes: sudoku.Modes, Help: sudoku.HelpContent},
+	{Name: "Takuzu", Desc: "Fill the grid with ● and ○.", Modes: takuzu.Modes, Help: takuzu.HelpContent},
+	{Name: "Word Search", Desc: "Find hidden words in a letter grid.", Modes: wordsearch.Modes, Help: wordsearch.HelpContent},
+}
+
+// GameCategories is the list.Item view of Categories for bubbles lists.
+var GameCategories = categoriesAsItems(Categories)
+
+func categoriesAsItems(categories []game.Category) []list.Item {
+	items := make([]list.Item, len(categories))
+	for i, cat := range categories {
+		items[i] = cat
+	}
+	return items
 }
 
 var mainMenuItems = []ui.MenuItem{
@@ -90,11 +104,13 @@ type model struct {
 	continueTable table.Model
 	continueGames []store.GameRecord
 
-	mode game.Mode
-	game game.Gamer
+	selectedModeTitle string
+	game              game.Gamer
 
-	spinner    spinner.Model
-	generating bool // true while an async Spawn is in flight
+	spinner     spinner.Model
+	generating  bool // true while an async Spawn is in flight
+	spawnJobID  int64
+	spawnCancel context.CancelFunc
 
 	width  int // available content width (terminal - rootStyle frame)
 	height int // available content height (terminal - rootStyle frame)

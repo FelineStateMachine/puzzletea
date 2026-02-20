@@ -8,12 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/FelineStateMachine/puzzletea/daily"
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/store"
 	"github.com/FelineStateMachine/puzzletea/theme"
 
-	"charm.land/bubbles/v2/list"
 	"charm.land/lipgloss/v2"
 )
 
@@ -28,13 +26,15 @@ var ModeXP map[ModeKey]int
 
 // InitModeXP builds the ModeXP map from the provided game categories.
 // Must be called once at startup before any stats operations.
-func InitModeXP(categories []list.Item) {
+func InitModeXP(categories []game.Category) {
 	ModeXP = make(map[ModeKey]int, 64)
-	for _, item := range categories {
-		cat := item.(game.Category)
+	for _, cat := range categories {
 		count := len(cat.Modes)
 		for i, m := range cat.Modes {
-			mode := m.(game.Mode)
+			mode, ok := m.(game.Mode)
+			if !ok {
+				continue
+			}
 			xp := int(math.Round(float64(i) / float64(count) * 10))
 			if xp < 1 {
 				xp = 1
@@ -192,7 +192,7 @@ func BuildProfileBanner(
 	catStats []store.CategoryStat,
 	modeStats []store.ModeStat,
 	streakDates []time.Time,
-	s *store.Store,
+	currentDaily bool,
 ) ProfileBanner {
 	profileLevel := 0
 	totalDailies := 0
@@ -202,13 +202,7 @@ func BuildProfileBanner(
 		totalDailies += cs.TimesDaily
 	}
 
-	now := time.Now()
-	streak := ComputeDailyStreak(streakDates, now)
-
-	// Check if today's daily exists in the DB.
-	todayName := daily.Name(now)
-	rec, _ := s.GetDailyGame(todayName)
-	currentDaily := rec != nil
+	streak := ComputeDailyStreak(streakDates, time.Now())
 
 	return ProfileBanner{
 		ProfileLevel: profileLevel,
