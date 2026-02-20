@@ -123,7 +123,7 @@ func isSeaSquareCell(marks grid, x, y int) bool {
 
 func statusBarView(showFullHelp bool) string {
 	if showFullHelp {
-		return game.StatusBarStyle().Render("arrows/wasd: move  x: sea  z: island  bkspc: clear  LMB: toggle sea/unknown  RMB: island  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
+		return game.StatusBarStyle().Render("arrows/wasd: move x/LMB: sea  z/RMB: island  bkspc: clear  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
 	}
-	return game.StatusBarStyle().Render("x: sea  z: island  bkspc: clear  LMB: toggle sea/unknown  RMB: island")
+	return game.StatusBarStyle().Render("x/LMB: sea  z/RMB: island  bkspc: clear")
 }

@@ -157,7 +157,7 @@ Fill cells to match row and column hints.
 ### Nurikabe
 Build islands from clues while keeping one connected sea.
 
-Nurikabe preview GIF coming soon.
+![Nurikabe](vhs/nurikabe.gif)
 
 [Game details and controls](nurikabe/README.md)
 
