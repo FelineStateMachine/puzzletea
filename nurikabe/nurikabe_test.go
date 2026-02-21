@@ -786,7 +786,16 @@ func TestNoGoroutineLeakOnDeadlineTimeout(t *testing.T) {
 
 // --- Benchmarks (P2) ---
 
+func skipBenchmarkInShortMode(b *testing.B) {
+	b.Helper()
+	if testing.Short() {
+		b.Skip("skipping benchmark in short mode")
+	}
+}
+
 func BenchmarkGenerateSeededModes(b *testing.B) {
+	skipBenchmarkInShortMode(b)
+
 	for i, item := range Modes {
 		mode := item.(NurikabeMode)
 		modeIdx := i
@@ -805,6 +814,8 @@ func BenchmarkGenerateSeededModes(b *testing.B) {
 }
 
 func BenchmarkCountSolutions(b *testing.B) {
+	skipBenchmarkInShortMode(b)
+
 	easyMode := Modes[1].(NurikabeMode)
 	easyRNG := rand.New(rand.NewPCG(7001, 9001))
 	easyPuzzle, err := GenerateSeeded(easyMode, easyRNG)

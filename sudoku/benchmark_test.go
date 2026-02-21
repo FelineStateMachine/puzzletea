@@ -6,6 +6,13 @@ import (
 	"testing"
 )
 
+func skipBenchmarkInShortMode(b *testing.B) {
+	b.Helper()
+	if testing.Short() {
+		b.Skip("skipping benchmark in short mode")
+	}
+}
+
 func benchmarkSudokuModes() []SudokuMode {
 	return []SudokuMode{
 		NewMode("Beginner", "benchmark", 45),
@@ -18,6 +25,8 @@ func benchmarkSudokuModes() []SudokuMode {
 }
 
 func BenchmarkGenerateProvidedCellsByMode(b *testing.B) {
+	skipBenchmarkInShortMode(b)
+
 	for modeIndex, mode := range benchmarkSudokuModes() {
 		mode := mode
 		modeIndex := modeIndex
@@ -35,6 +44,8 @@ func BenchmarkGenerateProvidedCellsByMode(b *testing.B) {
 }
 
 func BenchmarkCountSolutionsByDifficulty(b *testing.B) {
+	skipBenchmarkInShortMode(b)
+
 	for modeIndex, mode := range benchmarkSudokuModes() {
 		mode := mode
 		modeIndex := modeIndex
@@ -60,6 +71,8 @@ func BenchmarkCountSolutionsByDifficulty(b *testing.B) {
 }
 
 func BenchmarkGenerateProvidedCellsSeededStable(b *testing.B) {
+	skipBenchmarkInShortMode(b)
+
 	mode := NewMode("Hard", "benchmark", 27)
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
@@ -72,6 +85,8 @@ func BenchmarkGenerateProvidedCellsSeededStable(b *testing.B) {
 }
 
 func BenchmarkCountSolutionsFixedPuzzle(b *testing.B) {
+	skipBenchmarkInShortMode(b)
+
 	mode := NewMode("Expert", "benchmark", 22)
 	cells := GenerateProvidedCellsSeeded(mode, rand.New(rand.NewPCG(42, 84)))
 	source := newGrid(cells)
@@ -91,6 +106,8 @@ func BenchmarkCountSolutionsFixedPuzzle(b *testing.B) {
 }
 
 func BenchmarkIsValidAllCells(b *testing.B) {
+	skipBenchmarkInShortMode(b)
+
 	mode := NewMode("Medium", "benchmark", 32)
 	cells := GenerateProvidedCellsSeeded(mode, rand.New(rand.NewPCG(7, 11)))
 	g := newGrid(cells)
@@ -113,6 +130,8 @@ func BenchmarkIsValidAllCells(b *testing.B) {
 }
 
 func BenchmarkCountSolutionsModesSummary(b *testing.B) {
+	skipBenchmarkInShortMode(b)
+
 	modes := benchmarkSudokuModes()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {

@@ -1258,7 +1258,16 @@ func TestHelpToggleInvalidatesOriginCache(t *testing.T) {
 
 // --- Benchmarks (P2) ---
 
+func skipBenchmarkInShortMode(b *testing.B) {
+	b.Helper()
+	if testing.Short() {
+		b.Skip("skipping benchmark in short mode")
+	}
+}
+
 func BenchmarkGenerateRandomTomographyModes(b *testing.B) {
+	skipBenchmarkInShortMode(b)
+
 	modeConfigs := []struct {
 		name  string
 		mode  NonogramMode
@@ -1295,6 +1304,8 @@ func BenchmarkGenerateRandomTomographyModes(b *testing.B) {
 }
 
 func BenchmarkCountSolutionsLarge(b *testing.B) {
+	skipBenchmarkInShortMode(b)
+
 	cases := []struct {
 		name  string
 		mode  NonogramMode

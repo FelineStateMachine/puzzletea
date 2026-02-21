@@ -5,6 +5,13 @@ import (
 	"testing"
 )
 
+func skipBenchmarkInShortMode(b *testing.B) {
+	b.Helper()
+	if testing.Short() {
+		b.Skip("skipping benchmark in short mode")
+	}
+}
+
 func benchmarkShikakuModes() []ShikakuMode {
 	return []ShikakuMode{
 		NewMode("Mini 5x5", "benchmark", 5, 5, 5),
@@ -27,6 +34,8 @@ func makeUncoveredGenerationGrid(width, height int) [][]int {
 }
 
 func BenchmarkGeneratePuzzleBySize(b *testing.B) {
+	skipBenchmarkInShortMode(b)
+
 	for modeIndex, mode := range benchmarkShikakuModes() {
 		mode := mode
 		modeIndex := modeIndex
@@ -56,6 +65,8 @@ func BenchmarkGeneratePuzzleBySize(b *testing.B) {
 }
 
 func BenchmarkPartitionGrid(b *testing.B) {
+	skipBenchmarkInShortMode(b)
+
 	for modeIndex, mode := range benchmarkShikakuModes() {
 		mode := mode
 		modeIndex := modeIndex

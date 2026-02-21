@@ -5,7 +5,16 @@ import (
 	"testing"
 )
 
+func skipBenchmarkInShortMode(b *testing.B) {
+	b.Helper()
+	if testing.Short() {
+		b.Skip("skipping benchmark in short mode")
+	}
+}
+
 func BenchmarkGenerateByMode(b *testing.B) {
+	skipBenchmarkInShortMode(b)
+
 	cases := []struct {
 		name string
 		w    int
@@ -30,6 +39,8 @@ func BenchmarkGenerateByMode(b *testing.B) {
 }
 
 func BenchmarkToggle(b *testing.B) {
+	skipBenchmarkInShortMode(b)
+
 	cases := []struct {
 		name string
 		w    int

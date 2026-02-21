@@ -5,6 +5,13 @@ import (
 	"testing"
 )
 
+func skipBenchmarkInShortMode(b *testing.B) {
+	b.Helper()
+	if testing.Short() {
+		b.Skip("skipping benchmark in short mode")
+	}
+}
+
 type wordSearchBenchCase struct {
 	name        string
 	width       int
@@ -16,6 +23,8 @@ type wordSearchBenchCase struct {
 }
 
 func BenchmarkGenerateWordSearchByMode(b *testing.B) {
+	skipBenchmarkInShortMode(b)
+
 	cases := []wordSearchBenchCase{
 		{
 			name:        "easy_10x10",
@@ -82,6 +91,8 @@ func BenchmarkGenerateWordSearchByMode(b *testing.B) {
 }
 
 func BenchmarkTryPlaceWord(b *testing.B) {
+	skipBenchmarkInShortMode(b)
+
 	cases := []struct {
 		name        string
 		width       int

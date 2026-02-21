@@ -6,6 +6,13 @@ import (
 	"testing"
 )
 
+func skipBenchmarkInShortMode(b *testing.B) {
+	b.Helper()
+	if testing.Short() {
+		b.Skip("skipping benchmark in short mode")
+	}
+}
+
 type hitoriBenchMode struct {
 	size       int
 	blackRatio float64
@@ -21,6 +28,8 @@ var hitoriBenchModes = []hitoriBenchMode{
 }
 
 func BenchmarkGenerateBySize(b *testing.B) {
+	skipBenchmarkInShortMode(b)
+
 	for _, mode := range hitoriBenchModes {
 		name := fmt.Sprintf("%dx%d", mode.size, mode.size)
 		b.Run(name, func(b *testing.B) {
@@ -41,6 +50,8 @@ func BenchmarkGenerateBySize(b *testing.B) {
 }
 
 func BenchmarkCountPuzzleSolutionsBySize(b *testing.B) {
+	skipBenchmarkInShortMode(b)
+
 	for _, mode := range hitoriBenchModes {
 		name := fmt.Sprintf("%dx%d", mode.size, mode.size)
 		b.Run(name, func(b *testing.B) {

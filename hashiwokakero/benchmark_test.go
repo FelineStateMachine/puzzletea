@@ -5,6 +5,13 @@ import (
 	"testing"
 )
 
+func skipBenchmarkInShortMode(b *testing.B) {
+	b.Helper()
+	if testing.Short() {
+		b.Skip("skipping benchmark in short mode")
+	}
+}
+
 func benchmarkHashiModesByBoardSize() []HashiMode {
 	return []HashiMode{
 		NewMode("Hard 7x7", "benchmark", 7, 7, 17, 20),
@@ -15,6 +22,8 @@ func benchmarkHashiModesByBoardSize() []HashiMode {
 }
 
 func BenchmarkGeneratePuzzleByBoardSize(b *testing.B) {
+	skipBenchmarkInShortMode(b)
+
 	for modeIndex, mode := range benchmarkHashiModesByBoardSize() {
 		mode := mode
 		modeIndex := modeIndex
@@ -44,6 +53,8 @@ func BenchmarkGeneratePuzzleByBoardSize(b *testing.B) {
 }
 
 func BenchmarkBuildSpanningTree(b *testing.B) {
+	skipBenchmarkInShortMode(b)
+
 	for modeIndex, mode := range benchmarkHashiModesByBoardSize() {
 		mode := mode
 		modeIndex := modeIndex

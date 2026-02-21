@@ -6,6 +6,13 @@ import (
 	"testing"
 )
 
+func skipBenchmarkInShortMode(b *testing.B) {
+	b.Helper()
+	if testing.Short() {
+		b.Skip("skipping benchmark in short mode")
+	}
+}
+
 type takuzuBenchMode struct {
 	size      int
 	prefilled float64
@@ -19,6 +26,8 @@ var takuzuBenchModes = []takuzuBenchMode{
 }
 
 func BenchmarkGeneratePuzzleSizes(b *testing.B) {
+	skipBenchmarkInShortMode(b)
+
 	for _, mode := range takuzuBenchModes {
 		name := fmt.Sprintf("%dx%d", mode.size, mode.size)
 		b.Run(name, func(b *testing.B) {
@@ -38,6 +47,8 @@ func BenchmarkGeneratePuzzleSizes(b *testing.B) {
 }
 
 func BenchmarkCountSolutionsSizes(b *testing.B) {
+	skipBenchmarkInShortMode(b)
+
 	for _, mode := range takuzuBenchModes {
 		name := fmt.Sprintf("%dx%d", mode.size, mode.size)
 		b.Run(name, func(b *testing.B) {
