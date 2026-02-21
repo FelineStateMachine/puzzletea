@@ -249,6 +249,13 @@ func rectFromCorners(x1, y1, x2, y2 int) Rectangle {
 	}
 }
 
+func (m Model) cancelPendingRectangle() Model {
+	m.selectedClue = nil
+	m.mouseDragAnchor = nil
+	m.mousePreview = nil
+	return m
+}
+
 func (m Model) handleNavMode(msg tea.KeyPressMsg) Model {
 	switch {
 	case key.Matches(msg, m.keys.Select):
@@ -270,6 +277,8 @@ func (m Model) handleNavMode(msg tea.KeyPressMsg) Model {
 		if owner >= 0 {
 			m.puzzle.RemoveRectangle(owner)
 		}
+	case key.Matches(msg, m.keys.Cancel):
+		m = m.cancelPendingRectangle()
 	default:
 		m.cursor.Move(m.keys.CursorKeyMap, msg, m.puzzle.Width-1, m.puzzle.Height-1)
 	}
@@ -325,7 +334,7 @@ func (m Model) handleExpansionMode(msg tea.KeyPressMsg) Model {
 			m.selectedClue = nil
 		}
 	case key.Matches(msg, m.keys.Cancel):
-		m.selectedClue = nil
+		m = m.cancelPendingRectangle()
 	case key.Matches(msg, m.keys.Delete):
 		m.puzzle.RemoveRectangle(clue.ID)
 		m.selectedClue = nil

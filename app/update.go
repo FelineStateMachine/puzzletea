@@ -98,7 +98,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m.handleEnter()
 			}
 		case key.Matches(msg, rootKeys.Escape):
-			return m.handleEscape()
+			if m.state != gameView {
+				return m.handleEscape()
+			}
 		case key.Matches(msg, rootKeys.Quit):
 			m = saveCurrentGame(m, store.StatusAbandoned)
 			return m, tea.Quit
