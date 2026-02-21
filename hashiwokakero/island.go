@@ -39,6 +39,7 @@ type Puzzle struct {
 	cellCache     [][]cellInfo   // lazily built, invalidated on bridge changes
 	posIndex      map[[2]int]int // (x,y) → island slice index; lazily built
 	bridgeCounts  []int          // per-island bridge count; lazily built
+	bridgeIndex   map[[2]int]int // (island1,island2) -> Bridges index; lazily built
 }
 
 // FindIslandAt returns the island at (x,y), or nil.
@@ -59,6 +60,21 @@ func (p *Puzzle) buildPosIndex() {
 	}
 }
 
+func bridgeKey(id1, id2 int) [2]int {
+	a, b := id1, id2
+	if a > b {
+		a, b = b, a
+	}
+	return [2]int{a, b}
+}
+
+func (p *Puzzle) buildBridgeIndex() {
+	p.bridgeIndex = make(map[[2]int]int, len(p.Bridges))
+	for i, b := range p.Bridges {
+		p.bridgeIndex[bridgeKey(b.Island1, b.Island2)] = i
+	}
+}
+
 // FindIslandByID returns the island with the given ID, or nil.
 func (p *Puzzle) FindIslandByID(id int) *Island {
 	if id >= 0 && id < len(p.Islands) && p.Islands[id].ID == id {
@@ -75,13 +91,13 @@ func (p *Puzzle) FindIslandByID(id int) *Island {
 
 // GetBridge returns the bridge between two islands (by ID), or nil.
 func (p *Puzzle) GetBridge(id1, id2 int) *Bridge {
-	a, b := id1, id2
-	if a > b {
-		a, b = b, a
+	if p.bridgeIndex == nil {
+		p.buildBridgeIndex()
 	}
-	for i := range p.Bridges {
-		if p.Bridges[i].Island1 == a && p.Bridges[i].Island2 == b {
-			return &p.Bridges[i]
+
+	if idx, ok := p.bridgeIndex[bridgeKey(id1, id2)]; ok {
+		if idx >= 0 && idx < len(p.Bridges) {
+			return &p.Bridges[idx]
 		}
 	}
 	return nil
@@ -186,27 +202,35 @@ func (p *Puzzle) SetBridge(id1, id2, count int) {
 		a, b = b, a
 	}
 
-	p.invalidateCache()
+	p.invalidateBridgeCaches()
+	if p.bridgeIndex == nil {
+		p.buildBridgeIndex()
+	}
+	key := bridgeKey(a, b)
 
 	if count == 0 {
 		// Remove bridge
-		for i := range p.Bridges {
-			if p.Bridges[i].Island1 == a && p.Bridges[i].Island2 == b {
-				p.Bridges = append(p.Bridges[:i], p.Bridges[i+1:]...)
-				return
-			}
+		idx, ok := p.bridgeIndex[key]
+		if !ok {
+			return
+		}
+
+		p.Bridges = append(p.Bridges[:idx], p.Bridges[idx+1:]...)
+		delete(p.bridgeIndex, key)
+		for i := idx; i < len(p.Bridges); i++ {
+			p.bridgeIndex[bridgeKey(p.Bridges[i].Island1, p.Bridges[i].Island2)] = i
 		}
 		return
 	}
 
 	// Update or create bridge
-	for i := range p.Bridges {
-		if p.Bridges[i].Island1 == a && p.Bridges[i].Island2 == b {
-			p.Bridges[i].Count = count
-			return
-		}
+	if idx, ok := p.bridgeIndex[key]; ok {
+		p.Bridges[idx].Count = count
+		return
 	}
+
 	p.Bridges = append(p.Bridges, Bridge{Island1: a, Island2: b, Count: count})
+	p.bridgeIndex[key] = len(p.Bridges) - 1
 }
 
 // CellContent returns what occupies the given grid cell, using a lazily-built cache.
@@ -263,6 +287,13 @@ func (p *Puzzle) rebuildCellCache() {
 func (p *Puzzle) invalidateCache() {
 	p.cellCache = nil
 	p.posIndex = nil
+	p.bridgeCounts = nil
+	p.bridgeIndex = nil
+}
+
+// invalidateBridgeCaches marks bridge-derived caches as stale.
+func (p *Puzzle) invalidateBridgeCaches() {
+	p.cellCache = nil
 	p.bridgeCounts = nil
 }
 
