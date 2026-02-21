@@ -96,7 +96,8 @@ func generateValidMaskSeeded(size int, blackRatio float64, rng *rand.Rand) [][]b
 
 		mask[p.y][p.x] = true
 
-		if !whiteCellsConnected(mask, size) {
+		if requiresConnectivityCheck(mask, size, p.x, p.y) &&
+			!whiteCellsConnected(mask, size) {
 			mask[p.y][p.x] = false
 			continue
 		}
@@ -121,6 +122,23 @@ func hasOrthogonalNeighbor(mask [][]bool, size, x, y int) bool {
 		return true
 	}
 	return false
+}
+
+func requiresConnectivityCheck(mask [][]bool, size, x, y int) bool {
+	neighbors := 0
+	if x > 0 && !mask[y][x-1] {
+		neighbors++
+	}
+	if x < size-1 && !mask[y][x+1] {
+		neighbors++
+	}
+	if y > 0 && !mask[y-1][x] {
+		neighbors++
+	}
+	if y < size-1 && !mask[y+1][x] {
+		neighbors++
+	}
+	return neighbors > 1
 }
 
 func whiteCellsConnected(mask [][]bool, size int) bool {
@@ -226,15 +244,14 @@ func refinePuzzleSeeded(puzzle grid, mask [][]bool, size int, rng *rand.Rand) (g
 
 	// Try to refine each black cell's value to reduce solution count.
 	refined := puzzle.clone()
+	currentCount := countPuzzleSolutions(refined, size, 3)
 	for _, bc := range blackCells {
 		// Collect candidate numbers for this black cell.
 		candidates := cellCandidates(refined, mask, size, bc.x, bc.y)
-		rng.Shuffle(len(candidates), func(i, j int) {
-			candidates[i], candidates[j] = candidates[j], candidates[i]
-		})
+		rankRefinementCandidates(refined, mask, size, bc.x, bc.y, candidates, rng)
 
 		best := refined[bc.y][bc.x]
-		bestCount := countPuzzleSolutions(refined, size, 3)
+		bestCount := currentCount
 
 		for _, num := range candidates {
 			if num == best {
@@ -251,9 +268,59 @@ func refinePuzzleSeeded(puzzle grid, mask [][]bool, size int, rng *rand.Rand) (g
 			}
 		}
 		refined[bc.y][bc.x] = best
+		currentCount = bestCount
+
+		if currentCount == 1 {
+			return refined, true
+		}
 	}
 
 	return refined, countPuzzleSolutions(refined, size, 2) == 1
+}
+
+func rankRefinementCandidates(
+	puzzle grid,
+	mask [][]bool,
+	size, x, y int,
+	candidates []rune,
+	rng *rand.Rand,
+) {
+	if len(candidates) <= 1 {
+		return
+	}
+
+	rng.Shuffle(len(candidates), func(i, j int) {
+		candidates[i], candidates[j] = candidates[j], candidates[i]
+	})
+
+	for i := 1; i < len(candidates); i++ {
+		key := candidates[i]
+		keyScore := candidateConstraintScore(puzzle, mask, size, x, y, key)
+		j := i - 1
+		for ; j >= 0; j-- {
+			score := candidateConstraintScore(puzzle, mask, size, x, y, candidates[j])
+			if score >= keyScore {
+				break
+			}
+			candidates[j+1] = candidates[j]
+		}
+		candidates[j+1] = key
+	}
+}
+
+func candidateConstraintScore(puzzle grid, mask [][]bool, size, x, y int, num rune) int {
+	score := 0
+	for cx := range size {
+		if cx != x && !mask[y][cx] && puzzle[y][cx] == num {
+			score++
+		}
+	}
+	for cy := range size {
+		if cy != y && !mask[cy][x] && puzzle[cy][x] == num {
+			score++
+		}
+	}
+	return score
 }
 
 // cellCandidates returns all valid number choices for a black cell at (x,y):
@@ -291,11 +358,18 @@ func countPuzzleSolutions(puzzle grid, size, limit int) int {
 	for y := range size {
 		st[y] = make([]solverState, size)
 	}
-	return solveBT(puzzle, st, size, 0, limit)
+	order := rowMajorOrder(size)
+	return solveBT(puzzle, st, order, 0, limit)
 }
 
-func solveBT(puzzle grid, st [][]solverState, size, pos, limit int) int {
-	if pos == size*size {
+func solveBT(
+	puzzle grid,
+	st [][]solverState,
+	order []cellPos,
+	pos, limit int,
+) int {
+	size := len(st)
+	if pos == len(order) {
 		marks := stateToMarks(st, size)
 		if allWhiteConnected(marks, size) {
 			return 1
@@ -303,28 +377,84 @@ func solveBT(puzzle grid, st [][]solverState, size, pos, limit int) int {
 		return 0
 	}
 
-	x, y := pos%size, pos/size
+	nextIdx := pickNextOrderIndex(puzzle, st, order, pos, size)
+	order[pos], order[nextIdx] = order[nextIdx], order[pos]
+
+	x, y := order[pos].x, order[pos].y
+	whiteOK := canBeWhite(puzzle, st, size, x, y)
+	blackOK := canBeBlack(st, size, x, y)
 	count := 0
 
-	if canBeWhite(puzzle, st, size, x, y) {
+	if !whiteOK && !blackOK {
+		order[pos], order[nextIdx] = order[nextIdx], order[pos]
+		return 0
+	}
+
+	if whiteOK {
 		st[y][x] = white
-		count += solveBT(puzzle, st, size, pos+1, limit-count)
+		count += solveBT(puzzle, st, order, pos+1, limit-count)
 		st[y][x] = unknown
 		if count >= limit {
+			order[pos], order[nextIdx] = order[nextIdx], order[pos]
 			return count
 		}
 	}
 
-	if canBeBlack(st, size, x, y) {
+	if blackOK {
 		st[y][x] = black
-		count += solveBT(puzzle, st, size, pos+1, limit-count)
+		count += solveBT(puzzle, st, order, pos+1, limit-count)
 		st[y][x] = unknown
 		if count >= limit {
+			order[pos], order[nextIdx] = order[nextIdx], order[pos]
 			return count
 		}
 	}
 
+	order[pos], order[nextIdx] = order[nextIdx], order[pos]
 	return count
+}
+
+func rowMajorOrder(size int) []cellPos {
+	order := make([]cellPos, 0, size*size)
+	for y := range size {
+		for x := range size {
+			order = append(order, cellPos{x, y})
+		}
+	}
+	return order
+}
+
+func pickNextOrderIndex(
+	puzzle grid,
+	st [][]solverState,
+	order []cellPos,
+	pos, size int,
+) int {
+	const lookaheadWindow = 2
+
+	end := pos + lookaheadWindow
+	if end > len(order) {
+		end = len(order)
+	}
+
+	for i := pos; i < end; i++ {
+		x, y := order[i].x, order[i].y
+		whiteOK := canBeWhite(puzzle, st, size, x, y)
+		blackOK := canBeBlack(st, size, x, y)
+
+		options := 0
+		if whiteOK {
+			options++
+		}
+		if blackOK {
+			options++
+		}
+		if options <= 1 {
+			return i
+		}
+	}
+
+	return pos
 }
 
 func canBeWhite(puzzle grid, st [][]solverState, size, x, y int) bool {
@@ -346,7 +476,13 @@ func canBeBlack(st [][]solverState, size, x, y int) bool {
 	if x > 0 && st[y][x-1] == black {
 		return false
 	}
+	if x < size-1 && st[y][x+1] == black {
+		return false
+	}
 	if y > 0 && st[y-1][x] == black {
+		return false
+	}
+	if y < size-1 && st[y+1][x] == black {
 		return false
 	}
 	return true

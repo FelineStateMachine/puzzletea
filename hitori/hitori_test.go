@@ -2,6 +2,7 @@ package hitori
 
 import (
 	"encoding/json"
+	"math/rand/v2"
 	"testing"
 
 	"github.com/FelineStateMachine/puzzletea/game"
@@ -821,6 +822,132 @@ func TestCountPuzzleSolutions_KnownPuzzle(t *testing.T) {
 	if solutions < 1 {
 		t.Errorf("expected at least 1 solution, got %d", solutions)
 	}
+}
+
+// --- Uniqueness and connectivity regression (P0) ---
+
+func TestGenerateValidMaskSeeded_AllModes_NoAdjacencyAndConnected(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping generator test in short mode")
+	}
+
+	modes := []struct {
+		name       string
+		size       int
+		blackRatio float64
+		seeds      []uint64
+	}{
+		{"Mini 5x5", 5, 0.32, []uint64{11, 17}},
+		{"Easy 6x6", 6, 0.32, []uint64{19, 23}},
+		{"Medium 8x8", 8, 0.30, []uint64{29, 31}},
+		{"Tricky 9x9", 9, 0.30, []uint64{37}},
+		{"Hard 10x10", 10, 0.30, []uint64{41}},
+		{"Expert 12x12", 12, 0.28, []uint64{43}},
+	}
+
+	for _, mode := range modes {
+		t.Run(mode.name, func(t *testing.T) {
+			for _, seed := range mode.seeds {
+				rng := rand.New(rand.NewPCG(seed, seed*7+3))
+				mask := generateValidMaskSeeded(mode.size, mode.blackRatio, rng)
+
+				for y := range mode.size {
+					for x := range mode.size {
+						if mask[y][x] && hasOrthogonalNeighbor(mask, mode.size, x, y) {
+							t.Fatalf("seed %d produced adjacent black cells at (%d,%d)", seed, x, y)
+						}
+					}
+				}
+
+				if !whiteCellsConnected(mask, mode.size) {
+					t.Fatalf("seed %d produced disconnected white cells", seed)
+				}
+			}
+		})
+	}
+}
+
+func TestGenerateSeeded_AllModes_UniqueAndConnected(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping generator test in short mode")
+	}
+
+	modes := []struct {
+		name       string
+		size       int
+		blackRatio float64
+		seeds      []uint64
+	}{
+		{"Mini 5x5", 5, 0.32, []uint64{47, 53}},
+		{"Easy 6x6", 6, 0.32, []uint64{59, 61}},
+		{"Medium 8x8", 8, 0.30, []uint64{67, 71}},
+		{"Tricky 9x9", 9, 0.30, []uint64{73}},
+		{"Hard 10x10", 10, 0.30, []uint64{79}},
+		{"Expert 12x12", 12, 0.28, []uint64{83}},
+	}
+
+	for _, mode := range modes {
+		t.Run(mode.name, func(t *testing.T) {
+			for _, seed := range mode.seeds {
+				rng := rand.New(rand.NewPCG(seed, seed*11+5))
+				puzzle, err := GenerateSeeded(mode.size, mode.blackRatio, rng)
+				if err != nil {
+					t.Fatalf("seed %d GenerateSeeded: %v", seed, err)
+				}
+
+				if count := countPuzzleSolutions(puzzle, mode.size, 2); count != 1 {
+					t.Fatalf("seed %d puzzle has %d solutions, want 1", seed, count)
+				}
+
+				marks, ok := findFirstSolutionMarks(puzzle, mode.size)
+				if !ok {
+					t.Fatalf("seed %d no valid solution marks found", seed)
+				}
+				if !isValidSolution(puzzle, marks, mode.size) {
+					t.Fatalf("seed %d solution marks violate invariants", seed)
+				}
+			}
+		})
+	}
+}
+
+func findFirstSolutionMarks(puzzle grid, size int) ([][]cellMark, bool) {
+	st := make([][]solverState, size)
+	for y := range size {
+		st[y] = make([]solverState, size)
+	}
+
+	var solution [][]cellMark
+	var search func(pos int) bool
+	search = func(pos int) bool {
+		if pos == size*size {
+			marks := stateToMarks(st, size)
+			if allWhiteConnected(marks, size) {
+				solution = marks
+				return true
+			}
+			return false
+		}
+
+		x, y := pos%size, pos/size
+		if canBeWhite(puzzle, st, size, x, y) {
+			st[y][x] = white
+			if search(pos + 1) {
+				return true
+			}
+		}
+		if canBeBlack(st, size, x, y) {
+			st[y][x] = black
+			if search(pos + 1) {
+				return true
+			}
+		}
+
+		st[y][x] = unknown
+		return false
+	}
+
+	return solution, search(0)
 }
 
 // --- Registration (P0) ---

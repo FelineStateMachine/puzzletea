@@ -4,6 +4,68 @@ import "math/rand/v2"
 
 type cellPos struct{ x, y int }
 
+type lineStats struct {
+	rowZero   []int
+	rowOne    []int
+	colZero   []int
+	colOne    []int
+	rowFilled []int
+	colFilled []int
+}
+
+type mrvChoice struct {
+	x, y  int
+	vals  [2]rune
+	count int
+}
+
+func newLineStats(g grid, size int) *lineStats {
+	stats := &lineStats{
+		rowZero:   make([]int, size),
+		rowOne:    make([]int, size),
+		colZero:   make([]int, size),
+		colOne:    make([]int, size),
+		rowFilled: make([]int, size),
+		colFilled: make([]int, size),
+	}
+
+	for y := range size {
+		for x := range size {
+			val := g[y][x]
+			if val == emptyCell {
+				continue
+			}
+
+			stats.rowFilled[y]++
+			stats.colFilled[x]++
+			switch val {
+			case zeroCell:
+				stats.rowZero[y]++
+				stats.colZero[x]++
+			case oneCell:
+				stats.rowOne[y]++
+				stats.colOne[x]++
+			}
+		}
+	}
+
+	return stats
+}
+
+func (s *lineStats) apply(x, y int, val rune, delta int) {
+	s.rowFilled[y] += delta
+	s.colFilled[x] += delta
+
+	switch val {
+	case zeroCell:
+		s.rowZero[y] += delta
+		s.colZero[x] += delta
+	case oneCell:
+		s.rowOne[y] += delta
+		s.colOne[x] += delta
+	}
+}
+
 // generateComplete fills an empty grid with a valid Takuzu solution using
 // backtracking with retry on failure.
 func generateComplete(size int) grid {
@@ -46,28 +108,88 @@ func fillGrid(g grid, size int) bool {
 }
 
 func fillGridSeeded(g grid, size int, rng *rand.Rand) bool {
+	stats := newLineStats(g, size)
+	return fillGridSeededWithStats(g, size, rng, stats)
+}
+
+func fillGridSeededWithStats(g grid, size int, rng *rand.Rand, stats *lineStats) bool {
+	choice := selectMRVCell(g, size, stats, rng)
+	if choice.x < 0 {
+		return true
+	}
+	if choice.count == 0 {
+		return false
+	}
+
+	if choice.count == 2 && rng.IntN(2) == 0 {
+		choice.vals[0], choice.vals[1] = choice.vals[1], choice.vals[0]
+	}
+
+	for i := range choice.count {
+		v := choice.vals[i]
+		g[choice.y][choice.x] = v
+		stats.apply(choice.x, choice.y, v, 1)
+		if fillGridSeededWithStats(g, size, rng, stats) {
+			return true
+		}
+		stats.apply(choice.x, choice.y, v, -1)
+		g[choice.y][choice.x] = emptyCell
+	}
+
+	return false
+}
+
+func selectMRVCell(g grid, size int, stats *lineStats, rng *rand.Rand) mrvChoice {
+	choice := mrvChoice{x: -1, y: -1, count: 3}
+	tieCount := 0
+
 	for y := range size {
 		for x := range size {
 			if g[y][x] != emptyCell {
 				continue
 			}
-			vals := [2]rune{zeroCell, oneCell}
-			if rng.IntN(2) == 0 {
-				vals[0], vals[1] = vals[1], vals[0]
+
+			vals, count := cellCandidates(g, size, x, y, stats)
+			if count == 0 {
+				return mrvChoice{x: x, y: y}
 			}
-			for _, v := range vals {
-				if canPlace(g, size, x, y, v) {
-					g[y][x] = v
-					if fillGridSeeded(g, size, rng) {
-						return true
-					}
-					g[y][x] = emptyCell
+
+			if count < choice.count {
+				choice = mrvChoice{x: x, y: y, vals: vals, count: count}
+				tieCount = 1
+				continue
+			}
+
+			if count == choice.count {
+				tieCount++
+				if rng != nil && rng.IntN(tieCount) == 0 {
+					choice = mrvChoice{x: x, y: y, vals: vals, count: count}
 				}
 			}
-			return false
 		}
 	}
-	return true
+
+	if choice.x < 0 {
+		return mrvChoice{x: -1, y: -1, count: 0}
+	}
+
+	return choice
+}
+
+func cellCandidates(g grid, size, x, y int, stats *lineStats) ([2]rune, int) {
+	var vals [2]rune
+	count := 0
+
+	if canPlaceWithStats(g, size, x, y, zeroCell, stats) {
+		vals[count] = zeroCell
+		count++
+	}
+	if canPlaceWithStats(g, size, x, y, oneCell, stats) {
+		vals[count] = oneCell
+		count++
+	}
+
+	return vals, count
 }
 
 // generatePuzzle removes cells from a complete grid to create a puzzle with a unique solution.
@@ -88,59 +210,120 @@ func generatePuzzleSeeded(complete grid, size int, prefilled float64, rng *rand.
 
 	target := int(prefilled * float64(size*size))
 
-	positions := make([]cellPos, 0, size*size)
+	rowProvided := make([]int, size)
+	colProvided := make([]int, size)
+	for i := range size {
+		rowProvided[i] = size
+		colProvided[i] = size
+	}
+
+	candidates := make([]cellPos, 0, size*size)
 	for y := range size {
 		for x := range size {
-			positions = append(positions, cellPos{x, y})
+			candidates = append(candidates, cellPos{x, y})
 		}
 	}
-	rng.Shuffle(len(positions), func(i, j int) {
-		positions[i], positions[j] = positions[j], positions[i]
+	rng.Shuffle(len(candidates), func(i, j int) {
+		candidates[i], candidates[j] = candidates[j], candidates[i]
 	})
 
+	stats := newLineStats(puzzle, size)
 	filled := size * size
-	for _, p := range positions {
-		if filled <= target {
-			break
+	for len(candidates) > 0 && filled > target {
+		bestIdx := pickRemovalCandidate(candidates, puzzle, rowProvided, colProvided, rng)
+		p := candidates[bestIdx]
+		last := len(candidates) - 1
+		candidates[bestIdx] = candidates[last]
+		candidates = candidates[:last]
+
+		if puzzle[p.y][p.x] == emptyCell {
+			continue
 		}
+
 		saved := puzzle[p.y][p.x]
 		puzzle[p.y][p.x] = emptyCell
-		if countSolutions(puzzle, size, 2) != 1 {
+		stats.apply(p.x, p.y, saved, -1)
+		if countSolutionsWithStats(puzzle, size, 2, stats) != 1 {
 			puzzle[p.y][p.x] = saved
+			stats.apply(p.x, p.y, saved, 1)
 		} else {
 			provided[p.y][p.x] = false
 			filled--
+			rowProvided[p.y]--
+			colProvided[p.x]--
 		}
 	}
 
 	return puzzle, provided
 }
 
-// countSolutions counts solutions of the grid up to limit using backtracking.
-func countSolutions(g grid, size, limit int) int {
-	for y := range size {
-		for x := range size {
-			if g[y][x] != emptyCell {
-				continue
-			}
-			count := 0
-			for _, v := range [2]rune{zeroCell, oneCell} {
-				if canPlace(g, size, x, y, v) {
-					g[y][x] = v
-					count += countSolutions(g, size, limit-count)
-					g[y][x] = emptyCell
-					if count >= limit {
-						return count
-					}
-				}
-			}
-			return count
+func pickRemovalCandidate(candidates []cellPos, puzzle grid, rowProvided, colProvided []int, rng *rand.Rand) int {
+	bestIdx := 0
+	bestScore := clueRemovalScore(candidates[0], puzzle, rowProvided, colProvided)
+
+	for i := 1; i < len(candidates); i++ {
+		score := clueRemovalScore(candidates[i], puzzle, rowProvided, colProvided)
+		if score > bestScore || (score == bestScore && rng.IntN(2) == 0) {
+			bestIdx = i
+			bestScore = score
 		}
 	}
-	if hasUniqueLines(g, size) {
-		return 1
+
+	return bestIdx
+}
+
+func clueRemovalScore(p cellPos, puzzle grid, rowProvided, colProvided []int) int {
+	size := len(puzzle)
+	score := rowProvided[p.y] + colProvided[p.x]
+
+	if p.x > 0 && puzzle[p.y][p.x-1] != emptyCell {
+		score++
 	}
-	return 0
+	if p.x < size-1 && puzzle[p.y][p.x+1] != emptyCell {
+		score++
+	}
+	if p.y > 0 && puzzle[p.y-1][p.x] != emptyCell {
+		score++
+	}
+	if p.y < size-1 && puzzle[p.y+1][p.x] != emptyCell {
+		score++
+	}
+
+	return score
+}
+
+// countSolutions counts solutions of the grid up to limit using backtracking.
+func countSolutions(g grid, size, limit int) int {
+	stats := newLineStats(g, size)
+	return countSolutionsWithStats(g, size, limit, stats)
+}
+
+func countSolutionsWithStats(g grid, size, limit int, stats *lineStats) int {
+	choice := selectMRVCell(g, size, stats, nil)
+	if choice.x < 0 {
+		if hasUniqueLines(g, size) {
+			return 1
+		}
+		return 0
+	}
+	if choice.count == 0 {
+		return 0
+	}
+
+	total := 0
+	for i := range choice.count {
+		v := choice.vals[i]
+		g[choice.y][choice.x] = v
+		stats.apply(choice.x, choice.y, v, 1)
+		total += countSolutionsWithStats(g, size, limit-total, stats)
+		stats.apply(choice.x, choice.y, v, -1)
+		g[choice.y][choice.x] = emptyCell
+		if total >= limit {
+			return total
+		}
+	}
+
+	return total
 }
 
 // checkConstraints verifies no-triples and equal-count rules for every row and column.
@@ -221,6 +404,15 @@ func colEqual(g grid, size, c1, c2 int) bool {
 
 // canPlace checks whether placing val at (x,y) would violate Takuzu constraints.
 func canPlace(g grid, size, x, y int, val rune) bool {
+	stats := newLineStats(g, size)
+	return canPlaceWithStats(g, size, x, y, val, stats)
+}
+
+func canPlaceWithStats(g grid, size, x, y int, val rune, stats *lineStats) bool {
+	if g[y][x] != emptyCell {
+		return false
+	}
+
 	if x >= 2 && g[y][x-1] == val && g[y][x-2] == val {
 		return false
 	}
@@ -242,37 +434,27 @@ func canPlace(g grid, size, x, y int, val rune) bool {
 	}
 
 	half := size / 2
-	count := 0
-	for _, c := range g[y] {
-		if c == val {
-			count++
+	if val == zeroCell {
+		if stats.rowZero[y] >= half || stats.colZero[x] >= half {
+			return false
+		}
+	} else if val == oneCell {
+		if stats.rowOne[y] >= half || stats.colOne[x] >= half {
+			return false
 		}
 	}
-	if count >= half {
-		return false
-	}
 
-	count = 0
-	for r := range size {
-		if g[r][x] == val {
-			count++
-		}
-	}
-	if count >= half {
-		return false
-	}
-
-	if rowFilledExcept(g, y, x, size) {
+	if stats.rowFilled[y] == size-1 {
 		for other := range size {
-			if other != y && rowFilled(g, other, size) && rowEqualWith(g[y], g[other], x, val) {
+			if other != y && stats.rowFilled[other] == size && rowEqualWith(g[y], g[other], x, val) {
 				return false
 			}
 		}
 	}
 
-	if colFilledExcept(g, x, y, size) {
+	if stats.colFilled[x] == size-1 {
 		for other := range size {
-			if other != x && colFilled(g, other, size) && colEqualWith(g, size, x, other, y, val) {
+			if other != x && stats.colFilled[other] == size && colEqualWith(g, size, x, other, y, val) {
 				return false
 			}
 		}
