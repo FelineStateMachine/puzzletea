@@ -89,9 +89,9 @@ type uniquenessJob struct {
 }
 
 type uniquenessOutcome struct {
-	clueKey   string
-	count     int
-	err       error
+	clueKey string
+	count   int
+	err     error
 }
 
 func Generate(mode NurikabeMode) (Puzzle, error) {

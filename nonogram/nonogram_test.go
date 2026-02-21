@@ -1296,8 +1296,8 @@ func BenchmarkGenerateRandomTomographyModes(b *testing.B) {
 
 func BenchmarkCountSolutionsLarge(b *testing.B) {
 	cases := []struct {
-		name string
-		mode NonogramMode
+		name  string
+		mode  NonogramMode
 		seedA uint64
 		seedB uint64
 	}{

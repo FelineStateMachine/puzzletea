@@ -242,16 +242,6 @@ func countSolutionsRecursive(
 	return count
 }
 
-func propagate(g solutionGrid, hints Hints, ctx context.Context) (solutionGrid, bool) {
-	stack := undoStack{
-		changes: make([]cellChange, 0, g.w*g.h),
-	}
-	if !propagateInPlace(&g, hints, ctx, &stack) {
-		return g, false
-	}
-	return g, true
-}
-
 func propagateInPlace(g *solutionGrid, hints Hints, ctx context.Context, stack *undoStack) bool {
 	rowBuf := make([]cellState, g.w)
 	colBuf := make([]cellState, g.h)

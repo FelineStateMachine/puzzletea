@@ -169,14 +169,6 @@ func CountSolutionsContext(ctx context.Context, puzzle Puzzle, limit, nodeLimit 
 	return solutions, stats, nil
 }
 
-func propagate(g grid, clues clueGrid) error {
-	if len(g) == 0 || len(g[0]) == 0 {
-		return nil
-	}
-	scratch := newSolverScratch(len(g[0]), len(g))
-	return propagateWithScratch(g, clues, scratch)
-}
-
 func propagateWithScratch(g grid, clues clueGrid, scratch *solverScratch) error {
 	height := len(g)
 	if height == 0 {
@@ -250,14 +242,6 @@ func propagateWithScratch(g grid, clues clueGrid, scratch *solverScratch) error 
 			return nil
 		}
 	}
-}
-
-func validatePartial(g grid, clues clueGrid) error {
-	if len(g) == 0 || len(g[0]) == 0 {
-		return nil
-	}
-	scratch := newSolverScratch(len(g[0]), len(g))
-	return validatePartialWithScratch(g, clues, scratch)
 }
 
 func validatePartialWithScratch(g grid, clues clueGrid, scratch *solverScratch) error {
@@ -387,14 +371,6 @@ func candidateOrder(g grid, clues clueGrid, x, y int) []cellState {
 		return []cellState{islandCell, seaCell}
 	}
 	return []cellState{seaCell, islandCell}
-}
-
-func seaCanRemainConnected(g grid) bool {
-	if len(g) == 0 || len(g[0]) == 0 {
-		return true
-	}
-	scratch := newSolverScratch(len(g[0]), len(g))
-	return seaCanRemainConnectedWithScratch(g, scratch)
 }
 
 func seaCanRemainConnectedWithScratch(g grid, scratch *solverScratch) bool {
@@ -626,14 +602,6 @@ func componentCanReachClueWithScratch(
 	}
 
 	return false
-}
-
-func maxReachableForComponent(g grid, clues clueGrid, comp islandComponent) int {
-	if len(g) == 0 || len(g[0]) == 0 {
-		return 0
-	}
-	scratch := newSolverScratch(len(g[0]), len(g))
-	return maxReachableForComponentWithScratch(g, clues, comp, scratch)
 }
 
 func maxReachableForComponentWithScratch(
