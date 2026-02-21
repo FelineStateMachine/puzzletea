@@ -190,6 +190,10 @@ func (m Model) islandTarget(current cellState) cellState {
 func (m Model) View() string {
 	title := game.TitleBarView("Nurikabe", m.modeTitle, m.solved)
 	grid := gridView(m)
+	if m.solved {
+		return game.ComposeGameView(title, grid)
+	}
+
 	status := statusBarView(m.showFullHelp)
 	return game.ComposeGameViewRows(title, grid, game.StableRow(status, statusBarView(false), statusBarView(true)))
 }

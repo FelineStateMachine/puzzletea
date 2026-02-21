@@ -102,6 +102,10 @@ func (m *Model) toggleMark(mark cellMark) {
 func (m Model) View() string {
 	title := game.TitleBarView("Hitori", m.modeTitle, m.solved)
 	grid := gridView(m.numbers, m.marks, m.cursor, m.solved, m.conflicts)
+	if m.solved {
+		return game.ComposeGameView(title, grid)
+	}
+
 	status := statusBarView(m.showFullHelp)
 	return game.ComposeGameViewRows(title, grid, game.StableRow(status, statusBarView(false), statusBarView(true)))
 }

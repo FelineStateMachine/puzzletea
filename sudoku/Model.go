@@ -96,6 +96,10 @@ func (m Model) View() string {
 	solved := isSolvedWith(m.grid, m.conflicts)
 	title := game.TitleBarView("Sudoku", m.modeTitle, solved)
 	grid := renderGrid(m, solved, m.conflicts)
+	if solved {
+		return game.ComposeGameView(title, grid)
+	}
+
 	status := statusBarView(m.showFullHelp)
 
 	return game.ComposeGameViewRows(title, grid, game.StableRow(status, statusBarView(false), statusBarView(true)))

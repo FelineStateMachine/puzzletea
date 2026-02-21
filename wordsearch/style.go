@@ -100,6 +100,9 @@ func renderView(m Model) string {
 
 	spacer := strings.Repeat(" ", 2)
 	mainView := lipgloss.JoinHorizontal(lipgloss.Top, gridView, spacer, wordListView)
+	if m.solved {
+		return game.ComposeGameView(title, mainView)
+	}
 
 	status := statusBarView(m.showFullHelp)
 

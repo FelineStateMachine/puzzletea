@@ -132,6 +132,10 @@ func (m Model) View() string {
 	title := game.TitleBarView("Hashiwokakero", m.modeTitle, solved)
 	grid := gridView(m, solved)
 	info := infoView(&m.puzzle)
+	if solved {
+		return game.ComposeGameViewRows(title, grid, game.StaticRow(info))
+	}
+
 	selected := m.selectedIsland != nil
 	status := statusBarView(selected, m.showFullHelp)
 

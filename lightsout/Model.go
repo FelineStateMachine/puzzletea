@@ -89,6 +89,10 @@ func (m Model) View() string {
 
 	title := game.TitleBarView("Lights Out", m.modeTitle, solved)
 	grid := gridView(m.grid, m.cursor, solved)
+	if solved {
+		return game.ComposeGameView(title, grid)
+	}
+
 	status := statusBarView(m.showFullHelp)
 
 	return game.ComposeGameViewRows(title, grid, game.StableRow(status, statusBarView(false), statusBarView(true)))

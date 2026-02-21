@@ -190,6 +190,9 @@ func (m Model) View() string {
 	s2 := lipgloss.JoinHorizontal(lipgloss.Top, r, g)
 
 	grid := lipgloss.JoinVertical(lipgloss.Center, s1, s2)
+	if m.solved {
+		return game.ComposeGameView(title, grid)
+	}
 
 	return game.ComposeGameViewRows(title, grid, game.StableRow(status, statusBarView(false), statusBarView(true)))
 }
