@@ -85,7 +85,7 @@ func cellView(m Model, x, y int, solved bool, preview *Rectangle, previewClue *C
 	s := lipgloss.NewStyle().Foreground(p.TextDim)
 
 	if clue != nil {
-		s = lipgloss.NewStyle().Foreground(p.Given).Background(p.Surface).Bold(true)
+		s = lipgloss.NewStyle().Foreground(p.Given).Background(p.BG).Bold(true)
 	}
 
 	// Rectangle background color (from current theme palette).

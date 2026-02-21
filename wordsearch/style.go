@@ -103,7 +103,7 @@ func renderView(m Model) string {
 
 	status := statusBarView(m.showFullHelp)
 
-	return lipgloss.JoinVertical(lipgloss.Center, title, mainView, status)
+	return game.ComposeGameViewRows(title, mainView, game.StableRow(status, statusBarView(false), statusBarView(true)))
 }
 
 func statusBarView(showFullHelp bool) string {

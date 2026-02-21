@@ -29,7 +29,7 @@ func gridBorderSolvedStyle() lipgloss.Style {
 func cellStyle(c cellState, clue int, isCursor, solved, conflict, inSeaSquare bool) (lipgloss.Style, string) {
 	p := theme.Current()
 	display := "   "
-	landBg := theme.Blend(p.Surface, p.Success, 0.45)
+	landBg := theme.Blend(p.BG, p.Success, 0.45)
 	style := lipgloss.NewStyle().Background(landBg).Foreground(theme.TextOnBG(landBg))
 
 	switch {

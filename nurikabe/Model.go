@@ -5,7 +5,6 @@ import (
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 	"github.com/FelineStateMachine/puzzletea/game"
 )
 
@@ -77,6 +76,7 @@ func (m Model) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 	switch msg := msg.(type) {
 	case game.HelpToggleMsg:
 		m.showFullHelp = msg.Show
+		m.originValid = false
 
 	case tea.WindowSizeMsg:
 		m.termWidth = msg.Width
@@ -91,7 +91,8 @@ func (m Model) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 			}
 		case key.Matches(msg, m.keys.SetIsland):
 			if !m.solved {
-				m.setCellAtCursor(islandCell)
+				current := m.marks[m.cursor.Y][m.cursor.X]
+				m.setCellAtCursor(m.islandTarget(current))
 			}
 		case key.Matches(msg, m.keys.Clear):
 			if !m.solved {
@@ -113,12 +114,12 @@ func (m Model) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 		m.cursor.X, m.cursor.Y = col, row
 		switch msg.Button {
 		case tea.MouseLeft:
-			target := m.leftClickTarget(m.marks[row][col])
+			target := m.leftClickTarget()
 			m.dragging = true
 			m.dragTarget = target
 			m.setCellAtCursor(target)
 		case tea.MouseRight:
-			target := m.rightClickTarget()
+			target := m.rightClickTarget(m.marks[row][col])
 			m.dragging = true
 			m.dragTarget = target
 			m.setCellAtCursor(target)
@@ -171,14 +172,18 @@ func (m *Model) recomputeDerivedState() {
 	m.conflicts = computeConflicts(m.marks, m.clues)
 }
 
-func (m Model) leftClickTarget(current cellState) cellState {
-	if current == seaCell {
-		return unknownCell
-	}
+func (m Model) leftClickTarget() cellState {
 	return seaCell
 }
 
-func (m Model) rightClickTarget() cellState {
+func (m Model) rightClickTarget(current cellState) cellState {
+	return m.islandTarget(current)
+}
+
+func (m Model) islandTarget(current cellState) cellState {
+	if current == islandCell {
+		return unknownCell
+	}
 	return islandCell
 }
 
@@ -186,7 +191,7 @@ func (m Model) View() string {
 	title := game.TitleBarView("Nurikabe", m.modeTitle, m.solved)
 	grid := gridView(m)
 	status := statusBarView(m.showFullHelp)
-	return lipgloss.JoinVertical(lipgloss.Center, title, grid, status)
+	return game.ComposeGameViewRows(title, grid, game.StableRow(status, statusBarView(false), statusBarView(true)))
 }
 
 func (m Model) SetTitle(t string) game.Gamer {

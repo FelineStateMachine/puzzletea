@@ -87,6 +87,7 @@ func (m Model) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 	switch msg := msg.(type) {
 	case game.HelpToggleMsg:
 		m.showFullHelp = msg.Show
+		m.originValid = false
 
 	case tea.KeyboardEnhancementsMsg:
 		m.supportsKeyRelease = msg.SupportsEventTypes()
@@ -190,7 +191,7 @@ func (m Model) View() string {
 
 	grid := lipgloss.JoinVertical(lipgloss.Center, s1, s2)
 
-	return lipgloss.JoinVertical(lipgloss.Center, title, grid, status)
+	return game.ComposeGameViewRows(title, grid, game.StableRow(status, statusBarView(false), statusBarView(true)))
 }
 
 func (m Model) GetDebugInfo() string {

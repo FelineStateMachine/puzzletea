@@ -279,6 +279,12 @@ func TestModelKeyboardUpdate(t *testing.T) {
 	if m.marks[1][1] != islandCell {
 		t.Fatalf("expected island at (1,1), got %q", rune(m.marks[1][1]))
 	}
+
+	next, _ = m.Update(tea.KeyPressMsg{Code: 'z', Text: "z"})
+	m = next.(Model)
+	if m.marks[1][1] != unknownCell {
+		t.Fatalf("expected unknown at (1,1), got %q", rune(m.marks[1][1]))
+	}
 }
 
 func TestModelMouseDragPaint(t *testing.T) {
@@ -314,7 +320,7 @@ func TestModelMouseDragPaint(t *testing.T) {
 	}
 }
 
-func TestModelMouseLeftClickToggleBehavior(t *testing.T) {
+func TestModelMouseClickMirrorsKeyboard(t *testing.T) {
 	mode := NewMode("Mini", "test", 3, 3, 0.3, 5)
 	p := Puzzle{Width: 3, Height: 3, Clues: makeClues(
 		[]int{2, 0, 0},
@@ -342,8 +348,8 @@ func TestModelMouseLeftClickToggleBehavior(t *testing.T) {
 
 	next, _ = m.Update(tea.MouseClickMsg{X: cellX, Y: cellY, Button: tea.MouseLeft})
 	m = next.(Model)
-	if m.marks[1][1] != unknownCell {
-		t.Fatalf("left click from sea should set unknown, got %q", rune(m.marks[1][1]))
+	if m.marks[1][1] != seaCell {
+		t.Fatalf("left click from sea should keep sea, got %q", rune(m.marks[1][1]))
 	}
 
 	next, _ = m.Update(tea.MouseClickMsg{X: cellX, Y: cellY, Button: tea.MouseRight})
@@ -352,14 +358,20 @@ func TestModelMouseLeftClickToggleBehavior(t *testing.T) {
 		t.Fatalf("right click should set island, got %q", rune(m.marks[1][1]))
 	}
 
+	next, _ = m.Update(tea.MouseClickMsg{X: cellX, Y: cellY, Button: tea.MouseRight})
+	m = next.(Model)
+	if m.marks[1][1] != unknownCell {
+		t.Fatalf("right click from island should set unknown, got %q", rune(m.marks[1][1]))
+	}
+
 	next, _ = m.Update(tea.MouseClickMsg{X: cellX, Y: cellY, Button: tea.MouseLeft})
 	m = next.(Model)
 	if m.marks[1][1] != seaCell {
-		t.Fatalf("left click from island should set sea, got %q", rune(m.marks[1][1]))
+		t.Fatalf("left click from unknown should set sea, got %q", rune(m.marks[1][1]))
 	}
 }
 
-func TestModelMouseRightClickSetsIsland(t *testing.T) {
+func TestModelMouseRightClickTogglesIsland(t *testing.T) {
 	mode := NewMode("Mini", "test", 3, 3, 0.3, 5)
 	p := Puzzle{Width: 3, Height: 3, Clues: makeClues(
 		[]int{2, 0, 0},
@@ -387,8 +399,8 @@ func TestModelMouseRightClickSetsIsland(t *testing.T) {
 
 	next, _ = m.Update(tea.MouseClickMsg{X: cellX, Y: cellY, Button: tea.MouseRight})
 	m = next.(Model)
-	if m.marks[1][1] != islandCell {
-		t.Fatalf("expected island after second right click, got %q", rune(m.marks[1][1]))
+	if m.marks[1][1] != unknownCell {
+		t.Fatalf("expected unknown after second right click, got %q", rune(m.marks[1][1]))
 	}
 }
 
@@ -423,7 +435,42 @@ func TestModelMouseRightDragPaintIsland(t *testing.T) {
 	}
 }
 
-func TestModelMouseLeftDragPaintUnknownFromSea(t *testing.T) {
+func TestModelMouseRightDragClearsIsland(t *testing.T) {
+	mode := NewMode("Mini", "test", 3, 3, 0.3, 5)
+	p := Puzzle{Width: 3, Height: 3, Clues: makeClues(
+		[]int{2, 0, 0},
+		[]int{0, 0, 0},
+		[]int{0, 0, 1},
+	)}
+	g, err := New(mode, p)
+	if err != nil {
+		t.Fatalf("New error: %v", err)
+	}
+	m := g.(Model)
+	m.cursor = pointToCursor(1, 1)
+	m.setCellAtCursor(islandCell)
+	m.cursor = pointToCursor(2, 1)
+	m.setCellAtCursor(islandCell)
+
+	next, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+	m = next.(Model)
+	ox, oy := m.gridOrigin()
+
+	next, _ = m.Update(tea.MouseClickMsg{X: ox + cellWidth, Y: oy + 1, Button: tea.MouseRight})
+	m = next.(Model)
+
+	next, _ = m.Update(tea.MouseMotionMsg{X: ox + 2*cellWidth, Y: oy + 1, Button: tea.MouseRight})
+	m = next.(Model)
+
+	next, _ = m.Update(tea.MouseReleaseMsg{})
+	m = next.(Model)
+
+	if m.marks[1][1] != unknownCell || m.marks[1][2] != unknownCell {
+		t.Fatalf("right drag from island should clear to unknown: row= %q", string([]rune{rune(m.marks[1][0]), rune(m.marks[1][1]), rune(m.marks[1][2])}))
+	}
+}
+
+func TestModelMouseLeftDragPaintSeaFromSea(t *testing.T) {
 	mode := NewMode("Mini", "test", 3, 3, 0.3, 5)
 	p := Puzzle{Width: 3, Height: 3, Clues: makeClues(
 		[]int{2, 0, 0},
@@ -451,8 +498,35 @@ func TestModelMouseLeftDragPaintUnknownFromSea(t *testing.T) {
 	next, _ = m.Update(tea.MouseReleaseMsg{})
 	m = next.(Model)
 
-	if m.marks[1][1] != unknownCell || m.marks[1][2] != unknownCell {
-		t.Fatalf("left drag from sea should paint unknown: row= %q", string([]rune{rune(m.marks[1][0]), rune(m.marks[1][1]), rune(m.marks[1][2])}))
+	if m.marks[1][1] != seaCell || m.marks[1][2] != seaCell {
+		t.Fatalf("left drag from sea should paint sea: row= %q", string([]rune{rune(m.marks[1][0]), rune(m.marks[1][1]), rune(m.marks[1][2])}))
+	}
+}
+
+func TestHelpToggleInvalidatesOriginCache(t *testing.T) {
+	mode := NewMode("Mini", "test", 3, 3, 0.3, 5)
+	p := Puzzle{Width: 3, Height: 3, Clues: makeClues(
+		[]int{2, 0, 0},
+		[]int{0, 0, 0},
+		[]int{0, 0, 1},
+	)}
+	g, err := New(mode, p)
+	if err != nil {
+		t.Fatalf("New error: %v", err)
+	}
+	m := g.(Model)
+	m.originValid = true
+	m.originX = 5
+	m.originY = 7
+
+	next, _ := m.Update(game.HelpToggleMsg{Show: true})
+	got := next.(Model)
+
+	if !got.showFullHelp {
+		t.Fatal("expected showFullHelp to be true")
+	}
+	if got.originValid {
+		t.Fatal("expected origin cache to be invalidated")
 	}
 }
 

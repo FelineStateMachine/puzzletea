@@ -6,7 +6,6 @@ import (
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 	"github.com/FelineStateMachine/puzzletea/game"
 )
 
@@ -77,10 +76,10 @@ func (m Model) View() string {
 	title := game.TitleBarView("Takuzu", m.modeTitle, m.solved)
 	grid := gridView(m.grid, m.provided, m.cursor, m.solved)
 	if m.solved {
-		return lipgloss.JoinVertical(lipgloss.Center, title, grid)
+		return game.ComposeGameView(title, grid)
 	}
 	status := statusBarView(m.showFullHelp)
-	return lipgloss.JoinVertical(lipgloss.Center, title, grid, status)
+	return game.ComposeGameViewRows(title, grid, game.StableRow(status, statusBarView(false), statusBarView(true)))
 }
 
 func (m Model) SetTitle(t string) game.Gamer {

@@ -1150,3 +1150,33 @@ func TestScreenToGrid(t *testing.T) {
 		}
 	})
 }
+
+func TestHelpToggleInvalidatesOriginCache(t *testing.T) {
+	mode := NonogramMode{
+		BaseMode: game.NewBaseMode("Test", "5x5"),
+		Width:    5,
+		Height:   5,
+	}
+	hints := Hints{
+		rows: TomographyDefinition{{1}, {1}, {1}, {1}, {1}},
+		cols: TomographyDefinition{{1}, {1}, {1}, {1}, {1}},
+	}
+	g, err := New(mode, hints)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	m := g.(Model)
+	m.originValid = true
+	m.originX = 3
+	m.originY = 4
+
+	next, _ := m.Update(game.HelpToggleMsg{Show: true})
+	got := next.(Model)
+	if !got.showFullHelp {
+		t.Fatal("expected showFullHelp to be true")
+	}
+	if got.originValid {
+		t.Fatal("expected origin cache to be invalidated")
+	}
+}

@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
+	"github.com/FelineStateMachine/puzzletea/game"
 )
 
 // --- helpers ---
@@ -548,6 +550,43 @@ func TestScreenToGrid(t *testing.T) {
 					tt.screenX, tt.screenY, col, row, tt.wantCol, tt.wantRow)
 			}
 		})
+	}
+}
+
+func TestHelpToggleInvalidatesOriginCache(t *testing.T) {
+	m := Model{
+		puzzle:      *simplePuzzle(),
+		keys:        DefaultKeyMap,
+		modeTitle:   "Test",
+		originX:     7,
+		originY:     11,
+		originValid: true,
+	}
+
+	next, _ := m.Update(game.HelpToggleMsg{Show: true})
+	got := next.(Model)
+
+	if !got.showFullHelp {
+		t.Fatal("expected showFullHelp to be true")
+	}
+	if got.originValid {
+		t.Fatal("expected origin cache to be invalidated")
+	}
+}
+
+func TestViewWidthStableWhenFullHelpExpanded(t *testing.T) {
+	m := Model{
+		puzzle:    *simplePuzzle(),
+		keys:      DefaultKeyMap,
+		modeTitle: "Test",
+	}
+
+	shortWidth := lipgloss.Width(m.View())
+	next, _ := m.Update(game.HelpToggleMsg{Show: true})
+	fullWidth := lipgloss.Width(next.(Model).View())
+
+	if fullWidth > shortWidth {
+		t.Errorf("full-help width = %d, want <= %d", fullWidth, shortWidth)
 	}
 }
 

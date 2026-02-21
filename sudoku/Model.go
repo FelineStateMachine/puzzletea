@@ -7,7 +7,6 @@ import (
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 	"github.com/FelineStateMachine/puzzletea/game"
 )
 
@@ -99,7 +98,7 @@ func (m Model) View() string {
 	grid := renderGrid(m, solved, m.conflicts)
 	status := statusBarView(m.showFullHelp)
 
-	return lipgloss.JoinVertical(lipgloss.Center, title, grid, status)
+	return game.ComposeGameViewRows(title, grid, game.StableRow(status, statusBarView(false), statusBarView(true)))
 }
 
 func (m Model) GetDebugInfo() string {

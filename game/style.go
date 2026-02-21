@@ -72,6 +72,120 @@ func TitleBarView(gameName, modeName string, solved bool) string {
 	return lipgloss.NewStyle().PaddingBottom(1).Render(title)
 }
 
+// ComposeGameView joins title + primary content + optional secondary rows.
+// Secondary rows are width-anchored to primary so long help/info text wraps
+// instead of widening the full layout and shifting centered views.
+func ComposeGameView(title, primary string, secondary ...string) string {
+	rows := make([]SecondaryRow, 0, len(secondary))
+	for _, row := range secondary {
+		rows = append(rows, StaticRow(row))
+	}
+	return ComposeGameViewRows(title, primary, rows...)
+}
+
+// SecondaryRow defines one auxiliary row below the main game grid.
+// Variants can be provided to reserve the tallest wrapped height
+// up-front and avoid layout shift when row content changes.
+type SecondaryRow struct {
+	Current  string
+	Variants []string
+}
+
+func StaticRow(row string) SecondaryRow {
+	return SecondaryRow{Current: row}
+}
+
+func StableRow(current string, variants ...string) SecondaryRow {
+	return SecondaryRow{Current: current, Variants: variants}
+}
+
+// ComposeGameViewRows joins title + primary content + optional secondary rows.
+// Secondary rows are rendered at 150% of primary width to reduce wrapping.
+// If variants are provided for a row, the row reserves the max wrapped height
+// across the variants and current value to avoid height jitter.
+func ComposeGameViewRows(title, primary string, rows ...SecondaryRow) string {
+	sections := []string{title, primary}
+	primaryWidth := lipgloss.Width(primary)
+	if primaryWidth <= 0 {
+		for _, row := range rows {
+			sections = append(sections, row.Current)
+		}
+		return lipgloss.JoinVertical(lipgloss.Center, sections...)
+	}
+
+	secondaryWidth := primaryWidth + (primaryWidth / 2)
+	rowStyle := lipgloss.NewStyle().Width(secondaryWidth).AlignHorizontal(lipgloss.Center)
+	for _, row := range rows {
+		rendered := wrapAndPadSecondary(row, secondaryWidth)
+		sections = append(sections, rowStyle.Render(rendered))
+	}
+
+	return lipgloss.JoinVertical(lipgloss.Center, sections...)
+}
+
+func wrapAndPadSecondary(row SecondaryRow, width int) string {
+	current := wrapRowOnDoubleSpace(row.Current, width)
+	target := lipgloss.Height(current)
+	for _, variant := range row.Variants {
+		h := lipgloss.Height(wrapRowOnDoubleSpace(variant, width))
+		if h > target {
+			target = h
+		}
+	}
+	if h := lipgloss.Height(current); target > h {
+		current += strings.Repeat("\n", target-h)
+	}
+	return current
+}
+
+func wrapRowOnDoubleSpace(row string, width int) string {
+	if width <= 0 || !strings.Contains(row, "  ") {
+		return row
+	}
+
+	lines := strings.Split(row, "\n")
+	var out []string
+	for _, line := range lines {
+		out = append(out, wrapLineOnDoubleSpace(line, width)...)
+	}
+	return strings.Join(out, "\n")
+}
+
+func wrapLineOnDoubleSpace(line string, width int) []string {
+	if width <= 0 || lipgloss.Width(line) <= width || !strings.Contains(line, "  ") {
+		return []string{line}
+	}
+
+	parts := strings.Split(line, "  ")
+	var (
+		wrapped []string
+		current string
+	)
+	for _, part := range parts {
+		if part == "" {
+			continue
+		}
+		if current == "" {
+			current = part
+			continue
+		}
+		candidate := current + "  " + part
+		if lipgloss.Width(candidate) <= width {
+			current = candidate
+			continue
+		}
+		wrapped = append(wrapped, current)
+		current = part
+	}
+	if current != "" {
+		wrapped = append(wrapped, current)
+	}
+	if len(wrapped) == 0 {
+		return []string{line}
+	}
+	return wrapped
+}
+
 // DebugHeader returns the markdown heading and property table header for debug info.
 // rows is a list of [key, value] pairs for the "Game State" table.
 func DebugHeader(title string, rows [][2]string) string {

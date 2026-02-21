@@ -8,7 +8,6 @@ import (
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 )
 
 // Model implements game.Gamer for Hitori.
@@ -104,7 +103,7 @@ func (m Model) View() string {
 	title := game.TitleBarView("Hitori", m.modeTitle, m.solved)
 	grid := gridView(m.numbers, m.marks, m.cursor, m.solved, m.conflicts)
 	status := statusBarView(m.showFullHelp)
-	return lipgloss.JoinVertical(lipgloss.Center, title, grid, status)
+	return game.ComposeGameViewRows(title, grid, game.StableRow(status, statusBarView(false), statusBarView(true)))
 }
 
 func (m Model) SetTitle(t string) game.Gamer {
