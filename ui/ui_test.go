@@ -97,6 +97,18 @@ func TestInitListDisablesQuitAndFilter(t *testing.T) {
 	}
 }
 
+func TestInitCategoryListDisablesQuitAndFilter(t *testing.T) {
+	l := InitCategoryList(nil, "Categories")
+
+	if l.FilteringEnabled() {
+		t.Error("expected filtering to be disabled")
+	}
+
+	if l.ShowHelp() {
+		t.Error("expected help to be disabled")
+	}
+}
+
 func TestThemeListFilterDoesNotSplitTitle(t *testing.T) {
 	longest := longestThemeName(t)
 

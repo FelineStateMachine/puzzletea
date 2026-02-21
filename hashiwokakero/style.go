@@ -12,7 +12,7 @@ import (
 
 const cellWidth = 3
 
-func islandColors() []color.Color { return theme.Current().CardColors() }
+func islandColors() []color.Color { return theme.Current().ThemeColors() }
 
 func islandDefaultStyle(islandID int) lipgloss.Style {
 	colors := islandColors()

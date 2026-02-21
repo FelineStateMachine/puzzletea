@@ -23,6 +23,71 @@ import (
 	"github.com/charmbracelet/glamour"
 )
 
+const (
+	helpPanelInsetX         = 2
+	helpPanelInsetY         = 1
+	helpPanelHorizontalTrim = 6
+	helpPanelVerticalTrim   = 8
+)
+
+func helpViewportSize(width, height int) (int, int) {
+	panelWidth := max(width-(helpPanelInsetX*2), 1)
+	panelHeight := max(height-(helpPanelInsetY*2), 1)
+	contentWidth := max(panelWidth-helpPanelHorizontalTrim, 1)
+	contentHeight := max(panelHeight-helpPanelVerticalTrim, 1)
+	return contentWidth, contentHeight
+}
+
+func statsViewportSize(width, height int, cards []stats.Card) (int, int) {
+	contentWidth, _ := helpViewportSize(width, height)
+	panelHeight := max(height-(helpPanelInsetY*2), 1)
+	contentHeight := max(panelHeight-stats.StaticHeight(cards), 1)
+	return contentWidth, contentHeight
+}
+
+func (m model) updateHelpDetailViewport() model {
+	helpWidth, helpHeight := helpViewportSize(m.width, m.height)
+	if m.helpRenderer == nil || m.helpRendererWidth != helpWidth {
+		renderer, err := glamour.NewTermRenderer(
+			glamour.WithAutoStyle(),
+			glamour.WithWordWrap(helpWidth),
+		)
+		if err != nil {
+			log.Printf("failed to create help renderer: %v", err)
+			m.helpRenderer = nil
+			m.helpRendererWidth = 0
+		} else {
+			m.helpRenderer = renderer
+			m.helpRendererWidth = helpWidth
+		}
+	}
+
+	rendered := m.helpCategory.Help
+	if m.helpRenderer != nil {
+		out, err := m.helpRenderer.Render(m.helpCategory.Help)
+		if err != nil {
+			log.Printf("failed to render help: %v", err)
+		} else {
+			rendered = out
+		}
+	}
+
+	m.helpViewport = viewport.New(
+		viewport.WithWidth(helpWidth),
+		viewport.WithHeight(helpHeight),
+	)
+	m.helpViewport.SetContent(rendered)
+	return m
+}
+
+func (m model) updateStatsViewport() model {
+	statsWidth, statsHeight := statsViewportSize(m.width, m.height, m.statsCards)
+	m.statsViewport.SetWidth(statsWidth)
+	m.statsViewport.SetHeight(statsHeight)
+	m.statsViewport.SetContent(stats.RenderCardGrid(m.statsCards, statsWidth))
+	return m
+}
+
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
@@ -53,8 +118,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.helpSelectList.SetSize(menuW, min(m.height, ui.ListHeight(m.helpSelectList)))
 		}
 		if m.state == helpDetailView {
-			m.helpViewport.SetWidth(m.width)
-			m.helpViewport.SetHeight(m.height - 2)
+			m = m.updateHelpDetailViewport()
 		}
 		if m.state == themeSelectView {
 			const maxVisibleItems = 8
@@ -62,11 +126,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.themeList.SetSize(listW, min(m.height, maxVisibleItems*3))
 		}
 		if m.state == statsView {
-			cw := stats.ContentWidth(m.width)
-			m.statsViewport.SetWidth(cw)
-			vpH := stats.ViewportHeight(m.height - stats.StaticHeight(m.statsCards))
-			m.statsViewport.SetHeight(vpH)
-			m.statsViewport.SetContent(stats.RenderCardGrid(m.statsCards, cw))
+			m = m.updateStatsViewport()
 		}
 
 	case tea.KeyPressMsg:
@@ -403,27 +463,7 @@ func (m model) handleHelpSelectEnter() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	m.helpCategory = cat
-
-	if m.helpRenderer == nil || m.helpRendererWidth != m.width {
-		renderer, err := glamour.NewTermRenderer(
-			glamour.WithAutoStyle(),
-			glamour.WithWordWrap(m.width),
-		)
-		if err != nil {
-			log.Printf("failed to create help renderer: %v", err)
-			return m, nil
-		}
-		m.helpRenderer = renderer
-		m.helpRendererWidth = m.width
-	}
-	rendered, err := m.helpRenderer.Render(cat.Help)
-	if err != nil {
-		log.Printf("failed to render help: %v", err)
-		return m, nil
-	}
-
-	m.helpViewport = viewport.New(viewport.WithWidth(m.width), viewport.WithHeight(m.height-2))
-	m.helpViewport.SetContent(rendered)
+	m = m.updateHelpDetailViewport()
 	m.state = helpDetailView
 	return m, nil
 }
@@ -548,15 +588,12 @@ func (m model) handleStatsEnter() (tea.Model, tea.Cmd) {
 	m.statsCards = stats.BuildCards(catStats, modeStats)
 	m.statsProfile = stats.BuildProfileBanner(catStats, modeStats, streakDates, currentDaily)
 
-	// Banner is rendered as static chrome above the viewport; only the
-	// card grid scrolls. Compute available height for the viewport after
-	// accounting for the panel frame and banner.
-	vpHeight := stats.ViewportHeight(m.height - stats.StaticHeight(m.statsCards))
+	statsWidth, statsHeight := statsViewportSize(m.width, m.height, m.statsCards)
 	m.statsViewport = viewport.New(
-		viewport.WithWidth(stats.ContentWidth(m.width)),
-		viewport.WithHeight(vpHeight),
+		viewport.WithWidth(statsWidth),
+		viewport.WithHeight(statsHeight),
 	)
-	m.statsViewport.SetContent(stats.RenderCardGrid(m.statsCards, stats.ContentWidth(m.width)))
+	m.statsViewport.SetContent(stats.RenderCardGrid(m.statsCards, statsWidth))
 	m.state = statsView
 	return m, nil
 }

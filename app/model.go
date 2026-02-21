@@ -168,7 +168,7 @@ func newSpinner() spinner.Model {
 // InitialModel creates the root TUI model for the main menu.
 func InitialModel(s *store.Store, cfg *config.Config) model {
 	r := initDebugRenderer()
-	l := ui.InitList(GameCategories, "Select Category")
+	l := ui.InitCategoryList(GameCategories, "Select Category")
 	mm := ui.NewMainMenu(mainMenuItems)
 	return model{
 		state:          mainMenuView,
@@ -185,7 +185,7 @@ func InitialModel(s *store.Store, cfg *config.Config) model {
 // bypassing the menu. Used by CLI flags (--new, --continue).
 func InitialModelWithGame(s *store.Store, cfg *config.Config, g game.Gamer, activeGameID int64, completionSaved bool) model {
 	r := initDebugRenderer()
-	l := ui.InitList(GameCategories, "Select Category")
+	l := ui.InitCategoryList(GameCategories, "Select Category")
 	mm := ui.NewMainMenu(mainMenuItems)
 	return model{
 		state:           gameView,

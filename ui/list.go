@@ -1,9 +1,53 @@
 package ui
 
 import (
+	"io"
+
 	"charm.land/bubbles/v2/list"
 	"github.com/FelineStateMachine/puzzletea/theme"
 )
+
+type categoryColorDelegate struct {
+	list.DefaultDelegate
+}
+
+func (d categoryColorDelegate) Render(w io.Writer, m list.Model, index int, item list.Item) {
+	delegate := d.DefaultDelegate
+	palette := theme.Current().ThemeColors()
+	if len(palette) > 0 {
+		barColor := palette[index%len(palette)]
+		delegate.Styles.SelectedTitle = delegate.Styles.SelectedTitle.
+			BorderLeftForeground(barColor)
+		delegate.Styles.SelectedDesc = delegate.Styles.SelectedDesc.
+			BorderLeftForeground(barColor)
+	}
+	delegate.Render(w, m, index, item)
+}
+
+func newMenuDelegate(p theme.Palette) list.DefaultDelegate {
+	d := list.NewDefaultDelegate()
+	d.Styles.SelectedTitle = d.Styles.SelectedTitle.
+		Foreground(p.Accent).
+		BorderLeftForeground(p.Accent)
+	d.Styles.SelectedDesc = d.Styles.SelectedDesc.
+		Foreground(p.AccentSoft).
+		BorderLeftForeground(p.Accent)
+	d.Styles.NormalTitle = d.Styles.NormalTitle.
+		Foreground(p.FG)
+	d.Styles.NormalDesc = d.Styles.NormalDesc.
+		Foreground(p.TextDim)
+	return d
+}
+
+func configureMenuList(l *list.Model, title string) {
+	l.Title = title
+	l.SetShowTitle(false)
+	l.DisableQuitKeybindings()
+	l.SetFilteringEnabled(false)
+	l.SetShowHelp(false)
+	l.SetShowStatusBar(false)
+	l.SetShowPagination(false)
+}
 
 func applyThemeListStyles(d *list.DefaultDelegate, p theme.Palette, width int) {
 	// Title styles intentionally avoid fixed Width: bubbles uses them for
@@ -29,26 +73,21 @@ func applyThemeListStyles(d *list.DefaultDelegate, p theme.Palette, width int) {
 // that provide their own styled title.
 func InitList(items []list.Item, title string) list.Model {
 	p := theme.Current()
-	d := list.NewDefaultDelegate()
-	d.Styles.SelectedTitle = d.Styles.SelectedTitle.
-		Foreground(p.Accent).
-		BorderLeftForeground(p.Accent)
-	d.Styles.SelectedDesc = d.Styles.SelectedDesc.
-		Foreground(p.AccentSoft).
-		BorderLeftForeground(p.Accent)
-	d.Styles.NormalTitle = d.Styles.NormalTitle.
-		Foreground(p.FG)
-	d.Styles.NormalDesc = d.Styles.NormalDesc.
-		Foreground(p.TextDim)
+	d := newMenuDelegate(p)
 
 	l := list.New(items, d, 64, 64)
-	l.Title = title
-	l.SetShowTitle(false)
-	l.DisableQuitKeybindings()
-	l.SetFilteringEnabled(false)
-	l.SetShowHelp(false)
-	l.SetShowStatusBar(false)
-	l.SetShowPagination(false)
+	configureMenuList(&l, title)
+	return l
+}
+
+// InitCategoryList creates the category picker list with per-item hover bar
+// colors sourced from the active theme color set.
+func InitCategoryList(items []list.Item, title string) list.Model {
+	p := theme.Current()
+	d := categoryColorDelegate{DefaultDelegate: newMenuDelegate(p)}
+
+	l := list.New(items, d, 64, 64)
+	configureMenuList(&l, title)
 	return l
 }
 

@@ -55,11 +55,11 @@ type Palette struct {
 	ANSI [16]color.Color
 }
 
-// CardColors returns a curated slice of distinct, colorful palette colors
-// suitable for differentiating UI cards. The colors are drawn from the
-// chromatic ANSI slots (skipping black/white/gray) and the semantic accent
-// colors, giving up to 10 visually distinct options per theme.
-func (p Palette) CardColors() []color.Color {
+// ThemeColors returns a curated slice of distinct, colorful palette colors
+// suitable for differentiating themed UI elements (cards, hover bars, puzzle
+// regions, etc). The colors are drawn from chromatic ANSI slots (skipping
+// black/white/gray), giving up to 10 visually distinct options per theme.
+func (p Palette) ThemeColors() []color.Color {
 	return []color.Color{
 		p.ANSI[3],  // yellow
 		p.ANSI[4],  // blue
