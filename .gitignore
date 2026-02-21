@@ -35,5 +35,6 @@ dist/
 # .idea/
 # .vscode/
 /.opencode/plans
+/plans/
 /.gocache
 /.golangci-cache
