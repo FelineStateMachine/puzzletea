@@ -83,8 +83,13 @@ type attemptOutcome struct {
 	err       error
 }
 
+type uniquenessJob struct {
+	clueKey string
+	puzzle  Puzzle
+}
+
 type uniquenessOutcome struct {
-	attemptID int
+	clueKey   string
 	count     int
 	err       error
 }
@@ -133,13 +138,14 @@ func GenerateSeededWithContext(ctx context.Context, mode NurikabeMode, rng *rand
 	profile := modeIslandProfile(mode)
 	budget := modeGenerationBudget(mode)
 	workerCount := candidateWorkerCount(mode)
+	uniquenessWorkers := uniquenessWorkerCount(mode)
 
 	masterA := rng.Uint64()
 	masterB := rng.Uint64()
 
 	attemptCh := make(chan attemptSeed)
 	candidateCh := make(chan attemptOutcome, workerCount*2)
-	uniqueCh := make(chan candidateResult, budget.uniquenessProbeLimit)
+	uniqueCh := make(chan uniquenessJob, budget.uniquenessProbeLimit)
 	uniqueResultCh := make(chan uniquenessOutcome, budget.uniquenessProbeLimit)
 
 	var candidateWG sync.WaitGroup
@@ -152,11 +158,13 @@ func GenerateSeededWithContext(ctx context.Context, mode NurikabeMode, rng *rand
 	}
 
 	var uniqueWG sync.WaitGroup
-	uniqueWG.Add(1)
-	go func() {
-		defer uniqueWG.Done()
-		uniquenessWorker(timeboxedCtx, budget, uniqueCh, uniqueResultCh)
-	}()
+	for range uniquenessWorkers {
+		uniqueWG.Add(1)
+		go func() {
+			defer uniqueWG.Done()
+			uniquenessWorker(timeboxedCtx, budget, uniqueCh, uniqueResultCh)
+		}()
+	}
 	go func() {
 		uniqueWG.Wait()
 		close(uniqueResultCh)
@@ -167,8 +175,29 @@ func GenerateSeededWithContext(ctx context.Context, mode NurikabeMode, rng *rand
 	bestUnique := candidateResult{}
 	haveBestUnique := false
 
-	uniquenessQueued := 0
-	pendingUnique := map[int]candidateResult{}
+	pendingUniqueByKey := map[string]candidateResult{}
+	knownUniqueByKey := map[string]uniquenessOutcome{}
+	uniquenessScheduled := 0
+
+	handleUniqueResult := func(result uniquenessOutcome) {
+		knownUniqueByKey[result.clueKey] = result
+		candidate, ok := pendingUniqueByKey[result.clueKey]
+		delete(pendingUniqueByKey, result.clueKey)
+		if !ok {
+			return
+		}
+		if result.err != nil {
+			if errors.Is(result.err, context.Canceled) ||
+				errors.Is(result.err, context.DeadlineExceeded) {
+				return
+			}
+			return
+		}
+		if result.count == 1 && (!haveBestUnique || betterCandidate(candidate, bestUnique)) {
+			bestUnique = candidate
+			haveBestUnique = true
+		}
+	}
 
 	drainUnique := func() {
 		for {
@@ -177,22 +206,7 @@ func GenerateSeededWithContext(ctx context.Context, mode NurikabeMode, rng *rand
 				if !ok {
 					return
 				}
-				candidate, ok := pendingUnique[result.attemptID]
-				delete(pendingUnique, result.attemptID)
-				if !ok {
-					continue
-				}
-				if result.err != nil {
-					if errors.Is(result.err, context.Canceled) ||
-						errors.Is(result.err, context.DeadlineExceeded) {
-						continue
-					}
-					continue
-				}
-				if result.count == 1 && (!haveBestUnique || betterCandidate(candidate, bestUnique)) {
-					bestUnique = candidate
-					haveBestUnique = true
-				}
+				handleUniqueResult(result)
 			default:
 				return
 			}
@@ -205,6 +219,7 @@ outer:
 		if err := timeboxedCtx.Err(); err != nil {
 			break
 		}
+		drainUnique()
 
 		roundSize := min(workerCount, budget.attempts-attemptID)
 		dispatched := 0
@@ -224,19 +239,6 @@ outer:
 			select {
 			case out := <-candidateCh:
 				outcomes = append(outcomes, out)
-			case result, ok := <-uniqueResultCh:
-				if !ok {
-					continue
-				}
-				candidate, ok := pendingUnique[result.attemptID]
-				delete(pendingUnique, result.attemptID)
-				if !ok {
-					continue
-				}
-				if result.err == nil && result.count == 1 && (!haveBestUnique || betterCandidate(candidate, bestUnique)) {
-					bestUnique = candidate
-					haveBestUnique = true
-				}
 			case <-timeboxedCtx.Done():
 				break outer
 			}
@@ -256,11 +258,32 @@ outer:
 				haveBestSolvable = true
 			}
 
-			if shouldProbeUniqueness(candidate, haveBestSolvable, bestSolvable, haveBestUnique, bestUnique, uniquenessQueued, budget, deadline) {
-				pendingUnique[candidate.attemptID] = candidate
-				uniquenessQueued++
+			if knownResult, ok := knownUniqueByKey[candidate.clueKey]; ok {
+				if knownResult.err == nil &&
+					knownResult.count == 1 &&
+					(!haveBestUnique || betterCandidate(candidate, bestUnique)) {
+					bestUnique = candidate
+					haveBestUnique = true
+				}
+				continue
+			}
+
+			if pendingCandidate, ok := pendingUniqueByKey[candidate.clueKey]; ok {
+				if betterCandidate(candidate, pendingCandidate) {
+					pendingUniqueByKey[candidate.clueKey] = candidate
+				}
+				continue
+			}
+
+			if shouldProbeUniqueness(candidate, haveBestSolvable, bestSolvable, uniquenessScheduled, budget, deadline) {
+				job := uniquenessJob{
+					clueKey: candidate.clueKey,
+					puzzle:  candidate.puzzle,
+				}
+				pendingUniqueByKey[candidate.clueKey] = candidate
 				select {
-				case uniqueCh <- candidate:
+				case uniqueCh <- job:
+					uniquenessScheduled++
 				case <-timeboxedCtx.Done():
 					break outer
 				}
@@ -275,15 +298,7 @@ outer:
 	candidateWG.Wait()
 	close(uniqueCh)
 	for result := range uniqueResultCh {
-		candidate, ok := pendingUnique[result.attemptID]
-		delete(pendingUnique, result.attemptID)
-		if !ok {
-			continue
-		}
-		if result.err == nil && result.count == 1 && (!haveBestUnique || betterCandidate(candidate, bestUnique)) {
-			bestUnique = candidate
-			haveBestUnique = true
-		}
+		handleUniqueResult(result)
 	}
 
 	if haveBestUnique {
@@ -340,20 +355,20 @@ func candidateWorker(
 func uniquenessWorker(
 	ctx context.Context,
 	budget generationBudget,
-	uniqueCh <-chan candidateResult,
+	uniqueCh <-chan uniquenessJob,
 	uniqueResultCh chan<- uniquenessOutcome,
 ) {
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case candidate, ok := <-uniqueCh:
+		case job, ok := <-uniqueCh:
 			if !ok {
 				return
 			}
 
-			count, _, err := CountSolutionsContext(ctx, candidate.puzzle, 2, budget.uniquenessNodes)
-			result := uniquenessOutcome{attemptID: candidate.attemptID, count: count, err: err}
+			count, _, err := CountSolutionsContext(ctx, job.puzzle, 2, budget.uniquenessNodes)
+			result := uniquenessOutcome{clueKey: job.clueKey, count: count, err: err}
 			select {
 			case uniqueResultCh <- result:
 			case <-ctx.Done():
@@ -902,23 +917,18 @@ func shouldProbeUniqueness(
 	candidate candidateResult,
 	haveBestSolvable bool,
 	bestSolvable candidateResult,
-	haveBestUnique bool,
-	bestUnique candidateResult,
-	queued int,
+	scheduled int,
 	budget generationBudget,
 	deadline time.Time,
 ) bool {
-	if queued >= budget.uniquenessProbeLimit {
+	if scheduled >= budget.uniquenessProbeLimit {
 		return false
 	}
 	if time.Until(deadline) < uniquenessMinRemainingBudget {
 		return false
 	}
-	if queued < 3 {
+	if scheduled < 3 {
 		return true
-	}
-	if haveBestUnique {
-		return candidate.score > bestUnique.score-0.45
 	}
 	if !haveBestSolvable {
 		return true
@@ -969,9 +979,26 @@ func candidateWorkerCount(mode NurikabeMode) int {
 	case "Medium":
 		return 2
 	case "Hard":
-		return 3
+		return 4
 	case "Expert":
-		return 3
+		return 4
+	default:
+		return 2
+	}
+}
+
+func uniquenessWorkerCount(mode NurikabeMode) int {
+	switch mode.Title() {
+	case "Mini":
+		return 1
+	case "Easy":
+		return 1
+	case "Medium":
+		return 2
+	case "Hard":
+		return 4
+	case "Expert":
+		return 5
 	default:
 		return 2
 	}
@@ -1057,9 +1084,9 @@ func modeGenerationBudget(mode NurikabeMode) generationBudget {
 	case "Medium":
 		return generationBudget{attempts: 500, solvabilityNodes: 70000, uniquenessNodes: 140000, uniquenessProbeLimit: 10}
 	case "Hard":
-		return generationBudget{attempts: 650, solvabilityNodes: 95000, uniquenessNodes: 180000, uniquenessProbeLimit: 12}
+		return generationBudget{attempts: 420, solvabilityNodes: 70000, uniquenessNodes: 120000, uniquenessProbeLimit: 8}
 	case "Expert":
-		return generationBudget{attempts: 800, solvabilityNodes: 120000, uniquenessNodes: 220000, uniquenessProbeLimit: 14}
+		return generationBudget{attempts: 320, solvabilityNodes: 70000, uniquenessNodes: 100000, uniquenessProbeLimit: 6}
 	default:
 		return generationBudget{attempts: 400, solvabilityNodes: 45000, uniquenessNodes: 100000, uniquenessProbeLimit: 8}
 	}

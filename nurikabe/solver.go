@@ -27,6 +27,57 @@ type islandComponent struct {
 
 var dirs = [4]point{{0, -1}, {0, 1}, {-1, 0}, {1, 0}}
 
+type solverScratch struct {
+	width  int
+	height int
+
+	compIdx   [][]int
+	seen      [][]int
+	seenMark  int
+	workQueue []point
+}
+
+func newSolverScratch(width, height int) *solverScratch {
+	s := &solverScratch{
+		width:  width,
+		height: height,
+	}
+	if width <= 0 || height <= 0 {
+		return s
+	}
+
+	s.compIdx = make([][]int, height)
+	s.seen = make([][]int, height)
+	for y := range height {
+		s.compIdx[y] = make([]int, width)
+		s.seen[y] = make([]int, width)
+	}
+	return s
+}
+
+func (s *solverScratch) resetComponentIndex() [][]int {
+	for y := range s.height {
+		for x := range s.width {
+			s.compIdx[y][x] = -1
+		}
+	}
+	return s.compIdx
+}
+
+func (s *solverScratch) nextSeenMark() int {
+	s.seenMark++
+	if s.seenMark > 0 {
+		return s.seenMark
+	}
+	for y := range s.height {
+		for x := range s.width {
+			s.seen[y][x] = 0
+		}
+	}
+	s.seenMark = 1
+	return s.seenMark
+}
+
 func CountSolutions(puzzle Puzzle, limit, nodeLimit int) (int, SolveStats, error) {
 	return CountSolutionsContext(context.Background(), puzzle, limit, nodeLimit)
 }
@@ -56,6 +107,7 @@ func CountSolutionsContext(ctx context.Context, puzzle Puzzle, limit, nodeLimit 
 
 	stats := SolveStats{}
 	solutions := 0
+	scratch := newSolverScratch(puzzle.Width, puzzle.Height)
 	var dfs func(grid, int) error
 	dfs = func(g grid, depth int) error {
 		if err := ctx.Err(); err != nil {
@@ -69,16 +121,16 @@ func CountSolutionsContext(ctx context.Context, puzzle Puzzle, limit, nodeLimit 
 			stats.MaxDepth = depth
 		}
 
-		if err := propagate(g, puzzle.Clues); err != nil {
+		if err := propagateWithScratch(g, puzzle.Clues, scratch); err != nil {
 			return nil
 		}
-		if err := validatePartial(g, puzzle.Clues); err != nil {
+		if err := validatePartialWithScratch(g, puzzle.Clues, scratch); err != nil {
 			return nil
 		}
 
 		x, y, ok := pickUnknown(g, puzzle.Clues)
 		if !ok {
-			if isSolvedGrid(g, puzzle.Clues) {
+			if isSolvedGridWithScratch(g, puzzle.Clues, scratch) {
 				solutions++
 			}
 			return nil
@@ -118,6 +170,14 @@ func CountSolutionsContext(ctx context.Context, puzzle Puzzle, limit, nodeLimit 
 }
 
 func propagate(g grid, clues clueGrid) error {
+	if len(g) == 0 || len(g[0]) == 0 {
+		return nil
+	}
+	scratch := newSolverScratch(len(g[0]), len(g))
+	return propagateWithScratch(g, clues, scratch)
+}
+
+func propagateWithScratch(g grid, clues clueGrid, scratch *solverScratch) error {
 	height := len(g)
 	if height == 0 {
 		return nil
@@ -126,7 +186,7 @@ func propagate(g grid, clues clueGrid) error {
 
 	for {
 		changed := false
-		comps, compIdx := islandComponents(g, clues)
+		comps, compIdx := islandComponentsWithScratch(g, clues, scratch)
 
 		for _, comp := range comps {
 			if comp.clueCount == 1 && len(comp.cells) == comp.clueValue {
@@ -150,7 +210,8 @@ func propagate(g grid, clues clueGrid) error {
 				if g[y][x] != unknownCell {
 					continue
 				}
-				seen := map[point]bool{}
+				firstClueComp := -1
+				clashes := false
 				for _, d := range dirs {
 					nx, ny := x+d.x, y+d.y
 					if nx < 0 || nx >= width || ny < 0 || ny >= height {
@@ -165,17 +226,24 @@ func propagate(g grid, clues clueGrid) error {
 					}
 					comp := comps[idx]
 					if comp.clueCount == 1 {
-						seen[comp.cluePos] = true
+						if firstClueComp == -1 {
+							firstClueComp = idx
+							continue
+						}
+						if firstClueComp != idx {
+							clashes = true
+							break
+						}
 					}
 				}
-				if len(seen) >= 2 {
+				if clashes {
 					g[y][x] = seaCell
 					changed = true
 				}
 			}
 		}
 
-		if err := validatePartial(g, clues); err != nil {
+		if err := validatePartialWithScratch(g, clues, scratch); err != nil {
 			return err
 		}
 		if !changed {
@@ -185,14 +253,22 @@ func propagate(g grid, clues clueGrid) error {
 }
 
 func validatePartial(g grid, clues clueGrid) error {
+	if len(g) == 0 || len(g[0]) == 0 {
+		return nil
+	}
+	scratch := newSolverScratch(len(g[0]), len(g))
+	return validatePartialWithScratch(g, clues, scratch)
+}
+
+func validatePartialWithScratch(g grid, clues clueGrid, scratch *solverScratch) error {
 	if hasSeaSquare(g) {
 		return fmt.Errorf("contains 2x2 sea block")
 	}
-	if !seaCanRemainConnected(g) {
+	if !seaCanRemainConnectedWithScratch(g, scratch) {
 		return fmt.Errorf("sea components cannot be connected")
 	}
 
-	comps, _ := islandComponents(g, clues)
+	comps, _ := islandComponentsWithScratch(g, clues, scratch)
 	for _, comp := range comps {
 		size := len(comp.cells)
 		switch {
@@ -200,9 +276,9 @@ func validatePartial(g grid, clues clueGrid) error {
 			return fmt.Errorf("island has multiple clues")
 		case comp.clueCount == 1 && size > comp.clueValue:
 			return fmt.Errorf("island exceeds clue size")
-		case comp.clueCount == 0 && !componentCanReachClue(g, clues, comp):
+		case comp.clueCount == 0 && !componentCanReachClueWithScratch(g, clues, comp, scratch):
 			return fmt.Errorf("orphan island component")
-		case comp.clueCount == 1 && maxReachableForComponent(g, clues, comp) < comp.clueValue:
+		case comp.clueCount == 1 && maxReachableForComponentWithScratch(g, clues, comp, scratch) < comp.clueValue:
 			return fmt.Errorf("clue cannot reach required size")
 		}
 	}
@@ -211,6 +287,14 @@ func validatePartial(g grid, clues clueGrid) error {
 }
 
 func isSolvedGrid(g grid, clues clueGrid) bool {
+	if len(g) == 0 || len(g[0]) == 0 {
+		return false
+	}
+	scratch := newSolverScratch(len(g[0]), len(g))
+	return isSolvedGridWithScratch(g, clues, scratch)
+}
+
+func isSolvedGridWithScratch(g grid, clues clueGrid, scratch *solverScratch) bool {
 	if len(g) == 0 || len(g[0]) == 0 {
 		return false
 	}
@@ -231,11 +315,11 @@ func isSolvedGrid(g grid, clues clueGrid) bool {
 	if hasSeaSquare(g) {
 		return false
 	}
-	if !isSeaConnected(g) {
+	if !isSeaConnectedWithScratch(g, scratch) {
 		return false
 	}
 
-	comps, _ := islandComponents(g, clues)
+	comps, _ := islandComponentsWithScratch(g, clues, scratch)
 	seenClues := 0
 	for _, comp := range comps {
 		if comp.clueCount != 1 {
@@ -306,6 +390,14 @@ func candidateOrder(g grid, clues clueGrid, x, y int) []cellState {
 }
 
 func seaCanRemainConnected(g grid) bool {
+	if len(g) == 0 || len(g[0]) == 0 {
+		return true
+	}
+	scratch := newSolverScratch(len(g[0]), len(g))
+	return seaCanRemainConnectedWithScratch(g, scratch)
+}
+
+func seaCanRemainConnectedWithScratch(g grid, scratch *solverScratch) bool {
 	height := len(g)
 	if height == 0 {
 		return true
@@ -328,32 +420,30 @@ func seaCanRemainConnected(g grid) bool {
 		return true
 	}
 
-	visited := make([][]bool, height)
-	for y := range height {
-		visited[y] = make([]bool, width)
-	}
-	queue := []point{start}
-	visited[start.y][start.x] = true
+	seenMark := scratch.nextSeenMark()
+	scratch.workQueue = scratch.workQueue[:0]
+	scratch.workQueue = append(scratch.workQueue, start)
+	scratch.seen[start.y][start.x] = seenMark
 
-	for len(queue) > 0 {
-		p := queue[0]
-		queue = queue[1:]
+	for len(scratch.workQueue) > 0 {
+		p := scratch.workQueue[0]
+		scratch.workQueue = scratch.workQueue[1:]
 		for _, d := range dirs {
 			nx, ny := p.x+d.x, p.y+d.y
 			if nx < 0 || ny < 0 || nx >= width || ny >= height {
 				continue
 			}
-			if visited[ny][nx] || g[ny][nx] == islandCell {
+			if scratch.seen[ny][nx] == seenMark || g[ny][nx] == islandCell {
 				continue
 			}
-			visited[ny][nx] = true
-			queue = append(queue, point{nx, ny})
+			scratch.seen[ny][nx] = seenMark
+			scratch.workQueue = append(scratch.workQueue, point{nx, ny})
 		}
 	}
 
 	for y := range height {
 		for x := range width {
-			if g[y][x] == seaCell && !visited[y][x] {
+			if g[y][x] == seaCell && scratch.seen[y][x] != seenMark {
 				return false
 			}
 		}
@@ -362,6 +452,14 @@ func seaCanRemainConnected(g grid) bool {
 }
 
 func isSeaConnected(g grid) bool {
+	if len(g) == 0 || len(g[0]) == 0 {
+		return false
+	}
+	scratch := newSolverScratch(len(g[0]), len(g))
+	return isSeaConnectedWithScratch(g, scratch)
+}
+
+func isSeaConnectedWithScratch(g grid, scratch *solverScratch) bool {
 	height := len(g)
 	if height == 0 {
 		return false
@@ -384,29 +482,26 @@ func isSeaConnected(g grid) bool {
 		return false
 	}
 
-	visited := make([][]bool, height)
-	for y := range height {
-		visited[y] = make([]bool, width)
-	}
-
-	queue := []point{start}
-	visited[start.y][start.x] = true
+	seenMark := scratch.nextSeenMark()
+	scratch.workQueue = scratch.workQueue[:0]
+	scratch.workQueue = append(scratch.workQueue, start)
+	scratch.seen[start.y][start.x] = seenMark
 	seen := 1
 
-	for len(queue) > 0 {
-		p := queue[0]
-		queue = queue[1:]
+	for len(scratch.workQueue) > 0 {
+		p := scratch.workQueue[0]
+		scratch.workQueue = scratch.workQueue[1:]
 		for _, d := range dirs {
 			nx, ny := p.x+d.x, p.y+d.y
 			if nx < 0 || ny < 0 || nx >= width || ny >= height {
 				continue
 			}
-			if visited[ny][nx] || g[ny][nx] != seaCell {
+			if scratch.seen[ny][nx] == seenMark || g[ny][nx] != seaCell {
 				continue
 			}
-			visited[ny][nx] = true
+			scratch.seen[ny][nx] = seenMark
 			seen++
-			queue = append(queue, point{nx, ny})
+			scratch.workQueue = append(scratch.workQueue, point{nx, ny})
 		}
 	}
 
@@ -430,15 +525,17 @@ func hasSeaSquare(g grid) bool {
 }
 
 func islandComponents(g grid, clues clueGrid) ([]islandComponent, [][]int) {
+	if len(g) == 0 || len(g[0]) == 0 {
+		return nil, nil
+	}
+	scratch := newSolverScratch(len(g[0]), len(g))
+	return islandComponentsWithScratch(g, clues, scratch)
+}
+
+func islandComponentsWithScratch(g grid, clues clueGrid, scratch *solverScratch) ([]islandComponent, [][]int) {
 	height := len(g)
 	width := len(g[0])
-	idx := make([][]int, height)
-	for y := range height {
-		idx[y] = make([]int, width)
-		for x := range width {
-			idx[y][x] = -1
-		}
-	}
+	idx := scratch.resetComponentIndex()
 
 	components := make([]islandComponent, 0)
 	for y := range height {
@@ -448,13 +545,17 @@ func islandComponents(g grid, clues clueGrid) ([]islandComponent, [][]int) {
 			}
 
 			compIndex := len(components)
-			comp := islandComponent{cluePos: point{-1, -1}}
-			queue := []point{{x, y}}
+			comp := islandComponent{
+				cluePos: point{-1, -1},
+				cells:   make([]point, 0, 16),
+			}
+			scratch.workQueue = scratch.workQueue[:0]
+			scratch.workQueue = append(scratch.workQueue, point{x, y})
 			idx[y][x] = compIndex
 
-			for len(queue) > 0 {
-				p := queue[0]
-				queue = queue[1:]
+			for len(scratch.workQueue) > 0 {
+				p := scratch.workQueue[0]
+				scratch.workQueue = scratch.workQueue[1:]
 				comp.cells = append(comp.cells, p)
 				if clues[p.y][p.x] > 0 {
 					comp.clueCount++
@@ -471,7 +572,7 @@ func islandComponents(g grid, clues clueGrid) ([]islandComponent, [][]int) {
 						continue
 					}
 					idx[ny][nx] = compIndex
-					queue = append(queue, point{nx, ny})
+					scratch.workQueue = append(scratch.workQueue, point{nx, ny})
 				}
 			}
 
@@ -483,22 +584,31 @@ func islandComponents(g grid, clues clueGrid) ([]islandComponent, [][]int) {
 }
 
 func componentCanReachClue(g grid, clues clueGrid, comp islandComponent) bool {
+	if len(g) == 0 || len(g[0]) == 0 {
+		return false
+	}
+	scratch := newSolverScratch(len(g[0]), len(g))
+	return componentCanReachClueWithScratch(g, clues, comp, scratch)
+}
+
+func componentCanReachClueWithScratch(
+	g grid,
+	clues clueGrid,
+	comp islandComponent,
+	scratch *solverScratch,
+) bool {
 	height := len(g)
 	width := len(g[0])
-	seen := make([][]bool, height)
-	for y := range height {
-		seen[y] = make([]bool, width)
-	}
-
-	queue := make([]point, len(comp.cells))
-	copy(queue, comp.cells)
+	seenMark := scratch.nextSeenMark()
+	scratch.workQueue = scratch.workQueue[:0]
 	for _, c := range comp.cells {
-		seen[c.y][c.x] = true
+		scratch.seen[c.y][c.x] = seenMark
+		scratch.workQueue = append(scratch.workQueue, c)
 	}
 
-	for len(queue) > 0 {
-		p := queue[0]
-		queue = queue[1:]
+	for len(scratch.workQueue) > 0 {
+		p := scratch.workQueue[0]
+		scratch.workQueue = scratch.workQueue[1:]
 		if clues[p.y][p.x] > 0 {
 			return true
 		}
@@ -507,11 +617,11 @@ func componentCanReachClue(g grid, clues clueGrid, comp islandComponent) bool {
 			if nx < 0 || ny < 0 || nx >= width || ny >= height {
 				continue
 			}
-			if seen[ny][nx] || g[ny][nx] == seaCell {
+			if scratch.seen[ny][nx] == seenMark || g[ny][nx] == seaCell {
 				continue
 			}
-			seen[ny][nx] = true
-			queue = append(queue, point{nx, ny})
+			scratch.seen[ny][nx] = seenMark
+			scratch.workQueue = append(scratch.workQueue, point{nx, ny})
 		}
 	}
 
@@ -519,41 +629,50 @@ func componentCanReachClue(g grid, clues clueGrid, comp islandComponent) bool {
 }
 
 func maxReachableForComponent(g grid, clues clueGrid, comp islandComponent) int {
+	if len(g) == 0 || len(g[0]) == 0 {
+		return 0
+	}
+	scratch := newSolverScratch(len(g[0]), len(g))
+	return maxReachableForComponentWithScratch(g, clues, comp, scratch)
+}
+
+func maxReachableForComponentWithScratch(
+	g grid,
+	clues clueGrid,
+	comp islandComponent,
+	scratch *solverScratch,
+) int {
 	if comp.clueCount != 1 {
 		return 0
 	}
 
 	height := len(g)
 	width := len(g[0])
-	seen := make([][]bool, height)
-	for y := range height {
-		seen[y] = make([]bool, width)
-	}
-
-	queue := make([]point, len(comp.cells))
-	copy(queue, comp.cells)
+	seenMark := scratch.nextSeenMark()
+	scratch.workQueue = scratch.workQueue[:0]
 	for _, c := range comp.cells {
-		seen[c.y][c.x] = true
+		scratch.seen[c.y][c.x] = seenMark
+		scratch.workQueue = append(scratch.workQueue, c)
 	}
 
 	count := len(comp.cells)
-	for len(queue) > 0 {
-		p := queue[0]
-		queue = queue[1:]
+	for len(scratch.workQueue) > 0 {
+		p := scratch.workQueue[0]
+		scratch.workQueue = scratch.workQueue[1:]
 		for _, d := range dirs {
 			nx, ny := p.x+d.x, p.y+d.y
 			if nx < 0 || ny < 0 || nx >= width || ny >= height {
 				continue
 			}
-			if seen[ny][nx] || g[ny][nx] == seaCell {
+			if scratch.seen[ny][nx] == seenMark || g[ny][nx] == seaCell {
 				continue
 			}
 			if clues[ny][nx] > 0 && (nx != comp.cluePos.x || ny != comp.cluePos.y) {
 				continue
 			}
-			seen[ny][nx] = true
+			scratch.seen[ny][nx] = seenMark
 			count++
-			queue = append(queue, point{nx, ny})
+			scratch.workQueue = append(scratch.workQueue, point{nx, ny})
 		}
 	}
 
