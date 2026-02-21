@@ -349,10 +349,11 @@ func (m model) handleSeedConfirm() (tea.Model, tea.Cmd) {
 
 	if rec != nil {
 		// Seed game exists - resume it.
-		m = m.importAndActivateRecord(*rec)
+		var resumed bool
+		m, resumed = m.importAndActivateRecord(*rec)
 
 		// Resume abandoned seeded games by resetting their status.
-		if rec.Status == store.StatusAbandoned {
+		if resumed && rec.Status == store.StatusAbandoned {
 			if err := m.store.UpdateStatus(rec.ID, store.StatusInProgress); err != nil {
 				log.Printf("failed to mark seeded game in progress: %v", err)
 			}
@@ -390,10 +391,11 @@ func (m model) handleDailyPuzzle() (tea.Model, tea.Cmd) {
 
 	if rec != nil {
 		// Daily exists - resume or review it.
-		m = m.importAndActivateRecord(*rec)
+		var resumed bool
+		m, resumed = m.importAndActivateRecord(*rec)
 
 		// Resume abandoned dailies by resetting their status.
-		if rec.Status == store.StatusAbandoned {
+		if resumed && rec.Status == store.StatusAbandoned {
 			if err := m.store.UpdateStatus(rec.ID, store.StatusInProgress); err != nil {
 				log.Printf("failed to mark daily game in progress: %v", err)
 			}
@@ -453,7 +455,7 @@ func (m model) handleContinueEnter() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	rec := m.continueGames[idx]
-	m = m.importAndActivateRecord(rec)
+	m, _ = m.importAndActivateRecord(rec)
 	return m, nil
 }
 

@@ -21,18 +21,18 @@ func (m model) activateGame(g game.Gamer, activeGameID int64, completionSaved bo
 	return m
 }
 
-func (m model) importAndActivateRecord(rec store.GameRecord) model {
+func (m model) importAndActivateRecord(rec store.GameRecord) (model, bool) {
 	importFn, ok := game.Registry[rec.GameType]
 	if !ok {
 		log.Printf("unknown game type in save data: %s", rec.GameType)
-		return m
+		return m, false
 	}
 
 	g, err := importFn([]byte(rec.SaveState))
 	if err != nil {
 		log.Printf("failed to import game: %v", err)
-		return m
+		return m, false
 	}
 
-	return m.activateGame(g.SetTitle(rec.Name), rec.ID, rec.Status == store.StatusCompleted)
+	return m.activateGame(g.SetTitle(rec.Name), rec.ID, rec.Status == store.StatusCompleted), true
 }
