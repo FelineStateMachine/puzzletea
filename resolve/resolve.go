@@ -28,6 +28,9 @@ var CategoryAliases = map[string]string{
 	"hitori":     "hitori",
 	"lights":     "lights out",
 	"nonogram":   "nonogram",
+	"nurikabe":   "nurikabe",
+	"islands":    "nurikabe",
+	"sea":        "nurikabe",
 	"sudoku":     "sudoku",
 	"takuzu":     "takuzu",
 	"binairo":    "takuzu",
@@ -49,7 +52,10 @@ func Category(name string, categories []list.Item) (game.Category, error) {
 	}
 
 	for _, item := range categories {
-		cat := item.(game.Category)
+		cat, ok := item.(game.Category)
+		if !ok {
+			continue
+		}
 		if Normalize(cat.Name) == norm {
 			return cat, nil
 		}
@@ -67,15 +73,32 @@ func Mode(cat game.Category, name string) (game.Spawner, string, error) {
 	}
 
 	if name == "" {
-		m := cat.Modes[0].(game.Mode)
-		return m.(game.Spawner), m.Title(), nil
+		for _, item := range cat.Modes {
+			m, ok := item.(game.Mode)
+			if !ok {
+				continue
+			}
+			s, ok := item.(game.Spawner)
+			if !ok {
+				continue
+			}
+			return s, m.Title(), nil
+		}
+		return nil, "", fmt.Errorf("game %q has no spawnable modes", cat.Name)
 	}
 
 	norm := Normalize(name)
 	for _, item := range cat.Modes {
-		m := item.(game.Mode)
+		m, ok := item.(game.Mode)
+		if !ok {
+			continue
+		}
 		if Normalize(m.Title()) == norm {
-			return m.(game.Spawner), m.Title(), nil
+			s, ok := item.(game.Spawner)
+			if !ok {
+				return nil, "", fmt.Errorf("mode %q for %s is not spawnable", m.Title(), cat.Name)
+			}
+			return s, m.Title(), nil
 		}
 	}
 
@@ -85,18 +108,26 @@ func Mode(cat game.Category, name string) (game.Spawner, string, error) {
 
 // CategoryNames returns the display names of all game categories.
 func CategoryNames(categories []list.Item) []string {
-	names := make([]string, len(categories))
-	for i, item := range categories {
-		names[i] = item.(game.Category).Name
+	names := make([]string, 0, len(categories))
+	for _, item := range categories {
+		cat, ok := item.(game.Category)
+		if !ok {
+			continue
+		}
+		names = append(names, cat.Name)
 	}
 	return names
 }
 
 // ModeNames returns the display names of all modes in a category.
 func ModeNames(cat game.Category) []string {
-	names := make([]string, len(cat.Modes))
-	for i, item := range cat.Modes {
-		names[i] = item.(game.Mode).Title()
+	names := make([]string, 0, len(cat.Modes))
+	for _, item := range cat.Modes {
+		mode, ok := item.(game.Mode)
+		if !ok {
+			continue
+		}
+		names = append(names, mode.Title())
 	}
 	return names
 }
@@ -130,8 +161,15 @@ func SeededMode(seed string, categories []list.Item) (game.SeededSpawner, string
 	var bestHash uint64
 	found := false
 	for _, item := range categories {
-		cat := item.(game.Category)
+		cat, ok := item.(game.Category)
+		if !ok {
+			continue
+		}
 		for _, modeItem := range cat.Modes {
+			mode, ok := modeItem.(game.Mode)
+			if !ok {
+				continue
+			}
 			s, ok := modeItem.(game.SeededSpawner)
 			if !ok {
 				continue
@@ -141,14 +179,14 @@ func SeededMode(seed string, categories []list.Item) (game.SeededSpawner, string
 			h.Write([]byte{0})
 			h.Write([]byte(cat.Name))
 			h.Write([]byte{0})
-			h.Write([]byte(modeItem.(game.Mode).Title()))
+			h.Write([]byte(mode.Title()))
 			score := h.Sum64()
 			if !found || score > bestHash {
 				bestHash = score
 				best = seededEntry{
 					spawner:  s,
 					gameType: cat.Name,
-					mode:     modeItem.(game.Mode).Title(),
+					mode:     mode.Title(),
 				}
 				found = true
 			}

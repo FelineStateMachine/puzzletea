@@ -617,6 +617,30 @@ func TestScreenToGrid(t *testing.T) {
 	}
 }
 
+func TestHelpToggleInvalidatesOriginCache(t *testing.T) {
+	m := Model{
+		width:       10,
+		height:      10,
+		grid:        createEmptyGrid(10, 10),
+		keys:        DefaultKeyMap,
+		modeTitle:   "Test",
+		foundCells:  buildFoundCells(10, 10, nil),
+		originX:     9,
+		originY:     13,
+		originValid: true,
+	}
+
+	next, _ := m.Update(game.HelpToggleMsg{Show: true})
+	got := next.(Model)
+
+	if !got.showFullHelp {
+		t.Fatal("expected showFullHelp to be true")
+	}
+	if got.originValid {
+		t.Fatal("expected origin cache to be invalidated")
+	}
+}
+
 // --- Save/Load round-trip (P1) ---
 
 func TestSaveLoadRoundTrip(t *testing.T) {

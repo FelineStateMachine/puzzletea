@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 )
 
 // --- Cursor.Move (P0) ---
@@ -296,6 +297,79 @@ func TestTitleBarView(t *testing.T) {
 		result := TitleBarView("Sudoku", "Easy", true)
 		if !strings.Contains(result, "SOLVED") {
 			t.Error("expected result to contain SOLVED")
+		}
+	})
+}
+
+// --- ComposeGameView (P1) ---
+
+func TestComposeGameView(t *testing.T) {
+	t.Run("secondary width is fixed at 150 percent of primary", func(t *testing.T) {
+		primary := lipgloss.NewStyle().Width(12).Render("grid")
+		view := ComposeGameView(
+			"title-width",
+			primary,
+			"this secondary row is much wider than the primary area",
+		)
+
+		if got, want := lipgloss.Width(view), 18; got != want {
+			t.Errorf("width = %d, want %d", got, want)
+		}
+	})
+
+	t.Run("long secondary wraps and increases height", func(t *testing.T) {
+		primary := lipgloss.NewStyle().Width(10).Render("grid")
+
+		short := ComposeGameView("title-wrap", primary, "short row")
+		long := ComposeGameView(
+			"title-wrap",
+			primary,
+			"this secondary row should wrap to multiple lines when constrained",
+		)
+
+		if got, want := lipgloss.Width(long), 15; got != want {
+			t.Errorf("width = %d, want %d", got, want)
+		}
+		if got, want := lipgloss.Width(short), 15; got != want {
+			t.Errorf("width = %d, want %d", got, want)
+		}
+		if lipgloss.Height(long) <= lipgloss.Height(short) {
+			t.Errorf("height = %d, want > %d", lipgloss.Height(long), lipgloss.Height(short))
+		}
+	})
+
+	t.Run("wrap prefers double-space boundaries", func(t *testing.T) {
+		row := "alpha: one  beta: two  gamma: three"
+		got := wrapRowOnDoubleSpace(row, 18)
+		want := "alpha: one\nbeta: two\ngamma: three"
+		if got != want {
+			t.Fatalf("wrapRowOnDoubleSpace() = %q, want %q", got, want)
+		}
+	})
+
+	t.Run("stable row reserves max variant height", func(t *testing.T) {
+		primary := lipgloss.NewStyle().Width(10).Render("grid")
+		longCurrent := ComposeGameViewRows(
+			"title-pad",
+			primary,
+			StableRow(
+				"alpha: one  beta: two  gamma: three",
+				"alpha: one",
+				"alpha: one  beta: two  gamma: three",
+			),
+		)
+		shortCurrent := ComposeGameViewRows(
+			"title-pad",
+			primary,
+			StableRow(
+				"alpha: one",
+				"alpha: one",
+				"alpha: one  beta: two  gamma: three",
+			),
+		)
+
+		if got, want := lipgloss.Height(shortCurrent), lipgloss.Height(longCurrent); got != want {
+			t.Fatalf("height(short) = %d, want %d", got, want)
 		}
 	})
 }

@@ -4,6 +4,10 @@ import (
 	"encoding/json"
 	"math/rand/v2"
 	"testing"
+
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
+	"github.com/FelineStateMachine/puzzletea/game"
 )
 
 // --- helpers ---
@@ -549,6 +553,43 @@ func TestScreenToGrid(t *testing.T) {
 	}
 }
 
+func TestHelpToggleInvalidatesOriginCache(t *testing.T) {
+	m := Model{
+		puzzle:      *simplePuzzle(),
+		keys:        DefaultKeyMap,
+		modeTitle:   "Test",
+		originX:     7,
+		originY:     11,
+		originValid: true,
+	}
+
+	next, _ := m.Update(game.HelpToggleMsg{Show: true})
+	got := next.(Model)
+
+	if !got.showFullHelp {
+		t.Fatal("expected showFullHelp to be true")
+	}
+	if got.originValid {
+		t.Fatal("expected origin cache to be invalidated")
+	}
+}
+
+func TestViewWidthStableWhenFullHelpExpanded(t *testing.T) {
+	m := Model{
+		puzzle:    *simplePuzzle(),
+		keys:      DefaultKeyMap,
+		modeTitle: "Test",
+	}
+
+	shortWidth := lipgloss.Width(m.View())
+	next, _ := m.Update(game.HelpToggleMsg{Show: true})
+	fullWidth := lipgloss.Width(next.(Model).View())
+
+	if fullWidth > shortWidth {
+		t.Errorf("full-help width = %d, want <= %d", fullWidth, shortWidth)
+	}
+}
+
 // --- rectFromCorners (P1) ---
 
 func TestRectFromCorners(t *testing.T) {
@@ -576,6 +617,51 @@ func TestRectFromCorners(t *testing.T) {
 					tt.wantX, tt.wantY, tt.wantW, tt.wantH)
 			}
 		})
+	}
+}
+
+// --- Escape cancel behavior (P1) ---
+
+func TestEscapeCancelsPendingExpansion(t *testing.T) {
+	p := simplePuzzle()
+	selected := 0
+	m := Model{
+		puzzle:       *p,
+		selectedClue: &selected,
+		expansion: expansion{
+			clueID: 0,
+			right:  1,
+		},
+		keys: DefaultKeyMap,
+	}
+
+	next, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	got := next.(Model)
+
+	if got.selectedClue != nil {
+		t.Fatal("expected selected clue to be cleared on escape")
+	}
+}
+
+func TestEscapeCancelsPendingMousePreviewInNavMode(t *testing.T) {
+	p := simplePuzzle()
+	anchor := [2]int{0, 0}
+	preview := Rectangle{X: 0, Y: 0, W: 2, H: 2}
+	m := Model{
+		puzzle:          *p,
+		keys:            DefaultKeyMap,
+		mouseDragAnchor: &anchor,
+		mousePreview:    &preview,
+	}
+
+	next, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	got := next.(Model)
+
+	if got.mouseDragAnchor != nil {
+		t.Fatal("expected mouse drag anchor to be cleared on escape")
+	}
+	if got.mousePreview != nil {
+		t.Fatal("expected mouse preview to be cleared on escape")
 	}
 }
 

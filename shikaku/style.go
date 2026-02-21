@@ -15,7 +15,7 @@ const cellWidth = 3
 // rectColors returns the current theme's chromatic ANSI colors for
 // rectangle backgrounds. Colors follow the active palette, so they
 // adapt automatically when the user switches themes.
-func rectColors() []color.Color { return theme.Current().CardColors() }
+func rectColors() []color.Color { return theme.Current().ThemeColors() }
 
 func gridBorderStyle() lipgloss.Style {
 	return lipgloss.NewStyle().
@@ -85,7 +85,7 @@ func cellView(m Model, x, y int, solved bool, preview *Rectangle, previewClue *C
 	s := lipgloss.NewStyle().Foreground(p.TextDim)
 
 	if clue != nil {
-		s = lipgloss.NewStyle().Foreground(p.Given).Background(p.Surface).Bold(true)
+		s = lipgloss.NewStyle().Foreground(p.Given).Background(p.BG).Bold(true)
 	}
 
 	// Rectangle background color (from current theme palette).

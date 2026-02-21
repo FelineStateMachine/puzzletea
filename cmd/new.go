@@ -2,18 +2,15 @@ package cmd
 
 import (
 	"fmt"
-	"log"
 	"strings"
 
 	"github.com/FelineStateMachine/puzzletea/app"
 	"github.com/FelineStateMachine/puzzletea/config"
-	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/namegen"
 	"github.com/FelineStateMachine/puzzletea/resolve"
 	"github.com/FelineStateMachine/puzzletea/stats"
 	"github.com/FelineStateMachine/puzzletea/store"
 
-	tea "charm.land/bubbletea/v2"
 	"github.com/spf13/cobra"
 )
 
@@ -74,32 +71,17 @@ func launchNewGame(gameArg, modeArg string, cfg *config.Config) error {
 	}
 	defer s.Close()
 
-	stats.InitModeXP(app.GameCategories)
+	stats.InitModeXP(app.Categories)
 
 	name := app.GenerateUniqueName(s)
 	g = g.SetTitle(name)
 
-	initialState, err := g.GetSave()
+	rec, err := createGameRecord(s, g, name, cat.Name, modeTitle)
 	if err != nil {
-		return fmt.Errorf("failed to get initial save: %w", err)
+		return err
 	}
 
-	rec := &store.GameRecord{
-		Name:         name,
-		GameType:     cat.Name,
-		Mode:         modeTitle,
-		InitialState: string(initialState),
-		SaveState:    string(initialState),
-		Status:       store.StatusNew,
-	}
-	if err := s.CreateGame(rec); err != nil {
-		log.Printf("failed to create game record: %v", err)
-	}
-
-	m := app.InitialModelWithGame(s, cfg, g, rec.ID, false)
-	p := tea.NewProgram(m)
-	_, err = p.Run()
-	return err
+	return runGameProgram(s, cfg, g, rec.ID, false)
 }
 
 // launchSeededGame uses an arbitrary seed string to deterministically select
@@ -128,32 +110,26 @@ func launchSeededGame(seed string, cfg *config.Config) error {
 	}
 	defer s.Close()
 
-	stats.InitModeXP(app.GameCategories)
+	stats.InitModeXP(app.Categories)
 
 	// If a game with this name already exists, resume it (including
 	// abandoned games — seeded puzzles are deterministic and should
 	// always be resumable rather than duplicated).
 	if rec, err := s.GetDailyGame(name); err == nil && rec != nil {
-		importFn, ok := game.Registry[rec.GameType]
-		if !ok {
-			return fmt.Errorf("unknown game type %q in save data", rec.GameType)
-		}
-		g, err := importFn([]byte(rec.SaveState))
+		g, err := importSavedGame(rec)
 		if err != nil {
-			return fmt.Errorf("failed to import saved game: %w", err)
+			return err
 		}
-		g = g.SetTitle(rec.Name)
 		completed := rec.Status == store.StatusCompleted
 
 		// Resume abandoned seeded games by resetting their status.
 		if rec.Status == store.StatusAbandoned {
-			_ = s.UpdateStatus(rec.ID, store.StatusInProgress)
+			if err := s.UpdateStatus(rec.ID, store.StatusInProgress); err != nil {
+				return fmt.Errorf("failed to mark seeded game in progress: %w", err)
+			}
 		}
 
-		m := app.InitialModelWithGame(s, cfg, g, rec.ID, completed)
-		p := tea.NewProgram(m)
-		_, err = p.Run()
-		return err
+		return runGameProgram(s, cfg, g, rec.ID, completed)
 	}
 
 	// Mode selection uses rendezvous hashing (independent of RNG).
@@ -170,25 +146,10 @@ func launchSeededGame(seed string, cfg *config.Config) error {
 	}
 	g = g.SetTitle(name)
 
-	initialState, err := g.GetSave()
+	rec, err := createGameRecord(s, g, name, gameType, modeTitle)
 	if err != nil {
-		return fmt.Errorf("failed to get initial save: %w", err)
+		return err
 	}
 
-	rec := &store.GameRecord{
-		Name:         name,
-		GameType:     gameType,
-		Mode:         modeTitle,
-		InitialState: string(initialState),
-		SaveState:    string(initialState),
-		Status:       store.StatusNew,
-	}
-	if err := s.CreateGame(rec); err != nil {
-		log.Printf("failed to create game record: %v", err)
-	}
-
-	m := app.InitialModelWithGame(s, cfg, g, rec.ID, false)
-	p := tea.NewProgram(m)
-	_, err = p.Run()
-	return err
+	return runGameProgram(s, cfg, g, rec.ID, false)
 }

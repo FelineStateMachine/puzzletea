@@ -36,6 +36,28 @@ func TestThemeNames(t *testing.T) {
 	}
 }
 
+func TestMaxNameLen(t *testing.T) {
+	maxFromAllThemes := len(DefaultThemeName)
+	for _, th := range AllThemes() {
+		if len(th.Name) > maxFromAllThemes {
+			maxFromAllThemes = len(th.Name)
+		}
+	}
+	if MaxNameLen != maxFromAllThemes {
+		t.Errorf("MaxNameLen = %d, want %d from AllThemes", MaxNameLen, maxFromAllThemes)
+	}
+
+	maxFromThemeNames := 0
+	for _, name := range ThemeNames() {
+		if len(name) > maxFromThemeNames {
+			maxFromThemeNames = len(name)
+		}
+	}
+	if MaxNameLen != maxFromThemeNames {
+		t.Errorf("MaxNameLen = %d, want %d from ThemeNames", MaxNameLen, maxFromThemeNames)
+	}
+}
+
 func TestLookupTheme(t *testing.T) {
 	th := LookupTheme("Dracula")
 	if th == nil {

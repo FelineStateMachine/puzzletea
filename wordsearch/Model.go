@@ -87,6 +87,7 @@ func (m Model) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 	switch msg := msg.(type) {
 	case game.HelpToggleMsg:
 		m.showFullHelp = msg.Show
+		m.originValid = false
 
 	case tea.WindowSizeMsg:
 		m.termWidth = msg.Width

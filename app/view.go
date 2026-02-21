@@ -99,21 +99,19 @@ func (m model) View() tea.View {
 	case themeSelectView:
 		content = m.themeSelectViewContent()
 	case statsView:
+		statsWidth, _ := statsViewportSize(m.width, m.height, m.statsCards)
 		var statsBody string
 		if len(m.statsCards) == 0 {
 			statsBody = m.statsViewport.View()
 		} else {
-			bannerWidth := stats.ContentWidth(m.width)
-			if bannerWidth > 70 {
-				bannerWidth = 70
-			}
-			banner := stats.RenderBanner(m.statsProfile, bannerWidth)
+			banner := stats.RenderBanner(m.statsProfile, statsWidth)
 			statsBody = lipgloss.JoinVertical(lipgloss.Left,
 				banner,
 				"",
 				m.statsViewport.View(),
 			)
 		}
+		statsBody = lipgloss.NewStyle().Width(statsWidth).Render(statsBody)
 		panel := ui.Panel(
 			"Stats",
 			statsBody,

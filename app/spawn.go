@@ -1,9 +1,11 @@
 package app
 
 import (
+	"context"
 	"log"
 	"math/rand/v2"
 	"strconv"
+	"time"
 
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/namegen"
@@ -12,26 +14,85 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
+const spawnTimeout = 10 * time.Second
+
+type spawnCompleteMsg struct {
+	jobID  int64
+	result game.SpawnCompleteMsg
+}
+
 // spawnCmd returns a tea.Cmd that runs Spawn() off the main goroutine.
-func spawnCmd(spawner game.Spawner) tea.Cmd {
+func spawnCmd(spawner game.Spawner, ctx context.Context, jobID int64) tea.Cmd {
 	return func() tea.Msg {
-		g, err := spawner.Spawn()
-		return game.SpawnCompleteMsg{Game: g, Err: err}
+		var (
+			g   game.Gamer
+			err error
+		)
+		if cancellable, ok := spawner.(game.CancellableSpawner); ok {
+			g, err = cancellable.SpawnContext(ctx)
+		} else {
+			g, err = spawner.Spawn()
+		}
+		return spawnCompleteMsg{
+			jobID:  jobID,
+			result: game.SpawnCompleteMsg{Game: g, Err: err},
+		}
 	}
 }
 
 // spawnSeededCmd returns a tea.Cmd that runs SpawnSeeded() off the main goroutine.
 // The caller must not use rng after this call — *rand.Rand is not goroutine-safe
 // and ownership is transferred to the spawned goroutine.
-func spawnSeededCmd(spawner game.SeededSpawner, rng *rand.Rand) tea.Cmd {
+func spawnSeededCmd(spawner game.SeededSpawner, rng *rand.Rand, ctx context.Context, jobID int64) tea.Cmd {
 	return func() tea.Msg {
-		g, err := spawner.SpawnSeeded(rng)
-		return game.SpawnCompleteMsg{Game: g, Err: err}
+		var (
+			g   game.Gamer
+			err error
+		)
+		if cancellable, ok := spawner.(game.CancellableSeededSpawner); ok {
+			g, err = cancellable.SpawnSeededContext(ctx, rng)
+		} else {
+			g, err = spawner.SpawnSeeded(rng)
+		}
+		return spawnCompleteMsg{
+			jobID:  jobID,
+			result: game.SpawnCompleteMsg{Game: g, Err: err},
+		}
 	}
 }
 
-func (m model) handleSpawnComplete(msg game.SpawnCompleteMsg) (tea.Model, tea.Cmd) {
+func (m *model) beginSpawnContext() (context.Context, int64) {
+	m.cancelActiveSpawn()
+	m.spawnJobID++
+	jobID := m.spawnJobID
+	ctx, cancel := context.WithTimeout(context.Background(), spawnTimeout)
+	m.spawnCancel = cancel
+	m.generating = true
+	return ctx, jobID
+}
+
+func (m *model) cancelActiveSpawn() {
+	if m.spawnCancel != nil {
+		m.spawnCancel()
+		m.spawnCancel = nil
+	}
+	if m.generating {
+		// Invalidate late completion messages from a canceled job.
+		m.spawnJobID++
+	}
 	m.generating = false
+}
+
+func (m model) handleSpawnComplete(jobID int64, msg game.SpawnCompleteMsg) (tea.Model, tea.Cmd) {
+	if jobID != m.spawnJobID {
+		return m, nil
+	}
+
+	m.generating = false
+	if m.spawnCancel != nil {
+		m.spawnCancel()
+		m.spawnCancel = nil
+	}
 	isDaily := m.dailyPending
 	isSeed := m.seedPending
 	m.dailyPending = false
@@ -57,22 +118,16 @@ func (m model) handleSpawnComplete(msg game.SpawnCompleteMsg) (tea.Model, tea.Cm
 		name = m.dailyName
 		gameType = m.dailyGameType
 		modeTitle = m.dailyModeTitle
-		m.game = msg.Game.SetTitle(name)
 	} else if isSeed {
 		name = m.seedName
 		gameType = m.seedGameType
 		modeTitle = m.seedModeTitle
-		m.game = msg.Game.SetTitle(name)
 	} else {
 		name = GenerateUniqueName(m.store)
 		gameType = m.selectedCategory.Name
-		modeTitle = m.mode.Title()
-		m.game = msg.Game.SetTitle(name)
+		modeTitle = m.selectedModeTitle
 	}
-	m.game, _ = m.game.Update(game.HelpToggleMsg{Show: m.showFullHelp})
-	m.game, _ = m.game.Update(tea.WindowSizeMsg{Width: m.width, Height: m.height})
-	m.state = gameView
-	m.completionSaved = false
+	m = m.activateGame(msg.Game.SetTitle(name), 0, false)
 
 	// Capture initial state and create DB record.
 	initialState, err := m.game.GetSave()
@@ -106,10 +161,14 @@ func saveCurrentGame(m model, status store.GameStatus) model {
 		log.Printf("failed to get save data: %v", err)
 		return m
 	}
-	_ = m.store.UpdateSaveState(m.activeGameID, string(saveData))
+	if err := m.store.UpdateSaveState(m.activeGameID, string(saveData)); err != nil {
+		log.Printf("failed to update save state: %v", err)
+	}
 	// Don't overwrite a completed status when navigating away.
 	if !(m.completionSaved && status != store.StatusCompleted) {
-		_ = m.store.UpdateStatus(m.activeGameID, status)
+		if err := m.store.UpdateStatus(m.activeGameID, status); err != nil {
+			log.Printf("failed to update game status: %v", err)
+		}
 	}
 	m.activeGameID = 0
 	m.game = nil

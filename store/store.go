@@ -61,6 +61,58 @@ type Store struct {
 	db *sql.DB
 }
 
+const gameSelectColumns = `id, name, game_type, mode, initial_state, save_state, status,
+        created_at, updated_at, completed_at`
+
+type rowScanner interface {
+	Scan(dest ...any) error
+}
+
+func scanGameRecord(scanner rowScanner) (GameRecord, error) {
+	var g GameRecord
+	var completedAt sql.NullTime
+	if err := scanner.Scan(
+		&g.ID, &g.Name, &g.GameType, &g.Mode,
+		&g.InitialState, &g.SaveState, &g.Status,
+		&g.CreatedAt, &g.UpdatedAt, &completedAt,
+	); err != nil {
+		return GameRecord{}, err
+	}
+	if completedAt.Valid {
+		g.CompletedAt = &completedAt.Time
+	}
+	return g, nil
+}
+
+func (s *Store) listGamesByQuery(query string, args ...any) ([]GameRecord, error) {
+	rows, err := s.db.Query(query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("querying games: %w", err)
+	}
+	defer rows.Close()
+
+	var games []GameRecord
+	for rows.Next() {
+		g, err := scanGameRecord(rows)
+		if err != nil {
+			return nil, fmt.Errorf("scanning game row: %w", err)
+		}
+		games = append(games, g)
+	}
+	return games, rows.Err()
+}
+
+func (s *Store) getGameByQuery(query string, args ...any) (*GameRecord, error) {
+	g, err := scanGameRecord(s.db.QueryRow(query, args...))
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &g, nil
+}
+
 // DefaultDBPath returns ~/.puzzletea/history.db.
 func DefaultDBPath() string {
 	home, _ := os.UserHomeDir()
@@ -159,125 +211,53 @@ func (s *Store) NameExists(name string) (bool, error) {
 
 // ListGames returns all non-abandoned games ordered by most recently updated.
 func (s *Store) ListGames() ([]GameRecord, error) {
-	rows, err := s.db.Query(
-		`SELECT id, name, game_type, mode, initial_state, save_state, status,
-		        created_at, updated_at, completed_at
+	return s.listGamesByQuery(
+		fmt.Sprintf(`SELECT %s
 		 FROM games
 		 WHERE status != ?
-		 ORDER BY updated_at DESC`,
+		 ORDER BY updated_at DESC`, gameSelectColumns),
 		StatusAbandoned,
 	)
-	if err != nil {
-		return nil, fmt.Errorf("querying games: %w", err)
-	}
-	defer rows.Close()
-
-	var games []GameRecord
-	for rows.Next() {
-		var g GameRecord
-		var completedAt sql.NullTime
-		if err := rows.Scan(
-			&g.ID, &g.Name, &g.GameType, &g.Mode,
-			&g.InitialState, &g.SaveState, &g.Status,
-			&g.CreatedAt, &g.UpdatedAt, &completedAt,
-		); err != nil {
-			return nil, fmt.Errorf("scanning game row: %w", err)
-		}
-		if completedAt.Valid {
-			g.CompletedAt = &completedAt.Time
-		}
-		games = append(games, g)
-	}
-	return games, rows.Err()
 }
 
 // GetDailyGame looks up a daily game by name, including abandoned ones.
 // Daily puzzles should always be resumable regardless of status.
 // Returns nil, nil if no matching game is found.
 func (s *Store) GetDailyGame(name string) (*GameRecord, error) {
-	var g GameRecord
-	var completedAt sql.NullTime
-	err := s.db.QueryRow(
-		`SELECT id, name, game_type, mode, initial_state, save_state, status,
-		        created_at, updated_at, completed_at
+	g, err := s.getGameByQuery(
+		fmt.Sprintf(`SELECT %s
 		 FROM games
-		 WHERE name = ?`,
+		 WHERE name = ?`, gameSelectColumns),
 		name,
-	).Scan(
-		&g.ID, &g.Name, &g.GameType, &g.Mode,
-		&g.InitialState, &g.SaveState, &g.Status,
-		&g.CreatedAt, &g.UpdatedAt, &completedAt,
 	)
-	if err == sql.ErrNoRows {
-		return nil, nil
-	}
 	if err != nil {
 		return nil, fmt.Errorf("querying daily game: %w", err)
 	}
-	if completedAt.Valid {
-		g.CompletedAt = &completedAt.Time
-	}
-	return &g, nil
+	return g, nil
 }
 
 // GetGameByName looks up a single non-abandoned game by its unique name.
 // Returns nil, nil if no matching game is found.
 func (s *Store) GetGameByName(name string) (*GameRecord, error) {
-	var g GameRecord
-	var completedAt sql.NullTime
-	err := s.db.QueryRow(
-		`SELECT id, name, game_type, mode, initial_state, save_state, status,
-		        created_at, updated_at, completed_at
+	g, err := s.getGameByQuery(
+		fmt.Sprintf(`SELECT %s
 		 FROM games
-		 WHERE name = ? AND status != ?`,
+		 WHERE name = ? AND status != ?`, gameSelectColumns),
 		name, StatusAbandoned,
-	).Scan(
-		&g.ID, &g.Name, &g.GameType, &g.Mode,
-		&g.InitialState, &g.SaveState, &g.Status,
-		&g.CreatedAt, &g.UpdatedAt, &completedAt,
 	)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, nil
-	}
 	if err != nil {
 		return nil, fmt.Errorf("querying game by name: %w", err)
 	}
-	if completedAt.Valid {
-		g.CompletedAt = &completedAt.Time
-	}
-	return &g, nil
+	return g, nil
 }
 
 // ListAllGames returns all games (including abandoned) ordered by most recently updated.
 func (s *Store) ListAllGames() ([]GameRecord, error) {
-	rows, err := s.db.Query(
-		`SELECT id, name, game_type, mode, initial_state, save_state, status,
-		        created_at, updated_at, completed_at
+	return s.listGamesByQuery(
+		fmt.Sprintf(`SELECT %s
 		 FROM games
-		 ORDER BY updated_at DESC`,
+		 ORDER BY updated_at DESC`, gameSelectColumns),
 	)
-	if err != nil {
-		return nil, fmt.Errorf("querying games: %w", err)
-	}
-	defer rows.Close()
-
-	var games []GameRecord
-	for rows.Next() {
-		var g GameRecord
-		var completedAt sql.NullTime
-		if err := rows.Scan(
-			&g.ID, &g.Name, &g.GameType, &g.Mode,
-			&g.InitialState, &g.SaveState, &g.Status,
-			&g.CreatedAt, &g.UpdatedAt, &completedAt,
-		); err != nil {
-			return nil, fmt.Errorf("scanning game row: %w", err)
-		}
-		if completedAt.Valid {
-			g.CompletedAt = &completedAt.Time
-		}
-		games = append(games, g)
-	}
-	return games, rows.Err()
 }
 
 func (s *Store) Close() error {

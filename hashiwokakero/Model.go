@@ -6,7 +6,6 @@ import (
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 	"github.com/FelineStateMachine/puzzletea/game"
 )
 
@@ -133,15 +132,19 @@ func (m Model) View() string {
 	title := game.TitleBarView("Hashiwokakero", m.modeTitle, solved)
 	grid := gridView(m, solved)
 	info := infoView(&m.puzzle)
-	status := statusBarView(m.selectedIsland != nil, m.showFullHelp)
+	if solved {
+		return game.ComposeGameViewRows(title, grid, game.StaticRow(info))
+	}
 
-	// Pin info and status to the grid width so that variable-length text
-	// never widens the layout and causes centering shifts on re-render.
-	w := lipgloss.Width(grid)
-	info = lipgloss.NewStyle().Width(w).AlignHorizontal(lipgloss.Center).Render(info)
-	status = lipgloss.NewStyle().Width(w).AlignHorizontal(lipgloss.Center).Render(status)
+	selected := m.selectedIsland != nil
+	status := statusBarView(selected, m.showFullHelp)
 
-	return lipgloss.JoinVertical(lipgloss.Center, title, grid, info, status)
+	return game.ComposeGameViewRows(
+		title,
+		grid,
+		game.StaticRow(info),
+		game.StableRow(status, statusBarView(selected, false), statusBarView(selected, true)),
+	)
 }
 
 func (m Model) SetTitle(t string) game.Gamer {

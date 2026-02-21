@@ -33,7 +33,7 @@ var RootCmd = &cobra.Command{
 	Use:     "puzzletea",
 	Version: Version,
 	Short:   "A terminal-based puzzle game framework",
-	Long:    "PuzzleTea is a terminal-based puzzle game framework featuring Nonogram, Sudoku, Word Search, Hashiwokakero, and Lights Out.",
+	Long:    "PuzzleTea is a terminal-based puzzle game framework featuring Nonogram, Nurikabe, Sudoku, Word Search, Hashiwokakero, and Lights Out.",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cfg := loadConfig()
 
@@ -61,7 +61,7 @@ var RootCmd = &cobra.Command{
 			return err
 		}
 		defer s.Close()
-		stats.InitModeXP(app.GameCategories)
+		stats.InitModeXP(app.Categories)
 		p := tea.NewProgram(app.InitialModel(s, cfg))
 		_, err = p.Run()
 		return err

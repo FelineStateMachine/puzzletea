@@ -7,7 +7,6 @@ import (
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 )
 
 // expansion tracks how far the preview rectangle extends from the clue cell.
@@ -75,6 +74,7 @@ func (m Model) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 	switch msg := msg.(type) {
 	case game.HelpToggleMsg:
 		m.showFullHelp = msg.Show
+		m.originValid = false
 
 	case tea.WindowSizeMsg:
 		m.termWidth = msg.Width
@@ -249,6 +249,13 @@ func rectFromCorners(x1, y1, x2, y2 int) Rectangle {
 	}
 }
 
+func (m Model) cancelPendingRectangle() Model {
+	m.selectedClue = nil
+	m.mouseDragAnchor = nil
+	m.mousePreview = nil
+	return m
+}
+
 func (m Model) handleNavMode(msg tea.KeyPressMsg) Model {
 	switch {
 	case key.Matches(msg, m.keys.Select):
@@ -270,6 +277,8 @@ func (m Model) handleNavMode(msg tea.KeyPressMsg) Model {
 		if owner >= 0 {
 			m.puzzle.RemoveRectangle(owner)
 		}
+	case key.Matches(msg, m.keys.Cancel):
+		m = m.cancelPendingRectangle()
 	default:
 		m.cursor.Move(m.keys.CursorKeyMap, msg, m.puzzle.Width-1, m.puzzle.Height-1)
 	}
@@ -325,7 +334,7 @@ func (m Model) handleExpansionMode(msg tea.KeyPressMsg) Model {
 			m.selectedClue = nil
 		}
 	case key.Matches(msg, m.keys.Cancel):
-		m.selectedClue = nil
+		m = m.cancelPendingRectangle()
 	case key.Matches(msg, m.keys.Delete):
 		m.puzzle.RemoveRectangle(clue.ID)
 		m.selectedClue = nil
@@ -338,11 +347,17 @@ func (m Model) View() string {
 	title := game.TitleBarView("Shikaku", m.modeTitle, solved)
 	grid := gridView(m, solved)
 	if solved {
-		return lipgloss.JoinVertical(lipgloss.Center, title, grid)
+		return game.ComposeGameView(title, grid)
 	}
+	selected := m.selectedClue != nil
 	info := infoView(&m.puzzle)
-	status := statusBarView(m.selectedClue != nil, m.showFullHelp)
-	return lipgloss.JoinVertical(lipgloss.Center, title, grid, info, status)
+	status := statusBarView(selected, m.showFullHelp)
+	return game.ComposeGameViewRows(
+		title,
+		grid,
+		game.StaticRow(info),
+		game.StableRow(status, statusBarView(selected, false), statusBarView(selected, true)),
+	)
 }
 
 func (m Model) SetTitle(t string) game.Gamer {

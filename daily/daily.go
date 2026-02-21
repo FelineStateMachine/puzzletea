@@ -11,6 +11,7 @@ import (
 	"github.com/FelineStateMachine/puzzletea/lightsout"
 	"github.com/FelineStateMachine/puzzletea/namegen"
 	"github.com/FelineStateMachine/puzzletea/nonogram"
+	"github.com/FelineStateMachine/puzzletea/nurikabe"
 	"github.com/FelineStateMachine/puzzletea/shikaku"
 	"github.com/FelineStateMachine/puzzletea/sudoku"
 	"github.com/FelineStateMachine/puzzletea/takuzu"
@@ -39,6 +40,7 @@ var pool = []struct {
 	{"Hitori", hitori.DailyModes},
 	{"Lights Out", lightsout.DailyModes},
 	{"Shikaku", shikaku.DailyModes},
+	{"Nurikabe", nurikabe.DailyModes},
 	{"Word Search", wordsearch.DailyModes},
 }
 
@@ -49,11 +51,18 @@ func buildEligibleModes() []Entry {
 	var entries []Entry
 	for _, p := range pool {
 		for _, item := range p.modes {
-			s := item.(game.SeededSpawner)
+			s, ok := item.(game.SeededSpawner)
+			if !ok {
+				continue
+			}
+			mode, ok := item.(game.Mode)
+			if !ok {
+				continue
+			}
 			entries = append(entries, Entry{
 				Spawner:  s,
 				GameType: p.gameType,
-				Mode:     item.(game.Mode).Title(),
+				Mode:     mode.Title(),
 			})
 		}
 	}
@@ -95,10 +104,15 @@ func Name(date time.Time) string {
 // This is resilient to changes in the pool: adding or removing an entry
 // only affects dates where the changed entry would have been the winner.
 func Mode(date time.Time) (game.SeededSpawner, string, string) {
+	if len(eligibleModes) == 0 {
+		return nil, "", ""
+	}
+
 	dateStr := date.Format("2006-01-02")
 
 	var best Entry
 	var bestHash uint64
+	found := false
 	for _, entry := range eligibleModes {
 		h := fnv.New64a()
 		h.Write([]byte(dateStr))
@@ -107,10 +121,14 @@ func Mode(date time.Time) (game.SeededSpawner, string, string) {
 		h.Write([]byte{0})
 		h.Write([]byte(entry.Mode))
 		score := h.Sum64()
-		if score > bestHash {
+		if !found || score > bestHash {
 			bestHash = score
 			best = entry
+			found = true
 		}
+	}
+	if !found {
+		return nil, "", ""
 	}
 	return best.Spawner, best.GameType, best.Mode
 }

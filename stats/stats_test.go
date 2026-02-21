@@ -1,10 +1,12 @@
 package stats
 
 import (
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/FelineStateMachine/puzzletea/store"
+	"github.com/charmbracelet/x/ansi"
 )
 
 // --- ModeXP map (P0) ---
@@ -332,4 +334,73 @@ func TestRenderViewEmpty(t *testing.T) {
 	if result == "" {
 		t.Error("expected non-empty output for empty state")
 	}
+}
+
+// --- Card grid layout (P1) ---
+
+func TestCardColumnCount(t *testing.T) {
+	tests := []struct {
+		name  string
+		width int
+		want  int
+	}{
+		{name: "narrow", width: 20, want: 1},
+		{name: "single card", width: CardFullWidth, want: 1},
+		{name: "two cards", width: cardGridWidth(2), want: 2},
+		{name: "three cards", width: cardGridWidth(3), want: 3},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := cardColumnCount(tt.width); got != tt.want {
+				t.Fatalf("cardColumnCount(%d) = %d, want %d", tt.width, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestRenderCardGridWrapsRowsByWidth(t *testing.T) {
+	cards := testCards(5)
+	width := cardGridWidth(3)
+	rendered := ansi.Strip(RenderCardGrid(cards, width))
+	lines := strings.Split(rendered, "\n")
+	if len(lines) <= CardHeight {
+		t.Fatalf("expected wrapped second row, got %d lines", len(lines))
+	}
+	if got := strings.Count(lines[0], "╭"); got != 3 {
+		t.Fatalf("first row cards = %d, want 3", got)
+	}
+	if got := strings.Count(lines[CardHeight], "╭"); got != 2 {
+		t.Fatalf("second row cards = %d, want 2", got)
+	}
+	if got := maxRenderedWidth(rendered); got > width {
+		t.Fatalf("rendered width = %d, want <= %d", got, width)
+	}
+}
+
+func testCards(n int) []Card {
+	cards := make([]Card, n)
+	for i := range n {
+		cards[i] = Card{
+			GameType:      "Test",
+			Level:         1,
+			PreferredMode: "Easy",
+			Victories:     1,
+			Attempts:      1,
+			DailyPlayed:   1,
+			CurrentXP:     1,
+			NextLevelXP:   5,
+		}
+	}
+	return cards
+}
+
+func maxRenderedWidth(s string) int {
+	maxW := 0
+	for _, line := range strings.Split(s, "\n") {
+		if w := ansi.StringWidth(line); w > maxW {
+			maxW = w
+		}
+	}
+	return maxW
 }

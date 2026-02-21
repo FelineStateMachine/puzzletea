@@ -8,12 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/FelineStateMachine/puzzletea/daily"
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/store"
 	"github.com/FelineStateMachine/puzzletea/theme"
 
-	"charm.land/bubbles/v2/list"
 	"charm.land/lipgloss/v2"
 )
 
@@ -28,13 +26,15 @@ var ModeXP map[ModeKey]int
 
 // InitModeXP builds the ModeXP map from the provided game categories.
 // Must be called once at startup before any stats operations.
-func InitModeXP(categories []list.Item) {
+func InitModeXP(categories []game.Category) {
 	ModeXP = make(map[ModeKey]int, 64)
-	for _, item := range categories {
-		cat := item.(game.Category)
+	for _, cat := range categories {
 		count := len(cat.Modes)
 		for i, m := range cat.Modes {
-			mode := m.(game.Mode)
+			mode, ok := m.(game.Mode)
+			if !ok {
+				continue
+			}
 			xp := int(math.Round(float64(i) / float64(count) * 10))
 			if xp < 1 {
 				xp = 1
@@ -192,7 +192,7 @@ func BuildProfileBanner(
 	catStats []store.CategoryStat,
 	modeStats []store.ModeStat,
 	streakDates []time.Time,
-	s *store.Store,
+	currentDaily bool,
 ) ProfileBanner {
 	profileLevel := 0
 	totalDailies := 0
@@ -202,13 +202,7 @@ func BuildProfileBanner(
 		totalDailies += cs.TimesDaily
 	}
 
-	now := time.Now()
-	streak := ComputeDailyStreak(streakDates, now)
-
-	// Check if today's daily exists in the DB.
-	todayName := daily.Name(now)
-	rec, _ := s.GetDailyGame(todayName)
-	currentDaily := rec != nil
+	streak := ComputeDailyStreak(streakDates, time.Now())
 
 	return ProfileBanner{
 		ProfileLevel: profileLevel,
@@ -247,17 +241,19 @@ func StaticHeight(cards []Card) int {
 // CardFullWidth is the rendered width of a single card including border + padding.
 const CardFullWidth = CardInnerWidth + 4 // 34
 
+const cardColumnGap = 1
+
 // ContentWidth returns the inner content width for the stats panel.
-// In 2-column mode the content is two cards wide; in 1-column mode it is
-// one card wide. The result is clamped so it never exceeds the available
-// terminal width minus the panel chrome (border + padding = 6 horizontal chars).
+// It snaps to the widest whole-card grid that fits the available panel space.
+// The result never exceeds terminal width minus panel chrome.
 func ContentWidth(termWidth int) int {
-	twoCol := CardFullWidth * 2 // 68
-	available := termWidth - 6  // panel border (1+1) + padding (2+2)
-	if available >= twoCol {
-		return twoCol
+	available := max(termWidth-6, CardFullWidth) // panel border (1+1) + padding (2+2)
+	cols := cardColumnCount(available)
+	width := cardGridWidth(cols)
+	if width > available {
+		return available
 	}
-	return max(CardFullWidth, min(available, CardFullWidth))
+	return width
 }
 
 // ViewportHeight computes the viewport height for the card grid.
@@ -439,10 +435,7 @@ func RenderCardGrid(cards []Card, width int) string {
 			Render("No stats yet \u2014 play some puzzles!")
 	}
 
-	if width >= CardFullWidth*2 {
-		return renderCardColumns(cards, 2)
-	}
-	return renderCardColumns(cards, 1)
+	return renderCardRows(cards, cardColumnCount(width))
 }
 
 // RenderView renders the full stats view (banner + card grid) as a single
@@ -454,11 +447,7 @@ func RenderView(banner ProfileBanner, cards []Card, width int) string {
 			Render("No stats yet \u2014 play some puzzles!")
 	}
 
-	bannerWidth := width
-	if bannerWidth > 70 {
-		bannerWidth = 70
-	}
-	bannerStr := RenderBanner(banner, bannerWidth)
+	bannerStr := RenderBanner(banner, width)
 	cardGrid := RenderCardGrid(cards, width)
 
 	return lipgloss.JoinVertical(lipgloss.Left,
@@ -468,24 +457,42 @@ func RenderView(banner ProfileBanner, cards []Card, width int) string {
 	)
 }
 
-func renderCardColumns(cards []Card, cols int) string {
+func cardColumnCount(width int) int {
+	if width <= CardFullWidth {
+		return 1
+	}
+	cols := (width + cardColumnGap) / (CardFullWidth + cardColumnGap)
+	return max(cols, 1)
+}
+
+func cardGridWidth(cols int) int {
+	if cols < 1 {
+		cols = 1
+	}
+	return cols*CardFullWidth + (cols-1)*cardColumnGap
+}
+
+func renderCardRows(cards []Card, cols int) string {
 	if cols < 1 {
 		cols = 1
 	}
 
-	palette := theme.Current().CardColors()
-
-	columns := make([][]string, cols)
+	palette := theme.Current().ThemeColors()
+	rendered := make([]string, len(cards))
 	for i, c := range cards {
-		col := i % cols
 		titleColor := palette[i%len(palette)]
-		columns[col] = append(columns[col], RenderCard(c, titleColor))
+		rendered[i] = RenderCard(c, titleColor)
 	}
 
-	rendered := make([]string, cols)
-	for i, col := range columns {
-		rendered[i] = lipgloss.JoinVertical(lipgloss.Left, col...)
+	rows := make([]string, 0, (len(rendered)+cols-1)/cols)
+	for i := 0; i < len(rendered); i += cols {
+		end := min(i+cols, len(rendered))
+		row := rendered[i]
+		for j := i + 1; j < end; j++ {
+			row = lipgloss.JoinHorizontal(lipgloss.Top, row, strings.Repeat(" ", cardColumnGap), rendered[j])
+		}
+		rows = append(rows, row)
 	}
 
-	return lipgloss.JoinHorizontal(lipgloss.Top, rendered...)
+	return lipgloss.JoinVertical(lipgloss.Left, rows...)
 }

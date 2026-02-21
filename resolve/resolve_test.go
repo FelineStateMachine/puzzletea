@@ -9,6 +9,7 @@ import (
 	"github.com/FelineStateMachine/puzzletea/hitori"
 	"github.com/FelineStateMachine/puzzletea/lightsout"
 	"github.com/FelineStateMachine/puzzletea/nonogram"
+	"github.com/FelineStateMachine/puzzletea/nurikabe"
 	"github.com/FelineStateMachine/puzzletea/sudoku"
 	"github.com/FelineStateMachine/puzzletea/takuzu"
 	"github.com/FelineStateMachine/puzzletea/wordsearch"
@@ -21,6 +22,7 @@ var testCategories = []list.Item{
 	game.Category{Name: "Hitori", Desc: "Shade cells to eliminate duplicates.", Modes: hitori.Modes},
 	game.Category{Name: "Lights Out", Desc: "Turn off all the lights.", Modes: lightsout.Modes},
 	game.Category{Name: "Nonogram", Desc: "Fill cells to match row and column hints.", Modes: nonogram.Modes},
+	game.Category{Name: "Nurikabe", Desc: "Build islands while keeping one connected sea.", Modes: nurikabe.Modes},
 	game.Category{Name: "Sudoku", Desc: "Fill the 9x9 grid following sudoku rules.", Modes: sudoku.Modes},
 	game.Category{Name: "Takuzu", Desc: "Fill the grid with ● and ○.", Modes: takuzu.Modes},
 	game.Category{Name: "Word Search", Desc: "Find hidden words in a letter grid.", Modes: wordsearch.Modes},
@@ -102,6 +104,9 @@ func TestCategory(t *testing.T) {
 		{"binairo", "Takuzu"},
 		{"binary", "Takuzu"},
 		{"nonogram", "Nonogram"},
+		{"nurikabe", "Nurikabe"},
+		{"islands", "Nurikabe"},
+		{"sea", "Nurikabe"},
 		{"sudoku", "Sudoku"},
 		{"takuzu", "Takuzu"},
 	}
@@ -212,6 +217,7 @@ func TestCategoryNames(t *testing.T) {
 		"Hitori":        true,
 		"Lights Out":    true,
 		"Nonogram":      true,
+		"Nurikabe":      true,
 		"Sudoku":        true,
 		"Takuzu":        true,
 		"Word Search":   true,

@@ -23,12 +23,80 @@ import (
 	"github.com/charmbracelet/glamour"
 )
 
+const (
+	helpPanelInsetX         = 2
+	helpPanelInsetY         = 1
+	helpPanelHorizontalTrim = 6
+	helpPanelVerticalTrim   = 8
+)
+
+func helpViewportSize(width, height int) (int, int) {
+	panelWidth := max(width-(helpPanelInsetX*2), 1)
+	panelHeight := max(height-(helpPanelInsetY*2), 1)
+	contentWidth := max(panelWidth-helpPanelHorizontalTrim, 1)
+	contentHeight := max(panelHeight-helpPanelVerticalTrim, 1)
+	return contentWidth, contentHeight
+}
+
+func statsViewportSize(width, height int, cards []stats.Card) (int, int) {
+	contentWidth, _ := helpViewportSize(width, height)
+	panelHeight := max(height-(helpPanelInsetY*2), 1)
+	contentHeight := max(panelHeight-stats.StaticHeight(cards), 1)
+	return contentWidth, contentHeight
+}
+
+func (m model) updateHelpDetailViewport() model {
+	helpWidth, helpHeight := helpViewportSize(m.width, m.height)
+	if m.helpRenderer == nil || m.helpRendererWidth != helpWidth {
+		renderer, err := glamour.NewTermRenderer(
+			glamour.WithAutoStyle(),
+			glamour.WithWordWrap(helpWidth),
+		)
+		if err != nil {
+			log.Printf("failed to create help renderer: %v", err)
+			m.helpRenderer = nil
+			m.helpRendererWidth = 0
+		} else {
+			m.helpRenderer = renderer
+			m.helpRendererWidth = helpWidth
+		}
+	}
+
+	rendered := m.helpCategory.Help
+	if m.helpRenderer != nil {
+		out, err := m.helpRenderer.Render(m.helpCategory.Help)
+		if err != nil {
+			log.Printf("failed to render help: %v", err)
+		} else {
+			rendered = out
+		}
+	}
+
+	m.helpViewport = viewport.New(
+		viewport.WithWidth(helpWidth),
+		viewport.WithHeight(helpHeight),
+	)
+	m.helpViewport.SetContent(rendered)
+	return m
+}
+
+func (m model) updateStatsViewport() model {
+	statsWidth, statsHeight := statsViewportSize(m.width, m.height, m.statsCards)
+	m.statsViewport.SetWidth(statsWidth)
+	m.statsViewport.SetHeight(statsHeight)
+	m.statsViewport.SetContent(stats.RenderCardGrid(m.statsCards, statsWidth))
+	return m
+}
+
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
 	switch msg := msg.(type) {
+	case spawnCompleteMsg:
+		return m.handleSpawnComplete(msg.jobID, msg.result)
 	case game.SpawnCompleteMsg:
-		return m.handleSpawnComplete(msg)
+		// Backward compatibility for callers still using the old message type.
+		return m.handleSpawnComplete(m.spawnJobID, msg)
 
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
@@ -50,8 +118,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.helpSelectList.SetSize(menuW, min(m.height, ui.ListHeight(m.helpSelectList)))
 		}
 		if m.state == helpDetailView {
-			m.helpViewport.SetWidth(m.width)
-			m.helpViewport.SetHeight(m.height - 2)
+			m = m.updateHelpDetailViewport()
 		}
 		if m.state == themeSelectView {
 			const maxVisibleItems = 8
@@ -59,11 +126,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.themeList.SetSize(listW, min(m.height, maxVisibleItems*3))
 		}
 		if m.state == statsView {
-			cw := stats.ContentWidth(m.width)
-			m.statsViewport.SetWidth(cw)
-			vpH := stats.ViewportHeight(m.height - stats.StaticHeight(m.statsCards))
-			m.statsViewport.SetHeight(vpH)
-			m.statsViewport.SetContent(stats.RenderCardGrid(m.statsCards, cw))
+			m = m.updateStatsViewport()
 		}
 
 	case tea.KeyPressMsg:
@@ -71,6 +134,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.state == generatingView {
 			switch {
 			case key.Matches(msg, rootKeys.Escape):
+				m.cancelActiveSpawn()
 				if m.dailyPending || m.seedPending {
 					m.dailyPending = false
 					m.seedPending = false
@@ -94,7 +158,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m.handleEnter()
 			}
 		case key.Matches(msg, rootKeys.Escape):
-			return m.handleEscape()
+			if m.state != gameView {
+				return m.handleEscape()
+			}
 		case key.Matches(msg, rootKeys.Quit):
 			m = saveCurrentGame(m, store.StatusAbandoned)
 			return m, tea.Quit
@@ -114,32 +180,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch m.state {
 	case mainMenuView:
-		if msg, ok := msg.(tea.KeyPressMsg); ok {
-			switch msg.String() {
-			case "up", "k":
-				m.mainMenu.CursorUp()
-			case "down", "j":
-				m.mainMenu.CursorDown()
-			}
-		}
+		updateMainMenuCursor(msg, &m.mainMenu)
 	case playMenuView:
-		if msg, ok := msg.(tea.KeyPressMsg); ok {
-			switch msg.String() {
-			case "up", "k":
-				m.playMenu.CursorUp()
-			case "down", "j":
-				m.playMenu.CursorDown()
-			}
-		}
+		updateMainMenuCursor(msg, &m.playMenu)
 	case optionsMenuView:
-		if msg, ok := msg.(tea.KeyPressMsg); ok {
-			switch msg.String() {
-			case "up", "k":
-				m.optionsMenu.CursorUp()
-			case "down", "j":
-				m.optionsMenu.CursorDown()
-			}
-		}
+		updateMainMenuCursor(msg, &m.optionsMenu)
 	case seedInputView:
 		m.seedInput, cmd = m.seedInput.Update(msg)
 	case generatingView:
@@ -153,9 +198,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.completionSaved = true
 			saveData, err := m.game.GetSave()
 			if err == nil {
-				_ = m.store.UpdateSaveState(m.activeGameID, string(saveData))
+				if err := m.store.UpdateSaveState(m.activeGameID, string(saveData)); err != nil {
+					log.Printf("failed to save completion state: %v", err)
+				}
 			}
-			_ = m.store.UpdateStatus(m.activeGameID, store.StatusCompleted)
+			if err := m.store.UpdateStatus(m.activeGameID, store.StatusCompleted); err != nil {
+				log.Printf("failed to mark game completed: %v", err)
+			}
 		}
 	case gameSelectView:
 		m.gameSelectList, cmd = m.gameSelectList.Update(msg)
@@ -182,6 +231,19 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	return m, cmd
+}
+
+func updateMainMenuCursor(msg tea.Msg, menu *ui.MainMenu) {
+	keyMsg, ok := msg.(tea.KeyPressMsg)
+	if !ok {
+		return
+	}
+	switch keyMsg.String() {
+	case "up", "k":
+		menu.CursorUp()
+	case "down", "j":
+		menu.CursorDown()
+	}
 }
 
 func (m model) handleEnter() (tea.Model, tea.Cmd) {
@@ -286,27 +348,15 @@ func (m model) handleSeedConfirm() (tea.Model, tea.Cmd) {
 	}
 
 	if rec != nil {
-		// Seed game exists — resume it.
-		importFn, ok := game.Registry[rec.GameType]
-		if !ok {
-			log.Printf("unknown game type for seeded game: %s", rec.GameType)
-			return m, nil
-		}
-		g, err := importFn([]byte(rec.SaveState))
-		if err != nil {
-			log.Printf("failed to import seeded game: %v", err)
-			return m, nil
-		}
-		m.game = g.SetTitle(rec.Name)
-		m.game, _ = m.game.Update(game.HelpToggleMsg{Show: m.showFullHelp})
-		m.game, _ = m.game.Update(tea.WindowSizeMsg{Width: m.width, Height: m.height})
-		m.activeGameID = rec.ID
-		m.state = gameView
-		m.completionSaved = rec.Status == store.StatusCompleted
+		// Seed game exists - resume it.
+		var resumed bool
+		m, resumed = m.importAndActivateRecord(*rec)
 
 		// Resume abandoned seeded games by resetting their status.
-		if rec.Status == store.StatusAbandoned {
-			_ = m.store.UpdateStatus(rec.ID, store.StatusInProgress)
+		if resumed && rec.Status == store.StatusAbandoned {
+			if err := m.store.UpdateStatus(rec.ID, store.StatusInProgress); err != nil {
+				log.Printf("failed to mark seeded game in progress: %v", err)
+			}
 		}
 		return m, nil
 	}
@@ -319,13 +369,13 @@ func (m model) handleSeedConfirm() (tea.Model, tea.Cmd) {
 	}
 
 	rng := resolve.RNGFromString(seed)
+	ctx, jobID := m.beginSpawnContext()
 	m.seedPending = true
 	m.seedName = name
 	m.seedGameType = gameType
 	m.seedModeTitle = modeTitle
 	m.state = generatingView
-	m.generating = true
-	return m, tea.Batch(m.spinner.Tick, spawnSeededCmd(spawner, rng))
+	return m, tea.Batch(m.spinner.Tick, spawnSeededCmd(spawner, rng, ctx, jobID))
 }
 
 func (m model) handleDailyPuzzle() (tea.Model, tea.Cmd) {
@@ -341,26 +391,14 @@ func (m model) handleDailyPuzzle() (tea.Model, tea.Cmd) {
 
 	if rec != nil {
 		// Daily exists - resume or review it.
-		importFn, ok := game.Registry[rec.GameType]
-		if !ok {
-			log.Printf("unknown game type for daily: %s", rec.GameType)
-			return m, nil
-		}
-		g, err := importFn([]byte(rec.SaveState))
-		if err != nil {
-			log.Printf("failed to import daily game: %v", err)
-			return m, nil
-		}
-		m.game = g.SetTitle(rec.Name)
-		m.game, _ = m.game.Update(game.HelpToggleMsg{Show: m.showFullHelp})
-		m.game, _ = m.game.Update(tea.WindowSizeMsg{Width: m.width, Height: m.height})
-		m.activeGameID = rec.ID
-		m.state = gameView
-		m.completionSaved = rec.Status == store.StatusCompleted
+		var resumed bool
+		m, resumed = m.importAndActivateRecord(*rec)
 
 		// Resume abandoned dailies by resetting their status.
-		if rec.Status == store.StatusAbandoned {
-			_ = m.store.UpdateStatus(rec.ID, store.StatusInProgress)
+		if resumed && rec.Status == store.StatusAbandoned {
+			if err := m.store.UpdateStatus(rec.ID, store.StatusInProgress); err != nil {
+				log.Printf("failed to mark daily game in progress: %v", err)
+			}
 		}
 		return m, nil
 	}
@@ -369,14 +407,18 @@ func (m model) handleDailyPuzzle() (tea.Model, tea.Cmd) {
 	// Mode selection uses rendezvous hashing (independent of RNG).
 	// RNG is reserved purely for puzzle content generation.
 	spawner, gameType, modeTitle := daily.Mode(today)
+	if spawner == nil {
+		log.Printf("no daily mode available for %s", today.Format("2006-01-02"))
+		return m, nil
+	}
 	rng := daily.RNG(today)
+	ctx, jobID := m.beginSpawnContext()
 	m.dailyPending = true
 	m.dailyName = name
 	m.dailyGameType = gameType
 	m.dailyModeTitle = modeTitle
 	m.state = generatingView
-	m.generating = true
-	return m, tea.Batch(m.spinner.Tick, spawnSeededCmd(spawner, rng))
+	return m, tea.Batch(m.spinner.Tick, spawnSeededCmd(spawner, rng, ctx, jobID))
 }
 
 func (m model) handleGameSelectEnter() (tea.Model, tea.Cmd) {
@@ -392,14 +434,19 @@ func (m model) handleGameSelectEnter() (tea.Model, tea.Cmd) {
 }
 
 func (m model) handleModeSelectEnter() (tea.Model, tea.Cmd) {
-	m.mode, _ = m.modeSelectList.SelectedItem().(game.Mode)
-	spawner, ok := m.mode.(game.Spawner)
+	item := m.modeSelectList.SelectedItem()
+	mode, ok := item.(game.Mode)
 	if !ok {
 		return m, nil
 	}
+	spawner, ok := item.(game.Spawner)
+	if !ok {
+		return m, nil
+	}
+	m.selectedModeTitle = mode.Title()
+	ctx, jobID := m.beginSpawnContext()
 	m.state = generatingView
-	m.generating = true
-	return m, tea.Batch(m.spinner.Tick, spawnCmd(spawner))
+	return m, tea.Batch(m.spinner.Tick, spawnCmd(spawner, ctx, jobID))
 }
 
 func (m model) handleContinueEnter() (tea.Model, tea.Cmd) {
@@ -408,21 +455,7 @@ func (m model) handleContinueEnter() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	rec := m.continueGames[idx]
-	importFn, ok := game.Registry[rec.GameType]
-	if !ok {
-		return m, nil
-	}
-	g, err := importFn([]byte(rec.SaveState))
-	if err != nil {
-		log.Printf("failed to import game: %v", err)
-		return m, nil
-	}
-	m.game = g.SetTitle(rec.Name)
-	m.game, _ = m.game.Update(game.HelpToggleMsg{Show: m.showFullHelp})
-	m.game, _ = m.game.Update(tea.WindowSizeMsg{Width: m.width, Height: m.height})
-	m.activeGameID = rec.ID
-	m.state = gameView
-	m.completionSaved = rec.Status == store.StatusCompleted
+	m, _ = m.importAndActivateRecord(rec)
 	return m, nil
 }
 
@@ -432,27 +465,7 @@ func (m model) handleHelpSelectEnter() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	m.helpCategory = cat
-
-	if m.helpRenderer == nil || m.helpRendererWidth != m.width {
-		renderer, err := glamour.NewTermRenderer(
-			glamour.WithAutoStyle(),
-			glamour.WithWordWrap(m.width),
-		)
-		if err != nil {
-			log.Printf("failed to create help renderer: %v", err)
-			return m, nil
-		}
-		m.helpRenderer = renderer
-		m.helpRendererWidth = m.width
-	}
-	rendered, err := m.helpRenderer.Render(cat.Help)
-	if err != nil {
-		log.Printf("failed to render help: %v", err)
-		return m, nil
-	}
-
-	m.helpViewport = viewport.New(viewport.WithWidth(m.width), viewport.WithHeight(m.height-2))
-	m.helpViewport.SetContent(rendered)
+	m = m.updateHelpDetailViewport()
 	m.state = helpDetailView
 	return m, nil
 }
@@ -466,6 +479,7 @@ func (m model) handleEscape() (tea.Model, tea.Cmd) {
 	case seedInputView:
 		m.state = playMenuView
 	case generatingView:
+		m.cancelActiveSpawn()
 		m.state = modeSelectView
 	case modeSelectView:
 		m.state = gameSelectView
@@ -564,19 +578,24 @@ func (m model) handleStatsEnter() (tea.Model, tea.Cmd) {
 		log.Printf("failed to get daily streak dates: %v", err)
 		return m, nil
 	}
+	now := time.Now()
+	currentDaily := false
+	rec, err := m.store.GetDailyGame(daily.Name(now))
+	if err != nil {
+		log.Printf("failed to check current daily: %v", err)
+	} else {
+		currentDaily = rec != nil
+	}
 
 	m.statsCards = stats.BuildCards(catStats, modeStats)
-	m.statsProfile = stats.BuildProfileBanner(catStats, modeStats, streakDates, m.store)
+	m.statsProfile = stats.BuildProfileBanner(catStats, modeStats, streakDates, currentDaily)
 
-	// Banner is rendered as static chrome above the viewport; only the
-	// card grid scrolls. Compute available height for the viewport after
-	// accounting for the panel frame and banner.
-	vpHeight := stats.ViewportHeight(m.height - stats.StaticHeight(m.statsCards))
+	statsWidth, statsHeight := statsViewportSize(m.width, m.height, m.statsCards)
 	m.statsViewport = viewport.New(
-		viewport.WithWidth(stats.ContentWidth(m.width)),
-		viewport.WithHeight(vpHeight),
+		viewport.WithWidth(statsWidth),
+		viewport.WithHeight(statsHeight),
 	)
-	m.statsViewport.SetContent(stats.RenderCardGrid(m.statsCards, stats.ContentWidth(m.width)))
+	m.statsViewport.SetContent(stats.RenderCardGrid(m.statsCards, statsWidth))
 	m.state = statsView
 	return m, nil
 }
