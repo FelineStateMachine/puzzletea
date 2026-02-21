@@ -2,6 +2,7 @@ package lightsout
 
 import (
 	"encoding/json"
+	"math/rand/v2"
 	"testing"
 
 	"github.com/FelineStateMachine/puzzletea/game"
@@ -41,6 +42,18 @@ func makeGrid(h, w int, val bool) [][]bool {
 		}
 	}
 	return g
+}
+
+func countLightsOn(g [][]bool) int {
+	total := 0
+	for y := range g {
+		for x := range g[y] {
+			if g[y][x] {
+				total++
+			}
+		}
+	}
+	return total
 }
 
 // --- Toggle (P0) ---
@@ -229,6 +242,50 @@ func TestGenerate_HasLightsOn(t *testing.T) {
 		if !found {
 			t.Fatal("Generate produced a grid with no lights on")
 		}
+	}
+}
+
+func TestGenerateSeeded_DistributionNotSolved(t *testing.T) {
+	tests := []struct {
+		name string
+		w    int
+		h    int
+	}{
+		{name: "easy_3x3", w: 3, h: 3},
+		{name: "medium_5x5", w: 5, h: 5},
+		{name: "hard_7x7", w: 7, h: 7},
+		{name: "extreme_9x9", w: 9, h: 9},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			minLightsOn := tt.w * tt.h
+			maxLightsOn := 0
+
+			for seed := range 128 {
+				rng := rand.New(rand.NewPCG(uint64(seed+1), uint64(seed+2)))
+				g := GenerateSeeded(tt.w, tt.h, rng)
+
+				if IsSolved(g) {
+					t.Fatalf("GenerateSeeded(%d,%d) produced solved grid at seed %d", tt.w, tt.h, seed)
+				}
+
+				lightsOn := countLightsOn(g)
+				if lightsOn < minLightsOn {
+					minLightsOn = lightsOn
+				}
+				if lightsOn > maxLightsOn {
+					maxLightsOn = lightsOn
+				}
+			}
+
+			if minLightsOn <= 0 {
+				t.Fatalf("min lights on = %d, want > 0", minLightsOn)
+			}
+			if minLightsOn == maxLightsOn {
+				t.Fatalf("lights-on distribution did not vary: min=max=%d", minLightsOn)
+			}
+		})
 	}
 }
 

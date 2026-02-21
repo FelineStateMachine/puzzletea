@@ -2,10 +2,15 @@ package wordsearch
 
 import (
 	"encoding/json"
+	"math/rand/v2"
 	"testing"
 
 	"github.com/FelineStateMachine/puzzletea/game"
 )
+
+func testRNG(seed uint64) *rand.Rand {
+	return rand.New(rand.NewPCG(seed, seed+1))
+}
 
 // --- Direction.Vector (P0) ---
 
@@ -462,6 +467,28 @@ func TestTryPlaceWord(t *testing.T) {
 	})
 }
 
+func TestTryPlaceWordSeededWithFallback(t *testing.T) {
+	g := createEmptyGrid(1, 5)
+	rng := testRNG(123)
+
+	word, stats := tryPlaceWordSeededWithFallback(g, "HELLO", []Direction{Right}, 0, rng)
+	if word == nil {
+		t.Fatal("expected fallback to place word")
+	}
+	if !stats.UsedFallback {
+		t.Fatal("expected UsedFallback to be true")
+	}
+	if stats.RandomAttempts != 0 {
+		t.Fatalf("RandomAttempts = %d, want 0", stats.RandomAttempts)
+	}
+	if stats.FallbackAttempts == 0 {
+		t.Fatal("expected fallback attempts to be > 0")
+	}
+	if word.Start != (Position{X: 0, Y: 0}) || word.End != (Position{X: 4, Y: 0}) {
+		t.Fatalf("unexpected placement: start=%v end=%v", word.Start, word.End)
+	}
+}
+
 // --- selectWords (P2) ---
 
 func TestSelectWords(t *testing.T) {
@@ -491,6 +518,31 @@ func TestSelectWords(t *testing.T) {
 			t.Error("expected some words")
 		}
 	})
+
+	t.Run("no duplicates", func(t *testing.T) {
+		rng := testRNG(42)
+		words := selectWordsSeeded(500, 3, 10, rng)
+		seen := make(map[string]struct{}, len(words))
+
+		for _, w := range words {
+			if _, ok := seen[w]; ok {
+				t.Fatalf("duplicate word selected: %q", w)
+			}
+			seen[w] = struct{}{}
+		}
+	})
+}
+
+func TestOrderWordsForPlacement(t *testing.T) {
+	words := []string{"AA", "BBBB", "CCC", "DDDD", "E"}
+	orderWordsForPlacement(words)
+
+	want := []string{"BBBB", "DDDD", "CCC", "AA", "E"}
+	for i := range want {
+		if words[i] != want[i] {
+			t.Fatalf("words[%d]=%q, want %q", i, words[i], want[i])
+		}
+	}
 }
 
 // --- fillEmptyCells (P2) ---
@@ -564,6 +616,231 @@ func TestGenerateWordSearch(t *testing.T) {
 			t.Errorf("len(words) = %d, want <= 10", len(words))
 		}
 	})
+}
+
+// --- generation integrity regression (P0) ---
+
+func TestGenerateWordSearchSeeded_WordCountRegression(t *testing.T) {
+	tests := []struct {
+		name        string
+		width       int
+		height      int
+		wordCount   int
+		minWordLen  int
+		maxWordLen  int
+		allowedDirs []Direction
+		minPlaced   int
+	}{
+		{
+			name:        "easy_10x10",
+			width:       10,
+			height:      10,
+			wordCount:   6,
+			minWordLen:  3,
+			maxWordLen:  5,
+			allowedDirs: []Direction{Right, Down, DownRight},
+			minPlaced:   6,
+		},
+		{
+			name:        "medium_15x15",
+			width:       15,
+			height:      15,
+			wordCount:   10,
+			minWordLen:  4,
+			maxWordLen:  7,
+			allowedDirs: []Direction{Right, Down, DownRight, DownLeft, Left, Up},
+			minPlaced:   10,
+		},
+		{
+			name:        "hard_20x20",
+			width:       20,
+			height:      20,
+			wordCount:   15,
+			minWordLen:  5,
+			maxWordLen:  10,
+			allowedDirs: []Direction{Right, Down, DownRight, DownLeft, Left, Up, UpRight, UpLeft},
+			minPlaced:   13,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			for seed := range 128 {
+				rng := testRNG(uint64(seed + 1))
+				_, words := GenerateWordSearchSeeded(
+					tt.width,
+					tt.height,
+					tt.wordCount,
+					tt.minWordLen,
+					tt.maxWordLen,
+					tt.allowedDirs,
+					rng,
+				)
+
+				if len(words) > tt.wordCount {
+					t.Fatalf("seed %d: len(words)=%d, want <= %d", seed, len(words), tt.wordCount)
+				}
+				if len(words) < tt.minPlaced {
+					t.Fatalf("seed %d: len(words)=%d, want >= %d", seed, len(words), tt.minPlaced)
+				}
+			}
+		})
+	}
+}
+
+func TestGenerateWordSearchSeeded_PlacementValidityRegression(t *testing.T) {
+	tests := []struct {
+		name        string
+		width       int
+		height      int
+		wordCount   int
+		minWordLen  int
+		maxWordLen  int
+		allowedDirs []Direction
+	}{
+		{
+			name:        "easy_10x10",
+			width:       10,
+			height:      10,
+			wordCount:   6,
+			minWordLen:  3,
+			maxWordLen:  5,
+			allowedDirs: []Direction{Right, Down, DownRight},
+		},
+		{
+			name:        "medium_15x15",
+			width:       15,
+			height:      15,
+			wordCount:   10,
+			minWordLen:  4,
+			maxWordLen:  7,
+			allowedDirs: []Direction{Right, Down, DownRight, DownLeft, Left, Up},
+		},
+		{
+			name:        "hard_20x20",
+			width:       20,
+			height:      20,
+			wordCount:   15,
+			minWordLen:  5,
+			maxWordLen:  10,
+			allowedDirs: []Direction{Right, Down, DownRight, DownLeft, Left, Up, UpRight, UpLeft},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			for seed := range 64 {
+				rng := testRNG(uint64(seed + 1))
+				g, words := GenerateWordSearchSeeded(
+					tt.width,
+					tt.height,
+					tt.wordCount,
+					tt.minWordLen,
+					tt.maxWordLen,
+					tt.allowedDirs,
+					rng,
+				)
+				assertWordPlacementsValid(t, g, words)
+			}
+		})
+	}
+}
+
+func assertWordPlacementsValid(t *testing.T, g grid, words []Word) {
+	t.Helper()
+
+	type cell struct {
+		x int
+		y int
+	}
+
+	occupied := map[cell]rune{}
+
+	for wi, w := range words {
+		positions := w.Positions()
+		if len(positions) != len(w.Text) {
+			t.Fatalf("word[%d]=%q positions=%d, want %d", wi, w.Text, len(positions), len(w.Text))
+		}
+		if positions[0] != w.Start {
+			t.Fatalf("word[%d]=%q start=%v, want %v", wi, w.Text, w.Start, positions[0])
+		}
+		if positions[len(positions)-1] != w.End {
+			t.Fatalf("word[%d]=%q end=%v, want %v", wi, w.Text, w.End, positions[len(positions)-1])
+		}
+
+		for i, pos := range positions {
+			if pos.X < 0 || pos.X >= len(g[0]) || pos.Y < 0 || pos.Y >= len(g) {
+				t.Fatalf("word[%d]=%q pos[%d]=(%d,%d) out of bounds", wi, w.Text, i, pos.X, pos.Y)
+			}
+
+			want := rune(w.Text[i])
+			if got := g.Get(pos.X, pos.Y); got != want {
+				t.Fatalf(
+					"word[%d]=%q pos[%d]=(%d,%d) grid=%q, want %q",
+					wi,
+					w.Text,
+					i,
+					pos.X,
+					pos.Y,
+					got,
+					want,
+				)
+			}
+
+			key := cell{x: pos.X, y: pos.Y}
+			if prev, ok := occupied[key]; ok && prev != want {
+				t.Fatalf(
+					"conflicting overlap at (%d,%d): had %q, word[%d]=%q wants %q",
+					pos.X,
+					pos.Y,
+					prev,
+					wi,
+					w.Text,
+					want,
+				)
+			}
+			occupied[key] = want
+		}
+	}
+}
+
+func TestGenerateWordSearchSeeded_PlacementStats(t *testing.T) {
+	rng := testRNG(99)
+	_, words, stats := generateWordSearchSeededWithStats(
+		20,
+		20,
+		15,
+		5,
+		10,
+		[]Direction{Right, Down, DownRight, DownLeft, Left, Up, UpRight, UpLeft},
+		rng,
+	)
+
+	if stats.TargetWords != 15 {
+		t.Fatalf("TargetWords = %d, want 15", stats.TargetWords)
+	}
+	if stats.PlacedWords != len(words) {
+		t.Fatalf("PlacedWords = %d, want %d", stats.PlacedWords, len(words))
+	}
+	if stats.PlacedWords+stats.FailedWords != stats.TargetWords {
+		t.Fatalf(
+			"placed+failed = %d, want %d",
+			stats.PlacedWords+stats.FailedWords,
+			stats.TargetWords,
+		)
+	}
+	if stats.RandomAttempts < stats.TargetWords {
+		t.Fatalf("RandomAttempts = %d, want >= %d", stats.RandomAttempts, stats.TargetWords)
+	}
+	if stats.FallbackPlaced > stats.FallbackUsed {
+		t.Fatalf("FallbackPlaced = %d, want <= FallbackUsed = %d", stats.FallbackPlaced, stats.FallbackUsed)
+	}
+	if got := stats.SuccessRate(); got <= 0 || got > 1 {
+		t.Fatalf("SuccessRate = %.4f, want (0,1]", got)
+	}
+	if got := stats.AttemptsPerWord(); got <= 0 {
+		t.Fatalf("AttemptsPerWord = %.4f, want > 0", got)
+	}
 }
 
 // --- screenToGrid (P1) ---
