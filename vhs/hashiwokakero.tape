@@ -2,7 +2,7 @@ Output vhs/hashiwokakero.gif
 
 Set Theme "catppuccin-mocha"
 Set FontSize 14
-Set Width 800
+Set Width 1200
 Set Height 800
 Set Margin 60
 Set MarginFill "#7A6855"

@@ -1,9 +1,9 @@
 Output vhs/stats.gif
 
-Set Theme "Treehouse"
+Set Theme "GitHub Dark"
 Set FontSize 14
-Set Width 1200
-Set Height 800
+Set Width 1300
+Set Height 960
 Set Margin 60
 Set MarginFill "#8B6B4A"
 Set WindowBar RingsRight
@@ -20,7 +20,7 @@ Sleep 2s
 Ctrl+L
 Show
 
-Type './puzzletea --theme "Treehouse"'
+Type './puzzletea --theme "NvimDark"'
 Sleep 500ms
 Enter
 Sleep 2s
