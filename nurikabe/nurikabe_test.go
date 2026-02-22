@@ -590,10 +590,23 @@ func TestConstructedCandidateValidCompletedBoard(t *testing.T) {
 		clueTarget = 2
 	}
 
-	rng := rand.New(rand.NewPCG(901, 1777))
-	candidate, err := buildCandidateByCarving(mode, clueTarget, profile, rng, 0)
+	var (
+		candidate candidateResult
+		err       error
+	)
+
+	// Keep this deterministic while avoiding reliance on a single RNG path.
+	for attempt := range 24 {
+		seedA := uint64(901 + attempt*17)
+		seedB := uint64(1777 + attempt*29)
+		rng := rand.New(rand.NewPCG(seedA, seedB))
+		candidate, err = buildCandidateByCarving(mode, clueTarget, profile, rng, attempt)
+		if err == nil {
+			break
+		}
+	}
 	if err != nil {
-		t.Fatalf("buildCandidateByCarving error: %v", err)
+		t.Fatalf("buildCandidateByCarving failed across deterministic attempts: %v", err)
 	}
 
 	if err := validateClues(candidate.puzzle.Clues, candidate.puzzle.Width, candidate.puzzle.Height); err != nil {

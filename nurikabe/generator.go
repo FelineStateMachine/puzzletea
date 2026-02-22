@@ -14,6 +14,7 @@ import (
 const (
 	generationHardTimeout        = 10 * time.Second
 	uniquenessMinRemainingBudget = 250 * time.Millisecond
+	frontierBiasSampleCount      = 7
 )
 
 type generationBudget struct {
@@ -677,10 +678,39 @@ func (s *candidateState) popFrontier(rng *rand.Rand) (point, bool) {
 	if len(s.frontier) == 0 {
 		return point{}, false
 	}
-	idx := rng.IntN(len(s.frontier))
-	picked := s.frontier[idx]
+
+	bestIdx := -1
+	bestScore := -1
+	samples := min(frontierBiasSampleCount, len(s.frontier))
+	for range samples {
+		idx := rng.IntN(len(s.frontier))
+		score := s.frontierPriorityScore(s.frontier[idx])
+		if score > bestScore || (score == bestScore && rng.IntN(2) == 0) {
+			bestScore = score
+			bestIdx = idx
+		}
+	}
+
+	if bestIdx < 0 {
+		bestIdx = rng.IntN(len(s.frontier))
+	}
+
+	picked := s.frontier[bestIdx]
 	s.removeFrontier(picked)
 	return picked, true
+}
+
+func (s *candidateState) frontierPriorityScore(p point) int {
+	if !s.inBounds(p) || s.sea[p.y][p.x] {
+		return 0
+	}
+
+	label := s.labels[p.y][p.x]
+	componentSize := s.componentSize[label]
+	sameLabelNeighbors := len(s.landNeighborsWithLabel(p, label))
+
+	// Favor carving from larger components; local degree nudges toward useful splits.
+	return componentSize*16 + sameLabelNeighbors*3
 }
 
 func (s *candidateState) removeComponent(label int) {
@@ -1048,7 +1078,7 @@ func modeIslandProfile(mode NurikabeMode) islandProfile {
 			minAverageSize:    1.8,
 			maxSingletonRatio: 0.72,
 			minLargestIsland:  4,
-			maxLargestIsland:  20,
+			maxLargestIsland:  15,
 		}
 	case "Expert":
 		return islandProfile{
@@ -1059,7 +1089,7 @@ func modeIslandProfile(mode NurikabeMode) islandProfile {
 			minAverageSize:    1.7,
 			maxSingletonRatio: 0.78,
 			minLargestIsland:  4,
-			maxLargestIsland:  22,
+			maxLargestIsland:  17,
 		}
 	default:
 		return islandProfile{
