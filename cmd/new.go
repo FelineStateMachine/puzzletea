@@ -58,7 +58,7 @@ func init() {
 	newCmd.Flags().StringVar(&flagSetSeed, "set-seed", "", "seed string for deterministic puzzle selection and generation")
 	newCmd.Flags().StringVar(&flagWithSeed, "with-seed", "", "seed string for deterministic puzzle generation within the selected game/mode")
 	newCmd.Flags().IntVarP(&flagExport, "export", "e", 1, "number of puzzles to export")
-	newCmd.Flags().StringVarP(&flagOutput, "output", "o", "", "write puzzles to a markdown file (defaults to stdout)")
+	newCmd.Flags().StringVarP(&flagOutput, "output", "o", "", "write puzzles to a jsonl file (defaults to stdout)")
 }
 
 // launchNewGame resolves the game/mode, spawns a new game, and launches the TUI.

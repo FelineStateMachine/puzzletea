@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bytes"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -9,25 +10,27 @@ import (
 	"testing"
 	"time"
 
+	"github.com/FelineStateMachine/puzzletea/pdfexport"
+
 	"github.com/spf13/cobra"
 )
 
 func TestRunNewExportRejectsUnsupportedGame(t *testing.T) {
 	withExportFlagReset(t)
-	flagOutput = filepath.Join(t.TempDir(), "lights.md")
+	flagOutput = filepath.Join(t.TempDir(), "lights.jsonl")
 
 	cmd, _ := newExportTestCmd(t, false)
 	err := runNewExport(cmd, []string{"lights-out"})
 	if err == nil {
 		t.Fatal("expected unsupported game error")
 	}
-	if !strings.Contains(err.Error(), "does not support markdown export") {
+	if !strings.Contains(err.Error(), "does not support export") {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
 func TestRunNewExportValidation(t *testing.T) {
-	t.Run("writes to stdout when output omitted", func(t *testing.T) {
+	t.Run("writes jsonl to stdout when output omitted", func(t *testing.T) {
 		withExportFlagReset(t)
 		flagExport = 2
 
@@ -36,12 +39,23 @@ func TestRunNewExportValidation(t *testing.T) {
 		if err != nil {
 			t.Fatalf("expected stdout export success, got error: %v", err)
 		}
-		if !strings.Contains(out.String(), "# PuzzleTea Export") {
-			t.Fatalf("expected markdown output on stdout, got:\n%s", out.String())
+
+		lines := strings.Split(strings.TrimSpace(out.String()), "\n")
+		if got, want := len(lines), 2; got != want {
+			t.Fatalf("jsonl lines = %d, want %d", got, want)
+		}
+		for i, line := range lines {
+			var record pdfexport.JSONLRecord
+			if err := json.Unmarshal([]byte(line), &record); err != nil {
+				t.Fatalf("line %d is not valid jsonl: %v", i+1, err)
+			}
+			if record.Schema != pdfexport.ExportSchemaV1 {
+				t.Fatalf("line %d schema = %q, want %q", i+1, record.Schema, pdfexport.ExportSchemaV1)
+			}
 		}
 	})
 
-	t.Run("output extension must be markdown", func(t *testing.T) {
+	t.Run("output extension must be jsonl", func(t *testing.T) {
 		withExportFlagReset(t)
 		flagOutput = filepath.Join(t.TempDir(), "out.txt")
 
@@ -50,7 +64,7 @@ func TestRunNewExportValidation(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected extension validation error")
 		}
-		if !strings.Contains(err.Error(), ".md extension") {
+		if !strings.Contains(err.Error(), ".jsonl extension") {
 			t.Fatalf("unexpected error: %v", err)
 		}
 	})
@@ -58,14 +72,14 @@ func TestRunNewExportValidation(t *testing.T) {
 	t.Run("set-seed cannot be combined with output", func(t *testing.T) {
 		withExportFlagReset(t)
 		flagSetSeed = "abc"
-		flagOutput = filepath.Join(t.TempDir(), "out.md")
+		flagOutput = filepath.Join(t.TempDir(), "out.jsonl")
 
 		cmd, _ := newExportTestCmd(t, false)
 		err := runNewExport(cmd, []string{"nonogram", "mini"})
 		if err == nil {
 			t.Fatal("expected set-seed validation error")
 		}
-		if !strings.Contains(err.Error(), "--set-seed cannot be combined with markdown export (--export/--output)") {
+		if !strings.Contains(err.Error(), "--set-seed cannot be combined with export (--export/--output)") {
 			t.Fatalf("unexpected error: %v", err)
 		}
 	})
@@ -79,8 +93,8 @@ func TestRunNewExportReproducibleWithSeed(t *testing.T) {
 	exportNow = func() time.Time { return fixedNow }
 	t.Cleanup(func() { exportNow = previousNow })
 
-	fileA := filepath.Join(t.TempDir(), "a.md")
-	fileB := filepath.Join(t.TempDir(), "b.md")
+	fileA := filepath.Join(t.TempDir(), "a.jsonl")
+	fileB := filepath.Join(t.TempDir(), "b.jsonl")
 
 	flagExport = 3
 	flagWithSeed = "zine-seed-01"
@@ -105,14 +119,14 @@ func TestRunNewExportReproducibleWithSeed(t *testing.T) {
 		t.Fatal(err)
 	}
 	if string(a) != string(b) {
-		t.Fatal("expected deterministic markdown output for identical seed and args")
+		t.Fatal("expected deterministic jsonl output for identical seed and args")
 	}
 }
 
 func TestRunNewExportOverwritesOutputFile(t *testing.T) {
 	withExportFlagReset(t)
 
-	file := filepath.Join(t.TempDir(), "out.md")
+	file := filepath.Join(t.TempDir(), "out.jsonl")
 	if err := os.WriteFile(file, []byte("old"), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -133,8 +147,8 @@ func TestRunNewExportOverwritesOutputFile(t *testing.T) {
 	if string(data) == "old" {
 		t.Fatal("expected output file to be overwritten")
 	}
-	if !strings.Contains(string(data), "# PuzzleTea Export") {
-		t.Fatal("expected markdown export header")
+	if !strings.Contains(string(data), pdfexport.ExportSchemaV1) {
+		t.Fatal("expected jsonl export schema marker")
 	}
 }
 

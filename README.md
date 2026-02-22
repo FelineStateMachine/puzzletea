@@ -106,20 +106,26 @@ puzzletea new --set-seed myseed
 puzzletea new nonogram epic --with-seed myseed
 ```
 
-Export printable puzzle sets to markdown:
+Export printable puzzle sets to JSONL:
 
 ```bash
-# Stream markdown to stdout (redirect if desired)
-puzzletea new nonogram mini --export 2 > nonogram-mini-set.md
+# Stream JSONL to stdout (redirect if desired)
+puzzletea new nonogram mini --export 2 > nonogram-mini-set.jsonl
 
 # Single mode export
-puzzletea new nonogram mini -e 6 -o nonogram-mini-set.md
+puzzletea new nonogram mini -e 6 -o nonogram-mini-set.jsonl
 
 # Mixed modes within a category (deterministic with --with-seed)
-puzzletea new sudoku --export 10 -o sudoku-mixed.md --with-seed zine-issue-01
+puzzletea new sudoku --export 10 -o sudoku-mixed.jsonl --with-seed zine-issue-01
 ```
 
-`Lights Out` is currently excluded from markdown export because it does not translate cleanly to paper workflows.
+Render one or more JSONL packs into an A5 print PDF:
+
+```bash
+puzzletea export-pdf nonogram-mini-set.jsonl -o issue-01.pdf --shuffle-seed issue-01
+```
+
+`Lights Out` is currently excluded from export because it does not translate cleanly to paper workflows.
 
 Override the color theme:
 

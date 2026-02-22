@@ -21,9 +21,9 @@ var (
 )
 
 var exportPDFCmd = &cobra.Command{
-	Use:   "export-pdf <input.md> [more.md ...]",
-	Short: "Convert one or more PuzzleTea markdown exports into an A5 printable PDF",
-	Long:  "Parse one or more markdown export files, order puzzles by progressive difficulty with seeded mixing, and render an A5 PDF with a title page and one puzzle per page.",
+	Use:   "export-pdf <input.jsonl> [more.jsonl ...]",
+	Short: "Convert one or more PuzzleTea JSONL exports into an A5 printable PDF",
+	Long:  "Parse one or more JSONL export files, order puzzles by progressive difficulty with seeded mixing, and render an A5 PDF with a title page and one puzzle per page.",
 	Args:  cobra.MinimumNArgs(1),
 	RunE:  runExportPDF,
 }
@@ -36,14 +36,14 @@ func init() {
 }
 
 func runExportPDF(cmd *cobra.Command, args []string) error {
-	docs, err := pdfexport.ParseFiles(args)
+	docs, err := pdfexport.ParseJSONLFiles(args)
 	if err != nil {
 		return err
 	}
 
 	puzzles := flattenPuzzles(docs)
 	if len(puzzles) == 0 {
-		return fmt.Errorf("no puzzles found in input markdown files")
+		return fmt.Errorf("no puzzles found in input jsonl files")
 	}
 
 	lookup := buildModeDifficultyLookup(app.Categories)

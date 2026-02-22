@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -13,6 +14,8 @@ import (
 	"github.com/FelineStateMachine/puzzletea/app"
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/markdownexport"
+	"github.com/FelineStateMachine/puzzletea/namegen"
+	"github.com/FelineStateMachine/puzzletea/pdfexport"
 	"github.com/FelineStateMachine/puzzletea/resolve"
 
 	"github.com/spf13/cobra"
@@ -35,7 +38,7 @@ func runNewExport(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	if !markdownexport.SupportsGameType(cat.Name) {
-		return fmt.Errorf("game %q does not support markdown export", cat.Name)
+		return fmt.Errorf("game %q does not support export", cat.Name)
 	}
 
 	modeArg := ""
@@ -48,21 +51,13 @@ func runNewExport(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	sections, err := buildExportSections(cat.Name, entries, flagExport, flagWithSeed)
+	generatedAt := exportNow()
+	records, err := buildExportRecords(cat.Name, modeSelection, entries, flagExport, flagWithSeed, generatedAt)
 	if err != nil {
 		return err
 	}
 
-	doc := markdownexport.BuildDocument(markdownexport.DocumentConfig{
-		Version:       Version,
-		Category:      cat.Name,
-		ModeSelection: modeSelection,
-		Count:         flagExport,
-		Seed:          flagWithSeed,
-		GeneratedAt:   exportNow(),
-	}, sections)
-
-	if err := writeExportMarkdown(cmd, flagOutput, doc); err != nil {
+	if err := writeExportJSONL(cmd, flagOutput, records); err != nil {
 		return err
 	}
 
@@ -73,11 +68,11 @@ func validateNewExportFlags(cmd *cobra.Command, args []string) error {
 	if flagExport < 1 {
 		return fmt.Errorf("--export must be at least 1")
 	}
-	if strings.TrimSpace(flagOutput) != "" && !strings.EqualFold(filepath.Ext(flagOutput), ".md") {
-		return fmt.Errorf("--output must use a .md extension")
+	if strings.TrimSpace(flagOutput) != "" && !strings.EqualFold(filepath.Ext(flagOutput), ".jsonl") {
+		return fmt.Errorf("--output must use a .jsonl extension")
 	}
 	if flagSetSeed != "" {
-		return fmt.Errorf("--set-seed cannot be combined with markdown export (--export/--output)")
+		return fmt.Errorf("--set-seed cannot be combined with export (--export/--output)")
 	}
 	if len(args) == 0 {
 		return fmt.Errorf("requires at least 1 arg(s), only received 0")
@@ -119,13 +114,25 @@ func collectExportModes(cat game.Category, modeArg string) ([]exportModeEntry, s
 	return entries, "mixed modes", nil
 }
 
-func buildExportSections(gameType string, entries []exportModeEntry, count int, seed string) ([]markdownexport.PuzzleSection, error) {
+func buildExportRecords(
+	gameType, modeSelection string,
+	entries []exportModeEntry,
+	count int,
+	seed string,
+	generatedAt time.Time,
+) ([]pdfexport.JSONLRecord, error) {
 	var rng *rand.Rand
 	if seed != "" {
 		rng = resolve.RNGFromString(seed)
 	}
 
-	sections := make([]markdownexport.PuzzleSection, 0, count)
+	nameSeed := seed
+	if strings.TrimSpace(nameSeed) == "" {
+		nameSeed = generatedAt.Format(time.RFC3339Nano)
+	}
+	nameRNG := resolve.RNGFromString("export-names:" + nameSeed)
+
+	records := make([]pdfexport.JSONLRecord, 0, count)
 	for i := 0; i < count; i++ {
 		entry := entries[0]
 		if len(entries) > 1 {
@@ -147,24 +154,61 @@ func buildExportSections(gameType string, entries []exportModeEntry, count int, 
 		if err != nil {
 			return nil, fmt.Errorf("serialize puzzle %d: %w", i+1, err)
 		}
+		if !json.Valid(save) {
+			return nil, fmt.Errorf("serialize puzzle %d: save payload is not valid JSON", i+1)
+		}
 
 		snippet, err := markdownexport.RenderPuzzleSnippet(gameType, entry.mode, save)
 		if err != nil {
 			if errors.Is(err, markdownexport.ErrUnsupportedGame) {
-				return nil, fmt.Errorf("game %q does not support markdown export", gameType)
+				return nil, fmt.Errorf("game %q does not support export", gameType)
 			}
 			return nil, fmt.Errorf("render puzzle %d: %w", i+1, err)
 		}
 
-		sections = append(sections, markdownexport.PuzzleSection{
-			Index:    i + 1,
-			GameType: gameType,
-			Mode:     entry.mode,
-			Body:     snippet,
+		nonogram, table, err := pdfexport.ParsePrintableFromSnippet(gameType, snippet)
+		if err != nil {
+			return nil, fmt.Errorf("build print payload for puzzle %d: %w", i+1, err)
+		}
+
+		printKind := "text"
+		if nonogram != nil {
+			printKind = "nonogram"
+		} else if table != nil {
+			printKind = "grid-table"
+		}
+
+		records = append(records, pdfexport.JSONLRecord{
+			Schema: pdfexport.ExportSchemaV1,
+			Pack: pdfexport.JSONLPackMeta{
+				Generated:     generatedAt.Format(time.RFC3339),
+				Version:       Version,
+				Category:      gameType,
+				ModeSelection: modeSelection,
+				Count:         count,
+				Seed:          seed,
+			},
+			Puzzle: pdfexport.JSONLPuzzle{
+				Index:   i + 1,
+				Name:    namegen.GenerateSeeded(nameRNG),
+				Game:    gameType,
+				Mode:    entry.mode,
+				Save:    json.RawMessage(save),
+				Snippet: snippet,
+			},
+			Print: pdfexport.JSONLPrintData{
+				Kind:       printKind,
+				Paper:      "A5",
+				MarginMM:   10,
+				EmptyGlyph: " ",
+				HintTone:   "dim",
+				Nonogram:   nonogram,
+				Table:      table,
+			},
 		})
 	}
 
-	return sections, nil
+	return records, nil
 }
 
 func spawnExportPuzzle(spawner game.Spawner, rng *rand.Rand) (game.Gamer, error) {
@@ -179,10 +223,21 @@ func spawnExportPuzzle(spawner game.Spawner, rng *rand.Rand) (game.Gamer, error)
 	return seeded.SpawnSeeded(rng)
 }
 
-func writeExportMarkdown(cmd *cobra.Command, path, content string) error {
+func writeExportJSONL(cmd *cobra.Command, path string, records []pdfexport.JSONLRecord) error {
+	var b strings.Builder
+	for _, record := range records {
+		data, err := json.Marshal(record)
+		if err != nil {
+			return fmt.Errorf("encode jsonl record: %w", err)
+		}
+		b.Write(data)
+		b.WriteByte('\n')
+	}
+
+	content := b.String()
 	if strings.TrimSpace(path) == "" {
 		if _, err := io.WriteString(cmd.OutOrStdout(), content); err != nil {
-			return fmt.Errorf("write export markdown to stdout: %w", err)
+			return fmt.Errorf("write export jsonl to stdout: %w", err)
 		}
 		return nil
 	}
@@ -195,7 +250,7 @@ func writeExportMarkdown(cmd *cobra.Command, path, content string) error {
 	}
 
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
-		return fmt.Errorf("write output markdown: %w", err)
+		return fmt.Errorf("write output jsonl: %w", err)
 	}
 	return nil
 }
