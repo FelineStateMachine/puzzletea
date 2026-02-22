@@ -50,7 +50,7 @@ var RootCmd = &cobra.Command{
 			if len(parts) > 1 {
 				modeArg = parts[1]
 			}
-			return launchNewGame(gameArg, modeArg, cfg)
+			return launchNewGame(gameArg, modeArg, "", cfg)
 		}
 		if flagContinue != "" {
 			return continueGame(flagContinue, cfg)

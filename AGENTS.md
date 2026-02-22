@@ -11,6 +11,14 @@ just clean        # remove binary and dist/
 ```
 Without `just`: `go build -ldflags "-X github.com/FelineStateMachine/puzzletea/cmd.Version=$(git describe --tags --always --dirty)" -o puzzletea`
 
+### CLI Seed Flags
+```bash
+puzzletea new --set-seed myseed              # deterministic game/mode/puzzle selection
+puzzletea new nonogram epic --with-seed s1   # deterministic puzzle in selected game/mode
+```
+- `--set-seed` cannot be combined with positional game/mode arguments.
+- `--with-seed` is used with explicit game/mode arguments for mode-local reproducibility.
+
 ### Testing
 ```bash
 just test                                    # go test ./...

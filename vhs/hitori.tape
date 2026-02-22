@@ -19,7 +19,7 @@ Sleep 2s
 Ctrl+L
 Show
 
-Type "./puzzletea new hitori medium"
+Type './puzzletea --theme "catppuccin-mocha" new hitori medium --with-seed "vhs-hitori-medium"'
 Sleep 500ms
 Enter
 Sleep 2s
