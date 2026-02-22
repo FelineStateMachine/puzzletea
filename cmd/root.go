@@ -74,7 +74,7 @@ func init() {
 	RootCmd.Flags().StringVar(&flagSetSeed, "set-seed", "", "seed string for deterministic puzzle selection and generation")
 	RootCmd.PersistentFlags().StringVar(&flagTheme, "theme", "", "color theme name (overrides config)")
 
-	RootCmd.AddCommand(newCmd, continueCmd, listCmd)
+	RootCmd.AddCommand(newCmd, continueCmd, listCmd, exportPDFCmd)
 }
 
 // loadConfig reads the config file and applies the active theme. The --theme

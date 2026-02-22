@@ -1,0 +1,175 @@
+package cmd
+
+import (
+	"bytes"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/spf13/cobra"
+)
+
+func TestRunNewExportRejectsUnsupportedGame(t *testing.T) {
+	withExportFlagReset(t)
+	flagOutput = filepath.Join(t.TempDir(), "lights.md")
+
+	cmd, _ := newExportTestCmd(t, false)
+	err := runNewExport(cmd, []string{"lights-out"})
+	if err == nil {
+		t.Fatal("expected unsupported game error")
+	}
+	if !strings.Contains(err.Error(), "does not support markdown export") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestRunNewExportValidation(t *testing.T) {
+	t.Run("writes to stdout when output omitted", func(t *testing.T) {
+		withExportFlagReset(t)
+		flagExport = 2
+
+		cmd, out := newExportTestCmd(t, true)
+		err := runNewExport(cmd, []string{"nonogram", "mini"})
+		if err != nil {
+			t.Fatalf("expected stdout export success, got error: %v", err)
+		}
+		if !strings.Contains(out.String(), "# PuzzleTea Export") {
+			t.Fatalf("expected markdown output on stdout, got:\n%s", out.String())
+		}
+	})
+
+	t.Run("output extension must be markdown", func(t *testing.T) {
+		withExportFlagReset(t)
+		flagOutput = filepath.Join(t.TempDir(), "out.txt")
+
+		cmd, _ := newExportTestCmd(t, false)
+		err := runNewExport(cmd, []string{"nonogram", "mini"})
+		if err == nil {
+			t.Fatal("expected extension validation error")
+		}
+		if !strings.Contains(err.Error(), ".md extension") {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	t.Run("set-seed cannot be combined with output", func(t *testing.T) {
+		withExportFlagReset(t)
+		flagSetSeed = "abc"
+		flagOutput = filepath.Join(t.TempDir(), "out.md")
+
+		cmd, _ := newExportTestCmd(t, false)
+		err := runNewExport(cmd, []string{"nonogram", "mini"})
+		if err == nil {
+			t.Fatal("expected set-seed validation error")
+		}
+		if !strings.Contains(err.Error(), "--set-seed cannot be combined with markdown export (--export/--output)") {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+}
+
+func TestRunNewExportReproducibleWithSeed(t *testing.T) {
+	withExportFlagReset(t)
+
+	fixedNow := time.Date(2026, 2, 22, 11, 0, 0, 0, time.UTC)
+	previousNow := exportNow
+	exportNow = func() time.Time { return fixedNow }
+	t.Cleanup(func() { exportNow = previousNow })
+
+	fileA := filepath.Join(t.TempDir(), "a.md")
+	fileB := filepath.Join(t.TempDir(), "b.md")
+
+	flagExport = 3
+	flagWithSeed = "zine-seed-01"
+	flagOutput = fileA
+	cmdA, _ := newExportTestCmd(t, false)
+	if err := runNewExport(cmdA, []string{"nonogram", "mini"}); err != nil {
+		t.Fatalf("first export failed: %v", err)
+	}
+
+	flagOutput = fileB
+	cmdB, _ := newExportTestCmd(t, false)
+	if err := runNewExport(cmdB, []string{"nonogram", "mini"}); err != nil {
+		t.Fatalf("second export failed: %v", err)
+	}
+
+	a, err := os.ReadFile(fileA)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := os.ReadFile(fileB)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(a) != string(b) {
+		t.Fatal("expected deterministic markdown output for identical seed and args")
+	}
+}
+
+func TestRunNewExportOverwritesOutputFile(t *testing.T) {
+	withExportFlagReset(t)
+
+	file := filepath.Join(t.TempDir(), "out.md")
+	if err := os.WriteFile(file, []byte("old"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	flagExport = 1
+	flagWithSeed = "overwrite-seed"
+	flagOutput = file
+
+	cmd, _ := newExportTestCmd(t, false)
+	if err := runNewExport(cmd, []string{"nonogram", "mini"}); err != nil {
+		t.Fatalf("export failed: %v", err)
+	}
+
+	data, err := os.ReadFile(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) == "old" {
+		t.Fatal("expected output file to be overwritten")
+	}
+	if !strings.Contains(string(data), "# PuzzleTea Export") {
+		t.Fatal("expected markdown export header")
+	}
+}
+
+func withExportFlagReset(t *testing.T) {
+	t.Helper()
+
+	prevSetSeed := flagSetSeed
+	prevWithSeed := flagWithSeed
+	prevExport := flagExport
+	prevOutput := flagOutput
+
+	flagSetSeed = ""
+	flagWithSeed = ""
+	flagExport = 1
+	flagOutput = ""
+
+	t.Cleanup(func() {
+		flagSetSeed = prevSetSeed
+		flagWithSeed = prevWithSeed
+		flagExport = prevExport
+		flagOutput = prevOutput
+	})
+}
+
+func newExportTestCmd(t *testing.T, exportChanged bool) (*cobra.Command, *bytes.Buffer) {
+	t.Helper()
+
+	cmd := &cobra.Command{}
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.Flags().Int("export", 1, "")
+	if exportChanged {
+		if err := cmd.Flags().Set("export", strconv.Itoa(flagExport)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return cmd, &out
+}

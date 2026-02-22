@@ -175,6 +175,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.state == gameView && m.game != nil {
 				m.game = m.game.Reset()
 			}
+		case key.Matches(msg, rootKeys.YankPuzzle):
+			if m.state == gameView && m.game != nil {
+				return m, m.yankPuzzleCmd()
+			}
+			return m, nil
 		}
 	}
 

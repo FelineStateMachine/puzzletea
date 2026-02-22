@@ -106,6 +106,21 @@ puzzletea new --set-seed myseed
 puzzletea new nonogram epic --with-seed myseed
 ```
 
+Export printable puzzle sets to markdown:
+
+```bash
+# Stream markdown to stdout (redirect if desired)
+puzzletea new nonogram mini --export 2 > nonogram-mini-set.md
+
+# Single mode export
+puzzletea new nonogram mini -e 6 -o nonogram-mini-set.md
+
+# Mixed modes within a category (deterministic with --with-seed)
+puzzletea new sudoku --export 10 -o sudoku-mixed.md --with-seed zine-issue-01
+```
+
+`Lights Out` is currently excluded from markdown export because it does not translate cleanly to paper workflows.
+
 Override the color theme:
 
 ```bash
@@ -135,6 +150,7 @@ Several shorthand names are accepted for games: `hashi`/`bridges` for Hashiwokak
 | `Ctrl+R` | Reset puzzle |
 | `Ctrl+H` | Toggle full help |
 | `Ctrl+E` | Toggle debug overlay |
+| `Ctrl+Y` | Yank puzzle markdown snippet |
 | `Ctrl+C` | Quit |
 
 ### Navigation

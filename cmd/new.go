@@ -18,6 +18,8 @@ import (
 var (
 	flagSetSeed  string
 	flagWithSeed string
+	flagExport   int
+	flagOutput   string
 )
 
 var newCmd = &cobra.Command{
@@ -28,6 +30,10 @@ var newCmd = &cobra.Command{
 		strings.Join(resolve.CategoryNames(app.GameCategories), "\n  ")),
 	Args: cobra.RangeArgs(0, 2),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if flagOutput != "" || cmd.Flags().Changed("export") {
+			return runNewExport(cmd, args)
+		}
+
 		cfg := loadConfig()
 
 		if flagSetSeed != "" {
@@ -51,6 +57,8 @@ var newCmd = &cobra.Command{
 func init() {
 	newCmd.Flags().StringVar(&flagSetSeed, "set-seed", "", "seed string for deterministic puzzle selection and generation")
 	newCmd.Flags().StringVar(&flagWithSeed, "with-seed", "", "seed string for deterministic puzzle generation within the selected game/mode")
+	newCmd.Flags().IntVarP(&flagExport, "export", "e", 1, "number of puzzles to export")
+	newCmd.Flags().StringVarP(&flagOutput, "output", "o", "", "write puzzles to a markdown file (defaults to stdout)")
 }
 
 // launchNewGame resolves the game/mode, spawns a new game, and launches the TUI.

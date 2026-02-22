@@ -1,7 +1,9 @@
 package app
 
 import (
+	"errors"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -10,9 +12,11 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/FelineStateMachine/puzzletea/daily"
 	"github.com/FelineStateMachine/puzzletea/game"
+	"github.com/FelineStateMachine/puzzletea/lightsout"
 	"github.com/FelineStateMachine/puzzletea/namegen"
 	"github.com/FelineStateMachine/puzzletea/resolve"
 	"github.com/FelineStateMachine/puzzletea/store"
+	"github.com/FelineStateMachine/puzzletea/sudoku"
 )
 
 type escapeTrackingGame struct {
@@ -237,4 +241,101 @@ func openAppTestStore(t *testing.T) *store.Store {
 	}
 	t.Cleanup(func() { _ = s.Close() })
 	return s
+}
+
+func TestCtrlYYanksSupportedPuzzle(t *testing.T) {
+	previousCopy := copyToClipboard
+	t.Cleanup(func() { copyToClipboard = previousCopy })
+
+	var copied string
+	copyToClipboard = func(s string) error {
+		copied = s
+		return nil
+	}
+
+	m := model{
+		state: gameView,
+		game:  sudoku.Model{},
+	}
+
+	_, cmd := m.Update(tea.KeyPressMsg{Code: 'y', Mod: tea.ModCtrl})
+	if cmd != nil {
+		t.Fatal("expected nil command when native clipboard copy succeeds")
+	}
+	if copied == "" {
+		t.Fatal("expected markdown snippet to be copied")
+	}
+	if !strings.Contains(copied, "Given Grid") {
+		t.Fatalf("expected sudoku markdown snippet, got:\n%s", copied)
+	}
+}
+
+func TestCtrlYYankUnsupportedGameIsNoOp(t *testing.T) {
+	previousCopy := copyToClipboard
+	t.Cleanup(func() { copyToClipboard = previousCopy })
+
+	calls := 0
+	copyToClipboard = func(string) error {
+		calls++
+		return nil
+	}
+
+	m := model{
+		state: gameView,
+		game:  lightsout.Model{},
+	}
+
+	_, cmd := m.Update(tea.KeyPressMsg{Code: 'y', Mod: tea.ModCtrl})
+	if cmd != nil {
+		t.Fatal("expected nil command for unsupported game yank")
+	}
+	if calls != 0 {
+		t.Fatalf("clipboard should not be called, got %d calls", calls)
+	}
+}
+
+func TestCtrlYYankOutsideGameViewIsNoOp(t *testing.T) {
+	previousCopy := copyToClipboard
+	t.Cleanup(func() { copyToClipboard = previousCopy })
+
+	calls := 0
+	copyToClipboard = func(string) error {
+		calls++
+		return nil
+	}
+
+	m := model{
+		state: mainMenuView,
+		game:  sudoku.Model{},
+	}
+
+	_, cmd := m.Update(tea.KeyPressMsg{Code: 'y', Mod: tea.ModCtrl})
+	if cmd != nil {
+		t.Fatal("expected nil command outside game view")
+	}
+	if calls != 0 {
+		t.Fatalf("clipboard should not be called outside game view, got %d calls", calls)
+	}
+}
+
+func TestCtrlYYankFallsBackToOSC52(t *testing.T) {
+	previousCopy := copyToClipboard
+	t.Cleanup(func() { copyToClipboard = previousCopy })
+
+	copyToClipboard = func(string) error {
+		return errors.New("clipboard unavailable")
+	}
+
+	m := model{
+		state: gameView,
+		game:  sudoku.Model{},
+	}
+
+	_, cmd := m.Update(tea.KeyPressMsg{Code: 'y', Mod: tea.ModCtrl})
+	if cmd == nil {
+		t.Fatal("expected fallback clipboard command")
+	}
+	if msg := cmd(); msg == nil {
+		t.Fatal("expected fallback clipboard message")
+	}
 }
