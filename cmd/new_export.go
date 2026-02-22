@@ -171,9 +171,52 @@ func buildExportRecords(
 			return nil, fmt.Errorf("build print payload for puzzle %d: %w", i+1, err)
 		}
 
+		var nurikabe *pdfexport.NurikabeData
+		var shikaku *pdfexport.ShikakuData
+		var hashi *pdfexport.HashiData
+		var sudoku *pdfexport.SudokuData
+		var wordSearch *pdfexport.WordSearchData
+		switch normalizeExportGameType(gameType) {
+		case "hashiwokakero":
+			hashi, err = pdfexport.ParseHashiPrintData(save)
+			if err != nil {
+				return nil, fmt.Errorf("build hashiwokakero print payload for puzzle %d: %w", i+1, err)
+			}
+		case "nurikabe":
+			nurikabe, err = pdfexport.ParseNurikabePrintData(save)
+			if err != nil {
+				return nil, fmt.Errorf("build nurikabe print payload for puzzle %d: %w", i+1, err)
+			}
+		case "shikaku":
+			shikaku, err = pdfexport.ParseShikakuPrintData(save)
+			if err != nil {
+				return nil, fmt.Errorf("build shikaku print payload for puzzle %d: %w", i+1, err)
+			}
+		case "sudoku":
+			sudoku, err = pdfexport.ParseSudokuPrintData(save)
+			if err != nil {
+				return nil, fmt.Errorf("build sudoku print payload for puzzle %d: %w", i+1, err)
+			}
+		case "wordsearch":
+			wordSearch, err = pdfexport.ParseWordSearchPrintData(save)
+			if err != nil {
+				return nil, fmt.Errorf("build word search print payload for puzzle %d: %w", i+1, err)
+			}
+		}
+
 		printKind := "text"
 		if nonogram != nil {
 			printKind = "nonogram"
+		} else if hashi != nil {
+			printKind = "hashi"
+		} else if nurikabe != nil {
+			printKind = "nurikabe"
+		} else if shikaku != nil {
+			printKind = "shikaku"
+		} else if sudoku != nil {
+			printKind = "sudoku"
+		} else if wordSearch != nil {
+			printKind = "word-search"
 		} else if table != nil {
 			printKind = "grid-table"
 		}
@@ -203,6 +246,11 @@ func buildExportRecords(
 				EmptyGlyph: " ",
 				HintTone:   "dim",
 				Nonogram:   nonogram,
+				Hashi:      hashi,
+				Nurikabe:   nurikabe,
+				Shikaku:    shikaku,
+				Sudoku:     sudoku,
+				WordSearch: wordSearch,
 				Table:      table,
 			},
 		})
@@ -221,6 +269,13 @@ func spawnExportPuzzle(spawner game.Spawner, rng *rand.Rand) (game.Gamer, error)
 		return nil, fmt.Errorf("mode does not support deterministic spawning")
 	}
 	return seeded.SpawnSeeded(rng)
+}
+
+func normalizeExportGameType(gameType string) string {
+	gameType = strings.ToLower(strings.TrimSpace(gameType))
+	gameType = strings.ReplaceAll(gameType, "-", "")
+	gameType = strings.Join(strings.Fields(gameType), "")
+	return gameType
 }
 
 func writeExportJSONL(cmd *cobra.Command, path string, records []pdfexport.JSONLRecord) error {

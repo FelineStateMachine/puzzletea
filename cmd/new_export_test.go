@@ -152,6 +152,84 @@ func TestRunNewExportOverwritesOutputFile(t *testing.T) {
 	}
 }
 
+func TestRunNewExportSudokuPrintPayload(t *testing.T) {
+	withExportFlagReset(t)
+	flagExport = 1
+
+	cmd, out := newExportTestCmd(t, true)
+	if err := runNewExport(cmd, []string{"sudoku", "easy"}); err != nil {
+		t.Fatalf("expected sudoku export success, got error: %v", err)
+	}
+
+	lines := strings.Split(strings.TrimSpace(out.String()), "\n")
+	if len(lines) != 1 {
+		t.Fatalf("jsonl lines = %d, want 1", len(lines))
+	}
+
+	var record pdfexport.JSONLRecord
+	if err := json.Unmarshal([]byte(lines[0]), &record); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := record.Print.Kind, "sudoku"; got != want {
+		t.Fatalf("print kind = %q, want %q", got, want)
+	}
+	if record.Print.Sudoku == nil {
+		t.Fatal("expected sudoku print payload")
+	}
+}
+
+func TestRunNewExportWordSearchPrintPayload(t *testing.T) {
+	withExportFlagReset(t)
+	flagExport = 1
+
+	cmd, out := newExportTestCmd(t, true)
+	if err := runNewExport(cmd, []string{"wordsearch", "easy 10x10"}); err != nil {
+		t.Fatalf("expected word search export success, got error: %v", err)
+	}
+
+	lines := strings.Split(strings.TrimSpace(out.String()), "\n")
+	if len(lines) != 1 {
+		t.Fatalf("jsonl lines = %d, want 1", len(lines))
+	}
+
+	var record pdfexport.JSONLRecord
+	if err := json.Unmarshal([]byte(lines[0]), &record); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := record.Print.Kind, "word-search"; got != want {
+		t.Fatalf("print kind = %q, want %q", got, want)
+	}
+	if record.Print.WordSearch == nil {
+		t.Fatal("expected word search print payload")
+	}
+}
+
+func TestRunNewExportHashiPrintPayload(t *testing.T) {
+	withExportFlagReset(t)
+	flagExport = 1
+
+	cmd, out := newExportTestCmd(t, true)
+	if err := runNewExport(cmd, []string{"hashiwokakero", "easy 7x7"}); err != nil {
+		t.Fatalf("expected hashi export success, got error: %v", err)
+	}
+
+	lines := strings.Split(strings.TrimSpace(out.String()), "\n")
+	if len(lines) != 1 {
+		t.Fatalf("jsonl lines = %d, want 1", len(lines))
+	}
+
+	var record pdfexport.JSONLRecord
+	if err := json.Unmarshal([]byte(lines[0]), &record); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := record.Print.Kind, "hashi"; got != want {
+		t.Fatalf("print kind = %q, want %q", got, want)
+	}
+	if record.Print.Hashi == nil {
+		t.Fatal("expected hashi print payload")
+	}
+}
+
 func withExportFlagReset(t *testing.T) {
 	t.Helper()
 

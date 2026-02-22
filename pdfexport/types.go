@@ -35,7 +35,15 @@ type Puzzle struct {
 	Name                 string
 	Index                int
 	Body                 string
+	SaveData             []byte
 	Nonogram             *NonogramData
+	Nurikabe             *NurikabeData
+	Shikaku              *ShikakuData
+	Hashi                *HashiData
+	Hitori               *HitoriData
+	Takuzu               *TakuzuData
+	Sudoku               *SudokuData
+	WordSearch           *WordSearchData
 	Table                *GridTable
 	DifficultyScore      float64
 	DifficultyConfidence DifficultyConfidence
@@ -48,6 +56,52 @@ type NonogramData struct {
 	RowHints [][]int
 	ColHints [][]int
 	Grid     [][]string
+}
+
+type NurikabeData struct {
+	Width  int
+	Height int
+	Clues  [][]int
+}
+
+type ShikakuData struct {
+	Width  int
+	Height int
+	Clues  [][]int
+}
+
+type HashiIsland struct {
+	X        int
+	Y        int
+	Required int
+}
+
+type HashiData struct {
+	Width   int
+	Height  int
+	Islands []HashiIsland
+}
+
+type HitoriData struct {
+	Size    int
+	Numbers [][]string
+}
+
+type TakuzuData struct {
+	Size          int
+	Givens        [][]string
+	GroupEveryTwo bool
+}
+
+type SudokuData struct {
+	Givens [9][9]int `json:"givens"`
+}
+
+type WordSearchData struct {
+	Width  int        `json:"width"`
+	Height int        `json:"height"`
+	Grid   [][]string `json:"grid"`
+	Words  []string   `json:"words"`
 }
 
 type GridTable struct {
