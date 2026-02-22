@@ -21,6 +21,6 @@ Sleep 2s
 Ctrl+L
 Show
 
-Type "./puzzletea -h"
+Type './puzzletea --theme "Solarized Darcula" -h'
 Enter
 Sleep 5s

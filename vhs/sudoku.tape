@@ -21,7 +21,7 @@ Sleep 2s
 Ctrl+L
 Show
 
-Type "./puzzletea new sudoku Medium"
+Type './puzzletea --theme "MaterialDarker" new sudoku Medium --with-seed "vhs-sudoku-medium"'
 Sleep 500ms
 Enter
 Sleep 2s

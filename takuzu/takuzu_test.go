@@ -2,6 +2,7 @@ package takuzu
 
 import (
 	"encoding/json"
+	"math/rand/v2"
 	"testing"
 
 	"github.com/FelineStateMachine/puzzletea/game"
@@ -947,6 +948,48 @@ func TestGeneratePuzzle_AllModes_Unique(t *testing.T) {
 				if count != 1 {
 					t.Errorf("puzzle has %d solutions, want 1", count)
 					return
+				}
+			}
+		})
+	}
+}
+
+func TestGeneratePuzzle_AllModes_SeededRegression(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping slow generator test in short mode")
+	}
+
+	modes := []struct {
+		name      string
+		size      int
+		prefilled float64
+		seeds     []uint64
+	}{
+		{"Beginner 6x6", 6, 0.50, []uint64{11}},
+		{"Easy 6x6", 6, 0.40, []uint64{23}},
+		{"Medium 8x8", 8, 0.40, []uint64{31}},
+		{"Tricky 10x10", 10, 0.38, []uint64{41}},
+		{"Hard 10x10", 10, 0.32, []uint64{43}},
+		{"Very Hard 12x12", 12, 0.30, []uint64{47}},
+		{"Extreme 14x14", 14, 0.28, []uint64{53}},
+	}
+
+	for _, mode := range modes {
+		t.Run(mode.name, func(t *testing.T) {
+			for _, seed := range mode.seeds {
+				rng := rand.New(rand.NewPCG(seed, seed*13+1))
+				complete := generateCompleteSeeded(mode.size, rng)
+
+				if !checkConstraints(complete, mode.size) {
+					t.Fatalf("seed %d produced invalid complete grid", seed)
+				}
+				if !hasUniqueLines(complete, mode.size) {
+					t.Fatalf("seed %d produced duplicate lines in complete grid", seed)
+				}
+
+				puzzle, _ := generatePuzzleSeeded(complete, mode.size, mode.prefilled, rng)
+				if count := countSolutions(puzzle, mode.size, 2); count != 1 {
+					t.Fatalf("seed %d produced puzzle with %d solutions, want 1", seed, count)
 				}
 			}
 		})

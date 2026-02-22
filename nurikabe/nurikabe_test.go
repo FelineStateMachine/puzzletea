@@ -728,6 +728,26 @@ func TestGenerateSeededCancellationFast(t *testing.T) {
 	}
 }
 
+func TestGenerateSeededDeadlineExceededFast(t *testing.T) {
+	mode := Modes[4].(NurikabeMode) // Expert keeps deadline path realistic.
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Nanosecond)
+	defer cancel()
+	time.Sleep(1 * time.Millisecond)
+
+	start := time.Now()
+	rng := rand.New(rand.NewPCG(44, 88))
+	_, err := GenerateSeededWithContext(ctx, mode, rng)
+	if err == nil {
+		t.Fatal("expected deadline exceeded error, got nil")
+	}
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("expected context.DeadlineExceeded, got %v", err)
+	}
+	if elapsed := time.Since(start); elapsed > 200*time.Millisecond {
+		t.Fatalf("deadline cancellation should return quickly, took %s", elapsed)
+	}
+}
+
 func TestNoGoroutineLeakOnCancel(t *testing.T) {
 	mode := Modes[4].(NurikabeMode)
 	before := runtime.NumGoroutine()
@@ -743,5 +763,94 @@ func TestNoGoroutineLeakOnCancel(t *testing.T) {
 	after := runtime.NumGoroutine()
 	if delta := after - before; delta > 6 {
 		t.Fatalf("possible goroutine leak: before=%d after=%d delta=%d", before, after, delta)
+	}
+}
+
+func TestNoGoroutineLeakOnDeadlineTimeout(t *testing.T) {
+	mode := Modes[4].(NurikabeMode)
+	before := runtime.NumGoroutine()
+
+	for i := 0; i < 8; i++ {
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
+		rng := rand.New(rand.NewPCG(uint64(1400+i), uint64(1900+i)))
+		_, _ = GenerateSeededWithContext(ctx, mode, rng)
+		cancel()
+	}
+
+	time.Sleep(120 * time.Millisecond)
+	after := runtime.NumGoroutine()
+	if delta := after - before; delta > 8 {
+		t.Fatalf("possible goroutine leak on deadline timeout: before=%d after=%d delta=%d", before, after, delta)
+	}
+}
+
+// --- Benchmarks (P2) ---
+
+func skipBenchmarkInShortMode(b *testing.B) {
+	b.Helper()
+	if testing.Short() {
+		b.Skip("skipping benchmark in short mode")
+	}
+}
+
+func BenchmarkGenerateSeededModes(b *testing.B) {
+	skipBenchmarkInShortMode(b)
+
+	for i, item := range Modes {
+		mode := item.(NurikabeMode)
+		modeIdx := i
+		b.Run(mode.Title(), func(b *testing.B) {
+			b.ReportAllocs()
+			for n := 0; n < b.N; n++ {
+				seedA := uint64(100 + modeIdx)
+				seedB := uint64(1000 + modeIdx)
+				rng := rand.New(rand.NewPCG(seedA, seedB))
+				if _, err := GenerateSeeded(mode, rng); err != nil {
+					b.Fatalf("GenerateSeeded error: %v", err)
+				}
+			}
+		})
+	}
+}
+
+func BenchmarkCountSolutions(b *testing.B) {
+	skipBenchmarkInShortMode(b)
+
+	easyMode := Modes[1].(NurikabeMode)
+	easyRNG := rand.New(rand.NewPCG(7001, 9001))
+	easyPuzzle, err := GenerateSeeded(easyMode, easyRNG)
+	if err != nil {
+		b.Fatalf("GenerateSeeded setup error: %v", err)
+	}
+
+	cases := []struct {
+		name      string
+		puzzle    Puzzle
+		nodeLimit int
+	}{
+		{
+			name:      "Fixture5x5",
+			puzzle:    uniquePuzzleFixture(),
+			nodeLimit: 120000,
+		},
+		{
+			name:      "GeneratedEasy",
+			puzzle:    easyPuzzle,
+			nodeLimit: generationNodeLimit(easyMode) * 4,
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		b.Run(tc.name, func(b *testing.B) {
+			b.ReportAllocs()
+			b.ResetTimer()
+			for n := 0; n < b.N; n++ {
+				_, _, solveErr := CountSolutionsContext(context.Background(), tc.puzzle, 2, tc.nodeLimit)
+				if solveErr != nil && !errors.Is(solveErr, errNodeLimit) {
+					b.Fatalf("CountSolutionsContext error: %v", solveErr)
+				}
+			}
+		})
 	}
 }

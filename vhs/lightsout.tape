@@ -19,7 +19,7 @@ Sleep 2s
 Ctrl+L
 Show
 
-Type "./puzzletea new lights-out hard"
+Type './puzzletea --theme "GitHub Dark" new lights-out hard --with-seed "vhs-lightsout-hard"'
 Sleep 500ms
 Enter
 Sleep 2s

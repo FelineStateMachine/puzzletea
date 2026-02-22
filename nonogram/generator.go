@@ -2,8 +2,8 @@ package nonogram
 
 import (
 	"context"
-	"fmt"
 	"math/rand/v2"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -11,16 +11,49 @@ import (
 
 const (
 	maxAttempts      = 100
-	maxPossibilities = 10000
+	maxPossibilities = 20000
+	maxCacheEntries  = 16384
+	maxCacheCells    = 500_000_000
 )
+
+type lineCacheKey struct {
+	length int
+	hint   string
+}
+
+type possibilitiesCacheEntry struct {
+	possibilities [][]cellState
+	cellCost      int
+}
 
 var (
-	possibilitiesCache = make(map[string][][]cellState)
-	possibilitiesMu    sync.RWMutex
+	possibilitiesCache     = make(map[lineCacheKey]*possibilitiesCacheEntry)
+	possibilitiesOrder     = make([]lineCacheKey, 0, maxCacheEntries)
+	possibilitiesOrderHead = 0
+	possibilitiesCacheSize int
+	possibilitiesMu        sync.Mutex
 )
 
-func cacheKey(length int, hint []int) string {
-	return fmt.Sprintf("%d:%v", length, hint)
+func cacheKey(length int, hint []int) lineCacheKey {
+	return lineCacheKey{
+		length: length,
+		hint:   encodeHint(hint),
+	}
+}
+
+func encodeHint(hint []int) string {
+	if len(hint) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	b.Grow(len(hint) * 3)
+	for i, v := range hint {
+		if i > 0 {
+			b.WriteByte(',')
+		}
+		b.WriteString(strconv.Itoa(v))
+	}
+	return b.String()
 }
 
 func GenerateRandomTomography(mode NonogramMode) Hints {
@@ -114,6 +147,15 @@ type solutionGrid struct {
 	w, h  int
 }
 
+type cellChange struct {
+	x, y int
+	prev cellState
+}
+
+type undoStack struct {
+	changes []cellChange
+}
+
 func newSolutionGrid(w, h int) solutionGrid {
 	cells := make([][]cellState, h)
 	for y := range h {
@@ -123,23 +165,6 @@ func newSolutionGrid(w, h int) solutionGrid {
 		}
 	}
 	return solutionGrid{cells: cells, w: w, h: h}
-}
-
-func (g *solutionGrid) clone() solutionGrid {
-	cells := make([][]cellState, g.h)
-	for y := range g.h {
-		cells[y] = make([]cellState, g.w)
-		copy(cells[y], g.cells[y])
-	}
-	return solutionGrid{cells: cells, w: g.w, h: g.h}
-}
-
-func (g *solutionGrid) set(x, y int, state cellState) bool {
-	if g.cells[y][x] != cellUnknown && g.cells[y][x] != state {
-		return false
-	}
-	g.cells[y][x] = state
-	return true
 }
 
 func (g *solutionGrid) isComplete() bool {
@@ -155,65 +180,69 @@ func (g *solutionGrid) isComplete() bool {
 
 func countSolutions(hints Hints, w, h, limit int, ctx context.Context) int {
 	g := newSolutionGrid(w, h)
-	return countSolutionsRecursive(g, hints, limit, ctx)
+	stack := undoStack{
+		changes: make([]cellChange, 0, w*h),
+	}
+	return countSolutionsRecursive(&g, hints, limit, ctx, &stack)
 }
 
-func countSolutionsRecursive(g solutionGrid, hints Hints, limit int, ctx context.Context) int {
+func countSolutionsRecursive(
+	g *solutionGrid,
+	hints Hints,
+	limit int,
+	ctx context.Context,
+	stack *undoStack,
+) int {
+	if limit <= 0 {
+		return 0
+	}
 	select {
 	case <-ctx.Done():
 		return -1
 	default:
 	}
 
-	propagated, valid := propagate(g, hints, ctx)
-	if !valid {
+	mark := stack.mark()
+	if !propagateInPlace(g, hints, ctx, stack) {
+		stack.revert(g, mark)
 		return 0
 	}
 
-	if propagated.isComplete() {
+	if g.isComplete() {
+		stack.revert(g, mark)
 		return 1
 	}
 
-	for y := range propagated.h {
-		for x := range propagated.w {
-			if propagated.cells[y][x] == cellUnknown {
-				count := 0
+	x, y, ok := pickMostConstrainedCell(*g, hints)
+	if !ok {
+		stack.revert(g, mark)
+		return 0
+	}
 
-				if propagated.set(x, y, cellFilled) {
-					g1 := propagated.clone()
-					propagated.cells[y][x] = cellUnknown
-					n := countSolutionsRecursive(g1, hints, limit-count, ctx)
-					if n < 0 {
-						return n
-					}
-					count += n
-					if count >= limit {
-						return count
-					}
-				}
-
-				if propagated.set(x, y, cellEmpty) {
-					g2 := propagated.clone()
-					propagated.cells[y][x] = cellUnknown
-					n := countSolutionsRecursive(g2, hints, limit-count, ctx)
-					if n < 0 {
-						return n
-					}
-					count += n
-					if count >= limit {
-						return count
-					}
-				}
-
+	count := 0
+	branchOrder := [2]cellState{cellFilled, cellEmpty}
+	for _, value := range branchOrder {
+		branchMark := stack.mark()
+		if stack.set(g, x, y, value) {
+			n := countSolutionsRecursive(g, hints, limit-count, ctx, stack)
+			if n < 0 {
+				stack.revert(g, mark)
+				return n
+			}
+			count += n
+			if count >= limit {
+				stack.revert(g, mark)
 				return count
 			}
 		}
+		stack.revert(g, branchMark)
 	}
 
-	return 0
+	stack.revert(g, mark)
+	return count
 }
 
-func propagate(g solutionGrid, hints Hints, ctx context.Context) (solutionGrid, bool) {
+func propagateInPlace(g *solutionGrid, hints Hints, ctx context.Context, stack *undoStack) bool {
 	rowBuf := make([]cellState, g.w)
 	colBuf := make([]cellState, g.h)
 
@@ -221,7 +250,7 @@ func propagate(g solutionGrid, hints Hints, ctx context.Context) (solutionGrid, 
 	for changed {
 		select {
 		case <-ctx.Done():
-			return g, false
+			return false
 		default:
 		}
 		changed = false
@@ -233,12 +262,14 @@ func propagate(g solutionGrid, hints Hints, ctx context.Context) (solutionGrid, 
 
 			newRow, valid := propagateLine(rowBuf[:g.w], hints.rows[y])
 			if !valid {
-				return g, false
+				return false
 			}
 
 			for x := range g.w {
 				if g.cells[y][x] == cellUnknown && newRow[x] != cellUnknown {
-					g.cells[y][x] = newRow[x]
+					if !stack.set(g, x, y, newRow[x]) {
+						return false
+					}
 					changed = true
 				}
 			}
@@ -251,19 +282,94 @@ func propagate(g solutionGrid, hints Hints, ctx context.Context) (solutionGrid, 
 
 			newCol, valid := propagateLine(colBuf[:g.h], hints.cols[x])
 			if !valid {
-				return g, false
+				return false
 			}
 
 			for y := range g.h {
 				if g.cells[y][x] == cellUnknown && newCol[y] != cellUnknown {
-					g.cells[y][x] = newCol[y]
+					if !stack.set(g, x, y, newCol[y]) {
+						return false
+					}
 					changed = true
 				}
 			}
 		}
 	}
 
-	return g, true
+	return true
+}
+
+func (s *undoStack) mark() int {
+	return len(s.changes)
+}
+
+func (s *undoStack) set(g *solutionGrid, x, y int, state cellState) bool {
+	current := g.cells[y][x]
+	if current == state {
+		return true
+	}
+	if current != cellUnknown {
+		return false
+	}
+	s.changes = append(s.changes, cellChange{x: x, y: y, prev: current})
+	g.cells[y][x] = state
+	return true
+}
+
+func (s *undoStack) revert(g *solutionGrid, mark int) {
+	for i := len(s.changes) - 1; i >= mark; i-- {
+		change := s.changes[i]
+		g.cells[change.y][change.x] = change.prev
+	}
+	s.changes = s.changes[:mark]
+}
+
+func pickMostConstrainedCell(g solutionGrid, hints Hints) (x, y int, ok bool) {
+	firstX, firstY := -1, -1
+	bestNeighborScore := -1
+	bestHintWeight := -1
+
+	for yy := range g.h {
+		for xx := range g.w {
+			if g.cells[yy][xx] != cellUnknown {
+				continue
+			}
+			if firstX < 0 {
+				firstX, firstY = xx, yy
+			}
+
+			neighborScore := 0
+			if yy > 0 && g.cells[yy-1][xx] != cellUnknown {
+				neighborScore++
+			}
+			if yy+1 < g.h && g.cells[yy+1][xx] != cellUnknown {
+				neighborScore++
+			}
+			if xx > 0 && g.cells[yy][xx-1] != cellUnknown {
+				neighborScore++
+			}
+			if xx+1 < g.w && g.cells[yy][xx+1] != cellUnknown {
+				neighborScore++
+			}
+
+			hintWeight := len(hints.rows[yy]) + len(hints.cols[xx])
+			if neighborScore > bestNeighborScore ||
+				(neighborScore == bestNeighborScore && hintWeight > bestHintWeight) {
+				bestNeighborScore = neighborScore
+				bestHintWeight = hintWeight
+				x, y = xx, yy
+				ok = true
+			}
+		}
+	}
+
+	if firstX < 0 {
+		return 0, 0, false
+	}
+	if bestNeighborScore <= 0 {
+		return firstX, firstY, true
+	}
+	return x, y, ok
 }
 
 func propagateLine(line []cellState, hint []int) ([]cellState, bool) {
@@ -312,24 +418,58 @@ func propagateLine(line []cellState, hint []int) ([]cellState, bool) {
 func getCachedPossibilities(length int, hint []int) [][]cellState {
 	key := cacheKey(length, hint)
 
-	possibilitiesMu.RLock()
-	if cached, ok := possibilitiesCache[key]; ok {
-		possibilitiesMu.RUnlock()
-		return cached
-	}
-	possibilitiesMu.RUnlock()
-
-	possibilities := generateLinePossibilities(length, hint)
-
 	possibilitiesMu.Lock()
-	if cached, ok := possibilitiesCache[key]; ok {
+	if entry, ok := possibilitiesCache[key]; ok {
+		cached := entry.possibilities
 		possibilitiesMu.Unlock()
 		return cached
 	}
-	possibilitiesCache[key] = possibilities
+	possibilitiesMu.Unlock()
+
+	possibilities := generateLinePossibilities(length, hint)
+	cellCost := len(possibilities) * length
+	if cellCost <= 0 || cellCost > maxCacheCells {
+		return possibilities
+	}
+
+	possibilitiesMu.Lock()
+	if entry, ok := possibilitiesCache[key]; ok {
+		possibilitiesMu.Unlock()
+		return entry.possibilities
+	}
+	possibilitiesCache[key] = &possibilitiesCacheEntry{
+		possibilities: possibilities,
+		cellCost:      cellCost,
+	}
+	possibilitiesOrder = append(possibilitiesOrder, key)
+	possibilitiesCacheSize += cellCost
+	trimPossibilitiesCacheLocked()
 	possibilitiesMu.Unlock()
 
 	return possibilities
+}
+
+func trimPossibilitiesCacheLocked() {
+	for len(possibilitiesCache) > maxCacheEntries || possibilitiesCacheSize > maxCacheCells {
+		if possibilitiesOrderHead >= len(possibilitiesOrder) {
+			return
+		}
+		key := possibilitiesOrder[possibilitiesOrderHead]
+		possibilitiesOrderHead++
+		entry, ok := possibilitiesCache[key]
+		if !ok {
+			continue
+		}
+		possibilitiesCacheSize -= entry.cellCost
+		delete(possibilitiesCache, key)
+	}
+
+	if possibilitiesOrderHead > 1024 && possibilitiesOrderHead*2 > len(possibilitiesOrder) {
+		compacted := make([]lineCacheKey, len(possibilitiesOrder)-possibilitiesOrderHead)
+		copy(compacted, possibilitiesOrder[possibilitiesOrderHead:])
+		possibilitiesOrder = compacted
+		possibilitiesOrderHead = 0
+	}
 }
 
 func generateLinePossibilities(length int, hint []int) [][]cellState {

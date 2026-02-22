@@ -140,7 +140,7 @@ func TestSetBridge(t *testing.T) {
 		}
 	})
 
-	t.Run("invalidates caches", func(t *testing.T) {
+	t.Run("invalidates bridge-derived caches only", func(t *testing.T) {
 		p := fourCornerPuzzle()
 		// Trigger cache builds.
 		_ = p.BridgeCount(0)
@@ -152,11 +152,14 @@ func TestSetBridge(t *testing.T) {
 		if p.cellCache != nil {
 			t.Error("cellCache should be nil after SetBridge")
 		}
-		if p.posIndex != nil {
-			t.Error("posIndex should be nil after SetBridge")
+		if p.posIndex == nil {
+			t.Error("posIndex should be preserved after SetBridge")
 		}
 		if p.bridgeCounts != nil {
 			t.Error("bridgeCounts should be nil after SetBridge")
+		}
+		if p.bridgeIndex == nil {
+			t.Error("bridgeIndex should remain available after SetBridge")
 		}
 	})
 }

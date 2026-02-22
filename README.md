@@ -96,10 +96,14 @@ puzzletea list --all               # include abandoned games
 puzzletea continue amber-falcon    # resume by name
 ```
 
-Use a seed for deterministic puzzle generation:
+Use seeds for deterministic puzzle generation:
 
 ```bash
+# Deterministically selects game, mode, and puzzle from one seed.
 puzzletea new --set-seed myseed
+
+# Deterministically generates a puzzle within a chosen game/mode.
+puzzletea new nonogram epic --with-seed myseed
 ```
 
 Override the color theme:

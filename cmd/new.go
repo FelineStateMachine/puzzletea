@@ -6,6 +6,7 @@ import (
 
 	"github.com/FelineStateMachine/puzzletea/app"
 	"github.com/FelineStateMachine/puzzletea/config"
+	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/namegen"
 	"github.com/FelineStateMachine/puzzletea/resolve"
 	"github.com/FelineStateMachine/puzzletea/stats"
@@ -14,7 +15,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var flagSetSeed string
+var (
+	flagSetSeed  string
+	flagWithSeed string
+)
 
 var newCmd = &cobra.Command{
 	Use:   "new <game> [mode]",
@@ -40,16 +44,17 @@ var newCmd = &cobra.Command{
 		if len(args) > 1 {
 			modeArg = args[1]
 		}
-		return launchNewGame(gameArg, modeArg, cfg)
+		return launchNewGame(gameArg, modeArg, flagWithSeed, cfg)
 	},
 }
 
 func init() {
 	newCmd.Flags().StringVar(&flagSetSeed, "set-seed", "", "seed string for deterministic puzzle selection and generation")
+	newCmd.Flags().StringVar(&flagWithSeed, "with-seed", "", "seed string for deterministic puzzle generation within the selected game/mode")
 }
 
 // launchNewGame resolves the game/mode, spawns a new game, and launches the TUI.
-func launchNewGame(gameArg, modeArg string, cfg *config.Config) error {
+func launchNewGame(gameArg, modeArg, seed string, cfg *config.Config) error {
 	cat, err := resolve.Category(gameArg, app.GameCategories)
 	if err != nil {
 		return err
@@ -60,7 +65,7 @@ func launchNewGame(gameArg, modeArg string, cfg *config.Config) error {
 		return err
 	}
 
-	g, err := spawner.Spawn()
+	g, err := spawnFromMode(spawner, seed)
 	if err != nil {
 		return fmt.Errorf("failed to spawn game: %w", err)
 	}
@@ -82,6 +87,18 @@ func launchNewGame(gameArg, modeArg string, cfg *config.Config) error {
 	}
 
 	return runGameProgram(s, cfg, g, rec.ID, false)
+}
+
+func spawnFromMode(spawner game.Spawner, seed string) (game.Gamer, error) {
+	if seed == "" {
+		return spawner.Spawn()
+	}
+
+	seeded, ok := spawner.(game.SeededSpawner)
+	if !ok {
+		return nil, fmt.Errorf("mode does not support deterministic spawning")
+	}
+	return seeded.SpawnSeeded(resolve.RNGFromString(seed))
 }
 
 // launchSeededGame uses an arbitrary seed string to deterministically select

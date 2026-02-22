@@ -20,7 +20,7 @@ Sleep 2s
 Ctrl+L
 Show
 
-Type "./puzzletea new hashi medium-9x9"
+Type './puzzletea --theme "catppuccin-mocha" new hashi medium-9x9 --with-seed "vhs-hashi-medium-9x9"'
 Sleep 500ms
 Enter
 Sleep 2s

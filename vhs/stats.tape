@@ -20,7 +20,7 @@ Sleep 2s
 Ctrl+L
 Show
 
-Type "./puzzletea"
+Type './puzzletea --theme "Treehouse"'
 Sleep 500ms
 Enter
 Sleep 2s

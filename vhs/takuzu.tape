@@ -19,7 +19,7 @@ Sleep 2s
 Ctrl+L
 Show
 
-Type "./puzzletea new takuzu hard"
+Type './puzzletea --theme "catppuccin-mocha" new takuzu hard --with-seed "vhs-takuzu-hard"'
 Sleep 500ms
 Enter
 Sleep 2s

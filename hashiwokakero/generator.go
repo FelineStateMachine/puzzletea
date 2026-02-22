@@ -7,6 +7,11 @@ import (
 
 const maxGenerateAttempts = 200
 
+type islandPair struct {
+	id1 int
+	id2 int
+}
+
 // GeneratePuzzle creates a solvable hashiwokakero puzzle for the given mode.
 func GeneratePuzzle(mode HashiMode) (Puzzle, error) {
 	rng := rand.New(rand.NewPCG(rand.Uint64(), rand.Uint64()))
@@ -37,11 +42,12 @@ func tryGenerateSeeded(width, height, islandCount int, rng *rand.Rand) *Puzzle {
 		Islands: islands,
 	}
 
-	if !buildSpanningTreeSeeded(p, rng) {
+	pairs := connectableIslandPairs(p)
+	if !buildSpanningTreeWithPairsSeeded(p, pairs, rng) {
 		return nil
 	}
 
-	addExtraBridgesSeeded(p, rng)
+	addExtraBridgesWithPairsSeeded(p, pairs, rng)
 
 	for i := range p.Islands {
 		p.Islands[i].Required = p.BridgeCount(p.Islands[i].ID)
@@ -119,13 +125,11 @@ func placeIslandsSeeded(width, height, count int, rng *rand.Rand) []Island {
 // buildSpanningTreeSeeded connects all islands using a randomized approach.
 // Returns false if unable to connect all islands.
 func buildSpanningTreeSeeded(p *Puzzle, rng *rand.Rand) bool {
-	if len(p.Islands) <= 1 {
-		return true
-	}
+	return buildSpanningTreeWithPairsSeeded(p, connectableIslandPairs(p), rng)
+}
 
-	type pair struct{ id1, id2 int }
-	var pairs []pair
-
+func connectableIslandPairs(p *Puzzle) []islandPair {
+	pairs := make([]islandPair, 0, len(p.Islands)*2)
 	for i := range len(p.Islands) {
 		for j := i + 1; j < len(p.Islands); j++ {
 			a := p.Islands[i]
@@ -136,13 +140,26 @@ func buildSpanningTreeSeeded(p *Puzzle, rng *rand.Rand) bool {
 			}
 
 			if isDirectlyConnectable(p, a, b) {
-				pairs = append(pairs, pair{a.ID, b.ID})
+				pairs = append(pairs, islandPair{id1: a.ID, id2: b.ID})
 			}
 		}
 	}
+	return pairs
+}
 
-	rng.Shuffle(len(pairs), func(i, j int) {
-		pairs[i], pairs[j] = pairs[j], pairs[i]
+func buildSpanningTreeWithPairsSeeded(p *Puzzle, pairs []islandPair, rng *rand.Rand) bool {
+	if len(p.Islands) <= 1 {
+		return true
+	}
+	if len(pairs) == 0 {
+		return false
+	}
+
+	order := make([]islandPair, len(pairs))
+	copy(order, pairs)
+
+	rng.Shuffle(len(order), func(i, j int) {
+		order[i], order[j] = order[j], order[i]
 	})
 
 	// Union-Find to build spanning tree
@@ -175,7 +192,7 @@ func buildSpanningTreeSeeded(p *Puzzle, rng *rand.Rand) bool {
 	}
 
 	edgesAdded := 0
-	for _, pr := range pairs {
+	for _, pr := range order {
 		if find(pr.id1) == find(pr.id2) {
 			continue
 		}
@@ -197,38 +214,33 @@ func buildSpanningTreeSeeded(p *Puzzle, rng *rand.Rand) bool {
 
 // addExtraBridgesSeeded adds additional bridges beyond the spanning tree for complexity.
 func addExtraBridgesSeeded(p *Puzzle, rng *rand.Rand) {
-	var pairs []struct{ id1, id2 int }
+	addExtraBridgesWithPairsSeeded(p, connectableIslandPairs(p), rng)
+}
 
-	for i := 0; i < len(p.Islands); i++ {
-		for j := i + 1; j < len(p.Islands); j++ {
-			a := p.Islands[i]
-			b := p.Islands[j]
-
-			if a.X != b.X && a.Y != b.Y {
-				continue
-			}
-
-			if !isDirectlyConnectable(p, a, b) {
-				continue
-			}
-
-			existing := p.GetBridge(a.ID, b.ID)
-			if existing != nil && existing.Count >= 2 {
-				continue // already maxed
-			}
-
-			pairs = append(pairs, struct{ id1, id2 int }{a.ID, b.ID})
-		}
+func addExtraBridgesWithPairsSeeded(p *Puzzle, pairs []islandPair, rng *rand.Rand) {
+	eligible := make([]islandPair, 0, len(pairs))
+	degrees := make(map[int]int, len(p.Islands))
+	for _, bridge := range p.Bridges {
+		degrees[bridge.Island1] += bridge.Count
+		degrees[bridge.Island2] += bridge.Count
 	}
 
-	rng.Shuffle(len(pairs), func(i, j int) {
-		pairs[i], pairs[j] = pairs[j], pairs[i]
+	for _, pr := range pairs {
+		existing := p.GetBridge(pr.id1, pr.id2)
+		if existing != nil && existing.Count >= 2 {
+			continue // already maxed
+		}
+		eligible = append(eligible, pr)
+	}
+
+	rng.Shuffle(len(eligible), func(i, j int) {
+		eligible[i], eligible[j] = eligible[j], eligible[i]
 	})
 
 	// Add bridges to ~30% of eligible pairs
-	limit := len(pairs) / 3
+	limit := len(eligible) / 3
 	added := 0
-	for _, pr := range pairs {
+	for _, pr := range eligible {
 		if added >= limit {
 			break
 		}
@@ -252,11 +264,13 @@ func addExtraBridgesSeeded(p *Puzzle, rng *rand.Rand) {
 		if existing != nil {
 			addAmount = newCount - existing.Count
 		}
-		if p.BridgeCount(pr.id1)+addAmount > 8 || p.BridgeCount(pr.id2)+addAmount > 8 {
+		if degrees[pr.id1]+addAmount > 8 || degrees[pr.id2]+addAmount > 8 {
 			continue
 		}
 
 		p.SetBridge(pr.id1, pr.id2, newCount)
+		degrees[pr.id1] += addAmount
+		degrees[pr.id2] += addAmount
 		added++
 	}
 }

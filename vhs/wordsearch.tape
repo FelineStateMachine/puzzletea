@@ -1,7 +1,7 @@
 Output vhs/wordsearch.gif
 
 Set Theme "Solarized Darcula"
-Set FontSize 16
+Set FontSize 14
 Set Width 1200
 Set Height 800
 Set Margin 40
@@ -20,7 +20,7 @@ Sleep 2s
 Ctrl+L
 Show
 
-Type "./puzzletea new word-search hard-20x20"
+Type './puzzletea --theme "Solarized Darcula" new word-search hard-20x20 --with-seed "vhs-wordsearch-hard-20x20"'
 Sleep 500ms
 Enter
 Sleep 2s

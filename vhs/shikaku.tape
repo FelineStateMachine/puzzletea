@@ -20,7 +20,7 @@ Sleep 2s
 Ctrl+L
 Show
 
-Type "./puzzletea new shikaku easy-7x7"
+Type './puzzletea --theme "catppuccin-mocha" new shikaku easy-7x7 --with-seed "vhs-shikaku-easy-7x7"'
 Sleep 500ms
 Enter
 Sleep 2s

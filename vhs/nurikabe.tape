@@ -20,7 +20,7 @@ Sleep 2s
 Ctrl+L
 Show
 
-Type "./puzzletea new nurikabe easy --theme 'Github Dark'"
+Type './puzzletea --theme "GitHub Dark" new nurikabe easy --with-seed "vhs-nurikabe-easy"'
 Sleep 500ms
 Enter
 Sleep 4s

@@ -2,6 +2,7 @@ package nonogram
 
 import (
 	"context"
+	"math/rand/v2"
 	"reflect"
 	"strings"
 	"testing"
@@ -894,6 +895,80 @@ func TestGenerateRandomTomography_5x5_VerifyUnique(t *testing.T) {
 	}
 }
 
+func TestGenerateRandomTomography_LargeModes_Unique(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping large-mode uniqueness regression in short mode")
+	}
+
+	cases := []struct {
+		name  string
+		mode  NonogramMode
+		seedA uint64
+		seedB uint64
+	}{
+		{name: "Epic", mode: NewMode("Epic", "test", 20, 20, 0.71), seedA: 3101, seedB: 8101},
+		{name: "Massive", mode: NewMode("Massive", "test", 20, 20, 0.56), seedA: 4703, seedB: 9109},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			rng := rand.New(rand.NewPCG(tc.seedA, tc.seedB))
+			hints := GenerateRandomTomographySeeded(tc.mode, rng)
+			if len(hints.rows) != tc.mode.Height || len(hints.cols) != tc.mode.Width {
+				t.Fatalf(
+					"invalid hints dimensions rows=%d cols=%d want rows=%d cols=%d",
+					len(hints.rows),
+					len(hints.cols),
+					tc.mode.Height,
+					tc.mode.Width,
+				)
+			}
+
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+			count := countSolutions(hints, tc.mode.Width, tc.mode.Height, 2, ctx)
+			if count != 1 {
+				t.Fatalf("expected unique solution for %s, got %d", tc.name, count)
+			}
+		})
+	}
+}
+
+func TestGenerateRandomTomography_LargeModes_PerfBudget(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping large-mode perf regression in short mode")
+	}
+
+	const maxDuration = 30 * time.Second
+	cases := []struct {
+		name  string
+		mode  NonogramMode
+		seedA uint64
+		seedB uint64
+	}{
+		{name: "Epic", mode: NewMode("Epic", "test", 20, 20, 0.71), seedA: 5209, seedB: 8219},
+		{name: "Massive", mode: NewMode("Massive", "test", 20, 20, 0.56), seedA: 5303, seedB: 12203},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			start := time.Now()
+			rng := rand.New(rand.NewPCG(tc.seedA, tc.seedB))
+			hints := GenerateRandomTomographySeeded(tc.mode, rng)
+			elapsed := time.Since(start)
+
+			if len(hints.rows) == 0 || len(hints.cols) == 0 {
+				t.Fatalf("GenerateRandomTomographySeeded returned empty hints for %s", tc.name)
+			}
+			if elapsed > maxDuration {
+				t.Fatalf("%s generation exceeded %s: %s", tc.name, maxDuration, elapsed)
+			}
+		})
+	}
+}
+
 var _ game.Gamer = Model{}
 
 // --- Spawn Performance Benchmark (P2) ---
@@ -1178,5 +1253,88 @@ func TestHelpToggleInvalidatesOriginCache(t *testing.T) {
 	}
 	if got.originValid {
 		t.Fatal("expected origin cache to be invalidated")
+	}
+}
+
+// --- Benchmarks (P2) ---
+
+func skipBenchmarkInShortMode(b *testing.B) {
+	b.Helper()
+	if testing.Short() {
+		b.Skip("skipping benchmark in short mode")
+	}
+}
+
+func BenchmarkGenerateRandomTomographyModes(b *testing.B) {
+	skipBenchmarkInShortMode(b)
+
+	modeConfigs := []struct {
+		name  string
+		mode  NonogramMode
+		seedA uint64
+	}{
+		{name: "5x5-Mini", mode: NewMode("Mini", "bench", 5, 5, 0.65), seedA: 100000},
+		{name: "10x10-Classic", mode: NewMode("Classic", "bench", 10, 10, 0.52), seedA: 200000},
+		{name: "15x15-Grand", mode: NewMode("Grand", "bench", 15, 15, 0.54), seedA: 300000},
+		{name: "20x20-Epic", mode: NewMode("Epic", "bench", 20, 20, 0.71), seedA: 350000},
+		{name: "20x20-Massive", mode: NewMode("Massive", "bench", 20, 20, 0.56), seedA: 400000},
+	}
+
+	for _, cfg := range modeConfigs {
+		cfg := cfg
+		b.Run(cfg.name, func(b *testing.B) {
+			b.ReportAllocs()
+			for n := 0; n < b.N; n++ {
+				seedA := cfg.seedA
+				seedB := uint64((n + 1) * 1777)
+				rng := rand.New(rand.NewPCG(seedA, seedB))
+				hints := GenerateRandomTomographySeeded(cfg.mode, rng)
+				if len(hints.rows) != cfg.mode.Height || len(hints.cols) != cfg.mode.Width {
+					b.Fatalf(
+						"invalid hint dimensions rows=%d cols=%d want rows=%d cols=%d",
+						len(hints.rows),
+						len(hints.cols),
+						cfg.mode.Height,
+						cfg.mode.Width,
+					)
+				}
+			}
+		})
+	}
+}
+
+func BenchmarkCountSolutionsLarge(b *testing.B) {
+	skipBenchmarkInShortMode(b)
+
+	cases := []struct {
+		name  string
+		mode  NonogramMode
+		seedA uint64
+		seedB uint64
+	}{
+		{name: "15x15-Grand", mode: NewMode("Grand", "bench", 15, 15, 0.54), seedA: 7301, seedB: 8101},
+		{name: "20x20-Massive", mode: NewMode("Massive", "bench", 20, 20, 0.56), seedA: 9103, seedB: 10429},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		b.Run(tc.name, func(b *testing.B) {
+			rng := rand.New(rand.NewPCG(tc.seedA, tc.seedB))
+			hints := GenerateRandomTomographySeeded(tc.mode, rng)
+			if len(hints.rows) == 0 || len(hints.cols) == 0 {
+				b.Fatal("GenerateRandomTomographySeeded returned empty hints")
+			}
+
+			b.ReportAllocs()
+			b.ResetTimer()
+			for n := 0; n < b.N; n++ {
+				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+				count := countSolutions(hints, tc.mode.Width, tc.mode.Height, 2, ctx)
+				cancel()
+				if count < 1 {
+					b.Fatalf("expected at least one solution, got %d", count)
+				}
+			}
+		})
 	}
 }
