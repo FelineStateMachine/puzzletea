@@ -119,11 +119,18 @@ puzzletea new nonogram mini -e 6 -o nonogram-mini-set.jsonl
 puzzletea new sudoku --export 10 -o sudoku-mixed.jsonl --with-seed zine-issue-01
 ```
 
-Render one or more JSONL packs into an A5 print PDF:
+Render one or more JSONL packs into a half-letter print PDF:
 
 ```bash
 puzzletea export-pdf nonogram-mini-set.jsonl -o issue-01.pdf --shuffle-seed issue-01
 ```
+
+Font license note (Atkinson Hyperlegible Next):
+
+- Follow the SIL OFL 1.1 requirements in `pdfexport/fonts/OFL.txt`.
+- Do not sell the font files by themselves.
+- If redistributing fonts with software, include the copyright notice and OFL text.
+- Modified font versions must keep OFL terms, and modified names must respect Reserved Font Name rules.
 
 `Lights Out` is currently excluded from export because it does not translate cleanly to paper workflows.
 

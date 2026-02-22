@@ -1,7 +1,6 @@
 package pdfexport
 
 import (
-	"math"
 	"strings"
 	"unicode/utf8"
 
@@ -15,22 +14,18 @@ func renderHitoriPage(pdf *fpdf.Fpdf, data *HitoriData) {
 
 	size := data.Size
 	pageW, pageH := pdf.GetPageSize()
-	marginX := 10.0
-	top := 28.0
-	bottom := 22.0
-
-	availW := pageW - 2*marginX
-	availH := pageH - top - bottom
-	cellSize := math.Min(availW/float64(size), availH/float64(size))
-	cellSize = math.Max(5.0, math.Min(12.0, cellSize))
+	area := puzzleBoardRect(pageW, pageH, 1)
+	cellSize := fitBoardCellSize(size, size, area, boardFamilyCompact)
+	if cellSize <= 0 {
+		return
+	}
 
 	blockW := float64(size) * cellSize
 	blockH := float64(size) * cellSize
-	startX := (pageW - blockW) / 2
-	startY := top + (availH-blockH)/2
+	startX, startY := centeredOrigin(area, size, size, cellSize)
 
 	pdf.SetDrawColor(55, 55, 55)
-	pdf.SetLineWidth(0.16)
+	pdf.SetLineWidth(thinGridLineMM)
 	for y := 0; y < size; y++ {
 		for x := 0; x < size; x++ {
 			cellX := startX + float64(x)*cellSize
@@ -49,26 +44,23 @@ func renderHitoriPage(pdf *fpdf.Fpdf, data *HitoriData) {
 	}
 
 	pdf.SetDrawColor(35, 35, 35)
-	pdf.SetLineWidth(0.62)
+	pdf.SetLineWidth(outerBorderLineMM)
 	pdf.Rect(startX, startY, blockW, blockH, "D")
 
-	ruleY := startY + blockH + 5
-	if ruleY+4 <= pageH-6 {
-		pdf.SetTextColor(85, 85, 85)
-		pdf.SetFont("Helvetica", "", 7.3)
-		pdf.SetXY(marginX, ruleY)
-		pdf.CellFormat(
-			pageW-2*marginX,
-			4,
-			"Shade duplicates; shaded cells cannot touch orthogonally; unshaded cells stay connected.",
-			"",
-			0,
-			"C",
-			false,
-			0,
-			"",
-		)
-	}
+	ruleY := instructionY(startY+blockH, pageH, 1)
+	setInstructionStyle(pdf)
+	pdf.SetXY(pageMarginXMM, ruleY)
+	pdf.CellFormat(
+		pageW-2*pageMarginXMM,
+		instructionLineHMM,
+		"Shade duplicates; shaded cells cannot touch orthogonally; unshaded cells stay connected.",
+		"",
+		0,
+		"C",
+		false,
+		0,
+		"",
+	)
 }
 
 func drawHitoriCellNumber(pdf *fpdf.Fpdf, x, y, cellSize float64, text string) {
@@ -82,8 +74,8 @@ func drawHitoriCellNumber(pdf *fpdf.Fpdf, x, y, cellSize float64, text string) {
 	}
 	fontSize = clampStandardCellFontSize(fontSize)
 
-	pdf.SetTextColor(20, 20, 20)
-	pdf.SetFont("Helvetica", "B", fontSize)
+	pdf.SetTextColor(primaryTextGray, primaryTextGray, primaryTextGray)
+	pdf.SetFont(sansFontFamily, "B", fontSize)
 	lineH := fontSize * 0.92
 	pdf.SetXY(x, y+(cellSize-lineH)/2)
 	pdf.CellFormat(cellSize, lineH, text, "", 0, "C", false, 0, "")
@@ -96,22 +88,18 @@ func renderTakuzuPage(pdf *fpdf.Fpdf, data *TakuzuData) {
 
 	size := data.Size
 	pageW, pageH := pdf.GetPageSize()
-	marginX := 10.0
-	top := 28.0
-	bottom := 24.0
-
-	availW := pageW - 2*marginX
-	availH := pageH - top - bottom
-	cellSize := math.Min(availW/float64(size), availH/float64(size))
-	cellSize = math.Max(4.4, math.Min(11.0, cellSize))
+	area := puzzleBoardRect(pageW, pageH, 2)
+	cellSize := fitBoardCellSize(size, size, area, boardFamilyCompact)
+	if cellSize <= 0 {
+		return
+	}
 
 	blockW := float64(size) * cellSize
 	blockH := float64(size) * cellSize
-	startX := (pageW - blockW) / 2
-	startY := top + (availH-blockH)/2
+	startX, startY := centeredOrigin(area, size, size, cellSize)
 
 	pdf.SetDrawColor(60, 60, 60)
-	pdf.SetLineWidth(0.14)
+	pdf.SetLineWidth(thinGridLineMM)
 	for y := 0; y < size; y++ {
 		for x := 0; x < size; x++ {
 			cellX := startX + float64(x)*cellSize
@@ -121,8 +109,8 @@ func renderTakuzuPage(pdf *fpdf.Fpdf, data *TakuzuData) {
 	}
 
 	if data.GroupEveryTwo {
-		pdf.SetDrawColor(145, 145, 145)
-		pdf.SetLineWidth(0.24)
+		pdf.SetDrawColor(130, 130, 130)
+		pdf.SetLineWidth(majorGridLineMM)
 		for i := 2; i < size; i += 2 {
 			x := startX + float64(i)*cellSize
 			y := startY + float64(i)*cellSize
@@ -148,25 +136,42 @@ func renderTakuzuPage(pdf *fpdf.Fpdf, data *TakuzuData) {
 	}
 
 	pdf.SetDrawColor(35, 35, 35)
-	pdf.SetLineWidth(0.60)
+	pdf.SetLineWidth(outerBorderLineMM)
 	pdf.Rect(startX, startY, blockW, blockH, "D")
 
-	ruleY := startY + blockH + 4
-	if ruleY+8 <= pageH-6 {
-		pdf.SetTextColor(85, 85, 85)
-		pdf.SetFont("Helvetica", "", 7.1)
-		pdf.SetXY(marginX, ruleY)
-		pdf.CellFormat(pageW-2*marginX, 4, "No three equal adjacent in any row or column.", "", 0, "C", false, 0, "")
-		pdf.SetXY(marginX, ruleY+4)
-		pdf.CellFormat(pageW-2*marginX, 4, "Each row/column has equal 0 and 1 counts, and rows/columns are unique.", "", 0, "C", false, 0, "")
-	}
+	ruleY := instructionY(startY+blockH, pageH, 2)
+	setInstructionStyle(pdf)
+	pdf.SetXY(pageMarginXMM, ruleY)
+	pdf.CellFormat(
+		pageW-2*pageMarginXMM,
+		instructionLineHMM,
+		"No three equal adjacent in any row or column.",
+		"",
+		0,
+		"C",
+		false,
+		0,
+		"",
+	)
+	pdf.SetXY(pageMarginXMM, ruleY+instructionLineHMM)
+	pdf.CellFormat(
+		pageW-2*pageMarginXMM,
+		instructionLineHMM,
+		"Each row/column has equal 0 and 1 counts, and rows/columns are unique.",
+		"",
+		0,
+		"C",
+		false,
+		0,
+		"",
+	)
 }
 
 func drawTakuzuGiven(pdf *fpdf.Fpdf, x, y, cellSize float64, size int, text string) {
 	fontSize := takuzuGivenFontSize(cellSize, size)
 
-	pdf.SetTextColor(15, 15, 15)
-	pdf.SetFont("Helvetica", "B", fontSize)
+	pdf.SetTextColor(primaryTextGray, primaryTextGray, primaryTextGray)
+	pdf.SetFont(sansFontFamily, "B", fontSize)
 	lineH := fontSize * 0.9
 	pdf.SetXY(x, y+(cellSize-lineH)/2)
 	pdf.CellFormat(cellSize, lineH, text, "", 0, "C", false, 0, "")

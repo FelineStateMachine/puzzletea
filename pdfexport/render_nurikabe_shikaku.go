@@ -1,7 +1,6 @@
 package pdfexport
 
 import (
-	"math"
 	"strconv"
 	"unicode/utf8"
 
@@ -14,22 +13,18 @@ func renderNurikabePage(pdf *fpdf.Fpdf, data *NurikabeData) {
 	}
 
 	pageW, pageH := pdf.GetPageSize()
-	marginX := 10.0
-	top := 28.0
-	bottom := 22.0
-
-	availW := pageW - 2*marginX
-	availH := pageH - top - bottom
-	cellSize := math.Min(availW/float64(data.Width), availH/float64(data.Height))
-	cellSize = math.Max(4.8, math.Min(12.0, cellSize))
+	area := puzzleBoardRect(pageW, pageH, 1)
+	cellSize := fitBoardCellSize(data.Width, data.Height, area, boardFamilyCompact)
+	if cellSize <= 0 {
+		return
+	}
 
 	blockW := float64(data.Width) * cellSize
 	blockH := float64(data.Height) * cellSize
-	startX := (pageW - blockW) / 2
-	startY := top + (availH-blockH)/2
+	startX, startY := centeredOrigin(area, data.Width, data.Height, cellSize)
 
 	pdf.SetDrawColor(55, 55, 55)
-	pdf.SetLineWidth(0.15)
+	pdf.SetLineWidth(thinGridLineMM)
 	for y := 0; y < data.Height; y++ {
 		for x := 0; x < data.Width; x++ {
 			cellX := startX + float64(x)*cellSize
@@ -44,16 +39,23 @@ func renderNurikabePage(pdf *fpdf.Fpdf, data *NurikabeData) {
 	}
 
 	pdf.SetDrawColor(35, 35, 35)
-	pdf.SetLineWidth(0.62)
+	pdf.SetLineWidth(outerBorderLineMM)
 	pdf.Rect(startX, startY, blockW, blockH, "D")
 
-	ruleY := startY + blockH + 5
-	if ruleY+4 <= pageH-6 {
-		pdf.SetTextColor(85, 85, 85)
-		pdf.SetFont("Helvetica", "", 7.2)
-		pdf.SetXY(marginX, ruleY)
-		pdf.CellFormat(pageW-2*marginX, 4, "Expand each numbered island to its size; connect all sea cells into one wall.", "", 0, "C", false, 0, "")
-	}
+	ruleY := instructionY(startY+blockH, pageH, 1)
+	setInstructionStyle(pdf)
+	pdf.SetXY(pageMarginXMM, ruleY)
+	pdf.CellFormat(
+		pageW-2*pageMarginXMM,
+		instructionLineHMM,
+		"Expand each numbered island to its size; connect all sea cells into one wall.",
+		"",
+		0,
+		"C",
+		false,
+		0,
+		"",
+	)
 }
 
 func renderShikakuPage(pdf *fpdf.Fpdf, data *ShikakuData) {
@@ -62,22 +64,18 @@ func renderShikakuPage(pdf *fpdf.Fpdf, data *ShikakuData) {
 	}
 
 	pageW, pageH := pdf.GetPageSize()
-	marginX := 10.0
-	top := 28.0
-	bottom := 22.0
-
-	availW := pageW - 2*marginX
-	availH := pageH - top - bottom
-	cellSize := math.Min(availW/float64(data.Width), availH/float64(data.Height))
-	cellSize = math.Max(4.8, math.Min(12.0, cellSize))
+	area := puzzleBoardRect(pageW, pageH, 1)
+	cellSize := fitBoardCellSize(data.Width, data.Height, area, boardFamilyCompact)
+	if cellSize <= 0 {
+		return
+	}
 
 	blockW := float64(data.Width) * cellSize
 	blockH := float64(data.Height) * cellSize
-	startX := (pageW - blockW) / 2
-	startY := top + (availH-blockH)/2
+	startX, startY := centeredOrigin(area, data.Width, data.Height, cellSize)
 
 	pdf.SetDrawColor(55, 55, 55)
-	pdf.SetLineWidth(0.15)
+	pdf.SetLineWidth(thinGridLineMM)
 	for y := 0; y < data.Height; y++ {
 		for x := 0; x < data.Width; x++ {
 			cellX := startX + float64(x)*cellSize
@@ -92,16 +90,23 @@ func renderShikakuPage(pdf *fpdf.Fpdf, data *ShikakuData) {
 	}
 
 	pdf.SetDrawColor(35, 35, 35)
-	pdf.SetLineWidth(0.62)
+	pdf.SetLineWidth(outerBorderLineMM)
 	pdf.Rect(startX, startY, blockW, blockH, "D")
 
-	ruleY := startY + blockH + 5
-	if ruleY+4 <= pageH-6 {
-		pdf.SetTextColor(85, 85, 85)
-		pdf.SetFont("Helvetica", "", 7.2)
-		pdf.SetXY(marginX, ruleY)
-		pdf.CellFormat(pageW-2*marginX, 4, "Partition into rectangles where each clue equals its rectangle area.", "", 0, "C", false, 0, "")
-	}
+	ruleY := instructionY(startY+blockH, pageH, 1)
+	setInstructionStyle(pdf)
+	pdf.SetXY(pageMarginXMM, ruleY)
+	pdf.CellFormat(
+		pageW-2*pageMarginXMM,
+		instructionLineHMM,
+		"Partition into rectangles where each clue equals its rectangle area.",
+		"",
+		0,
+		"C",
+		false,
+		0,
+		"",
+	)
 }
 
 func drawRectanglePuzzleClue(pdf *fpdf.Fpdf, x, y, cellSize float64, value int) {
@@ -116,8 +121,8 @@ func drawRectanglePuzzleClue(pdf *fpdf.Fpdf, x, y, cellSize float64, value int) 
 	}
 	fontSize = clampStandardCellFontSize(fontSize)
 
-	pdf.SetTextColor(20, 20, 20)
-	pdf.SetFont("Helvetica", "B", fontSize)
+	pdf.SetTextColor(primaryTextGray, primaryTextGray, primaryTextGray)
+	pdf.SetFont(sansFontFamily, "B", fontSize)
 	lineH := fontSize * 0.92
 	pdf.SetXY(x, y+(cellSize-lineH)/2)
 	pdf.CellFormat(cellSize, lineH, text, "", 0, "C", false, 0, "")

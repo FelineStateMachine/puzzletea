@@ -9,9 +9,7 @@ import (
 )
 
 func TestParseJSONLFile(t *testing.T) {
-	temp := t.TempDir()
-	path := filepath.Join(temp, "pack.jsonl")
-
+	path := filepath.Join(t.TempDir(), "pack.jsonl")
 	record := JSONLRecord{
 		Schema: ExportSchemaV1,
 		Pack: JSONLPackMeta{
@@ -34,22 +32,8 @@ func TestParseJSONLFile(t *testing.T) {
 				"| . | 1 | 2 |\n" +
 				"| 1 | . | . |\n",
 		},
-		Print: JSONLPrintData{
-			Kind:       "nonogram",
-			Paper:      "A5",
-			MarginMM:   10,
-			EmptyGlyph: " ",
-			HintTone:   "dim",
-		},
 	}
-
-	data, err := json.Marshal(record)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(path, append(data, '\n'), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	writeSingleJSONLRecord(t, path, record)
 
 	doc, err := ParseJSONLFile(path)
 	if err != nil {
@@ -64,8 +48,7 @@ func TestParseJSONLFile(t *testing.T) {
 }
 
 func TestParseJSONLFileRejectsNonJSONLExtension(t *testing.T) {
-	temp := t.TempDir()
-	path := filepath.Join(temp, "pack.md")
+	path := filepath.Join(t.TempDir(), "pack.md")
 	if err := os.WriteFile(path, []byte("x"), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -80,9 +63,7 @@ func TestParseJSONLFileRejectsNonJSONLExtension(t *testing.T) {
 }
 
 func TestParseJSONLFileHydratesTakuzuFromSave(t *testing.T) {
-	temp := t.TempDir()
-	path := filepath.Join(temp, "takuzu-pack.jsonl")
-
+	path := filepath.Join(t.TempDir(), "takuzu-pack.jsonl")
 	record := JSONLRecord{
 		Schema: ExportSchemaV1,
 		Pack: JSONLPackMeta{
@@ -100,18 +81,8 @@ func TestParseJSONLFileHydratesTakuzuFromSave(t *testing.T) {
 			Mode:  "Beginner",
 			Save:  json.RawMessage(`{"size":2,"state":"01\n10","provided":"##\n#."}`),
 		},
-		Print: JSONLPrintData{
-			Kind: "grid-table",
-		},
 	}
-
-	data, err := json.Marshal(record)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(path, append(data, '\n'), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	writeSingleJSONLRecord(t, path, record)
 
 	doc, err := ParseJSONLFile(path)
 	if err != nil {
@@ -129,9 +100,7 @@ func TestParseJSONLFileHydratesTakuzuFromSave(t *testing.T) {
 }
 
 func TestParseJSONLFileHydratesSudokuFromSave(t *testing.T) {
-	temp := t.TempDir()
-	path := filepath.Join(temp, "sudoku.jsonl")
-
+	path := filepath.Join(t.TempDir(), "sudoku.jsonl")
 	record := JSONLRecord{
 		Schema: ExportSchemaV1,
 		Pack: JSONLPackMeta{
@@ -148,18 +117,8 @@ func TestParseJSONLFileHydratesSudokuFromSave(t *testing.T) {
 			Mode:  "Easy",
 			Save:  json.RawMessage(`{"grid":"500000000\n000000000\n000000000\n000000000\n000000000\n000000000\n000000000\n000000000\n000000000","provided":[{"x":0,"y":0,"v":5}]}`),
 		},
-		Print: JSONLPrintData{
-			Kind: "sudoku",
-		},
 	}
-
-	data, err := json.Marshal(record)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(path, append(data, '\n'), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	writeSingleJSONLRecord(t, path, record)
 
 	doc, err := ParseJSONLFile(path)
 	if err != nil {
@@ -177,9 +136,7 @@ func TestParseJSONLFileHydratesSudokuFromSave(t *testing.T) {
 }
 
 func TestParseJSONLFileHydratesWordSearchFromSave(t *testing.T) {
-	temp := t.TempDir()
-	path := filepath.Join(temp, "wordsearch.jsonl")
-
+	path := filepath.Join(t.TempDir(), "wordsearch.jsonl")
 	record := JSONLRecord{
 		Schema: ExportSchemaV1,
 		Pack: JSONLPackMeta{
@@ -196,18 +153,8 @@ func TestParseJSONLFileHydratesWordSearchFromSave(t *testing.T) {
 			Mode:  "Standard",
 			Save:  json.RawMessage(`{"width":3,"height":3,"grid":"abc\ndef\nghi","words":[{"text":"ace"},{"text":"fig"}]}`),
 		},
-		Print: JSONLPrintData{
-			Kind: "word-search",
-		},
 	}
-
-	data, err := json.Marshal(record)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(path, append(data, '\n'), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	writeSingleJSONLRecord(t, path, record)
 
 	doc, err := ParseJSONLFile(path)
 	if err != nil {
@@ -228,9 +175,7 @@ func TestParseJSONLFileHydratesWordSearchFromSave(t *testing.T) {
 }
 
 func TestParseJSONLFileHydratesNurikabeFromSave(t *testing.T) {
-	temp := t.TempDir()
-	path := filepath.Join(temp, "nurikabe.jsonl")
-
+	path := filepath.Join(t.TempDir(), "nurikabe.jsonl")
 	record := JSONLRecord{
 		Schema: ExportSchemaV1,
 		Pack: JSONLPackMeta{
@@ -247,18 +192,8 @@ func TestParseJSONLFileHydratesNurikabeFromSave(t *testing.T) {
 			Mode:  "Mini",
 			Save:  json.RawMessage(`{"width":2,"height":2,"clues":"1,0\n0,2","marks":"??\n??"}`),
 		},
-		Print: JSONLPrintData{
-			Kind: "nurikabe",
-		},
 	}
-
-	data, err := json.Marshal(record)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(path, append(data, '\n'), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	writeSingleJSONLRecord(t, path, record)
 
 	doc, err := ParseJSONLFile(path)
 	if err != nil {
@@ -276,9 +211,7 @@ func TestParseJSONLFileHydratesNurikabeFromSave(t *testing.T) {
 }
 
 func TestParseJSONLFileHydratesShikakuFromSave(t *testing.T) {
-	temp := t.TempDir()
-	path := filepath.Join(temp, "shikaku.jsonl")
-
+	path := filepath.Join(t.TempDir(), "shikaku.jsonl")
 	record := JSONLRecord{
 		Schema: ExportSchemaV1,
 		Pack: JSONLPackMeta{
@@ -295,18 +228,8 @@ func TestParseJSONLFileHydratesShikakuFromSave(t *testing.T) {
 			Mode:  "Mini",
 			Save:  json.RawMessage(`{"width":2,"height":2,"clues":[{"x":0,"y":0,"value":1},{"x":1,"y":1,"value":4}]}`),
 		},
-		Print: JSONLPrintData{
-			Kind: "shikaku",
-		},
 	}
-
-	data, err := json.Marshal(record)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(path, append(data, '\n'), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	writeSingleJSONLRecord(t, path, record)
 
 	doc, err := ParseJSONLFile(path)
 	if err != nil {
@@ -324,9 +247,7 @@ func TestParseJSONLFileHydratesShikakuFromSave(t *testing.T) {
 }
 
 func TestParseJSONLFileHydratesHashiFromSave(t *testing.T) {
-	temp := t.TempDir()
-	path := filepath.Join(temp, "hashi.jsonl")
-
+	path := filepath.Join(t.TempDir(), "hashi.jsonl")
 	record := JSONLRecord{
 		Schema: ExportSchemaV1,
 		Pack: JSONLPackMeta{
@@ -343,18 +264,8 @@ func TestParseJSONLFileHydratesHashiFromSave(t *testing.T) {
 			Mode:  "Standard",
 			Save:  json.RawMessage(`{"width":7,"height":7,"islands":[{"x":0,"y":0,"required":3},{"x":6,"y":6,"required":2}],"bridges":[]}`),
 		},
-		Print: JSONLPrintData{
-			Kind: "hashi",
-		},
 	}
-
-	data, err := json.Marshal(record)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(path, append(data, '\n'), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	writeSingleJSONLRecord(t, path, record)
 
 	doc, err := ParseJSONLFile(path)
 	if err != nil {
@@ -368,5 +279,16 @@ func TestParseJSONLFileHydratesHashiFromSave(t *testing.T) {
 	}
 	if got, want := len(doc.Puzzles[0].Hashi.Islands), 2; got != want {
 		t.Fatalf("hashi island count = %d, want %d", got, want)
+	}
+}
+
+func writeSingleJSONLRecord(t *testing.T, path string, record JSONLRecord) {
+	t.Helper()
+	data, err := json.Marshal(record)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, append(data, '\n'), 0o644); err != nil {
+		t.Fatal(err)
 	}
 }

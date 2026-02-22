@@ -1,8 +1,8 @@
 package pdfexport
 
 const (
-	standardCellFontMin = 4.2
-	standardCellFontMax = 8.0
+	standardCellFontMin = 5.2
+	standardCellFontMax = 8.2
 )
 
 func standardCellFontSize(cellSize, scale float64) float64 {

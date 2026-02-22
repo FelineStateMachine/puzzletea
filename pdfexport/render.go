@@ -13,11 +13,6 @@ import (
 	"github.com/go-pdf/fpdf"
 )
 
-const (
-	a5WidthMM  = 148.0
-	a5HeightMM = 210.0
-)
-
 func WritePDF(outputPath string, docs []PackDocument, puzzles []Puzzle, cfg RenderConfig) error {
 	if strings.TrimSpace(outputPath) == "" {
 		return fmt.Errorf("output path is required")
@@ -40,10 +35,13 @@ func WritePDF(outputPath string, docs []PackDocument, puzzles []Puzzle, cfg Rend
 		OrientationStr: "P",
 		UnitStr:        "mm",
 		Size: fpdf.SizeType{
-			Wd: a5WidthMM,
-			Ht: a5HeightMM,
+			Wd: halfLetterWidthMM,
+			Ht: halfLetterHeightMM,
 		},
 	})
+	if err := registerPDFFonts(pdf); err != nil {
+		return err
+	}
 	pdf.SetAutoPageBreak(false, 0)
 	pdf.SetCreator("PuzzleTea", true)
 	pdf.SetAuthor("PuzzleTea", true)
@@ -53,8 +51,8 @@ func WritePDF(outputPath string, docs []PackDocument, puzzles []Puzzle, cfg Rend
 			return
 		}
 		pdf.SetY(-8)
-		pdf.SetFont("Helvetica", "", 8)
-		pdf.SetTextColor(105, 105, 105)
+		pdf.SetFont(sansFontFamily, "", 8)
+		pdf.SetTextColor(footerTextGray, footerTextGray, footerTextGray)
 		pdf.CellFormat(0, 4, strconv.Itoa(pdf.PageNo()), "", 0, "C", false, 0, "")
 	})
 
@@ -82,31 +80,50 @@ func renderTitlePage(pdf *fpdf.Fpdf, docs []PackDocument, puzzles []Puzzle, cfg 
 	margin := 12.0
 
 	pdf.SetTextColor(20, 20, 20)
-	pdf.SetFont("Helvetica", "B", 22)
+	pdf.SetFont(sansFontFamily, "B", 22)
 	pdf.SetXY(0, 24)
 	pdf.CellFormat(pageW, 10, cfg.Title, "", 0, "C", false, 0, "")
 
-	pdf.SetFont("Helvetica", "", 11)
+	pdf.SetFont(sansFontFamily, "", 11)
 	pdf.SetTextColor(70, 70, 70)
 	pdf.SetXY(0, 36)
 	pdf.CellFormat(pageW, 6, "PuzzleTea Puzzle Pack", "", 0, "C", false, 0, "")
 
 	metaY := 50.0
 	pdf.SetTextColor(25, 25, 25)
-	pdf.SetFont("Helvetica", "", 10)
+	pdf.SetFont(sansFontFamily, "", 10)
 	pdf.SetXY(margin, metaY)
 	pdf.CellFormat(pageW-2*margin, 6, fmt.Sprintf("Generated: %s", cfg.GeneratedAt.Format("January 2, 2006")), "", 0, "L", false, 0, "")
 	metaY += 6
+	versionLine := fmt.Sprintf("PuzzleTea Version: %s", strings.Join(summarizeVersions(docs), ", "))
+	wrappedVersions := pdf.SplitLines([]byte(versionLine), pageW-2*margin)
+	if len(wrappedVersions) == 0 {
+		wrappedVersions = [][]byte{[]byte(versionLine)}
+	}
+	for _, line := range wrappedVersions {
+		pdf.SetXY(margin, metaY)
+		pdf.CellFormat(pageW-2*margin, 5.2, string(line), "", 0, "L", false, 0, "")
+		metaY += 5.2
+	}
+	metaY += 0.8
 
 	categories := summarizeCategories(puzzles)
 	pdf.SetXY(margin, metaY)
 	pdf.CellFormat(pageW-2*margin, 6, fmt.Sprintf("Puzzles: %d", len(puzzles)), "", 0, "L", false, 0, "")
 	metaY += 6
-	pdf.SetXY(margin, metaY)
-	pdf.CellFormat(pageW-2*margin, 6, fmt.Sprintf("Categories: %s", strings.Join(categories, ", ")), "", 0, "L", false, 0, "")
-	metaY += 8
+	categoryLine := fmt.Sprintf("Categories: %s", strings.Join(categories, ", "))
+	wrappedCategories := pdf.SplitLines([]byte(categoryLine), pageW-2*margin)
+	if len(wrappedCategories) == 0 {
+		wrappedCategories = [][]byte{[]byte(categoryLine)}
+	}
+	for _, line := range wrappedCategories {
+		pdf.SetXY(margin, metaY)
+		pdf.CellFormat(pageW-2*margin, 5.2, string(line), "", 0, "L", false, 0, "")
+		metaY += 5.2
+	}
+	metaY += 2.8
 
-	pdf.SetFont("Helvetica", "B", 10)
+	pdf.SetFont(sansFontFamily, "B", 10)
 	pdf.SetTextColor(45, 45, 45)
 	pdf.SetXY(margin, metaY)
 	pdf.CellFormat(pageW-2*margin, 6, "Source Exports", "", 0, "L", false, 0, "")
@@ -115,11 +132,11 @@ func renderTitlePage(pdf *fpdf.Fpdf, docs []PackDocument, puzzles []Puzzle, cfg 
 	renderSourceExportsTable(pdf, docs, margin, metaY, pageW-2*margin, pageH-45)
 
 	pdf.SetTextColor(50, 50, 50)
-	pdf.SetFont("Helvetica", "B", 12)
+	pdf.SetFont(sansFontFamily, "B", 12)
 	pdf.SetXY(margin, pageH-30)
 	pdf.CellFormat(pageW-2*margin, 7, "Made with PuzzleTea", "", 0, "C", false, 0, "")
 
-	pdf.SetFont("Helvetica", "", 10)
+	pdf.SetFont(sansFontFamily, "", 10)
 	pdf.SetXY(margin, pageH-22)
 	pdf.CellFormat(pageW-2*margin, 6, cfg.AdvertText, "", 0, "C", false, 0, "")
 }
@@ -129,14 +146,12 @@ func renderPuzzlePage(pdf *fpdf.Fpdf, puzzle Puzzle) {
 	pageW, pageH := pdf.GetPageSize()
 	hydratePuzzlePrintData(&puzzle)
 
-	pdf.SetTextColor(20, 20, 20)
-	pdf.SetFont("Helvetica", "B", 13)
+	setPuzzleTitleStyle(pdf)
 	pdf.SetXY(0, 10)
 	title := fmt.Sprintf("%s %d: %s", puzzle.Category, puzzle.Index, puzzle.Name)
 	pdf.CellFormat(pageW, 7, title, "", 0, "C", false, 0, "")
 
-	pdf.SetFont("Helvetica", "", 9)
-	pdf.SetTextColor(95, 95, 95)
+	setPuzzleSubtitleStyle(pdf)
 	pdf.SetXY(0, 17)
 	subtitleParts := []string{fmt.Sprintf("Difficulty Score: %d/10", difficultyScoreOutOfTen(puzzle.DifficultyScore))}
 	if !isMixedModes(puzzle.ModeSelection) {
@@ -190,10 +205,6 @@ func renderNonogramPage(pdf *fpdf.Fpdf, data *NonogramData) {
 	}
 
 	pageW, pageH := pdf.GetPageSize()
-	marginX := 10.0
-	padding := 3.0
-	top := 28.0
-	bottom := 12.0
 
 	rowHints := normalizeNonogramHintsForRender(data.RowHints, data.Height)
 	colHints := normalizeNonogramHintsForRender(data.ColHints, data.Width)
@@ -207,28 +218,25 @@ func renderNonogramPage(pdf *fpdf.Fpdf, data *NonogramData) {
 		colHintRows = 1
 	}
 
-	totalCols := rowHintCols + data.Width
-	totalRows := colHintRows + data.Height
-
-	availW := pageW - 2*(marginX+padding)
-	availH := pageH - top - bottom - 2*padding
-	cellSize := math.Min(availW/float64(totalCols), availH/float64(totalRows))
-	if cellSize > 8.8 {
-		cellSize = 8.8
+	layout := layoutNonogram(
+		pageW,
+		pageH,
+		data.Width,
+		data.Height,
+		rowHintCols,
+		colHintRows,
+	)
+	cellSize := layout.cellSize
+	if cellSize <= 0 {
+		return
 	}
-	if cellSize < 3.2 {
-		cellSize = 3.2
-	}
 
-	blockW := float64(totalCols) * cellSize
-	blockH := float64(totalRows) * cellSize
 	gridW := float64(data.Width) * cellSize
 	gridH := float64(data.Height) * cellSize
-	startX := marginX + padding + (availW-blockW)/2
-	startY := top + padding + (availH-blockH)/2
-
-	xSep := startX + float64(rowHintCols)*cellSize
-	ySep := startY + float64(colHintRows)*cellSize
+	startX := layout.hintStartX
+	startY := layout.hintStartY
+	xSep := layout.gridX
+	ySep := layout.gridY
 
 	for row := 0; row < colHintRows; row++ {
 		for col := 0; col < data.Width; col++ {
@@ -254,8 +262,24 @@ func renderNonogramPage(pdf *fpdf.Fpdf, data *NonogramData) {
 
 	drawNonogramMajorLines(pdf, xSep, ySep, cellSize, data.Width, data.Height, 5)
 
-	pdf.SetLineWidth(0.60)
+	pdf.SetLineWidth(outerBorderLineMM)
 	pdf.Rect(xSep, ySep, gridW, gridH, "D")
+
+	ruleY := ySep + gridH + 3.5
+	ruleY = instructionY(ruleY-3.5, pageH, 1)
+	setInstructionStyle(pdf)
+	pdf.SetXY(pageMarginXMM, ruleY)
+	pdf.CellFormat(
+		pageW-2*pageMarginXMM,
+		instructionLineHMM,
+		"Use row/column hints to fill blocks in order; groups are separated by at least one blank cell.",
+		"",
+		0,
+		"C",
+		false,
+		0,
+		"",
+	)
 }
 
 func drawNonogramPuzzleGrid(
@@ -274,7 +298,7 @@ func drawNonogramPuzzleGrid(
 	gridH := float64(height) * cellSize
 
 	pdf.SetDrawColor(45, 45, 45)
-	pdf.SetLineWidth(0.12)
+	pdf.SetLineWidth(thinGridLineMM)
 	for col := 0; col <= width; col++ {
 		x := startX + float64(col)*cellSize
 		pdf.Line(x, startY, x, startY+gridH)
@@ -290,13 +314,66 @@ func drawNonogramHintText(pdf *fpdf.Fpdf, x, y, w, h float64, text string) {
 		return
 	}
 
-	// Darker, compact hint typography for dense nonograms.
-	pdf.SetTextColor(55, 55, 55)
+	// Hints are puzzle-critical, so keep them bold and centered.
+	pdf.SetTextColor(primaryTextGray, primaryTextGray, primaryTextGray)
 	fontSize := standardCellFontSize(h, 0.70)
-	pdf.SetFont("Helvetica", "", fontSize)
+	pdf.SetFont(sansFontFamily, "B", fontSize)
 	lineH := fontSize * 0.86
 	pdf.SetXY(x, y+(h-lineH)/2)
 	pdf.CellFormat(w, lineH, text, "", 0, "C", false, 0, "")
+}
+
+type nonogramLayout struct {
+	cellSize   float64
+	hintStartX float64
+	hintStartY float64
+	gridX      float64
+	gridY      float64
+}
+
+func layoutNonogram(
+	pageW,
+	pageH float64,
+	gridCols,
+	gridRows,
+	rowHintCols,
+	colHintRows int,
+) nonogramLayout {
+	totalCols := rowHintCols + gridCols
+	totalRows := colHintRows + gridRows
+	area := puzzleBoardRect(pageW, pageH, 1)
+	cellSize := fitBoardCellSize(totalCols, totalRows, area, boardFamilyNonogram)
+	if cellSize <= 0 {
+		return nonogramLayout{}
+	}
+
+	if rowHintCols > 0 {
+		centeredCapW := area.w / float64(gridCols+2*rowHintCols)
+		if centeredCapW > 0 && centeredCapW < cellSize {
+			cellSize = centeredCapW
+		}
+	}
+	if colHintRows > 0 {
+		centeredCapH := area.h / float64(gridRows+2*colHintRows)
+		if centeredCapH > 0 && centeredCapH < cellSize {
+			cellSize = centeredCapH
+		}
+	}
+
+	gridW := float64(gridCols) * cellSize
+	gridH := float64(gridRows) * cellSize
+	gridX := area.x + (area.w-gridW)/2
+	gridY := area.y + (area.h-gridH)/2
+	hintStartX := gridX - float64(rowHintCols)*cellSize
+	hintStartY := gridY - float64(colHintRows)*cellSize
+
+	return nonogramLayout{
+		cellSize:   cellSize,
+		hintStartX: hintStartX,
+		hintStartY: hintStartY,
+		gridX:      gridX,
+		gridY:      gridY,
+	}
 }
 
 func renderSudokuPage(pdf *fpdf.Fpdf, data *SudokuData) {
@@ -305,32 +382,32 @@ func renderSudokuPage(pdf *fpdf.Fpdf, data *SudokuData) {
 	}
 
 	pageW, pageH := pdf.GetPageSize()
-	marginX := 10.0
-	top := 28.0
-	bottom := 16.0
-	availW := pageW - 2*marginX
-	availH := pageH - top - bottom
-
-	cellSize := math.Min(availW/9.0, availH/9.0)
-	if cellSize > 12.5 {
-		cellSize = 12.5
-	}
-	if cellSize < 10.5 {
-		cellSize = 10.5
+	area := puzzleBoardRect(pageW, pageH, 1)
+	cellSize := fitBoardCellSize(9, 9, area, boardFamilySudoku)
+	if cellSize <= 0 {
+		return
 	}
 
-	boardW := 9.0 * cellSize
 	boardH := 9.0 * cellSize
-	startX := (pageW - boardW) / 2
-	startY := top + (availH-boardH)/2
+	startX, startY := centeredOrigin(area, 9, 9, cellSize)
 
 	drawSudokuGridLines(pdf, startX, startY, cellSize)
 	drawSudokuGivens(pdf, startX, startY, cellSize, data.Givens)
 
-	pdf.SetFont("Helvetica", "", 8)
-	pdf.SetTextColor(85, 85, 85)
-	pdf.SetXY(marginX, pageH-11)
-	pdf.CellFormat(pageW-2*marginX, 5, "Fill rows, columns, and 3x3 boxes with 1-9", "", 0, "C", false, 0, "")
+	ruleY := instructionY(startY+boardH, pageH, 1)
+	setInstructionStyle(pdf)
+	pdf.SetXY(pageMarginXMM, ruleY)
+	pdf.CellFormat(
+		pageW-2*pageMarginXMM,
+		instructionLineHMM,
+		"Fill rows, columns, and 3x3 boxes with 1-9",
+		"",
+		0,
+		"C",
+		false,
+		0,
+		"",
+	)
 }
 
 func drawSudokuGridLines(pdf *fpdf.Fpdf, startX, startY, cellSize float64) {
@@ -352,19 +429,19 @@ func drawSudokuGridLines(pdf *fpdf.Fpdf, startX, startY, cellSize float64) {
 func sudokuLineWidthFor(index int) float64 {
 	switch {
 	case index == 0 || index == 9:
-		return 0.70
+		return 0.72
 	case index%3 == 0:
-		return 0.55
+		return 0.56
 	default:
-		return 0.15
+		return thinGridLineMM
 	}
 }
 
 func drawSudokuGivens(pdf *fpdf.Fpdf, startX, startY, cellSize float64, givens [9][9]int) {
 	fontSize := standardCellFontSize(cellSize, 0.62)
 	lineH := fontSize * 0.85
-	pdf.SetFont("Helvetica", "B", fontSize)
-	pdf.SetTextColor(20, 20, 20)
+	pdf.SetFont(sansFontFamily, "B", fontSize)
+	pdf.SetTextColor(primaryTextGray, primaryTextGray, primaryTextGray)
 
 	for y := range 9 {
 		for x := range 9 {
@@ -386,16 +463,14 @@ func renderWordSearchPage(pdf *fpdf.Fpdf, data *WordSearchData) {
 	}
 
 	pageW, pageH := pdf.GetPageSize()
-	marginX := 10.0
-	top := 28.0
-	bottom := 12.0
-	availW := pageW - 2*marginX
-	availH := pageH - top - bottom
+	body := puzzleBodyRect(pageW, pageH)
+	availW := body.w
+	availH := body.h
 
 	columnCount := wordSearchColumnCount(data.Width, len(data.Words))
-	wordFontSize := 8.3
+	wordFontSize := puzzleWordBankFontSize
 	wordLineHeight := 4.2
-	gridListGap := 4.0
+	gridListGap := wordSearchGridListGap
 
 	estimatedWordLines := estimateWordBankLineCount(pdf, data.Words, columnCount, availW, wordFontSize)
 	wordBankHeight := 7.0 + float64(estimatedWordLines)*wordLineHeight
@@ -412,26 +487,32 @@ func renderWordSearchPage(pdf *fpdf.Fpdf, data *WordSearchData) {
 		gridAreaH = availH * 0.5
 	}
 
-	cellSize := math.Min(availW/float64(data.Width), gridAreaH/float64(data.Height))
-	if cellSize > 10.5 {
-		cellSize = 10.5
-	}
-	if cellSize < 4.2 {
-		cellSize = 4.2
+	gridArea := rectMM{x: body.x, y: body.y, w: availW, h: gridAreaH}
+	cellSize := fitBoardCellSize(data.Width, data.Height, gridArea, boardFamilyWordSearch)
+	if cellSize <= 0 {
+		return
 	}
 
 	gridW := float64(data.Width) * cellSize
 	gridH := float64(data.Height) * cellSize
-	gridX := (pageW - gridW) / 2
-	gridY := top + (gridAreaH-gridH)/2
+	gridX := body.x + (gridArea.w-gridW)/2
+	gridY := body.y + (gridArea.h-gridH)/2
 
 	drawWordSearchGrid(pdf, data, gridX, gridY, cellSize)
-	drawWordBank(pdf, data.Words, marginX, gridY+gridH+gridListGap, availW, pageH-bottom-(gridY+gridH+gridListGap), columnCount)
+	drawWordBank(
+		pdf,
+		data.Words,
+		body.x,
+		gridY+gridH+gridListGap,
+		availW,
+		pageH-puzzleBottomInsetMM-(gridY+gridH+gridListGap),
+		columnCount,
+	)
 }
 
 func drawWordSearchGrid(pdf *fpdf.Fpdf, data *WordSearchData, startX, startY, cellSize float64) {
 	pdf.SetDrawColor(45, 45, 45)
-	pdf.SetLineWidth(0.12)
+	pdf.SetLineWidth(thinGridLineMM)
 	for y := range data.Height {
 		for x := range data.Width {
 			cellX := startX + float64(x)*cellSize
@@ -448,14 +529,14 @@ func drawWordSearchGrid(pdf *fpdf.Fpdf, data *WordSearchData, startX, startY, ce
 
 			fontSize := standardCellFontSize(cellSize, 0.74)
 			lineH := fontSize * 0.86
-			pdf.SetFont("Helvetica", "B", fontSize)
-			pdf.SetTextColor(18, 18, 18)
+			pdf.SetFont(sansFontFamily, "B", fontSize)
+			pdf.SetTextColor(primaryTextGray, primaryTextGray, primaryTextGray)
 			pdf.SetXY(cellX, cellY+(cellSize-lineH)/2)
 			pdf.CellFormat(cellSize, lineH, cellText, "", 0, "C", false, 0, "")
 		}
 	}
 
-	pdf.SetLineWidth(0.55)
+	pdf.SetLineWidth(outerBorderLineMM)
 	pdf.Rect(startX, startY, float64(data.Width)*cellSize, float64(data.Height)*cellSize, "D")
 }
 
@@ -465,19 +546,19 @@ func drawWordBank(pdf *fpdf.Fpdf, words []string, x, y, width, height float64, c
 	}
 
 	pdf.SetTextColor(40, 40, 40)
-	pdf.SetFont("Helvetica", "B", 9.2)
+	pdf.SetFont(sansFontFamily, "B", puzzleWordBankHeadSize)
 	pdf.SetXY(x, y)
 	pdf.CellFormat(width, 4.8, "Word Bank", "", 0, "L", false, 0, "")
 
-	pdf.SetFont("Helvetica", "", 8.3)
-	pdf.SetTextColor(70, 70, 70)
+	pdf.SetFont(sansFontFamily, "", puzzleWordBankFontSize)
+	pdf.SetTextColor(ruleTextGray, ruleTextGray, ruleTextGray)
 	pdf.SetXY(x, y+4.8)
 	pdf.CellFormat(width, 4.2, "Words may run in all 8 directions", "", 0, "L", false, 0, "")
 
 	listY := y + 9.0
 	if len(words) == 0 {
-		pdf.SetFont("Helvetica", "", 8.8)
-		pdf.SetTextColor(95, 95, 95)
+		pdf.SetFont(sansFontFamily, "", puzzleWordBankHeadSize)
+		pdf.SetTextColor(secondaryTextGray, secondaryTextGray, secondaryTextGray)
 		pdf.SetXY(x, listY)
 		pdf.CellFormat(width, 4.6, "(word list unavailable)", "", 0, "L", false, 0, "")
 		return
@@ -500,8 +581,8 @@ func drawWordBank(pdf *fpdf.Fpdf, words []string, x, y, width, height float64, c
 		return
 	}
 
-	pdf.SetTextColor(25, 25, 25)
-	pdf.SetFont("Helvetica", "", 8.8)
+	pdf.SetTextColor(primaryTextGray, primaryTextGray, primaryTextGray)
+	pdf.SetFont(sansFontFamily, "B", puzzleWordBankHeadSize)
 	for c := range columns {
 		colX := x + float64(c)*(colWidth+columnGap)
 		curY := listY
@@ -540,7 +621,7 @@ func estimateWordBankLineCount(pdf *fpdf.Fpdf, words []string, columns int, avai
 		colWidth = availW
 	}
 
-	pdf.SetFont("Helvetica", "", fontSize)
+	pdf.SetFont(sansFontFamily, "", fontSize)
 	lineCounts := make([]int, columns)
 	for _, word := range words {
 		text := strings.ToUpper(strings.TrimSpace(word))
@@ -610,9 +691,6 @@ func renderGridTablePage(pdf *fpdf.Fpdf, table *GridTable) {
 	}
 
 	pageW, pageH := pdf.GetPageSize()
-	marginX := 10.0
-	top := 28.0
-	bottom := 12.0
 
 	rows := len(table.Rows)
 	cols := 0
@@ -625,23 +703,18 @@ func renderGridTablePage(pdf *fpdf.Fpdf, table *GridTable) {
 		return
 	}
 
-	availW := pageW - 2*marginX
-	availH := pageH - top - bottom
-	cellSize := math.Min(availW/float64(cols), availH/float64(rows))
-	if cellSize > 11.2 {
-		cellSize = 11.2
-	}
-	if cellSize < 3.3 {
-		cellSize = 3.3
+	area := puzzleBoardRect(pageW, pageH, 0)
+	cellSize := fitBoardCellSize(cols, rows, area, boardFamilyTable)
+	if cellSize <= 0 {
+		return
 	}
 
 	blockW := float64(cols) * cellSize
 	blockH := float64(rows) * cellSize
-	startX := (pageW - blockW) / 2
-	startY := top + (availH-blockH)/2
+	startX, startY := centeredOrigin(area, cols, rows, cellSize)
 
 	pdf.SetDrawColor(55, 55, 55)
-	pdf.SetLineWidth(0.16)
+	pdf.SetLineWidth(thinGridLineMM)
 	for r := 0; r < rows; r++ {
 		for c := 0; c < cols; c++ {
 			x := startX + float64(c)*cellSize
@@ -666,26 +739,24 @@ func renderGridTablePage(pdf *fpdf.Fpdf, table *GridTable) {
 
 	if table.HasHeaderRow {
 		ySep := startY + cellSize
-		pdf.SetLineWidth(0.42)
+		pdf.SetLineWidth(majorGridLineMM)
 		pdf.Line(startX, ySep, startX+blockW, ySep)
 	}
 	if table.HasHeaderCol {
 		xSep := startX + cellSize
-		pdf.SetLineWidth(0.42)
+		pdf.SetLineWidth(majorGridLineMM)
 		pdf.Line(xSep, startY, xSep, startY+blockH)
 	}
 
-	pdf.SetLineWidth(0.6)
+	pdf.SetLineWidth(outerBorderLineMM)
 	pdf.Rect(startX, startY, blockW, blockH, "D")
 }
 
 func renderFallbackPage(pdf *fpdf.Fpdf, puzzle Puzzle, pageH float64) {
 	pageW, _ := pdf.GetPageSize()
-	marginX := 10.0
-	top := 28.0
-	bottom := 12.0
-	availW := pageW - 2*marginX
-	availH := pageH - top - bottom
+	area := puzzleBoardRect(pageW, pageH, 0)
+	availW := area.w
+	availH := area.h
 
 	lines := sanitizeBody(puzzle.Body)
 	fontSize := 9.2
@@ -712,15 +783,15 @@ func renderFallbackPage(pdf *fpdf.Fpdf, puzzle Puzzle, pageH float64) {
 	}
 
 	blockH := float64(len(wrapped)) * lineHeight
-	startY := top + (availH-blockH)/2
+	startY := area.y + (availH-blockH)/2
 
 	pdf.SetTextColor(50, 50, 50)
 	y := startY
 	for _, line := range wrapped {
 		w := pdf.GetStringWidth(line)
 		x := (pageW - w) / 2
-		if x < marginX {
-			x = marginX
+		if x < area.x {
+			x = area.x
 		}
 		pdf.SetXY(x, y)
 		pdf.CellFormat(availW, lineHeight, line, "", 0, "L", false, 0, "")
@@ -754,13 +825,13 @@ func drawCellText(pdf *fpdf.Fpdf, x, y, w, h float64, text string, dim bool) {
 		return
 	}
 	if dim {
-		pdf.SetTextColor(130, 130, 130)
+		pdf.SetTextColor(dimTextGray, dimTextGray, dimTextGray)
 	} else {
-		pdf.SetTextColor(25, 25, 25)
+		pdf.SetTextColor(primaryTextGray, primaryTextGray, primaryTextGray)
 	}
 
 	fontSize := standardCellFontSize(h, 0.63)
-	pdf.SetFont("Helvetica", "", fontSize)
+	pdf.SetFont(sansFontFamily, "B", fontSize)
 	lineH := fontSize * 0.9
 	pdf.SetXY(x, y+(h-lineH)/2)
 	pdf.CellFormat(w, lineH, text, "", 0, "C", false, 0, "")
@@ -828,7 +899,7 @@ func drawNonogramMajorLines(
 	}
 
 	pdf.SetDrawColor(45, 45, 45)
-	pdf.SetLineWidth(0.30)
+	pdf.SetLineWidth(majorGridLineMM)
 
 	for col := step; col < width; col += step {
 		x := puzzleStartX + float64(col)*cellSize
@@ -859,6 +930,27 @@ func summarizeCategories(puzzles []Puzzle) []string {
 		return []string{"Unknown"}
 	}
 	return categories
+}
+
+func summarizeVersions(docs []PackDocument) []string {
+	set := map[string]struct{}{}
+	for _, doc := range docs {
+		version := strings.TrimSpace(doc.Metadata.Version)
+		if version == "" {
+			continue
+		}
+		set[version] = struct{}{}
+	}
+
+	versions := make([]string, 0, len(set))
+	for version := range set {
+		versions = append(versions, version)
+	}
+	sort.Strings(versions)
+	if len(versions) == 0 {
+		return []string{"Unknown"}
+	}
+	return versions
 }
 
 func defaultTitle(docs []PackDocument) string {
@@ -907,10 +999,10 @@ func renderSourceExportsTable(
 	}
 
 	pdf.SetDrawColor(125, 125, 125)
-	pdf.SetLineWidth(0.14)
+	pdf.SetLineWidth(thinGridLineMM)
 	pdf.SetFillColor(245, 245, 245)
 	pdf.SetTextColor(45, 45, 45)
-	pdf.SetFont("Helvetica", "B", 8.4)
+	pdf.SetFont(sansFontFamily, "B", 8.9)
 
 	curX := x
 	for i, header := range headers {
@@ -919,8 +1011,8 @@ func renderSourceExportsTable(
 		curX += columnWidths[i]
 	}
 
-	pdf.SetFont("Helvetica", "", 8.1)
-	pdf.SetTextColor(70, 70, 70)
+	pdf.SetFont(sansFontFamily, "", 8.6)
+	pdf.SetTextColor(ruleTextGray, ruleTextGray, ruleTextGray)
 	for i := 0; i < rowCount; i++ {
 		rowY := y + headerHeight + float64(i)*rowHeight
 		mode := ""

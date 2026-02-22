@@ -14,37 +14,43 @@ func renderHashiPage(pdf *fpdf.Fpdf, data *HashiData) {
 	}
 
 	pageW, pageH := pdf.GetPageSize()
-	marginX := 10.0
-	top := 28.0
-	bottom := 22.0
-
-	availW := pageW - 2*marginX
-	availH := pageH - top - bottom
 
 	spanX := max(data.Width-1, 1)
 	spanY := max(data.Height-1, 1)
-	step := math.Min(availW/float64(spanX), availH/float64(spanY))
-	step = math.Max(5.2, math.Min(16.0, step))
+	area := puzzleBoardRect(pageW, pageH, 1)
+	step := fitBoardCellSize(spanX, spanY, area, boardFamilyHashi)
+	if step <= 0 {
+		return
+	}
 
 	boardW := float64(spanX) * step
 	boardH := float64(spanY) * step
-	originX := (pageW - boardW) / 2
-	originY := top + (availH-boardH)/2
+	originX, originY := centeredOrigin(area, spanX, spanY, step)
+	islandRadius := hashiIslandRadius(step)
 
 	drawHashiGuideDots(pdf, originX, originY, data.Width, data.Height, step)
-	drawHashiIslands(pdf, originX, originY, step, data.Islands)
+	drawHashiBoardBorder(pdf, originX, originY, boardW, boardH, islandRadius)
+	drawHashiIslands(pdf, originX, originY, step, islandRadius, data.Islands)
 
-	ruleY := originY + boardH + 5
-	if ruleY+4 <= pageH-6 {
-		pdf.SetTextColor(85, 85, 85)
-		pdf.SetFont("Helvetica", "", 7.2)
-		pdf.SetXY(marginX, ruleY)
-		pdf.CellFormat(pageW-2*marginX, 4, "Connect islands horizontally/vertically with up to two bridges and no crossings.", "", 0, "C", false, 0, "")
-	}
+	// Add an explicit blank line before the Hashi hint text.
+	ruleY := instructionY(originY+boardH+instructionLineHMM, pageH, 1)
+	setInstructionStyle(pdf)
+	pdf.SetXY(pageMarginXMM, ruleY)
+	pdf.CellFormat(
+		pageW-2*pageMarginXMM,
+		instructionLineHMM,
+		"Connect islands horizontally/vertically with up to two bridges and no crossings.",
+		"",
+		0,
+		"C",
+		false,
+		0,
+		"",
+	)
 }
 
 func drawHashiGuideDots(pdf *fpdf.Fpdf, originX, originY float64, width, height int, step float64) {
-	pdf.SetFillColor(235, 235, 235)
+	pdf.SetFillColor(230, 230, 230)
 	r := math.Max(0.20, math.Min(0.55, step*0.035))
 	for y := 0; y < height; y++ {
 		for x := 0; x < width; x++ {
@@ -55,11 +61,20 @@ func drawHashiGuideDots(pdf *fpdf.Fpdf, originX, originY float64, width, height 
 	}
 }
 
-func drawHashiIslands(pdf *fpdf.Fpdf, originX, originY, step float64, islands []HashiIsland) {
-	radius := math.Max(1.4, math.Min(3.2, step*0.23))
+func drawHashiBoardBorder(pdf *fpdf.Fpdf, originX, originY, boardW, boardH, islandRadius float64) {
+	if boardW <= 0 || boardH <= 0 {
+		return
+	}
+	borderPad := islandRadius + 1.2
+	pdf.SetDrawColor(35, 35, 35)
+	pdf.SetLineWidth(outerBorderLineMM)
+	pdf.Rect(originX-borderPad, originY-borderPad, boardW+2*borderPad, boardH+2*borderPad, "D")
+}
+
+func drawHashiIslands(pdf *fpdf.Fpdf, originX, originY, step, radius float64, islands []HashiIsland) {
 	pdf.SetDrawColor(20, 20, 20)
 	pdf.SetFillColor(255, 255, 255)
-	pdf.SetLineWidth(0.26)
+	pdf.SetLineWidth(majorGridLineMM)
 
 	for _, island := range islands {
 		cx := originX + float64(island.X)*step
@@ -67,6 +82,10 @@ func drawHashiIslands(pdf *fpdf.Fpdf, originX, originY, step float64, islands []
 		pdf.Circle(cx, cy, radius, "DF")
 		drawHashiIslandNumber(pdf, cx, cy, radius, island.Required)
 	}
+}
+
+func hashiIslandRadius(step float64) float64 {
+	return math.Max(1.4, math.Min(3.2, step*0.23))
 }
 
 func drawHashiIslandNumber(pdf *fpdf.Fpdf, cx, cy, radius float64, required int) {
@@ -81,8 +100,8 @@ func drawHashiIslandNumber(pdf *fpdf.Fpdf, cx, cy, radius float64, required int)
 	}
 	fontSize = clampStandardCellFontSize(fontSize)
 
-	pdf.SetTextColor(18, 18, 18)
-	pdf.SetFont("Helvetica", "B", fontSize)
+	pdf.SetTextColor(primaryTextGray, primaryTextGray, primaryTextGray)
+	pdf.SetFont(sansFontFamily, "B", fontSize)
 	lineH := fontSize * 0.88
 	pdf.SetXY(cx-radius, cy-lineH/2)
 	pdf.CellFormat(radius*2, lineH, text, "", 0, "C", false, 0, "")

@@ -22,8 +22,8 @@ var (
 
 var exportPDFCmd = &cobra.Command{
 	Use:   "export-pdf <input.jsonl> [more.jsonl ...]",
-	Short: "Convert one or more PuzzleTea JSONL exports into an A5 printable PDF",
-	Long:  "Parse one or more JSONL export files, order puzzles by progressive difficulty with seeded mixing, and render an A5 PDF with a title page and one puzzle per page.",
+	Short: "Convert one or more PuzzleTea JSONL exports into a half-letter printable PDF",
+	Long:  "Parse one or more JSONL export files, order puzzles by progressive difficulty with seeded mixing, and render a half-letter PDF with a title page and one puzzle per page.",
 	Args:  cobra.MinimumNArgs(1),
 	RunE:  runExportPDF,
 }

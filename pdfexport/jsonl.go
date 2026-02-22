@@ -12,10 +12,9 @@ import (
 const ExportSchemaV1 = "puzzletea.export.v1"
 
 type JSONLRecord struct {
-	Schema string         `json:"schema"`
-	Pack   JSONLPackMeta  `json:"pack"`
-	Puzzle JSONLPuzzle    `json:"puzzle"`
-	Print  JSONLPrintData `json:"print"`
+	Schema string        `json:"schema"`
+	Pack   JSONLPackMeta `json:"pack"`
+	Puzzle JSONLPuzzle   `json:"puzzle"`
 }
 
 type JSONLPackMeta struct {
@@ -34,23 +33,6 @@ type JSONLPuzzle struct {
 	Mode    string          `json:"mode"`
 	Save    json.RawMessage `json:"save"`
 	Snippet string          `json:"snippet,omitempty"`
-}
-
-type JSONLPrintData struct {
-	Kind       string          `json:"kind"`
-	Paper      string          `json:"paper"`
-	MarginMM   float64         `json:"margin_mm"`
-	EmptyGlyph string          `json:"empty_glyph"`
-	HintTone   string          `json:"hint_tone"`
-	Nonogram   *NonogramData   `json:"nonogram,omitempty"`
-	Nurikabe   *NurikabeData   `json:"nurikabe,omitempty"`
-	Shikaku    *ShikakuData    `json:"shikaku,omitempty"`
-	Hashi      *HashiData      `json:"hashi,omitempty"`
-	Hitori     *HitoriData     `json:"hitori,omitempty"`
-	Takuzu     *TakuzuData     `json:"takuzu,omitempty"`
-	Sudoku     *SudokuData     `json:"sudoku,omitempty"`
-	WordSearch *WordSearchData `json:"word_search,omitempty"`
-	Table      *GridTable      `json:"table,omitempty"`
 }
 
 func ParseJSONLFiles(paths []string) ([]PackDocument, error) {
@@ -129,15 +111,6 @@ func ParseJSONLFile(path string) (PackDocument, error) {
 			Index:          record.Puzzle.Index,
 			Body:           record.Puzzle.Snippet,
 			SaveData:       append([]byte(nil), record.Puzzle.Save...),
-			Nonogram:       record.Print.Nonogram,
-			Nurikabe:       record.Print.Nurikabe,
-			Shikaku:        record.Print.Shikaku,
-			Hashi:          record.Print.Hashi,
-			Hitori:         record.Print.Hitori,
-			Takuzu:         record.Print.Takuzu,
-			Sudoku:         record.Print.Sudoku,
-			WordSearch:     record.Print.WordSearch,
-			Table:          record.Print.Table,
 		}
 		hydratePuzzlePrintData(&p)
 

@@ -14,8 +14,8 @@ func TestTakuzuGivenFontSize(t *testing.T) {
 			name:     "small cell keeps readable minimum",
 			cellSize: 3.0,
 			size:     14,
-			wantMin:  4.2,
-			wantMax:  4.2,
+			wantMin:  5.2,
+			wantMax:  5.2,
 		},
 		{
 			name:     "12x12 remains comfortably readable",
