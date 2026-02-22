@@ -17,6 +17,7 @@ const (
 	primaryTextGray   = 20
 
 	pageMarginXMM         = 10.0
+	bindingGutterExtraMM  = 2.6
 	puzzleTopMM           = 28.0
 	puzzleBottomInsetMM   = 16.0
 	instructionGapMM      = 4.2
@@ -61,17 +62,18 @@ type boardSizing struct {
 	targetFill float64
 }
 
-func puzzleBodyRect(pageW, pageH float64) rectMM {
+func puzzleBodyRect(pageW, pageH float64, pageNo int) rectMM {
+	leftMargin, rightMargin := puzzleHorizontalMargins(pageNo)
 	return rectMM{
-		x: pageMarginXMM,
+		x: leftMargin,
 		y: puzzleTopMM,
-		w: pageW - 2*pageMarginXMM,
+		w: pageW - leftMargin - rightMargin,
 		h: pageH - puzzleTopMM - puzzleBottomInsetMM,
 	}
 }
 
-func puzzleBoardRect(pageW, pageH float64, ruleLines int) rectMM {
-	rect := puzzleBodyRect(pageW, pageH)
+func puzzleBoardRect(pageW, pageH float64, pageNo, ruleLines int) rectMM {
+	rect := puzzleBodyRect(pageW, pageH, pageNo)
 	if ruleLines > 0 {
 		rect.h -= instructionGapMM + float64(ruleLines)*instructionLineHMM
 		if rect.h < 0 {
@@ -79,6 +81,22 @@ func puzzleBoardRect(pageW, pageH float64, ruleLines int) rectMM {
 		}
 	}
 	return rect
+}
+
+func puzzleHorizontalMargins(pageNo int) (left, right float64) {
+	left = pageMarginXMM
+	right = pageMarginXMM
+	if pageNo <= 1 {
+		return left, right
+	}
+	if pageNo%2 == 0 {
+		// Even pages sit on the left side in a spread, so inside edge is right.
+		right += bindingGutterExtraMM
+		return left, right
+	}
+	// Odd pages sit on the right side in a spread, so inside edge is left.
+	left += bindingGutterExtraMM
+	return left, right
 }
 
 func centeredOrigin(area rectMM, cols, rows int, cellSize float64) (float64, float64) {

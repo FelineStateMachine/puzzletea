@@ -13,7 +13,8 @@ func renderNurikabePage(pdf *fpdf.Fpdf, data *NurikabeData) {
 	}
 
 	pageW, pageH := pdf.GetPageSize()
-	area := puzzleBoardRect(pageW, pageH, 1)
+	pageNo := pdf.PageNo()
+	area := puzzleBoardRect(pageW, pageH, pageNo, 1)
 	cellSize := fitBoardCellSize(data.Width, data.Height, area, boardFamilyCompact)
 	if cellSize <= 0 {
 		return
@@ -44,9 +45,9 @@ func renderNurikabePage(pdf *fpdf.Fpdf, data *NurikabeData) {
 
 	ruleY := instructionY(startY+blockH, pageH, 1)
 	setInstructionStyle(pdf)
-	pdf.SetXY(pageMarginXMM, ruleY)
+	pdf.SetXY(area.x, ruleY)
 	pdf.CellFormat(
-		pageW-2*pageMarginXMM,
+		area.w,
 		instructionLineHMM,
 		"Expand each numbered island to its size; connect all sea cells into one wall.",
 		"",
@@ -64,7 +65,8 @@ func renderShikakuPage(pdf *fpdf.Fpdf, data *ShikakuData) {
 	}
 
 	pageW, pageH := pdf.GetPageSize()
-	area := puzzleBoardRect(pageW, pageH, 1)
+	pageNo := pdf.PageNo()
+	area := puzzleBoardRect(pageW, pageH, pageNo, 1)
 	cellSize := fitBoardCellSize(data.Width, data.Height, area, boardFamilyCompact)
 	if cellSize <= 0 {
 		return
@@ -95,9 +97,9 @@ func renderShikakuPage(pdf *fpdf.Fpdf, data *ShikakuData) {
 
 	ruleY := instructionY(startY+blockH, pageH, 1)
 	setInstructionStyle(pdf)
-	pdf.SetXY(pageMarginXMM, ruleY)
+	pdf.SetXY(area.x, ruleY)
 	pdf.CellFormat(
-		pageW-2*pageMarginXMM,
+		area.w,
 		instructionLineHMM,
 		"Partition into rectangles where each clue equals its rectangle area.",
 		"",

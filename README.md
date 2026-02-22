@@ -122,8 +122,10 @@ puzzletea new sudoku --export 10 -o sudoku-mixed.jsonl --with-seed zine-issue-01
 Render one or more JSONL packs into a half-letter print PDF:
 
 ```bash
-puzzletea export-pdf nonogram-mini-set.jsonl -o issue-01.pdf --shuffle-seed issue-01
+puzzletea export-pdf nonogram-mini-set.jsonl -o issue-01.pdf --shuffle-seed issue-01 --volume 1 --title "Catacombs & Pines"
 ```
+
+`--title` sets the cover subtitle, and `--volume` sets the cover volume number.
 
 Font license note (Atkinson Hyperlegible Next):
 

@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -16,8 +17,10 @@ import (
 var (
 	flagPDFOutput      string
 	flagPDFTitle       string
+	flagPDFVolume      int
 	flagPDFAdvert      string
 	flagPDFShuffleSeed string
+	flagPDFCoverColor  string
 )
 
 var exportPDFCmd = &cobra.Command{
@@ -30,9 +33,11 @@ var exportPDFCmd = &cobra.Command{
 
 func init() {
 	exportPDFCmd.Flags().StringVarP(&flagPDFOutput, "output", "o", "", "write output PDF path (defaults to <first-input>-print.pdf)")
-	exportPDFCmd.Flags().StringVar(&flagPDFTitle, "title", "", "title shown on the generated title page")
+	exportPDFCmd.Flags().StringVar(&flagPDFTitle, "title", "", "subtitle shown on the cover")
+	exportPDFCmd.Flags().IntVar(&flagPDFVolume, "volume", 1, "volume number shown on the cover (must be >= 1)")
 	exportPDFCmd.Flags().StringVar(&flagPDFAdvert, "advert", "Find more puzzles at github.com/FelineStateMachine/puzzletea", "advert text shown on the title page")
 	exportPDFCmd.Flags().StringVar(&flagPDFShuffleSeed, "shuffle-seed", "", "seed for deterministic within-band difficulty mixing")
+	exportPDFCmd.Flags().StringVar(&flagPDFCoverColor, "cover-color", "", `accent color for cover page: hex "#RRGGBB", decimal "R,G,B", or omit for random vibrant nature tone`)
 }
 
 func runExportPDF(cmd *cobra.Command, args []string) error {
@@ -64,16 +69,9 @@ func runExportPDF(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("--output must use a .pdf extension")
 	}
 
-	title := strings.TrimSpace(flagPDFTitle)
-	if title == "" {
-		title = defaultPDFTitle(docs)
-	}
-
-	cfg := pdfexport.RenderConfig{
-		Title:       title,
-		AdvertText:  flagPDFAdvert,
-		GeneratedAt: time.Now(),
-		ShuffleSeed: shuffleSeed,
+	cfg, err := buildRenderConfigForPDF(docs, shuffleSeed, time.Now())
+	if err != nil {
+		return err
 	}
 	if err := pdfexport.WritePDF(output, docs, ordered, cfg); err != nil {
 		return err
@@ -99,6 +97,39 @@ func defaultPDFTitle(docs []pdfexport.PackDocument) string {
 		}
 	}
 	return "PuzzleTea Mixed Puzzle Pack"
+}
+
+func validatePDFVolume(volume int) error {
+	if volume < 1 {
+		return fmt.Errorf("--volume must be >= 1")
+	}
+	return nil
+}
+
+func buildRenderConfigForPDF(docs []pdfexport.PackDocument, shuffleSeed string, now time.Time) (pdfexport.RenderConfig, error) {
+	if err := validatePDFVolume(flagPDFVolume); err != nil {
+		return pdfexport.RenderConfig{}, err
+	}
+
+	subtitle := strings.TrimSpace(flagPDFTitle)
+	if subtitle == "" {
+		subtitle = defaultPDFTitle(docs)
+	}
+
+	coverColor, err := parseCoverColor(flagPDFCoverColor)
+	if err != nil {
+		return pdfexport.RenderConfig{}, fmt.Errorf("--cover-color: %w", err)
+	}
+
+	cfg := pdfexport.RenderConfig{
+		CoverSubtitle: subtitle,
+		VolumeNumber:  flagPDFVolume,
+		AdvertText:    flagPDFAdvert,
+		GeneratedAt:   now,
+		ShuffleSeed:   shuffleSeed,
+		CoverColor:    coverColor,
+	}
+	return cfg, nil
 }
 
 func buildModeDifficultyLookup(categories []game.Category) map[string]map[string]float64 {
@@ -175,4 +206,37 @@ func normalizeDifficultyToken(s string) string {
 	s = strings.ReplaceAll(s, "-", " ")
 	s = strings.ReplaceAll(s, "_", " ")
 	return strings.Join(strings.Fields(s), " ")
+}
+
+// parseCoverColor parses a cover color string in hex ("#RRGGBB") or
+// decimal ("R,G,B") format. Returns nil if s is empty (random vibrant nature tone).
+func parseCoverColor(s string) (*pdfexport.RGB, error) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return nil, nil
+	}
+
+	// Hex format: #RRGGBB or RRGGBB
+	hex := strings.TrimPrefix(s, "#")
+	if len(hex) == 6 {
+		r, errR := strconv.ParseUint(hex[0:2], 16, 8)
+		g, errG := strconv.ParseUint(hex[2:4], 16, 8)
+		b, errB := strconv.ParseUint(hex[4:6], 16, 8)
+		if errR == nil && errG == nil && errB == nil {
+			return &pdfexport.RGB{R: uint8(r), G: uint8(g), B: uint8(b)}, nil
+		}
+	}
+
+	// Decimal format: R,G,B
+	parts := strings.Split(s, ",")
+	if len(parts) == 3 {
+		r, errR := strconv.ParseUint(strings.TrimSpace(parts[0]), 10, 8)
+		g, errG := strconv.ParseUint(strings.TrimSpace(parts[1]), 10, 8)
+		b, errB := strconv.ParseUint(strings.TrimSpace(parts[2]), 10, 8)
+		if errR == nil && errG == nil && errB == nil {
+			return &pdfexport.RGB{R: uint8(r), G: uint8(g), B: uint8(b)}, nil
+		}
+	}
+
+	return nil, fmt.Errorf("invalid color %q — use hex \"#RRGGBB\" or decimal \"R,G,B\"", s)
 }

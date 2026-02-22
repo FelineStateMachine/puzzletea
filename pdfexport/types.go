@@ -110,9 +110,14 @@ type GridTable struct {
 	HasHeaderCol bool
 }
 
+type RGB struct{ R, G, B uint8 }
+
 type RenderConfig struct {
-	Title       string
-	AdvertText  string
-	GeneratedAt time.Time
-	ShuffleSeed string
+	Title         string
+	CoverSubtitle string
+	VolumeNumber  int
+	AdvertText    string
+	GeneratedAt   time.Time
+	ShuffleSeed   string
+	CoverColor    *RGB // nil = random vibrant nature tone
 }

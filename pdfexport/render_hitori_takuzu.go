@@ -14,7 +14,8 @@ func renderHitoriPage(pdf *fpdf.Fpdf, data *HitoriData) {
 
 	size := data.Size
 	pageW, pageH := pdf.GetPageSize()
-	area := puzzleBoardRect(pageW, pageH, 1)
+	pageNo := pdf.PageNo()
+	area := puzzleBoardRect(pageW, pageH, pageNo, 1)
 	cellSize := fitBoardCellSize(size, size, area, boardFamilyCompact)
 	if cellSize <= 0 {
 		return
@@ -49,9 +50,9 @@ func renderHitoriPage(pdf *fpdf.Fpdf, data *HitoriData) {
 
 	ruleY := instructionY(startY+blockH, pageH, 1)
 	setInstructionStyle(pdf)
-	pdf.SetXY(pageMarginXMM, ruleY)
+	pdf.SetXY(area.x, ruleY)
 	pdf.CellFormat(
-		pageW-2*pageMarginXMM,
+		area.w,
 		instructionLineHMM,
 		"Shade duplicates; shaded cells cannot touch orthogonally; unshaded cells stay connected.",
 		"",
@@ -88,7 +89,8 @@ func renderTakuzuPage(pdf *fpdf.Fpdf, data *TakuzuData) {
 
 	size := data.Size
 	pageW, pageH := pdf.GetPageSize()
-	area := puzzleBoardRect(pageW, pageH, 2)
+	pageNo := pdf.PageNo()
+	area := puzzleBoardRect(pageW, pageH, pageNo, 2)
 	cellSize := fitBoardCellSize(size, size, area, boardFamilyCompact)
 	if cellSize <= 0 {
 		return
@@ -141,9 +143,9 @@ func renderTakuzuPage(pdf *fpdf.Fpdf, data *TakuzuData) {
 
 	ruleY := instructionY(startY+blockH, pageH, 2)
 	setInstructionStyle(pdf)
-	pdf.SetXY(pageMarginXMM, ruleY)
+	pdf.SetXY(area.x, ruleY)
 	pdf.CellFormat(
-		pageW-2*pageMarginXMM,
+		area.w,
 		instructionLineHMM,
 		"No three equal adjacent in any row or column.",
 		"",
@@ -153,9 +155,9 @@ func renderTakuzuPage(pdf *fpdf.Fpdf, data *TakuzuData) {
 		0,
 		"",
 	)
-	pdf.SetXY(pageMarginXMM, ruleY+instructionLineHMM)
+	pdf.SetXY(area.x, ruleY+instructionLineHMM)
 	pdf.CellFormat(
-		pageW-2*pageMarginXMM,
+		area.w,
 		instructionLineHMM,
 		"Each row/column has equal 0 and 1 counts, and rows/columns are unique.",
 		"",

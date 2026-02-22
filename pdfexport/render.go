@@ -24,8 +24,14 @@ func WritePDF(outputPath string, docs []PackDocument, puzzles []Puzzle, cfg Rend
 	if cfg.GeneratedAt.IsZero() {
 		cfg.GeneratedAt = time.Now()
 	}
+	if cfg.VolumeNumber < 1 {
+		cfg.VolumeNumber = 1
+	}
+	if strings.TrimSpace(cfg.CoverSubtitle) == "" {
+		cfg.CoverSubtitle = defaultTitle(docs)
+	}
 	if strings.TrimSpace(cfg.Title) == "" {
-		cfg.Title = defaultTitle(docs)
+		cfg.Title = fmt.Sprintf("PuzzleTea Volume %02d", cfg.VolumeNumber)
 	}
 	if strings.TrimSpace(cfg.AdvertText) == "" {
 		cfg.AdvertText = "Find more puzzles at github.com/FelineStateMachine/puzzletea"
@@ -46,20 +52,36 @@ func WritePDF(outputPath string, docs []PackDocument, puzzles []Puzzle, cfg Rend
 	pdf.SetCreator("PuzzleTea", true)
 	pdf.SetAuthor("PuzzleTea", true)
 	pdf.SetTitle(cfg.Title, true)
+	footerExcludedPages := map[int]struct{}{}
 	pdf.SetFooterFunc(func() {
-		if pdf.PageNo() <= 1 {
+		pageNo := pdf.PageNo()
+		if pageNo <= 2 {
+			return
+		}
+		if _, skip := footerExcludedPages[pageNo]; skip {
 			return
 		}
 		pdf.SetY(-8)
 		pdf.SetFont(sansFontFamily, "", 8)
 		pdf.SetTextColor(footerTextGray, footerTextGray, footerTextGray)
-		pdf.CellFormat(0, 4, strconv.Itoa(pdf.PageNo()), "", 0, "C", false, 0, "")
+		pdf.CellFormat(0, 4, strconv.Itoa(pageNo), "", 0, "C", false, 0, "")
 	})
 
+	coverColor := resolveCoverColor(cfg)
+	renderCoverPage(pdf, puzzles, cfg)
 	renderTitlePage(pdf, docs, puzzles, cfg)
 	for _, puzzle := range puzzles {
 		renderPuzzlePage(pdf, puzzle)
 	}
+
+	totalPagesWithoutPadding := pdf.PageNo() + 1 // include upcoming back cover
+	for range saddleStitchPadCount(totalPagesWithoutPadding) {
+		renderPadPage(pdf)
+		footerExcludedPages[pdf.PageNo()] = struct{}{}
+	}
+
+	renderBackCoverPage(pdf, cfg, coverColor)
+	footerExcludedPages[pdf.PageNo()] = struct{}{}
 
 	dir := filepath.Dir(outputPath)
 	if dir != "" && dir != "." {
@@ -74,6 +96,22 @@ func WritePDF(outputPath string, docs []PackDocument, puzzles []Puzzle, cfg Rend
 	return nil
 }
 
+func saddleStitchPadCount(totalPages int) int {
+	if totalPages <= 0 {
+		return 0
+	}
+
+	remainder := totalPages % 4
+	if remainder == 0 {
+		return 0
+	}
+	return 4 - remainder
+}
+
+func renderPadPage(pdf *fpdf.Fpdf) {
+	pdf.AddPage()
+}
+
 func renderTitlePage(pdf *fpdf.Fpdf, docs []PackDocument, puzzles []Puzzle, cfg RenderConfig) {
 	pdf.AddPage()
 	pageW, pageH := pdf.GetPageSize()
@@ -82,14 +120,19 @@ func renderTitlePage(pdf *fpdf.Fpdf, docs []PackDocument, puzzles []Puzzle, cfg 
 	pdf.SetTextColor(20, 20, 20)
 	pdf.SetFont(sansFontFamily, "B", 22)
 	pdf.SetXY(0, 24)
-	pdf.CellFormat(pageW, 10, cfg.Title, "", 0, "C", false, 0, "")
+	pdf.CellFormat(pageW, 10, fmt.Sprintf("PuzzleTea Volume %02d", cfg.VolumeNumber), "", 0, "C", false, 0, "")
+
+	pdf.SetTextColor(50, 50, 50)
+	pdf.SetFont(coverFontFamily, "", 16)
+	pdf.SetXY(0, 35)
+	pdf.CellFormat(pageW, 8, cfg.CoverSubtitle, "", 0, "C", false, 0, "")
 
 	pdf.SetFont(sansFontFamily, "", 11)
 	pdf.SetTextColor(70, 70, 70)
-	pdf.SetXY(0, 36)
+	pdf.SetXY(0, 44)
 	pdf.CellFormat(pageW, 6, "PuzzleTea Puzzle Pack", "", 0, "C", false, 0, "")
 
-	metaY := 50.0
+	metaY := 56.0
 	pdf.SetTextColor(25, 25, 25)
 	pdf.SetFont(sansFontFamily, "", 10)
 	pdf.SetXY(margin, metaY)
@@ -205,6 +248,7 @@ func renderNonogramPage(pdf *fpdf.Fpdf, data *NonogramData) {
 	}
 
 	pageW, pageH := pdf.GetPageSize()
+	pageNo := pdf.PageNo()
 
 	rowHints := normalizeNonogramHintsForRender(data.RowHints, data.Height)
 	colHints := normalizeNonogramHintsForRender(data.ColHints, data.Width)
@@ -221,6 +265,7 @@ func renderNonogramPage(pdf *fpdf.Fpdf, data *NonogramData) {
 	layout := layoutNonogram(
 		pageW,
 		pageH,
+		pageNo,
 		data.Width,
 		data.Height,
 		rowHintCols,
@@ -267,10 +312,11 @@ func renderNonogramPage(pdf *fpdf.Fpdf, data *NonogramData) {
 
 	ruleY := ySep + gridH + 3.5
 	ruleY = instructionY(ruleY-3.5, pageH, 1)
+	body := puzzleBodyRect(pageW, pageH, pageNo)
 	setInstructionStyle(pdf)
-	pdf.SetXY(pageMarginXMM, ruleY)
+	pdf.SetXY(body.x, ruleY)
 	pdf.CellFormat(
-		pageW-2*pageMarginXMM,
+		body.w,
 		instructionLineHMM,
 		"Use row/column hints to fill blocks in order; groups are separated by at least one blank cell.",
 		"",
@@ -334,6 +380,7 @@ type nonogramLayout struct {
 func layoutNonogram(
 	pageW,
 	pageH float64,
+	pageNo,
 	gridCols,
 	gridRows,
 	rowHintCols,
@@ -341,7 +388,7 @@ func layoutNonogram(
 ) nonogramLayout {
 	totalCols := rowHintCols + gridCols
 	totalRows := colHintRows + gridRows
-	area := puzzleBoardRect(pageW, pageH, 1)
+	area := puzzleBoardRect(pageW, pageH, pageNo, 1)
 	cellSize := fitBoardCellSize(totalCols, totalRows, area, boardFamilyNonogram)
 	if cellSize <= 0 {
 		return nonogramLayout{}
@@ -382,7 +429,8 @@ func renderSudokuPage(pdf *fpdf.Fpdf, data *SudokuData) {
 	}
 
 	pageW, pageH := pdf.GetPageSize()
-	area := puzzleBoardRect(pageW, pageH, 1)
+	pageNo := pdf.PageNo()
+	area := puzzleBoardRect(pageW, pageH, pageNo, 1)
 	cellSize := fitBoardCellSize(9, 9, area, boardFamilySudoku)
 	if cellSize <= 0 {
 		return
@@ -396,9 +444,9 @@ func renderSudokuPage(pdf *fpdf.Fpdf, data *SudokuData) {
 
 	ruleY := instructionY(startY+boardH, pageH, 1)
 	setInstructionStyle(pdf)
-	pdf.SetXY(pageMarginXMM, ruleY)
+	pdf.SetXY(area.x, ruleY)
 	pdf.CellFormat(
-		pageW-2*pageMarginXMM,
+		area.w,
 		instructionLineHMM,
 		"Fill rows, columns, and 3x3 boxes with 1-9",
 		"",
@@ -463,7 +511,8 @@ func renderWordSearchPage(pdf *fpdf.Fpdf, data *WordSearchData) {
 	}
 
 	pageW, pageH := pdf.GetPageSize()
-	body := puzzleBodyRect(pageW, pageH)
+	pageNo := pdf.PageNo()
+	body := puzzleBodyRect(pageW, pageH, pageNo)
 	availW := body.w
 	availH := body.h
 
@@ -691,6 +740,7 @@ func renderGridTablePage(pdf *fpdf.Fpdf, table *GridTable) {
 	}
 
 	pageW, pageH := pdf.GetPageSize()
+	pageNo := pdf.PageNo()
 
 	rows := len(table.Rows)
 	cols := 0
@@ -703,7 +753,7 @@ func renderGridTablePage(pdf *fpdf.Fpdf, table *GridTable) {
 		return
 	}
 
-	area := puzzleBoardRect(pageW, pageH, 0)
+	area := puzzleBoardRect(pageW, pageH, pageNo, 0)
 	cellSize := fitBoardCellSize(cols, rows, area, boardFamilyTable)
 	if cellSize <= 0 {
 		return
@@ -754,7 +804,7 @@ func renderGridTablePage(pdf *fpdf.Fpdf, table *GridTable) {
 
 func renderFallbackPage(pdf *fpdf.Fpdf, puzzle Puzzle, pageH float64) {
 	pageW, _ := pdf.GetPageSize()
-	area := puzzleBoardRect(pageW, pageH, 0)
+	area := puzzleBoardRect(pageW, pageH, pdf.PageNo(), 0)
 	availW := area.w
 	availH := area.h
 

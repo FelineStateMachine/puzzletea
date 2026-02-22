@@ -14,10 +14,11 @@ func renderHashiPage(pdf *fpdf.Fpdf, data *HashiData) {
 	}
 
 	pageW, pageH := pdf.GetPageSize()
+	pageNo := pdf.PageNo()
 
 	spanX := max(data.Width-1, 1)
 	spanY := max(data.Height-1, 1)
-	area := puzzleBoardRect(pageW, pageH, 1)
+	area := puzzleBoardRect(pageW, pageH, pageNo, 1)
 	step := fitBoardCellSize(spanX, spanY, area, boardFamilyHashi)
 	if step <= 0 {
 		return
@@ -35,9 +36,9 @@ func renderHashiPage(pdf *fpdf.Fpdf, data *HashiData) {
 	// Add an explicit blank line before the Hashi hint text.
 	ruleY := instructionY(originY+boardH+instructionLineHMM, pageH, 1)
 	setInstructionStyle(pdf)
-	pdf.SetXY(pageMarginXMM, ruleY)
+	pdf.SetXY(area.x, ruleY)
 	pdf.CellFormat(
-		pageW-2*pageMarginXMM,
+		area.w,
 		instructionLineHMM,
 		"Connect islands horizontally/vertically with up to two bridges and no crossings.",
 		"",
