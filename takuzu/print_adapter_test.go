@@ -1,4 +1,4 @@
-package pdfexport
+package takuzu
 
 import "testing"
 
