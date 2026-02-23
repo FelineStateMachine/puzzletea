@@ -11,13 +11,10 @@ type testPrintAdapter struct {
 	aliases   []string
 }
 
-func (a testPrintAdapter) CanonicalGameType() string { return a.canonical }
-func (a testPrintAdapter) Aliases() []string         { return a.aliases }
-func (a testPrintAdapter) RenderMarkdownSnippet([]byte) (string, error) {
-	return "", nil
-}
-func (a testPrintAdapter) BuildPDFPayload([]byte, string) (any, error) { return nil, nil }
-func (a testPrintAdapter) RenderPDFBody(*fpdf.Fpdf, any) error         { return nil }
+func (a testPrintAdapter) CanonicalGameType() string           { return a.canonical }
+func (a testPrintAdapter) Aliases() []string                   { return a.aliases }
+func (a testPrintAdapter) BuildPDFPayload([]byte) (any, error) { return nil, nil }
+func (a testPrintAdapter) RenderPDFBody(*fpdf.Fpdf, any) error { return nil }
 
 func TestPrintAdapterRegistryLookupAndAliases(t *testing.T) {
 	original := printAdapterRegistry

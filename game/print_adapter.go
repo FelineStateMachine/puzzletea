@@ -10,8 +10,7 @@ import (
 type PrintAdapter interface {
 	CanonicalGameType() string
 	Aliases() []string
-	RenderMarkdownSnippet(save []byte) (string, error)
-	BuildPDFPayload(save []byte, snippet string) (any, error)
+	BuildPDFPayload(save []byte) (any, error)
 	RenderPDFBody(pdf *fpdf.Fpdf, payload any) error
 }
 

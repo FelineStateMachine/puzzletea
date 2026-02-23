@@ -40,12 +40,9 @@ type renderErrorTestAdapter struct {
 	category string
 }
 
-func (a renderErrorTestAdapter) CanonicalGameType() string { return a.category }
-func (a renderErrorTestAdapter) Aliases() []string         { return nil }
-func (a renderErrorTestAdapter) RenderMarkdownSnippet([]byte) (string, error) {
-	return "", nil
-}
-func (a renderErrorTestAdapter) BuildPDFPayload([]byte, string) (any, error) { return nil, nil }
+func (a renderErrorTestAdapter) CanonicalGameType() string           { return a.category }
+func (a renderErrorTestAdapter) Aliases() []string                   { return nil }
+func (a renderErrorTestAdapter) BuildPDFPayload([]byte) (any, error) { return nil, nil }
 func (a renderErrorTestAdapter) RenderPDFBody(*fpdf.Fpdf, any) error {
 	return errors.New("failed to render body")
 }

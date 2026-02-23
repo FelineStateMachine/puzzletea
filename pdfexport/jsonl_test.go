@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"sync"
 	"testing"
@@ -30,12 +29,7 @@ func TestParseJSONLFile(t *testing.T) {
 			Name:  "ember-newt",
 			Game:  "Nonogram",
 			Mode:  "Mini",
-			Save:  json.RawMessage(`{"width":2}`),
-			Snippet: "### Puzzle Grid with Integrated Hints\n\n" +
-				"| R1 | C1 | C2 |\n" +
-				"| --- | --- | --- |\n" +
-				"| . | 1 | 2 |\n" +
-				"| 1 | . | . |\n",
+			Save:  json.RawMessage(`{"width":2,"height":2,"row-hints":[[1],[1]],"col-hints":[[1],[1]],"state":"  \n  "}`),
 		},
 	}
 	writeSingleJSONLRecord(t, path, record)
@@ -49,7 +43,7 @@ func TestParseJSONLFile(t *testing.T) {
 	}
 	payload, ok := doc.Puzzles[0].PrintPayload.(*NonogramData)
 	if !ok || payload == nil {
-		t.Fatal("expected nonogram print payload from snippet fallback")
+		t.Fatal("expected nonogram print payload from save hydration")
 	}
 }
 
@@ -328,43 +322,8 @@ func TestParseJSONLFileHydratesHashiFromSave(t *testing.T) {
 	}
 }
 
-func TestParseJSONLFileIgnoresMalformedSnippetWhenSaveHydrated(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "sudoku-malformed-snippet.jsonl")
-	record := JSONLRecord{
-		Schema: ExportSchemaV1,
-		Pack: JSONLPackMeta{
-			Generated:     "2026-02-22T10:00:00Z",
-			Version:       "v-test",
-			Category:      "Sudoku",
-			ModeSelection: "Easy",
-			Count:         1,
-		},
-		Puzzle: JSONLPuzzle{
-			Index:   1,
-			Name:    "sage-briar",
-			Game:    "Sudoku",
-			Mode:    "Easy",
-			Save:    json.RawMessage(`{"provided":[{"x":0,"y":0,"v":5}]}`),
-			Snippet: "| bad |\n",
-		},
-	}
-	writeSingleJSONLRecord(t, path, record)
-
-	doc, err := ParseJSONLFile(path)
-	if err != nil {
-		t.Fatalf("expected lenient parse when save hydration succeeds, got: %v", err)
-	}
-	if got, want := len(doc.Puzzles), 1; got != want {
-		t.Fatalf("puzzles = %d, want %d", got, want)
-	}
-	payload, ok := doc.Puzzles[0].PrintPayload.(*SudokuData)
-	if !ok || payload == nil {
-		t.Fatal("expected sudoku print payload from save hydration")
-	}
-}
-
 func TestParseJSONLFileSilentlySkipsUnsupportedGame(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "lights-malformed-snippet.jsonl")
+	path := filepath.Join(t.TempDir(), "lights.jsonl")
 	record := JSONLRecord{
 		Schema: ExportSchemaV1,
 		Pack: JSONLPackMeta{
@@ -375,12 +334,11 @@ func TestParseJSONLFileSilentlySkipsUnsupportedGame(t *testing.T) {
 			Count:         1,
 		},
 		Puzzle: JSONLPuzzle{
-			Index:   1,
-			Name:    "glow-shore",
-			Game:    "Lights Out",
-			Mode:    "Standard",
-			Save:    json.RawMessage(`{"size":5}`),
-			Snippet: "| bad |\n",
+			Index: 1,
+			Name:  "glow-shore",
+			Game:  "Lights Out",
+			Mode:  "Standard",
+			Save:  json.RawMessage(`{"size":5}`),
 		},
 	}
 	writeSingleJSONLRecord(t, path, record)
@@ -413,7 +371,7 @@ func init() {
 
 func ensureJSONLTestAdapters() {
 	registerJSONLAdaptersOnce.Do(func() {
-		register := func(category string, build func(save []byte, snippet string) (any, error), aliases ...string) {
+		register := func(category string, build func(save []byte) (any, error), aliases ...string) {
 			game.RegisterPrintAdapter(jsonlTestAdapter{
 				category: category,
 				aliases:  aliases,
@@ -445,56 +403,19 @@ func ensureJSONLTestAdapters() {
 	})
 }
 
-func buildPayloadAdapter(category string, parse func(save []byte) (any, error)) func([]byte, string) (any, error) {
-	return func(save []byte, snippet string) (any, error) {
-		payload, err := parse(save)
-		if err != nil {
-			return nil, err
-		}
-		if !isNilAny(payload) {
-			return payload, nil
-		}
-		if strings.TrimSpace(snippet) == "" {
-			return nil, nil
-		}
-
-		nonogram, table, err := ParsePrintableFromSnippet(category, snippet)
-		if err != nil {
-			return nil, err
-		}
-		if nonogram != nil {
-			return nonogram, nil
-		}
-		return table, nil
-	}
-}
-
-func isNilAny(v any) bool {
-	if v == nil {
-		return true
-	}
-	rv := reflect.ValueOf(v)
-	switch rv.Kind() {
-	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
-		return rv.IsNil()
-	default:
-		return false
-	}
+func buildPayloadAdapter(_ string, parse func(save []byte) (any, error)) func([]byte) (any, error) {
+	return parse
 }
 
 type jsonlTestAdapter struct {
 	category string
 	aliases  []string
-	build    func(save []byte, snippet string) (any, error)
+	build    func(save []byte) (any, error)
 }
 
 func (a jsonlTestAdapter) CanonicalGameType() string { return a.category }
 func (a jsonlTestAdapter) Aliases() []string         { return a.aliases }
-func (a jsonlTestAdapter) RenderMarkdownSnippet([]byte) (string, error) {
-	return "", nil
-}
-
-func (a jsonlTestAdapter) BuildPDFPayload(save []byte, snippet string) (any, error) {
-	return a.build(save, snippet)
+func (a jsonlTestAdapter) BuildPDFPayload(save []byte) (any, error) {
+	return a.build(save)
 }
 func (a jsonlTestAdapter) RenderPDFBody(*fpdf.Fpdf, any) error { return nil }

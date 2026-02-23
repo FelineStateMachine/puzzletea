@@ -29,12 +29,11 @@ type JSONLPackMeta struct {
 }
 
 type JSONLPuzzle struct {
-	Index   int             `json:"index"`
-	Name    string          `json:"name"`
-	Game    string          `json:"game"`
-	Mode    string          `json:"mode"`
-	Save    json.RawMessage `json:"save"`
-	Snippet string          `json:"snippet,omitempty"`
+	Index int             `json:"index"`
+	Name  string          `json:"name"`
+	Game  string          `json:"game"`
+	Mode  string          `json:"mode"`
+	Save  json.RawMessage `json:"save"`
 }
 
 func ParseJSONLFiles(paths []string) ([]PackDocument, error) {
@@ -111,7 +110,6 @@ func ParseJSONLFile(path string) (PackDocument, error) {
 			ModeSelection:  mode,
 			Name:           record.Puzzle.Name,
 			Index:          record.Puzzle.Index,
-			Body:           record.Puzzle.Snippet,
 			SaveData:       append([]byte(nil), record.Puzzle.Save...),
 		}
 
@@ -119,7 +117,7 @@ func ParseJSONLFile(path string) (PackDocument, error) {
 		if !ok {
 			continue
 		}
-		payload, err := adapter.BuildPDFPayload(p.SaveData, record.Puzzle.Snippet)
+		payload, err := adapter.BuildPDFPayload(p.SaveData)
 		if err != nil {
 			return PackDocument{}, fmt.Errorf("%s:%d: build print payload: %w", path, lineNo, err)
 		}
@@ -142,21 +140,4 @@ func ParseJSONLFile(path string) (PackDocument, error) {
 	}
 	doc.Puzzles = puzzles
 	return doc, nil
-}
-
-func ParsePrintableFromSnippet(category, snippet string) (*NonogramData, *GridTable, error) {
-	lines := strings.Split(strings.ReplaceAll(strings.ReplaceAll(snippet, "\r\n", "\n"), "\r", "\n"), "\n")
-	if strings.EqualFold(strings.TrimSpace(category), "nonogram") {
-		nonogram, err := parseNonogramBody(lines, "snippet", 1)
-		if err != nil {
-			return nil, nil, err
-		}
-		return nonogram, nil, nil
-	}
-
-	table, err := parseGridTableBody(lines, "snippet", 1)
-	if err != nil {
-		return nil, nil, err
-	}
-	return nil, table, nil
 }
