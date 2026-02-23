@@ -1,6 +1,6 @@
 # AGENTS.md - PuzzleTea Development Guide
 
-## Build, Test, and Quality Commands
+## Commands
 
 ### Build & Run
 ```bash
@@ -35,51 +35,86 @@ just fmt          # gofumpt -w .
 just tidy         # go mod tidy
 ```
 
-**Always run `just fmt` and `just lint` before committing.**
+Always run `just fmt` and `just lint` before committing.
 
 Enabled linters (`.golangci.yml`): errcheck, gofumpt (extra-rules), gosimple, govet, ineffassign, misspell (US locale), staticcheck, unused.
 
 ---
 
-## Project Structure
+## Architecture
+
+PuzzleTea is a terminal puzzle game collection built with Go using the **Bubble Tea TUI framework** (Elm architecture: Model-Update-View).
+
+### Technology Stack
+- **TUI**: Bubble Tea v2 (`charm.land/bubbletea/v2`, always aliased as `tea`) + Bubbles + Lip Gloss
+- **CLI**: Cobra
+- **PDF generation**: go-pdf/fpdf (half-letter size: 139.7mm × 215.9mm)
+- **Persistence**: SQLite (`~/.puzzletea/history.db`)
+
+### Control Flow
 ```
-puzzletea/
-├── main.go             # Entry point: wires cmd package
-├── app/                # Root TUI model (Elm architecture)
-│   ├── model.go, update.go, view.go, keys.go, spawn.go, debug.go
-├── cmd/                # CLI commands (Cobra)
-│   ├── root.go, new.go, continue.go, list.go
-├── config/             # Persistent JSON config (~/.puzzletea/config.json)
-├── theme/              # Color theming (WCAG-compliant palettes, contrast utils)
-├── stats/              # XP/level math, streaks, card rendering
-├── game/               # Plugin interfaces, cursor, keys, style, border helpers
-├── store/              # SQLite persistence (~/.puzzletea/history.db)
-├── ui/                 # Shared UI: menu list, main menu, table, panel, styles
-├── daily/              # Daily puzzle seeding, RNG, mode selection
-├── resolve/            # CLI argument resolution (category/mode name matching)
-├── namegen/            # Adjective-noun name generator
-├── hashiwokakero/, hitori/, lightsout/, nonogram/
-├── shikaku/, sudoku/, takuzu/, wordsearch/  # Puzzle game packages
-└── vhs/                # VHS tape files for GIF previews
+main() → cmd.RootCmd (Cobra)
+  ├─ Default: Launch TUI (app.InitialModel → Elm loop)
+  ├─ --new / --continue / --set-seed: direct game launch
+  └─ Subcommands: new, continue, list, export-pdf
 ```
 
-Each puzzle package follows a consistent file structure:
+### Key Packages
+
+| Package | Role |
+|---------|------|
+| `app/` | Root TUI model; 9 puzzle categories wired at startup |
+| `cmd/` | Cobra CLI commands including `export-pdf` |
+| `game/` | Plugin interfaces (`Gamer`, `Mode`, `Spawner`, `PrintAdapter`), registry |
+| `pdfexport/` | PDF pipeline: JSONL parsing → per-game rendering → cover art |
+| `store/` | SQLite persistence |
+| `theme/` | 365 WCAG-compliant color themes |
+| `stats/` | XP/level/streak system |
+| `config/` | Persistent JSON config (`~/.puzzletea/config.json`) |
+| `resolve/` | CLI argument matching for game/mode names |
+| `daily/` | Deterministic daily puzzle seeding |
+| `ui/` | Shared TUI components (menus, tables, panels) |
+
+### Puzzle Packages
+Eight printable games: `nonogram`, `sudoku`, `nurikabe`, `shikaku`, `wordsearch`, `hashiwokakero`, `hitori`, `takuzu`. One game without PDF export: `lightsout`.
+
+Each puzzle package exposes: `Modes`, `DailyModes`, `HelpContent`, `NewMode(...)`, `New(...)`, `ImportModel([]byte)`, `DefaultKeyMap`, and registers itself via `init()` in `Gamemode.go`.
+
+### Plugin Registration
+```go
+// In Gamemode.go init():
+game.Register("Nonogram", func(data []byte) (game.Gamer, error) {
+    return ImportModel(data)
+})
+// Optional PDF export registration:
+game.RegisterPrintAdapter(adapter)
+```
+
+### PDF Export Pipeline
+```
+export-pdf command
+  → ParseJSONLFiles()                  # parse schema puzzletea.export.v1
+  → adapter.BuildPDFPayload()          # game-specific save → typed struct
+  → pdfexport.OrderPuzzlesForPrint()   # difficulty-based ordering
+  → pdfexport.WritePDF()               # cover + title pages + puzzle bodies + back
+```
+
+### File Layout per Puzzle Package
 - **Capitalized**: `Model.go`, `Gamemode.go`, `Export.go`
 - **Lowercase**: `grid.go`, `keys.go`, `style.go`, `generator.go`, `mouse.go`, `<game>_test.go`
 - **Docs**: `help.md` (embedded via `//go:embed`), `README.md`
 
 ---
 
-## Code Style Guidelines
+## Code Style
 
 ### Formatting
-- Use `gofumpt` (stricter than gofmt, extra-rules enabled) -- run `just fmt`
-- No comments required unless explaining non-obvious logic
+- Use `gofumpt` (stricter than gofmt, extra-rules enabled) — run `just fmt`
 - Keep lines under ~100 characters
 - US English spelling enforced by misspell linter
 
 ### Imports
-Two groups separated by a blank line: stdlib, then everything else (internal + external sorted together). When there are many internal imports, a third group separating internal from external is acceptable.
+Two groups: stdlib, then everything else (internal + external sorted together). Three groups acceptable when there are many internal imports.
 ```go
 import (
     "errors"
@@ -91,9 +126,8 @@ import (
     "charm.land/lipgloss/v2"
 )
 ```
-Note: always alias bubbletea as `tea`.
 
-### Naming Conventions
+### Naming
 - **Types**: PascalCase (`Model`, `NonogramMode`, `Entry`)
 - **Unexported types**: camelCase or lowercase (`grid`, `state`, `menuItem`)
 - **Variables/Fields**: camelCase (`rowHints`, `currentHints`)
@@ -103,8 +137,7 @@ Note: always alias bubbletea as `tea`.
 ### Type Declarations
 Prefer grouped type blocks: `type ( grid [][]rune; state string )`
 
-### Interface Compliance
-Use compile-time checks in grouped var blocks:
+### Interface Compliance (compile-time checks)
 ```go
 var (
     _ game.Mode          = NonogramMode{}
@@ -113,56 +146,11 @@ var (
 )
 ```
 
-### Error Handling
-- Return descriptive errors: `errors.New("puzzle width does not support row tomography definition")`
-- Check errors immediately; use `fmt.Errorf` with `%w` only when wrapping adds context
-- No assertion libraries in tests -- use `t.Errorf` / `t.Fatalf` only
-
 ### Styling
-Use the `theme` package for colors (`theme.Current().Accent`, etc.) and `game/style.go` shared accessors (`CursorFG()`, `CursorBG()`, `ConflictFG()`). Use `compat.AdaptiveColor` from `charm.land/lipgloss/v2/compat` for adaptive light/dark colors.
+Use `theme.Current().Accent` etc. from the `theme` package, and `game/style.go` shared accessors (`CursorFG()`, `CursorBG()`, `ConflictFG()`). Use `compat.AdaptiveColor` from `charm.land/lipgloss/v2/compat` for adaptive colors.
 
----
-
-## Plugin Architecture
-
-### Gamer Interface (game/gamer.go)
-Every puzzle `Model` must implement:
-```go
-type Gamer interface {
-    Init() tea.Cmd
-    Update(msg tea.Msg) (Gamer, tea.Cmd)
-    View() string
-    GetDebugInfo() string
-    GetFullHelp() [][]key.Binding
-    GetSave() ([]byte, error)
-    IsSolved() bool
-    Reset() Gamer
-    SetTitle(string) Gamer
-}
-```
-
-### Mode/Spawner Interfaces
-```go
-type Spawner interface { Spawn() (Gamer, error) }
-type SeededSpawner interface {
-    Spawner
-    SpawnSeeded(rng *rand.Rand) (Gamer, error)
-}
-```
-
-Every mode type embeds `game.BaseMode` via `game.NewBaseMode(title, description)`.
-
-### Puzzle Package Exports
-Every puzzle package exports: `Modes`, `DailyModes` (`[]list.Item`), `HelpContent` (`string`, from `//go:embed help.md`), `NewMode(...)`, `New(...)`, `ImportModel([]byte) (*Model, error)`, and `DefaultKeyMap`.
-
-Each package registers itself via `init()` in `Gamemode.go`:
-```go
-func init() {
-    game.Register("Nonogram", func(data []byte) (game.Gamer, error) {
-        return ImportModel(data)
-    })
-}
-```
+### Error Handling
+Return descriptive errors; use `fmt.Errorf` with `%w` only when wrapping adds context. No assertion libraries in tests — use `t.Errorf`/`t.Fatalf` only.
 
 ---
 
@@ -170,10 +158,10 @@ func init() {
 
 ### Section Comments with Priority
 ```go
-// --- generateTomography (P0) ---     // P0 = critical
-// --- Grid serialization (P1) ---     // P1 = important
-// --- generateRandomState (P2) ---    // P2 = generators/slow
-// --- TitleBarView (P3) ---           // P3 = low-priority UI
+// --- generateTomography (P0) ---   // P0 = critical
+// --- Grid serialization (P1) ---   // P1 = important
+// --- generateRandomState (P2) ---  // P2 = generators/slow
+// --- TitleBarView (P3) ---         // P3 = low-priority UI
 ```
 
 ### Table-Driven Tests with Subtests
@@ -188,9 +176,16 @@ func TestGenerateTomography(t *testing.T) {
     }
     for _, tt := range tests {
         t.Run(tt.name, func(t *testing.T) {
-            // test logic using t.Errorf / t.Fatalf only (no assertion libraries)
+            // test logic using t.Errorf / t.Fatalf only
         })
     }
+}
+```
+
+### Slow Test Gating
+```go
+if testing.Short() {
+    t.Skip("skipping slow generator test in short mode")
 }
 ```
 
@@ -203,14 +198,25 @@ if err != nil { t.Fatal(err) }
 // verify state preserved
 ```
 
-### Slow Test Gating
+---
+
+## Gamer Interface
+Every puzzle `Model` must implement (from `game/gamer.go`):
 ```go
-if testing.Short() {
-	t.Skip("skipping slow generator test in short mode")
+type Gamer interface {
+    Init() tea.Cmd
+    Update(msg tea.Msg) (Gamer, tea.Cmd)
+    View() string
+    GetDebugInfo() string
+    GetFullHelp() [][]key.Binding
+    GetSave() ([]byte, error)
+    IsSolved() bool
+    Reset() Gamer
+    SetTitle(string) Gamer
 }
 ```
 
----
+Every mode type embeds `game.BaseMode` via `game.NewBaseMode(title, description)`.
 
 ## Global Keybindings
-`Ctrl+N` Main menu | `Ctrl+C` Quit (saves abandoned) | `Ctrl+E` Debug overlay | `Ctrl+H` Full help | `Ctrl+R` Reset puzzle | `Enter` Select | `Escape` Back
+`Ctrl+N` Main menu | `Ctrl+C` Quit | `Ctrl+E` Debug overlay | `Ctrl+H` Full help | `Ctrl+R` Reset puzzle | `Enter` Select | `Escape` Back
