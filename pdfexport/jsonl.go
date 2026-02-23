@@ -114,7 +114,7 @@ func ParseJSONLFile(path string) (PackDocument, error) {
 		}
 		hydratePuzzlePrintData(&p)
 
-		if p.Nonogram == nil && p.Table == nil && strings.TrimSpace(record.Puzzle.Snippet) != "" {
+		if !hasRenderablePrintData(p) && strings.TrimSpace(record.Puzzle.Snippet) != "" {
 			nonogram, table, err := ParsePrintableFromSnippet(category, record.Puzzle.Snippet)
 			if err != nil {
 				return PackDocument{}, fmt.Errorf("%s:%d: parse printable snippet: %w", path, lineNo, err)
@@ -158,4 +158,16 @@ func ParsePrintableFromSnippet(category, snippet string) (*NonogramData, *GridTa
 		return nil, nil, err
 	}
 	return nil, table, nil
+}
+
+func hasRenderablePrintData(p Puzzle) bool {
+	return p.Nonogram != nil ||
+		p.Nurikabe != nil ||
+		p.Shikaku != nil ||
+		p.Hashi != nil ||
+		p.Hitori != nil ||
+		p.Takuzu != nil ||
+		p.Sudoku != nil ||
+		p.WordSearch != nil ||
+		p.Table != nil
 }

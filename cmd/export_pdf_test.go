@@ -53,6 +53,7 @@ func TestBuildRenderConfigForPDFUsesTitleAsCoverSubtitle(t *testing.T) {
 	defer reset()
 
 	flagPDFTitle = "Catacombs & Pines"
+	flagPDFHeader = "Custom heading paragraph"
 	flagPDFVolume = 7
 	flagPDFAdvert = "Custom advert"
 	flagPDFCoverColor = ""
@@ -68,6 +69,9 @@ func TestBuildRenderConfigForPDFUsesTitleAsCoverSubtitle(t *testing.T) {
 	}
 	if cfg.VolumeNumber != 7 {
 		t.Fatalf("VolumeNumber = %d, want %d", cfg.VolumeNumber, 7)
+	}
+	if cfg.HeaderText != "Custom heading paragraph" {
+		t.Fatalf("HeaderText = %q, want %q", cfg.HeaderText, "Custom heading paragraph")
 	}
 	if cfg.AdvertText != "Custom advert" {
 		t.Fatalf("AdvertText = %q, want %q", cfg.AdvertText, "Custom advert")
@@ -98,6 +102,7 @@ func TestBuildRenderConfigForPDFDefaultsSubtitleFromDocs(t *testing.T) {
 
 func snapshotExportPDFFlags() func() {
 	oldTitle := flagPDFTitle
+	oldHeader := flagPDFHeader
 	oldVolume := flagPDFVolume
 	oldAdvert := flagPDFAdvert
 	oldCoverColor := flagPDFCoverColor
@@ -106,6 +111,7 @@ func snapshotExportPDFFlags() func() {
 
 	return func() {
 		flagPDFTitle = oldTitle
+		flagPDFHeader = oldHeader
 		flagPDFVolume = oldVolume
 		flagPDFAdvert = oldAdvert
 		flagPDFCoverColor = oldCoverColor

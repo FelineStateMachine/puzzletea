@@ -17,6 +17,7 @@ import (
 var (
 	flagPDFOutput      string
 	flagPDFTitle       string
+	flagPDFHeader      string
 	flagPDFVolume      int
 	flagPDFAdvert      string
 	flagPDFShuffleSeed string
@@ -34,6 +35,7 @@ var exportPDFCmd = &cobra.Command{
 func init() {
 	exportPDFCmd.Flags().StringVarP(&flagPDFOutput, "output", "o", "", "write output PDF path (defaults to <first-input>-print.pdf)")
 	exportPDFCmd.Flags().StringVar(&flagPDFTitle, "title", "", "subtitle shown on the cover")
+	exportPDFCmd.Flags().StringVar(&flagPDFHeader, "header", "", "optional intro paragraph shown on the title page under 'PuzzleTea Puzzle Pack'")
 	exportPDFCmd.Flags().IntVar(&flagPDFVolume, "volume", 1, "volume number shown on the cover (must be >= 1)")
 	exportPDFCmd.Flags().StringVar(&flagPDFAdvert, "advert", "Find more puzzles at github.com/FelineStateMachine/puzzletea", "advert text shown on the title page")
 	exportPDFCmd.Flags().StringVar(&flagPDFShuffleSeed, "shuffle-seed", "", "seed for deterministic within-band difficulty mixing")
@@ -123,6 +125,7 @@ func buildRenderConfigForPDF(docs []pdfexport.PackDocument, shuffleSeed string, 
 
 	cfg := pdfexport.RenderConfig{
 		CoverSubtitle: subtitle,
+		HeaderText:    strings.TrimSpace(flagPDFHeader),
 		VolumeNumber:  flagPDFVolume,
 		AdvertText:    flagPDFAdvert,
 		GeneratedAt:   now,

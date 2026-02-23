@@ -115,6 +115,7 @@ type RGB struct{ R, G, B uint8 }
 type RenderConfig struct {
 	Title         string
 	CoverSubtitle string
+	HeaderText    string
 	VolumeNumber  int
 	AdvertText    string
 	GeneratedAt   time.Time

@@ -2,6 +2,39 @@ package pdfexport
 
 import "testing"
 
+func TestParseNonogramPrintData(t *testing.T) {
+	save := []byte(`{"state":" .-\n.. ","row-hints":[[1],[2]],"col-hints":[[2],[1],[1]]}`)
+
+	data, err := ParseNonogramPrintData(save)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if data == nil {
+		t.Fatal("expected nonogram print data")
+	}
+	if got, want := data.Width, 3; got != want {
+		t.Fatalf("width = %d, want %d", got, want)
+	}
+	if got, want := data.Height, 2; got != want {
+		t.Fatalf("height = %d, want %d", got, want)
+	}
+	if got, want := data.RowHints[0][0], 1; got != want {
+		t.Fatalf("row hint[0][0] = %d, want %d", got, want)
+	}
+	if got, want := data.ColHints[0][0], 2; got != want {
+		t.Fatalf("col hint[0][0] = %d, want %d", got, want)
+	}
+	if got, want := data.Grid[0][0], " "; got != want {
+		t.Fatalf("grid[0][0] = %q, want %q", got, want)
+	}
+	if got, want := data.Grid[0][1], "."; got != want {
+		t.Fatalf("grid[0][1] = %q, want %q", got, want)
+	}
+	if got, want := data.Grid[0][2], "-"; got != want {
+		t.Fatalf("grid[0][2] = %q, want %q", got, want)
+	}
+}
+
 func TestParseNurikabePrintData(t *testing.T) {
 	save := []byte(`{"width":3,"height":2,"clues":"1,0,2\n0,3,0","marks":"???\n???"}`)
 
@@ -164,6 +197,24 @@ func TestHydratePuzzlePrintDataForTakuzu(t *testing.T) {
 	}
 	if got, want := p.Takuzu.Givens[1][1], ""; got != want {
 		t.Fatalf("row 1 col 1 = %q, want empty", got)
+	}
+}
+
+func TestHydratePuzzlePrintDataForNonogram(t *testing.T) {
+	p := Puzzle{
+		Category: "Nonogram",
+		SaveData: []byte(`{"width":2,"height":2,"row-hints":[[1],[1]],"col-hints":[[1],[1]],"state":"  \n  "}`),
+	}
+
+	hydratePuzzlePrintData(&p)
+	if p.Nonogram == nil {
+		t.Fatal("expected nonogram payload from save hydration")
+	}
+	if got, want := p.Nonogram.Width, 2; got != want {
+		t.Fatalf("width = %d, want %d", got, want)
+	}
+	if got, want := p.Nonogram.Height, 2; got != want {
+		t.Fatalf("height = %d, want %d", got, want)
 	}
 }
 

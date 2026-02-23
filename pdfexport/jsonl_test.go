@@ -47,6 +47,39 @@ func TestParseJSONLFile(t *testing.T) {
 	}
 }
 
+func TestParseJSONLFileHydratesNonogramFromSaveWithoutSnippet(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "nonogram-save-only.jsonl")
+	record := JSONLRecord{
+		Schema: ExportSchemaV1,
+		Pack: JSONLPackMeta{
+			Generated:     "2026-02-22T10:00:00Z",
+			Version:       "v-test",
+			Category:      "Nonogram",
+			ModeSelection: "Mini",
+			Count:         1,
+		},
+		Puzzle: JSONLPuzzle{
+			Index: 1,
+			Name:  "fern-owl",
+			Game:  "Nonogram",
+			Mode:  "Mini",
+			Save:  json.RawMessage(`{"width":2,"height":2,"row-hints":[[1],[1]],"col-hints":[[1],[1]],"state":"  \n  "}`),
+		},
+	}
+	writeSingleJSONLRecord(t, path, record)
+
+	doc, err := ParseJSONLFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := len(doc.Puzzles), 1; got != want {
+		t.Fatalf("puzzles = %d, want %d", got, want)
+	}
+	if doc.Puzzles[0].Nonogram == nil {
+		t.Fatal("expected nonogram print payload from save hydration")
+	}
+}
+
 func TestParseJSONLFileRejectsNonJSONLExtension(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "pack.md")
 	if err := os.WriteFile(path, []byte("x"), 0o644); err != nil {
@@ -279,6 +312,71 @@ func TestParseJSONLFileHydratesHashiFromSave(t *testing.T) {
 	}
 	if got, want := len(doc.Puzzles[0].Hashi.Islands), 2; got != want {
 		t.Fatalf("hashi island count = %d, want %d", got, want)
+	}
+}
+
+func TestParseJSONLFileIgnoresMalformedSnippetWhenSaveHydrated(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "sudoku-malformed-snippet.jsonl")
+	record := JSONLRecord{
+		Schema: ExportSchemaV1,
+		Pack: JSONLPackMeta{
+			Generated:     "2026-02-22T10:00:00Z",
+			Version:       "v-test",
+			Category:      "Sudoku",
+			ModeSelection: "Easy",
+			Count:         1,
+		},
+		Puzzle: JSONLPuzzle{
+			Index:   1,
+			Name:    "sage-briar",
+			Game:    "Sudoku",
+			Mode:    "Easy",
+			Save:    json.RawMessage(`{"provided":[{"x":0,"y":0,"v":5}]}`),
+			Snippet: "| bad |\n",
+		},
+	}
+	writeSingleJSONLRecord(t, path, record)
+
+	doc, err := ParseJSONLFile(path)
+	if err != nil {
+		t.Fatalf("expected lenient parse when save hydration succeeds, got: %v", err)
+	}
+	if got, want := len(doc.Puzzles), 1; got != want {
+		t.Fatalf("puzzles = %d, want %d", got, want)
+	}
+	if doc.Puzzles[0].Sudoku == nil {
+		t.Fatal("expected sudoku print payload from save hydration")
+	}
+}
+
+func TestParseJSONLFileFailsMalformedSnippetWithoutRenderablePayload(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "lights-malformed-snippet.jsonl")
+	record := JSONLRecord{
+		Schema: ExportSchemaV1,
+		Pack: JSONLPackMeta{
+			Generated:     "2026-02-22T10:00:00Z",
+			Version:       "v-test",
+			Category:      "Lights Out",
+			ModeSelection: "Standard",
+			Count:         1,
+		},
+		Puzzle: JSONLPuzzle{
+			Index:   1,
+			Name:    "glow-shore",
+			Game:    "Lights Out",
+			Mode:    "Standard",
+			Save:    json.RawMessage(`{"size":5}`),
+			Snippet: "| bad |\n",
+		},
+	}
+	writeSingleJSONLRecord(t, path, record)
+
+	_, err := ParseJSONLFile(path)
+	if err == nil {
+		t.Fatal("expected parse error when neither save nor snippet produces renderable payload")
+	}
+	if !strings.Contains(err.Error(), "parse printable snippet") {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
