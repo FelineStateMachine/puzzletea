@@ -74,7 +74,9 @@ func WritePDF(outputPath string, docs []PackDocument, puzzles []Puzzle, cfg Rend
 	renderCoverPage(pdf, printablePuzzles, cfg)
 	renderTitlePage(pdf, docs, printablePuzzles, cfg)
 	for _, puzzle := range printablePuzzles {
-		renderPuzzlePage(pdf, puzzle)
+		if err := renderPuzzlePage(pdf, puzzle); err != nil {
+			return fmt.Errorf("render puzzle %q (%s #%d): %w", puzzle.Name, puzzle.Category, puzzle.Index, err)
+		}
 	}
 
 	totalPagesWithoutPadding := pdf.PageNo() + 1 // include upcoming back cover
@@ -255,13 +257,13 @@ func titlePageSourceTableWhitespace(maxY, sourceStartY float64, docCount int) fl
 	return 0
 }
 
-func renderPuzzlePage(pdf *fpdf.Fpdf, puzzle Puzzle) {
+func renderPuzzlePage(pdf *fpdf.Fpdf, puzzle Puzzle) error {
 	if game.IsNilPrintPayload(puzzle.PrintPayload) {
-		return
+		return nil
 	}
 	adapter, ok := game.LookupPrintAdapter(puzzle.Category)
 	if !ok {
-		return
+		return nil
 	}
 
 	pdf.AddPage()
@@ -280,7 +282,10 @@ func renderPuzzlePage(pdf *fpdf.Fpdf, puzzle Puzzle) {
 	}
 	subtitle := strings.Join(subtitleParts, " | ")
 	pdf.CellFormat(pageW, 5, subtitle, "", 0, "C", false, 0, "")
-	_ = adapter.RenderPDFBody(pdf, puzzle.PrintPayload)
+	if err := adapter.RenderPDFBody(pdf, puzzle.PrintPayload); err != nil {
+		return err
+	}
+	return nil
 }
 
 func renderNonogramPage(pdf *fpdf.Fpdf, data *NonogramData) {
