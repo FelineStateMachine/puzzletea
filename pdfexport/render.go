@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"codeberg.org/go-pdf/fpdf"
 	"github.com/FelineStateMachine/puzzletea/game"
-	"github.com/go-pdf/fpdf"
 )
 
 func WritePDF(outputPath string, docs []PackDocument, puzzles []Puzzle, cfg RenderConfig) error {

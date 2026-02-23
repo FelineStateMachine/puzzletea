@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"unicode/utf8"
 
-	"github.com/go-pdf/fpdf"
+	"codeberg.org/go-pdf/fpdf"
 )
 
 func renderNurikabePage(pdf *fpdf.Fpdf, data *NurikabeData) {

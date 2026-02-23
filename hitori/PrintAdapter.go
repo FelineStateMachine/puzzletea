@@ -1,9 +1,9 @@
 package hitori
 
 import (
+	"codeberg.org/go-pdf/fpdf"
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/pdfexport"
-	"github.com/go-pdf/fpdf"
 )
 
 type printAdapter struct{}

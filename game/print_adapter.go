@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/go-pdf/fpdf"
+	"codeberg.org/go-pdf/fpdf"
 )
 
 type PrintAdapter interface {

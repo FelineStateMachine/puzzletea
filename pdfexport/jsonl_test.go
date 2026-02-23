@@ -8,8 +8,8 @@ import (
 	"sync"
 	"testing"
 
+	"codeberg.org/go-pdf/fpdf"
 	"github.com/FelineStateMachine/puzzletea/game"
-	"github.com/go-pdf/fpdf"
 )
 
 func TestParseJSONLFile(t *testing.T) {

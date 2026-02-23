@@ -3,7 +3,7 @@ package pdfexport
 import (
 	"math"
 
-	"github.com/go-pdf/fpdf"
+	"codeberg.org/go-pdf/fpdf"
 )
 
 const (

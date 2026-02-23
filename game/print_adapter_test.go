@@ -3,7 +3,7 @@ package game
 import (
 	"testing"
 
-	"github.com/go-pdf/fpdf"
+	"codeberg.org/go-pdf/fpdf"
 )
 
 type testPrintAdapter struct {

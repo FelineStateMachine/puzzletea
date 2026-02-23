@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-pdf/fpdf"
+	"codeberg.org/go-pdf/fpdf"
 )
 
 type coverVec2 struct {

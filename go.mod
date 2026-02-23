@@ -6,7 +6,7 @@ require (
 	charm.land/bubbles/v2 v2.0.0-rc.1
 	charm.land/bubbletea/v2 v2.0.0-rc.2
 	charm.land/lipgloss/v2 v2.0.0-beta.3.0.20260212100304-e18737634dea
-	github.com/go-pdf/fpdf v0.9.0
+	codeberg.org/go-pdf/fpdf v0.11.1
 	github.com/spf13/cobra v1.10.2
 	modernc.org/sqlite v1.44.3
 )

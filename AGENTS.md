@@ -4,20 +4,49 @@
 
 ### Build & Run
 ```bash
-just              # build with version from git tags
+just              # default: build with version from git tags
+just build        # explicit build recipe
 just run          # build and run
 just install      # install to $GOPATH/bin
 just clean        # remove binary and dist/
+just vhs          # regenerate all GIF previews under vhs/
 ```
 Without `just`: `go build -ldflags "-X github.com/FelineStateMachine/puzzletea/cmd.Version=$(git describe --tags --always --dirty)" -o puzzletea`
 
-### CLI Seed Flags
+### CLI Play Workflows
+```bash
+puzzletea                         # launch interactive menu
+puzzletea new nonogram medium     # start game directly
+puzzletea continue amber-falcon   # resume by save name
+puzzletea list                    # list non-abandoned saves
+puzzletea list --all              # include abandoned saves
+```
+
+Root flag shortcuts are supported:
+```bash
+puzzletea --new nonogram:medium
+puzzletea --continue amber-falcon
+puzzletea --set-seed issue-01
+puzzletea --theme "Catppuccin Mocha"
+```
+
+### CLI Seed & Export Workflows
 ```bash
 puzzletea new --set-seed myseed              # deterministic game/mode/puzzle selection
 puzzletea new nonogram epic --with-seed s1   # deterministic puzzle in selected game/mode
+puzzletea new nonogram mini --export 6 -o nonogram-mini.jsonl
+puzzletea new sudoku --export 10 --with-seed z1 -o sudoku-pack.jsonl
+puzzletea export-pdf nonogram-mini.jsonl -o issue-01.pdf --shuffle-seed issue-01
 ```
 - `--set-seed` cannot be combined with positional game/mode arguments.
+- `--set-seed` cannot be combined with root `--new`/`--continue`.
+- `--set-seed` cannot be combined with export flags (`--export` / `--output`).
 - `--with-seed` is used with explicit game/mode arguments for mode-local reproducibility.
+- `new --export` requires a game arg; `--output` must end with `.jsonl` (stdout if omitted).
+- `export-pdf` accepts one or more JSONL files; default output is `<first-input>-print.pdf`.
+- `export-pdf --output` must end with `.pdf`; `--volume` must be `>= 1`.
+- `export-pdf` supports `--title`, `--header`, `--advert`, `--shuffle-seed`, and `--cover-color`.
+- `lightsout` has no print adapter, so `new lightsout --export ...` currently produces no records.
 
 ### Testing
 ```bash

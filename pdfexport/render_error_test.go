@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"codeberg.org/go-pdf/fpdf"
 	"github.com/FelineStateMachine/puzzletea/game"
-	"github.com/go-pdf/fpdf"
 )
 
 func TestWritePDFReturnsAdapterRenderError(t *testing.T) {

@@ -1,6 +1,6 @@
 package pdfexport
 
-import "github.com/go-pdf/fpdf"
+import "codeberg.org/go-pdf/fpdf"
 
 func RenderNonogramPage(pdf *fpdf.Fpdf, data *NonogramData) {
 	renderNonogramPage(pdf, data)
