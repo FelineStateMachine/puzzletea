@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/FelineStateMachine/puzzletea/game"
 )
 
 const ExportSchemaV1 = "puzzletea.export.v1"
@@ -112,16 +114,19 @@ func ParseJSONLFile(path string) (PackDocument, error) {
 			Body:           record.Puzzle.Snippet,
 			SaveData:       append([]byte(nil), record.Puzzle.Save...),
 		}
-		hydratePuzzlePrintData(&p)
 
-		if !hasRenderablePrintData(p) && strings.TrimSpace(record.Puzzle.Snippet) != "" {
-			nonogram, table, err := ParsePrintableFromSnippet(category, record.Puzzle.Snippet)
-			if err != nil {
-				return PackDocument{}, fmt.Errorf("%s:%d: parse printable snippet: %w", path, lineNo, err)
-			}
-			p.Nonogram = nonogram
-			p.Table = table
+		adapter, ok := game.LookupPrintAdapter(category)
+		if !ok {
+			continue
 		}
+		payload, err := adapter.BuildPDFPayload(p.SaveData, record.Puzzle.Snippet)
+		if err != nil {
+			return PackDocument{}, fmt.Errorf("%s:%d: build print payload: %w", path, lineNo, err)
+		}
+		if game.IsNilPrintPayload(payload) {
+			continue
+		}
+		p.PrintPayload = payload
 
 		puzzles = append(puzzles, p)
 	}
@@ -132,10 +137,6 @@ func ParseJSONLFile(path string) (PackDocument, error) {
 	if !seenAny {
 		return PackDocument{}, fmt.Errorf("%s: input jsonl is empty", path)
 	}
-	if len(puzzles) == 0 {
-		return PackDocument{}, fmt.Errorf("%s: no puzzle records found", path)
-	}
-
 	if doc.Metadata.Count == 0 {
 		doc.Metadata.Count = len(puzzles)
 	}
@@ -158,16 +159,4 @@ func ParsePrintableFromSnippet(category, snippet string) (*NonogramData, *GridTa
 		return nil, nil, err
 	}
 	return nil, table, nil
-}
-
-func hasRenderablePrintData(p Puzzle) bool {
-	return p.Nonogram != nil ||
-		p.Nurikabe != nil ||
-		p.Shikaku != nil ||
-		p.Hashi != nil ||
-		p.Hitori != nil ||
-		p.Takuzu != nil ||
-		p.Sudoku != nil ||
-		p.WordSearch != nil ||
-		p.Table != nil
 }

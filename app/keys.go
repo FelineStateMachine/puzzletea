@@ -3,14 +3,13 @@ package app
 import "charm.land/bubbles/v2/key"
 
 type rootKeyMap struct {
-	Quit       key.Binding
-	MainMenu   key.Binding
-	Enter      key.Binding
-	Escape     key.Binding
-	Debug      key.Binding
-	FullHelp   key.Binding
-	ResetGame  key.Binding
-	YankPuzzle key.Binding
+	Quit      key.Binding
+	MainMenu  key.Binding
+	Enter     key.Binding
+	Escape    key.Binding
+	Debug     key.Binding
+	FullHelp  key.Binding
+	ResetGame key.Binding
 }
 
 var rootKeys = rootKeyMap{
@@ -34,8 +33,5 @@ var rootKeys = rootKeyMap{
 	),
 	ResetGame: key.NewBinding(
 		key.WithKeys("ctrl+r"),
-	),
-	YankPuzzle: key.NewBinding(
-		key.WithKeys("ctrl+y"),
 	),
 }

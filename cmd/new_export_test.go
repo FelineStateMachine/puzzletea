@@ -17,15 +17,16 @@ import (
 
 func TestRunNewExportRejectsUnsupportedGame(t *testing.T) {
 	withExportFlagReset(t)
-	flagOutput = filepath.Join(t.TempDir(), "lights.jsonl")
+	output := filepath.Join(t.TempDir(), "lights.jsonl")
+	flagOutput = output
 
 	cmd, _ := newExportTestCmd(t, false)
 	err := runNewExport(cmd, []string{"lights-out"})
-	if err == nil {
-		t.Fatal("expected unsupported game error")
+	if err != nil {
+		t.Fatalf("expected silent no-op for unsupported game, got: %v", err)
 	}
-	if !strings.Contains(err.Error(), "does not support export") {
-		t.Fatalf("unexpected error: %v", err)
+	if _, statErr := os.Stat(output); !os.IsNotExist(statErr) {
+		t.Fatalf("expected no output file, stat err = %v", statErr)
 	}
 }
 
@@ -172,6 +173,14 @@ func TestRunNewExportOmitsPrintPayload(t *testing.T) {
 	}
 	if _, ok := record["print"]; ok {
 		t.Fatal("did not expect print payload in export record")
+	}
+
+	puzzle, ok := record["puzzle"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected puzzle object, got %T", record["puzzle"])
+	}
+	if _, ok := puzzle["snippet"]; ok {
+		t.Fatal("did not expect markdown snippet in export record")
 	}
 }
 

@@ -4,8 +4,13 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
+	"sync"
 	"testing"
+
+	"github.com/FelineStateMachine/puzzletea/game"
+	"github.com/go-pdf/fpdf"
 )
 
 func TestParseJSONLFile(t *testing.T) {
@@ -42,7 +47,8 @@ func TestParseJSONLFile(t *testing.T) {
 	if got, want := len(doc.Puzzles), 1; got != want {
 		t.Fatalf("puzzles = %d, want %d", got, want)
 	}
-	if doc.Puzzles[0].Nonogram == nil {
+	payload, ok := doc.Puzzles[0].PrintPayload.(*NonogramData)
+	if !ok || payload == nil {
 		t.Fatal("expected nonogram print payload from snippet fallback")
 	}
 }
@@ -75,7 +81,8 @@ func TestParseJSONLFileHydratesNonogramFromSaveWithoutSnippet(t *testing.T) {
 	if got, want := len(doc.Puzzles), 1; got != want {
 		t.Fatalf("puzzles = %d, want %d", got, want)
 	}
-	if doc.Puzzles[0].Nonogram == nil {
+	payload, ok := doc.Puzzles[0].PrintPayload.(*NonogramData)
+	if !ok || payload == nil {
 		t.Fatal("expected nonogram print payload from save hydration")
 	}
 }
@@ -124,10 +131,11 @@ func TestParseJSONLFileHydratesTakuzuFromSave(t *testing.T) {
 	if got, want := len(doc.Puzzles), 1; got != want {
 		t.Fatalf("puzzles = %d, want %d", got, want)
 	}
-	if doc.Puzzles[0].Takuzu == nil {
+	payload, ok := doc.Puzzles[0].PrintPayload.(*TakuzuData)
+	if !ok || payload == nil {
 		t.Fatal("expected takuzu print payload from save hydration")
 	}
-	if got, want := doc.Puzzles[0].Takuzu.Givens[1][1], ""; got != want {
+	if got, want := payload.Givens[1][1], ""; got != want {
 		t.Fatalf("takuzu row 1 col 1 = %q, want empty", got)
 	}
 }
@@ -160,10 +168,11 @@ func TestParseJSONLFileHydratesSudokuFromSave(t *testing.T) {
 	if got, want := len(doc.Puzzles), 1; got != want {
 		t.Fatalf("puzzles = %d, want %d", got, want)
 	}
-	if doc.Puzzles[0].Sudoku == nil {
+	payload, ok := doc.Puzzles[0].PrintPayload.(*SudokuData)
+	if !ok || payload == nil {
 		t.Fatal("expected sudoku print payload from save hydration")
 	}
-	if got, want := doc.Puzzles[0].Sudoku.Givens[0][0], 5; got != want {
+	if got, want := payload.Givens[0][0], 5; got != want {
 		t.Fatalf("sudoku givens[0][0] = %d, want %d", got, want)
 	}
 }
@@ -196,13 +205,14 @@ func TestParseJSONLFileHydratesWordSearchFromSave(t *testing.T) {
 	if got, want := len(doc.Puzzles), 1; got != want {
 		t.Fatalf("puzzles = %d, want %d", got, want)
 	}
-	if doc.Puzzles[0].WordSearch == nil {
+	payload, ok := doc.Puzzles[0].PrintPayload.(*WordSearchData)
+	if !ok || payload == nil {
 		t.Fatal("expected word search print payload from save hydration")
 	}
-	if got, want := len(doc.Puzzles[0].WordSearch.Words), 2; got != want {
+	if got, want := len(payload.Words), 2; got != want {
 		t.Fatalf("word count = %d, want %d", got, want)
 	}
-	if got, want := doc.Puzzles[0].WordSearch.Words[0], "ACE"; got != want {
+	if got, want := payload.Words[0], "ACE"; got != want {
 		t.Fatalf("first word = %q, want %q", got, want)
 	}
 }
@@ -235,10 +245,11 @@ func TestParseJSONLFileHydratesNurikabeFromSave(t *testing.T) {
 	if got, want := len(doc.Puzzles), 1; got != want {
 		t.Fatalf("puzzles = %d, want %d", got, want)
 	}
-	if doc.Puzzles[0].Nurikabe == nil {
+	payload, ok := doc.Puzzles[0].PrintPayload.(*NurikabeData)
+	if !ok || payload == nil {
 		t.Fatal("expected nurikabe print payload from save hydration")
 	}
-	if got, want := doc.Puzzles[0].Nurikabe.Clues[1][1], 2; got != want {
+	if got, want := payload.Clues[1][1], 2; got != want {
 		t.Fatalf("nurikabe clues[1][1] = %d, want %d", got, want)
 	}
 }
@@ -271,10 +282,11 @@ func TestParseJSONLFileHydratesShikakuFromSave(t *testing.T) {
 	if got, want := len(doc.Puzzles), 1; got != want {
 		t.Fatalf("puzzles = %d, want %d", got, want)
 	}
-	if doc.Puzzles[0].Shikaku == nil {
+	payload, ok := doc.Puzzles[0].PrintPayload.(*ShikakuData)
+	if !ok || payload == nil {
 		t.Fatal("expected shikaku print payload from save hydration")
 	}
-	if got, want := doc.Puzzles[0].Shikaku.Clues[1][1], 4; got != want {
+	if got, want := payload.Clues[1][1], 4; got != want {
 		t.Fatalf("shikaku clues[1][1] = %d, want %d", got, want)
 	}
 }
@@ -307,10 +319,11 @@ func TestParseJSONLFileHydratesHashiFromSave(t *testing.T) {
 	if got, want := len(doc.Puzzles), 1; got != want {
 		t.Fatalf("puzzles = %d, want %d", got, want)
 	}
-	if doc.Puzzles[0].Hashi == nil {
+	payload, ok := doc.Puzzles[0].PrintPayload.(*HashiData)
+	if !ok || payload == nil {
 		t.Fatal("expected hashi print payload from save hydration")
 	}
-	if got, want := len(doc.Puzzles[0].Hashi.Islands), 2; got != want {
+	if got, want := len(payload.Islands), 2; got != want {
 		t.Fatalf("hashi island count = %d, want %d", got, want)
 	}
 }
@@ -344,12 +357,13 @@ func TestParseJSONLFileIgnoresMalformedSnippetWhenSaveHydrated(t *testing.T) {
 	if got, want := len(doc.Puzzles), 1; got != want {
 		t.Fatalf("puzzles = %d, want %d", got, want)
 	}
-	if doc.Puzzles[0].Sudoku == nil {
+	payload, ok := doc.Puzzles[0].PrintPayload.(*SudokuData)
+	if !ok || payload == nil {
 		t.Fatal("expected sudoku print payload from save hydration")
 	}
 }
 
-func TestParseJSONLFileFailsMalformedSnippetWithoutRenderablePayload(t *testing.T) {
+func TestParseJSONLFileSilentlySkipsUnsupportedGame(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "lights-malformed-snippet.jsonl")
 	record := JSONLRecord{
 		Schema: ExportSchemaV1,
@@ -371,12 +385,12 @@ func TestParseJSONLFileFailsMalformedSnippetWithoutRenderablePayload(t *testing.
 	}
 	writeSingleJSONLRecord(t, path, record)
 
-	_, err := ParseJSONLFile(path)
-	if err == nil {
-		t.Fatal("expected parse error when neither save nor snippet produces renderable payload")
+	doc, err := ParseJSONLFile(path)
+	if err != nil {
+		t.Fatalf("expected silent no-op for unsupported game, got: %v", err)
 	}
-	if !strings.Contains(err.Error(), "parse printable snippet") {
-		t.Fatalf("unexpected error: %v", err)
+	if got := len(doc.Puzzles); got != 0 {
+		t.Fatalf("puzzles = %d, want 0", got)
 	}
 }
 
@@ -390,3 +404,97 @@ func writeSingleJSONLRecord(t *testing.T, path string, record JSONLRecord) {
 		t.Fatal(err)
 	}
 }
+
+var registerJSONLAdaptersOnce sync.Once
+
+func init() {
+	ensureJSONLTestAdapters()
+}
+
+func ensureJSONLTestAdapters() {
+	registerJSONLAdaptersOnce.Do(func() {
+		register := func(category string, build func(save []byte, snippet string) (any, error), aliases ...string) {
+			game.RegisterPrintAdapter(jsonlTestAdapter{
+				category: category,
+				aliases:  aliases,
+				build:    build,
+			})
+		}
+
+		register("Nonogram", buildPayloadAdapter("Nonogram", func(save []byte) (any, error) {
+			return ParseNonogramPrintData(save)
+		}), "nonogram")
+		register("Takuzu", buildPayloadAdapter("Takuzu", func(save []byte) (any, error) {
+			return ParseTakuzuPrintData(save)
+		}), "takuzu")
+		register("Sudoku", buildPayloadAdapter("Sudoku", func(save []byte) (any, error) {
+			return ParseSudokuPrintData(save)
+		}), "sudoku")
+		register("Word Search", buildPayloadAdapter("Word Search", func(save []byte) (any, error) {
+			return ParseWordSearchPrintData(save)
+		}), "wordsearch")
+		register("Nurikabe", buildPayloadAdapter("Nurikabe", func(save []byte) (any, error) {
+			return ParseNurikabePrintData(save)
+		}), "nurikabe")
+		register("Shikaku", buildPayloadAdapter("Shikaku", func(save []byte) (any, error) {
+			return ParseShikakuPrintData(save)
+		}), "shikaku")
+		register("Hashiwokakero", buildPayloadAdapter("Hashiwokakero", func(save []byte) (any, error) {
+			return ParseHashiPrintData(save)
+		}), "hashi")
+	})
+}
+
+func buildPayloadAdapter(category string, parse func(save []byte) (any, error)) func([]byte, string) (any, error) {
+	return func(save []byte, snippet string) (any, error) {
+		payload, err := parse(save)
+		if err != nil {
+			return nil, err
+		}
+		if !isNilAny(payload) {
+			return payload, nil
+		}
+		if strings.TrimSpace(snippet) == "" {
+			return nil, nil
+		}
+
+		nonogram, table, err := ParsePrintableFromSnippet(category, snippet)
+		if err != nil {
+			return nil, err
+		}
+		if nonogram != nil {
+			return nonogram, nil
+		}
+		return table, nil
+	}
+}
+
+func isNilAny(v any) bool {
+	if v == nil {
+		return true
+	}
+	rv := reflect.ValueOf(v)
+	switch rv.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
+		return rv.IsNil()
+	default:
+		return false
+	}
+}
+
+type jsonlTestAdapter struct {
+	category string
+	aliases  []string
+	build    func(save []byte, snippet string) (any, error)
+}
+
+func (a jsonlTestAdapter) CanonicalGameType() string { return a.category }
+func (a jsonlTestAdapter) Aliases() []string         { return a.aliases }
+func (a jsonlTestAdapter) RenderMarkdownSnippet([]byte) (string, error) {
+	return "", nil
+}
+
+func (a jsonlTestAdapter) BuildPDFPayload(save []byte, snippet string) (any, error) {
+	return a.build(save, snippet)
+}
+func (a jsonlTestAdapter) RenderPDFBody(*fpdf.Fpdf, any) error { return nil }

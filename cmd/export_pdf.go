@@ -50,7 +50,7 @@ func runExportPDF(cmd *cobra.Command, args []string) error {
 
 	puzzles := flattenPuzzles(docs)
 	if len(puzzles) == 0 {
-		return fmt.Errorf("no puzzles found in input jsonl files")
+		return nil
 	}
 
 	lookup := buildModeDifficultyLookup(app.Categories)

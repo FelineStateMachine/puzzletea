@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/go-pdf/fpdf"
 )
 
@@ -17,8 +18,10 @@ func WritePDF(outputPath string, docs []PackDocument, puzzles []Puzzle, cfg Rend
 	if strings.TrimSpace(outputPath) == "" {
 		return fmt.Errorf("output path is required")
 	}
-	if len(puzzles) == 0 {
-		return fmt.Errorf("no puzzles to render")
+
+	printablePuzzles := filterPrintablePuzzles(puzzles)
+	if len(printablePuzzles) == 0 {
+		return nil
 	}
 
 	if cfg.GeneratedAt.IsZero() {
@@ -68,9 +71,9 @@ func WritePDF(outputPath string, docs []PackDocument, puzzles []Puzzle, cfg Rend
 	})
 
 	coverColor := resolveCoverColor(cfg)
-	renderCoverPage(pdf, puzzles, cfg)
-	renderTitlePage(pdf, docs, puzzles, cfg)
-	for _, puzzle := range puzzles {
+	renderCoverPage(pdf, printablePuzzles, cfg)
+	renderTitlePage(pdf, docs, printablePuzzles, cfg)
+	for _, puzzle := range printablePuzzles {
 		renderPuzzlePage(pdf, puzzle)
 	}
 
@@ -106,6 +109,20 @@ func saddleStitchPadCount(totalPages int) int {
 		return 0
 	}
 	return 4 - remainder
+}
+
+func filterPrintablePuzzles(puzzles []Puzzle) []Puzzle {
+	printable := make([]Puzzle, 0, len(puzzles))
+	for _, puzzle := range puzzles {
+		if game.IsNilPrintPayload(puzzle.PrintPayload) {
+			continue
+		}
+		if _, ok := game.LookupPrintAdapter(puzzle.Category); !ok {
+			continue
+		}
+		printable = append(printable, puzzle)
+	}
+	return printable
 }
 
 func renderPadPage(pdf *fpdf.Fpdf) {
@@ -239,9 +256,16 @@ func titlePageSourceTableWhitespace(maxY, sourceStartY float64, docCount int) fl
 }
 
 func renderPuzzlePage(pdf *fpdf.Fpdf, puzzle Puzzle) {
+	if game.IsNilPrintPayload(puzzle.PrintPayload) {
+		return
+	}
+	adapter, ok := game.LookupPrintAdapter(puzzle.Category)
+	if !ok {
+		return
+	}
+
 	pdf.AddPage()
-	pageW, pageH := pdf.GetPageSize()
-	hydratePuzzlePrintData(&puzzle)
+	pageW, _ := pdf.GetPageSize()
 
 	setPuzzleTitleStyle(pdf)
 	pdf.SetXY(0, 10)
@@ -256,44 +280,7 @@ func renderPuzzlePage(pdf *fpdf.Fpdf, puzzle Puzzle) {
 	}
 	subtitle := strings.Join(subtitleParts, " | ")
 	pdf.CellFormat(pageW, 5, subtitle, "", 0, "C", false, 0, "")
-
-	if puzzle.Nonogram != nil {
-		renderNonogramPage(pdf, puzzle.Nonogram)
-		return
-	}
-	if puzzle.Nurikabe != nil {
-		renderNurikabePage(pdf, puzzle.Nurikabe)
-		return
-	}
-	if puzzle.Shikaku != nil {
-		renderShikakuPage(pdf, puzzle.Shikaku)
-		return
-	}
-	if puzzle.Hashi != nil {
-		renderHashiPage(pdf, puzzle.Hashi)
-		return
-	}
-	if puzzle.Hitori != nil {
-		renderHitoriPage(pdf, puzzle.Hitori)
-		return
-	}
-	if puzzle.Takuzu != nil {
-		renderTakuzuPage(pdf, puzzle.Takuzu)
-		return
-	}
-	if puzzle.Sudoku != nil {
-		renderSudokuPage(pdf, puzzle.Sudoku)
-		return
-	}
-	if puzzle.WordSearch != nil {
-		renderWordSearchPage(pdf, puzzle.WordSearch)
-		return
-	}
-	if puzzle.Table != nil {
-		renderGridTablePage(pdf, puzzle.Table)
-		return
-	}
-	renderFallbackPage(pdf, puzzle, pageH)
+	_ = adapter.RenderPDFBody(pdf, puzzle.PrintPayload)
 }
 
 func renderNonogramPage(pdf *fpdf.Fpdf, data *NonogramData) {
@@ -854,74 +841,6 @@ func renderGridTablePage(pdf *fpdf.Fpdf, table *GridTable) {
 
 	pdf.SetLineWidth(outerBorderLineMM)
 	pdf.Rect(startX, startY, blockW, blockH, "D")
-}
-
-func renderFallbackPage(pdf *fpdf.Fpdf, puzzle Puzzle, pageH float64) {
-	pageW, _ := pdf.GetPageSize()
-	area := puzzleBoardRect(pageW, pageH, pdf.PageNo(), 0)
-	availW := area.w
-	availH := area.h
-
-	lines := sanitizeBody(puzzle.Body)
-	fontSize := 9.2
-	lineHeight := 4.8
-
-	pdf.SetFont("Courier", "", fontSize)
-	wrapped := make([]string, 0, len(lines))
-	for _, line := range lines {
-		chunks := pdf.SplitLines([]byte(line), availW)
-		if len(chunks) == 0 {
-			wrapped = append(wrapped, "")
-			continue
-		}
-		for _, raw := range chunks {
-			wrapped = append(wrapped, string(raw))
-		}
-	}
-
-	if total := float64(len(wrapped)) * lineHeight; total > availH && len(wrapped) > 0 {
-		maxLines := int(availH / lineHeight)
-		if maxLines < len(wrapped) {
-			wrapped = append(wrapped[:max(0, maxLines-1)], "...")
-		}
-	}
-
-	blockH := float64(len(wrapped)) * lineHeight
-	startY := area.y + (availH-blockH)/2
-
-	pdf.SetTextColor(50, 50, 50)
-	y := startY
-	for _, line := range wrapped {
-		w := pdf.GetStringWidth(line)
-		x := (pageW - w) / 2
-		if x < area.x {
-			x = area.x
-		}
-		pdf.SetXY(x, y)
-		pdf.CellFormat(availW, lineHeight, line, "", 0, "L", false, 0, "")
-		y += lineHeight
-	}
-}
-
-func sanitizeBody(body string) []string {
-	lines := strings.Split(body, "\n")
-	cleaned := make([]string, 0, len(lines))
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "" || trimmed == "---" {
-			cleaned = append(cleaned, "")
-			continue
-		}
-		if strings.HasPrefix(trimmed, "### ") {
-			cleaned = append(cleaned, strings.TrimSpace(strings.TrimPrefix(trimmed, "### ")))
-			continue
-		}
-		if strings.HasPrefix(trimmed, "|") {
-			line = strings.ReplaceAll(line, ".", " ")
-		}
-		cleaned = append(cleaned, line)
-	}
-	return cleaned
 }
 
 func drawCellText(pdf *fpdf.Fpdf, x, y, w, h float64, text string, dim bool) {

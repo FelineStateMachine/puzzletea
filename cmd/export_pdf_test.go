@@ -1,11 +1,17 @@
 package cmd
 
 import (
+	"bytes"
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/FelineStateMachine/puzzletea/pdfexport"
+
+	"github.com/spf13/cobra"
 )
 
 func TestExportPDFVolumeFlagDefault(t *testing.T) {
@@ -97,6 +103,132 @@ func TestBuildRenderConfigForPDFDefaultsSubtitleFromDocs(t *testing.T) {
 	}
 	if cfg.CoverSubtitle != "Sudoku Puzzle Pack" {
 		t.Fatalf("CoverSubtitle = %q, want %q", cfg.CoverSubtitle, "Sudoku Puzzle Pack")
+	}
+}
+
+func TestRunExportPDFSilentlyNoOpsWhenAllPuzzlesUnsupported(t *testing.T) {
+	reset := snapshotExportPDFFlags()
+	defer reset()
+
+	dir := t.TempDir()
+	input := filepath.Join(dir, "lights.jsonl")
+	output := filepath.Join(dir, "lights.pdf")
+
+	record := pdfexport.JSONLRecord{
+		Schema: pdfexport.ExportSchemaV1,
+		Pack: pdfexport.JSONLPackMeta{
+			Generated:     "2026-02-22T10:00:00Z",
+			Version:       "v-test",
+			Category:      "Lights Out",
+			ModeSelection: "Standard",
+			Count:         1,
+		},
+		Puzzle: pdfexport.JSONLPuzzle{
+			Index: 1,
+			Name:  "glow-shore",
+			Game:  "Lights Out",
+			Mode:  "Standard",
+			Save:  json.RawMessage(`{"size":5}`),
+		},
+	}
+	data, err := json.Marshal(record)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(input, append(data, '\n'), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	flagPDFOutput = output
+	flagPDFVolume = 1
+
+	var out bytes.Buffer
+	cmd := &cobra.Command{}
+	cmd.SetOut(&out)
+
+	if err := runExportPDF(cmd, []string{input}); err != nil {
+		t.Fatalf("expected no-op success, got %v", err)
+	}
+	if out.String() != "" {
+		t.Fatalf("expected no stdout output, got %q", out.String())
+	}
+	if _, err := os.Stat(output); !os.IsNotExist(err) {
+		t.Fatalf("expected no output file, stat err = %v", err)
+	}
+}
+
+func TestRunExportPDFSkipsUnsupportedRecordsWhenMixed(t *testing.T) {
+	reset := snapshotExportPDFFlags()
+	defer reset()
+
+	dir := t.TempDir()
+	input := filepath.Join(dir, "mixed.jsonl")
+	output := filepath.Join(dir, "mixed.pdf")
+
+	records := []pdfexport.JSONLRecord{
+		{
+			Schema: pdfexport.ExportSchemaV1,
+			Pack: pdfexport.JSONLPackMeta{
+				Generated:     "2026-02-22T10:00:00Z",
+				Version:       "v-test",
+				Category:      "Lights Out",
+				ModeSelection: "Standard",
+				Count:         2,
+			},
+			Puzzle: pdfexport.JSONLPuzzle{
+				Index: 1,
+				Name:  "glow-shore",
+				Game:  "Lights Out",
+				Mode:  "Standard",
+				Save:  json.RawMessage(`{"size":5}`),
+			},
+		},
+		{
+			Schema: pdfexport.ExportSchemaV1,
+			Pack: pdfexport.JSONLPackMeta{
+				Generated:     "2026-02-22T10:00:00Z",
+				Version:       "v-test",
+				Category:      "Sudoku",
+				ModeSelection: "Easy",
+				Count:         2,
+			},
+			Puzzle: pdfexport.JSONLPuzzle{
+				Index: 2,
+				Name:  "moss-pine",
+				Game:  "Sudoku",
+				Mode:  "Easy",
+				Save:  json.RawMessage(`{"provided":[{"x":0,"y":0,"v":5}]}`),
+			},
+		},
+	}
+	var lines []byte
+	for _, record := range records {
+		line, err := json.Marshal(record)
+		if err != nil {
+			t.Fatal(err)
+		}
+		lines = append(lines, line...)
+		lines = append(lines, '\n')
+	}
+	if err := os.WriteFile(input, lines, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	flagPDFOutput = output
+	flagPDFVolume = 1
+
+	cmd := &cobra.Command{}
+	cmd.SetOut(&bytes.Buffer{})
+	if err := runExportPDF(cmd, []string{input}); err != nil {
+		t.Fatalf("expected mixed export success, got %v", err)
+	}
+
+	info, err := os.Stat(output)
+	if err != nil {
+		t.Fatalf("expected output file, got stat error: %v", err)
+	}
+	if info.Size() == 0 {
+		t.Fatal("expected non-empty output PDF")
 	}
 }
 

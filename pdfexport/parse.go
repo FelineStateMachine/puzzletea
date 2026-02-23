@@ -178,7 +178,7 @@ func parsePuzzleSection(section []string, path string, startLine int, meta PackM
 		if err != nil {
 			return Puzzle{}, err
 		}
-		p.Nonogram = nonogram
+		p.PrintPayload = nonogram
 		return p, nil
 	}
 
@@ -186,7 +186,7 @@ func parsePuzzleSection(section []string, path string, startLine int, meta PackM
 	if err != nil {
 		return Puzzle{}, err
 	}
-	p.Table = table
+	p.PrintPayload = table
 
 	return p, nil
 }

@@ -165,7 +165,6 @@ Several shorthand names are accepted for games: `hashi`/`bridges` for Hashiwokak
 | `Ctrl+R` | Reset puzzle |
 | `Ctrl+H` | Toggle full help |
 | `Ctrl+E` | Toggle debug overlay |
-| `Ctrl+Y` | Yank puzzle markdown snippet |
 | `Ctrl+C` | Quit |
 
 ### Navigation

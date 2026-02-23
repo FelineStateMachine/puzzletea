@@ -21,21 +21,22 @@ func TestParseMarkdownNonogram(t *testing.T) {
 	}
 
 	p := doc.Puzzles[0]
-	if p.Nonogram == nil {
+	nonogram, ok := p.PrintPayload.(*NonogramData)
+	if !ok || nonogram == nil {
 		t.Fatal("expected parsed nonogram data")
 	}
-	if p.Nonogram.Width != 2 || p.Nonogram.Height != 2 {
-		t.Fatalf("nonogram size = %dx%d, want 2x2", p.Nonogram.Width, p.Nonogram.Height)
+	if nonogram.Width != 2 || nonogram.Height != 2 {
+		t.Fatalf("nonogram size = %dx%d, want 2x2", nonogram.Width, nonogram.Height)
 	}
 
-	if got, want := p.Nonogram.RowHints[0][0], 1; got != want {
+	if got, want := nonogram.RowHints[0][0], 1; got != want {
 		t.Fatalf("first row first hint = %d, want %d", got, want)
 	}
-	if got, want := p.Nonogram.ColHints[0][0], 1; got != want {
+	if got, want := nonogram.ColHints[0][0], 1; got != want {
 		t.Fatalf("first col first hint = %d, want %d", got, want)
 	}
 
-	if got, want := p.Nonogram.Grid[0][0], " "; got != want {
+	if got, want := nonogram.Grid[0][0], " "; got != want {
 		t.Fatalf("grid dot replacement = %q, want %q", got, want)
 	}
 }
@@ -80,20 +81,18 @@ func TestParseMarkdownTakuzuTable(t *testing.T) {
 	}
 
 	p := doc.Puzzles[0]
-	if p.Nonogram != nil {
-		t.Fatal("expected nonogram data to be nil for takuzu")
-	}
-	if p.Table == nil {
+	table, ok := p.PrintPayload.(*GridTable)
+	if !ok || table == nil {
 		t.Fatal("expected parsed grid table for takuzu")
 	}
-	if !p.Table.HasHeaderRow {
+	if !table.HasHeaderRow {
 		t.Fatal("expected takuzu table to detect a header row")
 	}
-	if !p.Table.HasHeaderCol {
+	if !table.HasHeaderCol {
 		t.Fatal("expected takuzu table to detect a header column")
 	}
 
-	if got, want := p.Table.Rows[1][1], "."; got != want {
+	if got, want := table.Rows[1][1], "."; got != want {
 		t.Fatalf("table cell = %q, want %q", got, want)
 	}
 }

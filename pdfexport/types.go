@@ -36,15 +36,7 @@ type Puzzle struct {
 	Index                int
 	Body                 string
 	SaveData             []byte
-	Nonogram             *NonogramData
-	Nurikabe             *NurikabeData
-	Shikaku              *ShikakuData
-	Hashi                *HashiData
-	Hitori               *HitoriData
-	Takuzu               *TakuzuData
-	Sudoku               *SudokuData
-	WordSearch           *WordSearchData
-	Table                *GridTable
+	PrintPayload         any
 	DifficultyScore      float64
 	DifficultyConfidence DifficultyConfidence
 	DifficultySource     string

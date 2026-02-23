@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"math/rand/v2"
@@ -13,7 +12,6 @@ import (
 
 	"github.com/FelineStateMachine/puzzletea/app"
 	"github.com/FelineStateMachine/puzzletea/game"
-	"github.com/FelineStateMachine/puzzletea/markdownexport"
 	"github.com/FelineStateMachine/puzzletea/namegen"
 	"github.com/FelineStateMachine/puzzletea/pdfexport"
 	"github.com/FelineStateMachine/puzzletea/resolve"
@@ -37,8 +35,8 @@ func runNewExport(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	if !markdownexport.SupportsGameType(cat.Name) {
-		return fmt.Errorf("game %q does not support export", cat.Name)
+	if !game.HasPrintAdapter(cat.Name) {
+		return nil
 	}
 
 	modeArg := ""
@@ -158,14 +156,6 @@ func buildExportRecords(
 			return nil, fmt.Errorf("serialize puzzle %d: save payload is not valid JSON", i+1)
 		}
 
-		snippet, err := markdownexport.RenderPuzzleSnippet(gameType, entry.mode, save)
-		if err != nil {
-			if errors.Is(err, markdownexport.ErrUnsupportedGame) {
-				return nil, fmt.Errorf("game %q does not support export", gameType)
-			}
-			return nil, fmt.Errorf("render puzzle %d: %w", i+1, err)
-		}
-
 		records = append(records, pdfexport.JSONLRecord{
 			Schema: pdfexport.ExportSchemaV1,
 			Pack: pdfexport.JSONLPackMeta{
@@ -177,12 +167,11 @@ func buildExportRecords(
 				Seed:          seed,
 			},
 			Puzzle: pdfexport.JSONLPuzzle{
-				Index:   i + 1,
-				Name:    namegen.GenerateSeeded(nameRNG),
-				Game:    gameType,
-				Mode:    entry.mode,
-				Save:    json.RawMessage(save),
-				Snippet: snippet,
+				Index: i + 1,
+				Name:  namegen.GenerateSeeded(nameRNG),
+				Game:  gameType,
+				Mode:  entry.mode,
+				Save:  json.RawMessage(save),
 			},
 		})
 	}
