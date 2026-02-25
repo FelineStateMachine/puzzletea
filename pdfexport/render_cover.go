@@ -2,39 +2,10 @@ package pdfexport
 
 import (
 	"fmt"
-	"hash/fnv"
-	"math/rand"
 	"strings"
 
 	"codeberg.org/go-pdf/fpdf"
 )
-
-var natureTonePalette = []RGB{
-	{250, 76, 56},  // riso red
-	{255, 112, 0},  // fluorescent orange
-	{255, 183, 3},  // sunflower
-	{53, 169, 255}, // sky blue
-	{0, 204, 160},  // seafoam
-	{152, 226, 68}, // neon moss
-	{255, 82, 133}, // hot pink
-	{104, 83, 255}, // ultramarine
-}
-
-func resolveCoverColor(cfg RenderConfig) RGB {
-	if cfg.CoverColor != nil {
-		return *cfg.CoverColor
-	}
-	seed := strings.TrimSpace(cfg.ShuffleSeed)
-	var idx int
-	if seed != "" {
-		h := fnv.New64a()
-		h.Write([]byte(seed))
-		idx = int(h.Sum64() % uint64(len(natureTonePalette)))
-	} else {
-		idx = rand.Intn(len(natureTonePalette))
-	}
-	return natureTonePalette[idx]
-}
 
 func splitCoverTextLines(pdf *fpdf.Fpdf, text string, maxW float64) []string {
 	trimmed := strings.TrimSpace(text)
@@ -67,8 +38,7 @@ func splitCoverSubtitleLines(pdf *fpdf.Fpdf, subtitle string, maxW float64, maxL
 	return out
 }
 
-func renderCoverPage(pdf *fpdf.Fpdf, _ []Puzzle, cfg RenderConfig) {
-	coverColor := resolveCoverColor(cfg)
+func renderCoverPage(pdf *fpdf.Fpdf, _ []Puzzle, cfg RenderConfig, coverColor RGB) {
 	ink := RGB{R: 8, G: 8, B: 8}
 
 	pdf.AddPage()

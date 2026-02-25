@@ -116,3 +116,28 @@ func TestSaddleStitchPadCountForStandardPackLayout(t *testing.T) {
 		})
 	}
 }
+
+func TestSaddleStitchPadCountForTitleOnlyPackLayout(t *testing.T) {
+	tests := []struct {
+		name       string
+		puzzleRows int
+		wantPad    int
+	}{
+		{name: "single puzzle", puzzleRows: 1, wantPad: 2},
+		{name: "two puzzles", puzzleRows: 2, wantPad: 1},
+		{name: "thirty-two puzzles", puzzleRows: 32, wantPad: 3},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			totalWithoutPad := tt.puzzleRows + 1 // title page + puzzle pages
+			got := saddleStitchPadCount(totalWithoutPad)
+			if got != tt.wantPad {
+				t.Fatalf("pad pages = %d, want %d", got, tt.wantPad)
+			}
+			if (totalWithoutPad+got)%4 != 0 {
+				t.Fatalf("total pages = %d, want multiple of 4", totalWithoutPad+got)
+			}
+		})
+	}
+}

@@ -106,6 +106,37 @@ func TestBuildRenderConfigForPDFDefaultsSubtitleFromDocs(t *testing.T) {
 	}
 }
 
+func TestBuildRenderConfigForPDFCoverColorControlsCoverPages(t *testing.T) {
+	reset := snapshotExportPDFFlags()
+	defer reset()
+
+	flagPDFTitle = "Issue 01"
+	flagPDFVolume = 1
+	flagPDFAdvert = "Find more puzzles"
+	docs := []pdfexport.PackDocument{{Metadata: pdfexport.PackMetadata{Category: "Sudoku"}}}
+
+	flagPDFCoverColor = ""
+	cfgNoCover, err := buildRenderConfigForPDF(docs, "seed-3", time.Now())
+	if err != nil {
+		t.Fatalf("buildRenderConfigForPDF (no cover color) error = %v", err)
+	}
+	if cfgNoCover.CoverColor != nil {
+		t.Fatalf("CoverColor = %+v, want nil when --cover-color is omitted", cfgNoCover.CoverColor)
+	}
+
+	flagPDFCoverColor = "#112233"
+	cfgWithCover, err := buildRenderConfigForPDF(docs, "seed-4", time.Now())
+	if err != nil {
+		t.Fatalf("buildRenderConfigForPDF (with cover color) error = %v", err)
+	}
+	if cfgWithCover.CoverColor == nil {
+		t.Fatal("CoverColor = nil, want parsed color when --cover-color is set")
+	}
+	if *cfgWithCover.CoverColor != (pdfexport.RGB{R: 0x11, G: 0x22, B: 0x33}) {
+		t.Fatalf("CoverColor = %+v, want {R:17 G:34 B:51}", *cfgWithCover.CoverColor)
+	}
+}
+
 func TestRunExportPDFSilentlyNoOpsWhenAllPuzzlesUnsupported(t *testing.T) {
 	reset := snapshotExportPDFFlags()
 	defer reset()

@@ -125,7 +125,9 @@ Render one or more JSONL packs into a half-letter print PDF:
 puzzletea export-pdf nonogram-mini-set.jsonl -o issue-01.pdf --shuffle-seed issue-01 --volume 1 --title "Catacombs & Pines"
 ```
 
-`--title` sets the cover subtitle, and `--volume` sets the cover volume number.
+`--title` sets the pack subtitle (title page, and cover pages when enabled), and `--volume` sets the volume number.
+By default, covers are not included. Use `--cover-color` to include front/back cover pages.
+Page count is always auto-padded to a multiple of 4 for half-letter booklet printing.
 
 Font license note (Atkinson Hyperlegible Next):
 

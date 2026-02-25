@@ -27,19 +27,19 @@ var (
 var exportPDFCmd = &cobra.Command{
 	Use:   "export-pdf <input.jsonl> [more.jsonl ...]",
 	Short: "Convert one or more PuzzleTea JSONL exports into a half-letter printable PDF",
-	Long:  "Parse one or more JSONL export files, order puzzles by progressive difficulty with seeded mixing, and render a half-letter PDF with a title page and one puzzle per page.",
+	Long:  "Parse one or more JSONL export files, order puzzles by progressive difficulty with seeded mixing, and render a half-letter PDF with a title page, one puzzle per page, optional covers (when --cover-color is set), and automatic page-count padding to a multiple of 4 for booklet printing.",
 	Args:  cobra.MinimumNArgs(1),
 	RunE:  runExportPDF,
 }
 
 func init() {
 	exportPDFCmd.Flags().StringVarP(&flagPDFOutput, "output", "o", "", "write output PDF path (defaults to <first-input>-print.pdf)")
-	exportPDFCmd.Flags().StringVar(&flagPDFTitle, "title", "", "subtitle shown on the cover")
+	exportPDFCmd.Flags().StringVar(&flagPDFTitle, "title", "", "subtitle shown on the title page (and on covers when enabled)")
 	exportPDFCmd.Flags().StringVar(&flagPDFHeader, "header", "", "optional intro paragraph shown on the title page under 'PuzzleTea Puzzle Pack'")
-	exportPDFCmd.Flags().IntVar(&flagPDFVolume, "volume", 1, "volume number shown on the cover (must be >= 1)")
+	exportPDFCmd.Flags().IntVar(&flagPDFVolume, "volume", 1, "volume number shown on the title page (and on covers when enabled) (must be >= 1)")
 	exportPDFCmd.Flags().StringVar(&flagPDFAdvert, "advert", "Find more puzzles at github.com/FelineStateMachine/puzzletea", "advert text shown on the title page")
 	exportPDFCmd.Flags().StringVar(&flagPDFShuffleSeed, "shuffle-seed", "", "seed for deterministic within-band difficulty mixing")
-	exportPDFCmd.Flags().StringVar(&flagPDFCoverColor, "cover-color", "", `accent color for cover page: hex "#RRGGBB", decimal "R,G,B", or omit for random vibrant nature tone`)
+	exportPDFCmd.Flags().StringVar(&flagPDFCoverColor, "cover-color", "", `accent color for optional front/back covers: hex "#RRGGBB" or decimal "R,G,B" (omit for no covers)`)
 }
 
 func runExportPDF(cmd *cobra.Command, args []string) error {
@@ -212,7 +212,7 @@ func normalizeDifficultyToken(s string) string {
 }
 
 // parseCoverColor parses a cover color string in hex ("#RRGGBB") or
-// decimal ("R,G,B") format. Returns nil if s is empty (random vibrant nature tone).
+// decimal ("R,G,B") format. Returns nil if s is empty (no cover pages).
 func parseCoverColor(s string) (*pdfexport.RGB, error) {
 	s = strings.TrimSpace(s)
 	if s == "" {

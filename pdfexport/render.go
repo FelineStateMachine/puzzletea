@@ -56,9 +56,6 @@ func WritePDF(outputPath string, docs []PackDocument, puzzles []Puzzle, cfg Rend
 	footerExcludedPages := map[int]struct{}{}
 	pdf.SetFooterFunc(func() {
 		pageNo := pdf.PageNo()
-		if pageNo <= 2 {
-			return
-		}
 		if _, skip := footerExcludedPages[pageNo]; skip {
 			return
 		}
@@ -68,23 +65,34 @@ func WritePDF(outputPath string, docs []PackDocument, puzzles []Puzzle, cfg Rend
 		pdf.CellFormat(0, 4, strconv.Itoa(pageNo), "", 0, "C", false, 0, "")
 	})
 
-	coverColor := resolveCoverColor(cfg)
-	renderCoverPage(pdf, printablePuzzles, cfg)
+	includeCover := cfg.CoverColor != nil
+	if includeCover {
+		renderCoverPage(pdf, printablePuzzles, cfg, *cfg.CoverColor)
+		footerExcludedPages[pdf.PageNo()] = struct{}{}
+	}
+
 	renderTitlePage(pdf, docs, printablePuzzles, cfg)
+	footerExcludedPages[pdf.PageNo()] = struct{}{}
+
 	for _, puzzle := range printablePuzzles {
 		if err := renderPuzzlePage(pdf, puzzle); err != nil {
 			return fmt.Errorf("render puzzle %q (%s #%d): %w", puzzle.Name, puzzle.Category, puzzle.Index, err)
 		}
 	}
 
-	totalPagesWithoutPadding := pdf.PageNo() + 1 // include upcoming back cover
+	totalPagesWithoutPadding := pdf.PageNo()
+	if includeCover {
+		totalPagesWithoutPadding++ // include upcoming back cover
+	}
 	for range saddleStitchPadCount(totalPagesWithoutPadding) {
 		renderPadPage(pdf)
 		footerExcludedPages[pdf.PageNo()] = struct{}{}
 	}
 
-	renderBackCoverPage(pdf, cfg, coverColor)
-	footerExcludedPages[pdf.PageNo()] = struct{}{}
+	if includeCover {
+		renderBackCoverPage(pdf, cfg, *cfg.CoverColor)
+		footerExcludedPages[pdf.PageNo()] = struct{}{}
+	}
 
 	dir := filepath.Dir(outputPath)
 	if dir != "" && dir != "." {

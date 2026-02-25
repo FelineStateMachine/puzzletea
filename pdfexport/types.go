@@ -112,5 +112,5 @@ type RenderConfig struct {
 	AdvertText    string
 	GeneratedAt   time.Time
 	ShuffleSeed   string
-	CoverColor    *RGB // nil = random vibrant nature tone
+	CoverColor    *RGB // nil = omit front/back covers
 }

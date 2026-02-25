@@ -7,17 +7,6 @@ import (
 	"codeberg.org/go-pdf/fpdf"
 )
 
-func TestResolveCoverColorDeterministicWithSeed(t *testing.T) {
-	cfgA := RenderConfig{ShuffleSeed: "zine-seed"}
-	cfgB := RenderConfig{ShuffleSeed: "zine-seed"}
-
-	colorA := resolveCoverColor(cfgA)
-	colorB := resolveCoverColor(cfgB)
-	if colorA != colorB {
-		t.Fatalf("resolveCoverColor mismatch for identical seed: %+v vs %+v", colorA, colorB)
-	}
-}
-
 func TestSplitCoverSubtitleLinesClampsToMaxLines(t *testing.T) {
 	pdf := fpdf.New("P", "mm", "A4", "")
 	if err := registerPDFFonts(pdf); err != nil {
