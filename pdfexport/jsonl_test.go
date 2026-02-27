@@ -352,6 +352,79 @@ func TestParseJSONLFileSilentlySkipsUnsupportedGame(t *testing.T) {
 	}
 }
 
+func TestParseJSONLFileMetadataFromFirstPrintableRecord(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "mixed.jsonl")
+
+	records := []JSONLRecord{
+		{
+			Schema: ExportSchemaV1,
+			Pack: JSONLPackMeta{
+				Generated:     "2026-02-22T10:00:00Z",
+				Version:       "v-test",
+				Category:      "Lights Out",
+				ModeSelection: "Standard",
+				Count:         2,
+				Seed:          "seed-unsupported",
+			},
+			Puzzle: JSONLPuzzle{
+				Index: 1,
+				Name:  "glow-shore",
+				Game:  "Lights Out",
+				Mode:  "Standard",
+				Save:  json.RawMessage(`{"size":5}`),
+			},
+		},
+		{
+			Schema: ExportSchemaV1,
+			Pack: JSONLPackMeta{
+				Generated:     "2026-02-22T10:00:00Z",
+				Version:       "v-test",
+				Category:      "Sudoku",
+				ModeSelection: "Easy",
+				Count:         2,
+				Seed:          "seed-supported",
+			},
+			Puzzle: JSONLPuzzle{
+				Index: 2,
+				Name:  "moss-pine",
+				Game:  "Sudoku",
+				Mode:  "Easy",
+				Save:  json.RawMessage(`{"provided":[{"x":0,"y":0,"v":5}]}`),
+			},
+		},
+	}
+
+	var lines []byte
+	for _, record := range records {
+		line, err := json.Marshal(record)
+		if err != nil {
+			t.Fatal(err)
+		}
+		lines = append(lines, line...)
+		lines = append(lines, '\n')
+	}
+	if err := os.WriteFile(path, lines, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	doc, err := ParseJSONLFile(path)
+	if err != nil {
+		t.Fatalf("expected parse success, got: %v", err)
+	}
+	if got, want := len(doc.Puzzles), 1; got != want {
+		t.Fatalf("puzzles = %d, want %d", got, want)
+	}
+	if got, want := doc.Metadata.Category, "Sudoku"; got != want {
+		t.Fatalf("metadata category = %q, want %q", got, want)
+	}
+	if got, want := doc.Metadata.ModeSelection, "Easy"; got != want {
+		t.Fatalf("metadata mode = %q, want %q", got, want)
+	}
+	if got, want := doc.Metadata.Seed, "seed-supported"; got != want {
+		t.Fatalf("metadata seed = %q, want %q", got, want)
+	}
+}
+
 func writeSingleJSONLRecord(t *testing.T, path string, record JSONLRecord) {
 	t.Helper()
 	data, err := json.Marshal(record)

@@ -85,15 +85,6 @@ func ParseJSONLFile(path string) (PackDocument, error) {
 			return PackDocument{}, fmt.Errorf("%s:%d: unsupported schema %q", path, lineNo, record.Schema)
 		}
 
-		if doc.Metadata.GeneratedRaw == "" {
-			doc.Metadata.GeneratedRaw = record.Pack.Generated
-			doc.Metadata.Version = record.Pack.Version
-			doc.Metadata.Category = record.Pack.Category
-			doc.Metadata.ModeSelection = record.Pack.ModeSelection
-			doc.Metadata.Count = record.Pack.Count
-			doc.Metadata.Seed = record.Pack.Seed
-		}
-
 		category := strings.TrimSpace(record.Puzzle.Game)
 		if category == "" {
 			category = strings.TrimSpace(record.Pack.Category)
@@ -125,6 +116,24 @@ func ParseJSONLFile(path string) (PackDocument, error) {
 			continue
 		}
 		p.PrintPayload = payload
+
+		// Metadata should reflect the first printable record, not merely the
+		// first syntactically valid line in the file.
+		if doc.Metadata.GeneratedRaw == "" {
+			doc.Metadata.GeneratedRaw = record.Pack.Generated
+			doc.Metadata.Version = record.Pack.Version
+			doc.Metadata.Count = record.Pack.Count
+			doc.Metadata.Seed = record.Pack.Seed
+
+			doc.Metadata.Category = strings.TrimSpace(p.Category)
+			if doc.Metadata.Category == "" {
+				doc.Metadata.Category = record.Pack.Category
+			}
+			doc.Metadata.ModeSelection = strings.TrimSpace(p.ModeSelection)
+			if doc.Metadata.ModeSelection == "" {
+				doc.Metadata.ModeSelection = record.Pack.ModeSelection
+			}
+		}
 
 		puzzles = append(puzzles, p)
 	}
