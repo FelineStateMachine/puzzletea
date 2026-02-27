@@ -106,6 +106,38 @@ puzzletea new --set-seed myseed
 puzzletea new nonogram epic --with-seed myseed
 ```
 
+Export printable puzzle sets to JSONL:
+
+```bash
+# Stream JSONL to stdout (redirect if desired)
+puzzletea new nonogram mini --export 2 > nonogram-mini-set.jsonl
+
+# Single mode export
+puzzletea new nonogram mini -e 6 -o nonogram-mini-set.jsonl
+
+# Mixed modes within a category (deterministic with --with-seed)
+puzzletea new sudoku --export 10 -o sudoku-mixed.jsonl --with-seed zine-issue-01
+```
+
+Render one or more JSONL packs into a half-letter print PDF:
+
+```bash
+puzzletea export-pdf nonogram-mini-set.jsonl -o issue-01.pdf --shuffle-seed issue-01 --volume 1 --title "Catacombs & Pines"
+```
+
+`--title` sets the pack subtitle (title page, and cover pages when enabled), and `--volume` sets the volume number.
+By default, covers are not included. Use `--cover-color` to include front/back cover pages.
+Page count is always auto-padded to a multiple of 4 for half-letter booklet printing.
+
+Font license note (Atkinson Hyperlegible Next):
+
+- Follow the SIL OFL 1.1 requirements in `pdfexport/fonts/OFL.txt`.
+- Do not sell the font files by themselves.
+- If redistributing fonts with software, include the copyright notice and OFL text.
+- Modified font versions must keep OFL terms, and modified names must respect Reserved Font Name rules.
+
+`Lights Out` is currently excluded from export because it does not translate cleanly to paper workflows.
+
 Override the color theme:
 
 ```bash
