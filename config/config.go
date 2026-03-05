@@ -13,13 +13,22 @@ import (
 
 // Config holds all user-configurable settings.
 type Config struct {
-	Theme string `json:"theme,omitempty"` // theme name; empty = default
+	Theme  string `json:"theme,omitempty"`   // theme name; empty = default
+	DBPath string `json:"db_path,omitempty"` // database path; empty = ~/.puzzletea/history.db
 }
 
 // Default returns a Config with all settings at their zero values (the
 // built-in defaults).
 func Default() *Config {
-	return &Config{}
+	return &Config{
+		DBPath: DefaultDBPath(),
+	}
+}
+
+// DefaultDBPath returns the default database path ~/.puzzletea/history.db.
+func DefaultDBPath() string {
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".puzzletea", "history.db")
 }
 
 // DefaultPath returns ~/.puzzletea/config.json.

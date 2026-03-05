@@ -34,7 +34,7 @@ var newCmd = &cobra.Command{
 			return runNewExport(cmd, args)
 		}
 
-		cfg := loadConfig()
+		cfg := loadConfig("")
 
 		if flagSetSeed != "" {
 			if len(args) > 0 {
@@ -78,7 +78,7 @@ func launchNewGame(gameArg, modeArg, seed string, cfg *config.Config) error {
 		return fmt.Errorf("failed to spawn game: %w", err)
 	}
 
-	s, err := store.Open(store.DefaultDBPath())
+	s, err := store.Open(cfg.DBPath)
 	if err != nil {
 		return err
 	}
@@ -129,7 +129,7 @@ func launchSeededGame(seed string, cfg *config.Config) error {
 	nameRNG := resolve.RNGFromString("name:" + seed)
 	name := seed + " - " + namegen.GenerateSeeded(nameRNG)
 
-	s, err := store.Open(store.DefaultDBPath())
+	s, err := store.Open(cfg.DBPath)
 	if err != nil {
 		return err
 	}

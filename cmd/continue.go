@@ -17,14 +17,14 @@ var continueCmd = &cobra.Command{
 	Long:  "Resume a previously saved game using its unique name.\nUse 'puzzletea list' to see available saved games.",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		cfg := loadConfig()
+		cfg := loadConfig("")
 		return continueGame(args[0], cfg)
 	},
 }
 
 // continueGame looks up a saved game by name and launches the TUI.
 func continueGame(name string, cfg *config.Config) error {
-	s, err := store.Open(store.DefaultDBPath())
+	s, err := store.Open(cfg.DBPath)
 	if err != nil {
 		return err
 	}

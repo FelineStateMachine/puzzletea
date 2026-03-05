@@ -17,7 +17,8 @@ var listCmd = &cobra.Command{
 	Short: "List saved games",
 	Long:  "Display a table of saved games. Use --all to include abandoned games.",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		s, err := store.Open(store.DefaultDBPath())
+		cfg := loadConfig(flagConfigPath)
+		s, err := store.Open(cfg.DBPath)
 		if err != nil {
 			return err
 		}
