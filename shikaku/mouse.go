@@ -10,6 +10,14 @@ import (
 // screenToGrid converts terminal screen coordinates to grid cell coordinates.
 // Returns (col, row, ok) where ok is false if the click landed outside the grid.
 func (m *Model) screenToGrid(screenX, screenY int) (col, row int, ok bool) {
+	return m.screenToGridAt(screenX, screenY, false)
+}
+
+func (m *Model) screenToGridDrag(screenX, screenY int) (col, row int, ok bool) {
+	return m.screenToGridAt(screenX, screenY, true)
+}
+
+func (m *Model) screenToGridAt(screenX, screenY int, includeSeparators bool) (col, row int, ok bool) {
 	ox, oy := m.cachedGridOrigin()
 	lx := screenX - ox
 	ly := screenY - oy
@@ -17,9 +25,28 @@ func (m *Model) screenToGrid(screenX, screenY int) (col, row int, ok bool) {
 		return 0, 0, false
 	}
 
-	// Shikaku has no separators: simple division by cell dimensions.
-	col = lx / cellWidth
-	row = ly // cellHeight is 1
+	maxX := 0
+	if m.puzzle.Width > 0 {
+		maxX = (m.puzzle.Width-1)*(cellWidth+1) + (cellWidth - 1)
+	}
+	maxY := 0
+	if m.puzzle.Height > 0 {
+		maxY = (m.puzzle.Height - 1) * 2
+	}
+	if lx > maxX || ly > maxY {
+		return 0, 0, false
+	}
+
+	if includeSeparators {
+		col = min((lx+cellWidth/2)/(cellWidth+1), m.puzzle.Width-1)
+		row = min((ly+1)/2, m.puzzle.Height-1)
+	} else {
+		col = lx / (cellWidth + 1)
+		row = ly / 2
+		if lx%(cellWidth+1) >= cellWidth || ly%2 != 0 {
+			return 0, 0, false
+		}
+	}
 
 	if col < 0 || col >= m.puzzle.Width || row < 0 || row >= m.puzzle.Height {
 		return 0, 0, false
@@ -55,9 +82,7 @@ func (m *Model) cachedGridOrigin() (x, y int) {
 // Within the game view the layout is:
 //
 //	title
-//	┌─────────────┐  <- border (1 line top)
-//	│ cell grid    │  <- border adds 1 char left
-//	└─────────────┘
+//	dynamic grid
 //	info
 //	status
 func (m *Model) gridOrigin() (x, y int) {
@@ -78,13 +103,14 @@ func (m *Model) gridOrigin() (x, y int) {
 	title := game.TitleBarView("Shikaku", m.modeTitle, solved)
 	titleHeight := strings.Count(title, "\n") + 1
 
-	// The grid is rendered inside a border. Measure its outer width to
+	// The grid is rendered directly inside the game view. Measure its width to
 	// compute horizontal padding from JoinVertical(Center, ...).
 	grid := gridView(*m, solved)
 	gridOuterWidth := lipgloss.Width(grid)
 	gridPadLeft := max((viewWidth-gridOuterWidth)/2, 0)
 
-	// Border adds 1 character on the left and 1 line on top.
+	// The dynamic grid includes an outer wall, so the first cell content starts
+	// one column right and one row below the grid's top-left corner.
 	const borderLeft = 1
 	const borderTop = 1
 

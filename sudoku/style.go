@@ -60,7 +60,7 @@ func gridBorderSolvedStyle() lipgloss.Style {
 	return lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(p.SuccessBorder).
-		BorderBackground(p.BG)
+		BorderBackground(p.SuccessBG)
 }
 
 func renderGrid(m Model, solved bool, conflicts [gridSize][gridSize]bool) string {
@@ -94,12 +94,22 @@ func renderGrid(m Model, solved bool, conflicts [gridSize][gridSize]bool) string
 			var renderedParts []string
 			for x := range gridSize {
 				bg := p.BG
-				if m.cursor.X == x {
+				fg := p.Border
+				if solved {
+					bg = p.SuccessBG
+					fg = p.SuccessBorder
+				} else if m.cursor.X == x {
 					bg = p.Surface
 				}
-				renderedParts = append(renderedParts, lipgloss.NewStyle().Foreground(p.Border).Background(bg).Render(sepLine))
+				renderedParts = append(renderedParts, lipgloss.NewStyle().Foreground(fg).Background(bg).Render(sepLine))
 				if x == 2 || x == 5 {
-					renderedParts = append(renderedParts, lipgloss.NewStyle().Foreground(p.Border).Background(p.BG).Render("\u253c"))
+					crossBG := p.BG
+					crossFG := p.Border
+					if solved {
+						crossBG = p.SuccessBG
+						crossFG = p.SuccessBorder
+					}
+					renderedParts = append(renderedParts, lipgloss.NewStyle().Foreground(crossFG).Background(crossBG).Render("\u253c"))
 				}
 			}
 			rows = append(rows, lipgloss.JoinHorizontal(lipgloss.Top, renderedParts...))

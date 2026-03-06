@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/FelineStateMachine/puzzletea/lightsout"
@@ -18,8 +19,10 @@ func TestResolveSupportsCanonicalNamesAndAliases(t *testing.T) {
 		want  string
 	}{
 		{input: "Sudoku", want: "Sudoku"},
+		{input: "fillomino", want: "Fillomino"},
 		{input: "hashi", want: "Hashiwokakero"},
 		{input: "lights", want: "Lights Out"},
+		{input: "ripple", want: "Ripple Effect"},
 		{input: "wordsearch", want: "Word Search"},
 	}
 
@@ -31,6 +34,38 @@ func TestResolveSupportsCanonicalNamesAndAliases(t *testing.T) {
 		if def.Name != tt.want {
 			t.Fatalf("Resolve(%q).Name = %q, want %q", tt.input, def.Name, tt.want)
 		}
+	}
+}
+
+func TestCategorySupportsCanonicalNamesAndAliases(t *testing.T) {
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{input: "Sudoku", want: "Sudoku"},
+		{input: "lights-out", want: "Lights Out"},
+		{input: "polyomino", want: "Fillomino"},
+		{input: "wordsearch", want: "Word Search"},
+	}
+
+	for _, tt := range tests {
+		cat, err := Category(tt.input)
+		if err != nil {
+			t.Fatalf("Category(%q) error = %v", tt.input, err)
+		}
+		if cat.Name != tt.want {
+			t.Fatalf("Category(%q).Name = %q, want %q", tt.input, cat.Name, tt.want)
+		}
+	}
+}
+
+func TestCategoryUnknownGameIncludesAvailableGames(t *testing.T) {
+	_, err := Category("chess")
+	if err == nil {
+		t.Fatal("Category(chess) error = nil, want non-nil")
+	}
+	if got := err.Error(); got == "" || !containsAll(got, []string{"unknown game", "Available games:", "Sudoku"}) {
+		t.Fatalf("Category(chess) error = %q, want available games list", got)
 	}
 }
 
@@ -51,6 +86,15 @@ func TestCategoriesAndNamesPreserveCatalogOrder(t *testing.T) {
 			t.Fatalf("Categories()[%d].Name = %q, want %q", i, categories[i].Name, def.Name)
 		}
 	}
+}
+
+func containsAll(s string, parts []string) bool {
+	for _, part := range parts {
+		if !strings.Contains(s, part) {
+			return false
+		}
+	}
+	return true
 }
 
 func TestImportRoundTrip(t *testing.T) {

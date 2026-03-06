@@ -461,6 +461,12 @@ func ensureJSONLTestAdapters() {
 		register("Sudoku", buildPayloadAdapter("Sudoku", func(save []byte) (any, error) {
 			return ParseSudokuPrintData(save)
 		}), "sudoku")
+		register("Fillomino", buildPayloadAdapter("Fillomino", func(save []byte) (any, error) {
+			return ParseFillominoPrintData(save)
+		}), "fillomino")
+		register("Ripple Effect", buildPayloadAdapter("Ripple Effect", func(save []byte) (any, error) {
+			return ParseRippleEffectPrintData(save)
+		}), "rippleeffect", "ripple")
 		register("Word Search", buildPayloadAdapter("Word Search", func(save []byte) (any, error) {
 			return ParseWordSearchPrintData(save)
 		}), "wordsearch")

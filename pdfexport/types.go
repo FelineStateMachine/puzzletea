@@ -89,6 +89,29 @@ type SudokuData struct {
 	Givens [9][9]int `json:"givens"`
 }
 
+type FillominoData struct {
+	Width  int
+	Height int
+	Givens [][]int
+}
+
+type RippleEffectCell struct {
+	X int `json:"x"`
+	Y int `json:"y"`
+}
+
+type RippleEffectCage struct {
+	Size  int                `json:"size"`
+	Cells []RippleEffectCell `json:"cells"`
+}
+
+type RippleEffectData struct {
+	Width  int
+	Height int
+	Givens [][]int
+	Cages  []RippleEffectCage
+}
+
 type WordSearchData struct {
 	Width  int        `json:"width"`
 	Height int        `json:"height"`

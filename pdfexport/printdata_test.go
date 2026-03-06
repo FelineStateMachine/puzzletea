@@ -181,3 +181,54 @@ func TestParseTakuzuPrintData(t *testing.T) {
 		t.Fatalf("row 3 col 1 = %q, want empty", got)
 	}
 }
+
+func TestParseFillominoPrintData(t *testing.T) {
+	save := []byte(`{"width":3,"height":2,"state":"1 . 2\n. 3 .","provided":"#.#\n.#."}`)
+
+	data, err := ParseFillominoPrintData(save)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if data == nil {
+		t.Fatal("expected fillomino print data")
+	}
+	if got, want := data.Width, 3; got != want {
+		t.Fatalf("width = %d, want %d", got, want)
+	}
+	if got, want := data.Height, 2; got != want {
+		t.Fatalf("height = %d, want %d", got, want)
+	}
+	if got, want := data.Givens[0][0], 1; got != want {
+		t.Fatalf("givens[0][0] = %d, want %d", got, want)
+	}
+	if got := data.Givens[0][1]; got != 0 {
+		t.Fatalf("givens[0][1] = %d, want 0", got)
+	}
+	if got, want := data.Givens[1][1], 3; got != want {
+		t.Fatalf("givens[1][1] = %d, want %d", got, want)
+	}
+}
+
+func TestParseRippleEffectPrintData(t *testing.T) {
+	save := []byte(`{"width":3,"height":3,"givens":"1 . 1\n. 1 3\n3 . .","cages":[{"size":2,"cells":[{"x":0,"y":0},{"x":1,"y":0}]},{"size":1,"cells":[{"x":2,"y":0}]},{"size":3,"cells":[{"x":0,"y":1},{"x":0,"y":2},{"x":1,"y":2}]},{"size":3,"cells":[{"x":1,"y":1},{"x":2,"y":1},{"x":2,"y":2}]}]}`)
+
+	data, err := ParseRippleEffectPrintData(save)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if data == nil {
+		t.Fatal("expected ripple effect print data")
+	}
+	if got, want := data.Width, 3; got != want {
+		t.Fatalf("width = %d, want %d", got, want)
+	}
+	if got, want := len(data.Cages), 4; got != want {
+		t.Fatalf("cage count = %d, want %d", got, want)
+	}
+	if got, want := data.Givens[0][0], 1; got != want {
+		t.Fatalf("givens[0][0] = %d, want %d", got, want)
+	}
+	if got := data.Givens[2][1]; got != 0 {
+		t.Fatalf("givens[2][1] = %d, want 0", got)
+	}
+}

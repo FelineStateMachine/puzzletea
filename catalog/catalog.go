@@ -4,12 +4,14 @@ import (
 	"fmt"
 
 	"charm.land/bubbles/v2/list"
+	"github.com/FelineStateMachine/puzzletea/fillomino"
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/hashiwokakero"
 	"github.com/FelineStateMachine/puzzletea/hitori"
 	"github.com/FelineStateMachine/puzzletea/lightsout"
 	"github.com/FelineStateMachine/puzzletea/nonogram"
 	"github.com/FelineStateMachine/puzzletea/nurikabe"
+	"github.com/FelineStateMachine/puzzletea/rippleeffect"
 	"github.com/FelineStateMachine/puzzletea/shikaku"
 	"github.com/FelineStateMachine/puzzletea/sudoku"
 	"github.com/FelineStateMachine/puzzletea/takuzu"
@@ -18,11 +20,13 @@ import (
 
 // All is the explicit ordered catalog of every puzzle game.
 var All = []game.Definition{
+	fillomino.Definition,
 	hashiwokakero.Definition,
 	hitori.Definition,
 	lightsout.Definition,
 	nonogram.Definition,
 	nurikabe.Definition,
+	rippleeffect.Definition,
 	shikaku.Definition,
 	sudoku.Definition,
 	takuzu.Definition,
@@ -199,6 +203,16 @@ func Resolve(name string) (game.Definition, bool) {
 	return Lookup(canonical)
 }
 
+// Category resolves a canonical game name or alias to the menu-facing category.
+func Category(name string) (game.Category, error) {
+	def, ok := Resolve(name)
+	if !ok {
+		return game.Category{}, fmt.Errorf("unknown game %q\n\nAvailable games:\n  %s",
+			name, joinLines(Names()))
+	}
+	return def.Category(), nil
+}
+
 // Import reconstructs a saved game for the given canonical game type.
 func Import(gameType string, data []byte) (game.Gamer, error) {
 	def, ok := Lookup(gameType)
@@ -210,4 +224,16 @@ func Import(gameType string, data []byte) (game.Gamer, error) {
 		return nil, fmt.Errorf("failed to import game: %w", err)
 	}
 	return g, nil
+}
+
+func joinLines(values []string) string {
+	if len(values) == 0 {
+		return ""
+	}
+
+	result := values[0]
+	for i := 1; i < len(values); i++ {
+		result += "\n  " + values[i]
+	}
+	return result
 }

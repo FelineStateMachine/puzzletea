@@ -12,16 +12,17 @@ import (
 
 // Model implements game.Gamer for Hitori.
 type Model struct {
-	size         int
-	numbers      grid
-	marks        [][]cellMark
-	initialMarks [][]cellMark
-	conflicts    [][]bool
-	cursor       game.Cursor
-	solved       bool
-	keys         KeyMap
-	modeTitle    string
-	showFullHelp bool
+	size             int
+	numbers          grid
+	userMarks        [][]cellMark
+	marks            [][]cellMark
+	initialUserMarks [][]cellMark
+	conflicts        [][]bool
+	cursor           game.Cursor
+	solved           bool
+	keys             KeyMap
+	modeTitle        string
+	showFullHelp     bool
 }
 
 var _ game.Gamer = Model{}
@@ -40,18 +41,17 @@ func New(mode HitoriMode, numbers grid) (game.Gamer, error) {
 		}
 	}
 
-	marks := newMarks(mode.Size)
+	userMarks := newMarks(mode.Size)
 	m := Model{
-		size:         mode.Size,
-		numbers:      numbers,
-		marks:        marks,
-		initialMarks: cloneMarks(marks),
-		cursor:       game.Cursor{X: 0, Y: 0},
-		keys:         DefaultKeyMap,
-		modeTitle:    mode.Title(),
+		size:             mode.Size,
+		numbers:          numbers,
+		userMarks:        userMarks,
+		initialUserMarks: cloneMarks(userMarks),
+		cursor:           game.Cursor{X: 0, Y: 0},
+		keys:             DefaultKeyMap,
+		modeTitle:        mode.Title(),
 	}
-	m.solved = m.checkSolved()
-	m.conflicts = computeConflicts(m.numbers, m.marks, m.size)
+	m.recomputeState()
 	return m, nil
 }
 
@@ -75,9 +75,8 @@ func (m Model) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 			}
 		case key.Matches(msg, m.keys.ClearCell):
 			if !m.solved {
-				m.marks[m.cursor.Y][m.cursor.X] = unmarked
-				m.solved = m.checkSolved()
-				m.conflicts = computeConflicts(m.numbers, m.marks, m.size)
+				m.userMarks[m.cursor.Y][m.cursor.X] = unmarked
+				m.recomputeState()
 			}
 		default:
 			m.cursor.Move(m.keys.CursorKeyMap, msg, m.size-1, m.size-1)
@@ -91,10 +90,15 @@ func (m Model) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 // otherwise clears it to unmarked.
 func (m *Model) toggleMark(mark cellMark) {
 	if m.marks[m.cursor.Y][m.cursor.X] == mark {
-		m.marks[m.cursor.Y][m.cursor.X] = unmarked
+		m.userMarks[m.cursor.Y][m.cursor.X] = unmarked
 	} else {
-		m.marks[m.cursor.Y][m.cursor.X] = mark
+		m.userMarks[m.cursor.Y][m.cursor.X] = mark
 	}
+	m.recomputeState()
+}
+
+func (m *Model) recomputeState() {
+	m.marks = propagateRequiredMarks(m.numbers, m.userMarks, m.size)
 	m.solved = m.checkSolved()
 	m.conflicts = computeConflicts(m.numbers, m.marks, m.size)
 }
@@ -120,9 +124,8 @@ func (m Model) IsSolved() bool {
 }
 
 func (m Model) Reset() game.Gamer {
-	m.marks = cloneMarks(m.initialMarks)
-	m.solved = m.checkSolved()
-	m.conflicts = computeConflicts(m.numbers, m.marks, m.size)
+	m.userMarks = cloneMarks(m.initialUserMarks)
+	m.recomputeState()
 	m.cursor = game.Cursor{}
 	return m
 }

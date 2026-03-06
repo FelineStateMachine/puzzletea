@@ -44,7 +44,7 @@ func ImportModel(data []byte) (*Model, error) {
 		Clues:      s.Clues,
 		Rectangles: s.Rectangles,
 	}
-	p.autoPlaceSingles()
+	p.autoPlaceForcedRectangles()
 
 	return &Model{
 		puzzle:    p,

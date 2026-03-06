@@ -31,7 +31,7 @@ func runNewExport(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	cat, err := resolve.Category(args[0], catalog.All)
+	cat, err := catalog.Category(args[0])
 	if err != nil {
 		return err
 	}
