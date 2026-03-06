@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/FelineStateMachine/puzzletea/app"
+	"github.com/FelineStateMachine/puzzletea/catalog"
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/pdfexport"
 
@@ -53,7 +53,7 @@ func runExportPDF(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	lookup := buildModeDifficultyLookup(app.Categories)
+	lookup := buildModeDifficultyLookup(catalog.Categories())
 	annotateDifficulty(puzzles, lookup)
 
 	shuffleSeed := strings.TrimSpace(flagPDFShuffleSeed)

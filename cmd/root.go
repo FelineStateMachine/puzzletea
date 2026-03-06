@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/FelineStateMachine/puzzletea/app"
+	"github.com/FelineStateMachine/puzzletea/catalog"
 	"github.com/FelineStateMachine/puzzletea/config"
 	"github.com/FelineStateMachine/puzzletea/stats"
 	"github.com/FelineStateMachine/puzzletea/store"
@@ -29,6 +30,13 @@ var (
 	// flagSetSeed is declared in new.go and shared across root and new commands.
 )
 
+var (
+	launchNewGameFn    = launchNewGame
+	launchSeededGameFn = launchSeededGame
+	continueGameFn     = continueGame
+	openStoreFn        = store.Open
+)
+
 // RootCmd is the top-level Cobra command.
 var RootCmd = &cobra.Command{
 	Use:     "puzzletea",
@@ -36,13 +44,13 @@ var RootCmd = &cobra.Command{
 	Short:   "A terminal-based puzzle game framework",
 	Long:    "PuzzleTea is a terminal-based puzzle game framework featuring Nonogram, Nurikabe, Sudoku, Word Search, Hashiwokakero, and Lights Out.",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		cfg := loadConfig(flagConfigPath)
+		cfg := loadActiveConfig()
 
 		if flagSetSeed != "" {
 			if flagNew != "" || flagContinue != "" {
 				return fmt.Errorf("--set-seed cannot be combined with --new or --continue")
 			}
-			return launchSeededGame(flagSetSeed, cfg)
+			return launchSeededGameFn(flagSetSeed, cfg)
 		}
 		if flagNew != "" {
 			parts := strings.SplitN(flagNew, ":", 2)
@@ -51,18 +59,18 @@ var RootCmd = &cobra.Command{
 			if len(parts) > 1 {
 				modeArg = parts[1]
 			}
-			return launchNewGame(gameArg, modeArg, "", cfg)
+			return launchNewGameFn(gameArg, modeArg, "", cfg)
 		}
 		if flagContinue != "" {
-			return continueGame(flagContinue, cfg)
+			return continueGameFn(flagContinue, cfg)
 		}
 		// Default: launch TUI menu.
-		s, err := store.Open(cfg.DBPath)
+		s, err := openStoreFn(cfg.DBPath)
 		if err != nil {
 			return err
 		}
 		defer s.Close()
-		stats.InitModeXP(app.Categories)
+		stats.InitModeXP(catalog.Categories())
 		p := tea.NewProgram(app.InitialModel(s, cfg))
 		_, err = p.Run()
 		return err
@@ -77,6 +85,10 @@ func init() {
 	RootCmd.PersistentFlags().StringVar(&flagTheme, "theme", "", "color theme name (overrides config)")
 
 	RootCmd.AddCommand(newCmd, continueCmd, listCmd, exportPDFCmd)
+}
+
+func loadActiveConfig() *config.Config {
+	return loadConfig(flagConfigPath)
 }
 
 // loadConfig reads the config file and applies the active theme. The --theme

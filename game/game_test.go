@@ -218,63 +218,43 @@ func TestCategory(t *testing.T) {
 	}
 }
 
-// --- Registry (P1) ---
+// --- Definition (P1) ---
 
-func TestRegistry(t *testing.T) {
-	// Save and restore the global registry to avoid pollution.
-	origRegistry := make(map[string]func([]byte) (Gamer, error))
-	for k, v := range Registry {
-		origRegistry[k] = v
+func TestDefinitionCategory(t *testing.T) {
+	def := Definition{
+		Name:        "Sudoku",
+		Description: "Classic grid logic",
+		Help:        "Rules",
 	}
-	t.Cleanup(func() {
-		Registry = origRegistry
-	})
 
-	t.Run("Register adds function", func(t *testing.T) {
-		called := false
-		fn := func(data []byte) (Gamer, error) {
-			called = true
-			return nil, nil
-		}
-		Register("test-game", fn)
-		if Registry["test-game"] == nil {
-			t.Fatal("expected registry entry to be set")
-		}
-		if _, err := Registry["test-game"](nil); err != nil {
-			t.Fatal(err)
-		}
-		if !called {
-			t.Error("expected registered function to be called")
-		}
-	})
+	cat := def.Category()
+	if cat.Name != def.Name {
+		t.Fatalf("Category().Name = %q, want %q", cat.Name, def.Name)
+	}
+	if cat.Desc != def.Description {
+		t.Fatalf("Category().Desc = %q, want %q", cat.Desc, def.Description)
+	}
+	if cat.Help != def.Help {
+		t.Fatalf("Category().Help = %q, want %q", cat.Help, def.Help)
+	}
+}
 
-	t.Run("Register overwrites", func(t *testing.T) {
-		first := false
-		second := false
-		Register("overwrite", func([]byte) (Gamer, error) {
-			first = true
-			return nil, nil
-		})
-		Register("overwrite", func([]byte) (Gamer, error) {
-			second = true
-			return nil, nil
-		})
-		if _, err := Registry["overwrite"](nil); err != nil {
-			t.Fatal(err)
-		}
-		if first {
-			t.Error("first function should not have been called")
-		}
-		if !second {
-			t.Error("second function should have been called")
-		}
-	})
+func TestNormalizeName(t *testing.T) {
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{input: "Word Search", want: "word search"},
+		{input: "lights-out", want: "lights out"},
+		{input: "word_search", want: "word search"},
+		{input: "  Sudoku  ", want: "sudoku"},
+	}
 
-	t.Run("lookup missing key", func(t *testing.T) {
-		if Registry["nonexistent"] != nil {
-			t.Error("expected nil for missing key")
+	for _, tt := range tests {
+		if got := NormalizeName(tt.input); got != tt.want {
+			t.Fatalf("NormalizeName(%q) = %q, want %q", tt.input, got, tt.want)
 		}
-	})
+	}
 }
 
 // --- TitleBarView (P3) ---

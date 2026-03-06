@@ -6,21 +6,13 @@ import (
 	"context"
 	"time"
 
+	"github.com/FelineStateMachine/puzzletea/catalog"
 	"github.com/FelineStateMachine/puzzletea/config"
 	"github.com/FelineStateMachine/puzzletea/game"
-	"github.com/FelineStateMachine/puzzletea/hashiwokakero"
-	"github.com/FelineStateMachine/puzzletea/hitori"
-	"github.com/FelineStateMachine/puzzletea/lightsout"
-	"github.com/FelineStateMachine/puzzletea/nonogram"
-	"github.com/FelineStateMachine/puzzletea/nurikabe"
-	"github.com/FelineStateMachine/puzzletea/shikaku"
 	"github.com/FelineStateMachine/puzzletea/stats"
 	"github.com/FelineStateMachine/puzzletea/store"
-	"github.com/FelineStateMachine/puzzletea/sudoku"
-	"github.com/FelineStateMachine/puzzletea/takuzu"
 	"github.com/FelineStateMachine/puzzletea/theme"
 	"github.com/FelineStateMachine/puzzletea/ui"
-	"github.com/FelineStateMachine/puzzletea/wordsearch"
 
 	"charm.land/bubbles/v2/list"
 	"charm.land/bubbles/v2/spinner"
@@ -32,29 +24,13 @@ import (
 	"github.com/charmbracelet/glamour"
 )
 
-// Categories is the master typed registry of all puzzle types.
-var Categories = []game.Category{
-	{Name: "Hashiwokakero", Desc: "Connect islands with bridges.", Modes: hashiwokakero.Modes, Help: hashiwokakero.HelpContent},
-	{Name: "Hitori", Desc: "Shade cells to eliminate duplicates.", Modes: hitori.Modes, Help: hitori.HelpContent},
-	{Name: "Lights Out", Desc: "Turn off all the lights.", Modes: lightsout.Modes, Help: lightsout.HelpContent},
-	{Name: "Nonogram", Desc: "Fill cells to match row and column hints.", Modes: nonogram.Modes, Help: nonogram.HelpContent},
-	{Name: "Nurikabe", Desc: "Build islands while keeping one connected sea.", Modes: nurikabe.Modes, Help: nurikabe.HelpContent},
-	{Name: "Shikaku", Desc: "Divide the grid into rectangles.", Modes: shikaku.Modes, Help: shikaku.HelpContent},
-	{Name: "Sudoku", Desc: "Fill the 9x9 grid following sudoku rules.", Modes: sudoku.Modes, Help: sudoku.HelpContent},
-	{Name: "Takuzu", Desc: "Fill the grid with ● and ○.", Modes: takuzu.Modes, Help: takuzu.HelpContent},
-	{Name: "Word Search", Desc: "Find hidden words in a letter grid.", Modes: wordsearch.Modes, Help: wordsearch.HelpContent},
-}
+// Categories is the typed catalog view used by stats and print-export helpers.
+var Categories = catalog.Categories()
 
-// GameCategories is the list.Item view of Categories for bubbles lists.
-var GameCategories = categoriesAsItems(Categories)
+// GameCategories is the list.Item view of Categories for Bubble Tea lists.
+var GameCategories = catalog.CategoryItems()
 
-func categoriesAsItems(categories []game.Category) []list.Item {
-	items := make([]list.Item, len(categories))
-	for i, cat := range categories {
-		items[i] = cat
-	}
-	return items
-}
+type viewState int
 
 var mainMenuItems = []ui.MenuItem{
 	{ItemTitle: "Play", Desc: "start or continue a puzzle"},
@@ -76,7 +52,7 @@ var optionsMenuItems = []ui.MenuItem{
 }
 
 const (
-	mainMenuView = iota
+	mainMenuView viewState = iota
 	playMenuView
 	optionsMenuView
 	seedInputView
@@ -91,67 +67,87 @@ const (
 	themeSelectView
 )
 
-type model struct {
-	state int
-
-	mainMenu         ui.MainMenu
-	playMenu         ui.MainMenu
-	optionsMenu      ui.MainMenu
-	gameSelectList   list.Model
-	modeSelectList   list.Model
-	selectedCategory game.Category
-
-	continueTable table.Model
-	continueGames []store.GameRecord
-
+type navigationState struct {
+	mainMenu          ui.MainMenu
+	playMenu          ui.MainMenu
+	optionsMenu       ui.MainMenu
+	gameSelectList    list.Model
+	modeSelectList    list.Model
+	selectedCategory  game.Category
 	selectedModeTitle string
-	game              game.Gamer
+	continueTable     table.Model
+	continueGames     []store.GameRecord
+	seedInput         textinput.Model
+	helpSelectList    list.Model
+}
 
-	spinner     spinner.Model
-	generating  bool // true while an async Spawn is in flight
-	spawnJobID  int64
-	spawnCancel context.CancelFunc
+type sessionState struct {
+	game            game.Gamer
+	activeGameID    int64
+	completionSaved bool
+	generating      bool
+	spawnJobID      int64
+	spawnCancel     context.CancelFunc
+	spawn           *spawnRequest
+}
+
+type helpState struct {
+	category      game.Category
+	viewport      viewport.Model
+	renderer      *glamour.TermRenderer
+	rendererWidth int
+	showFull      bool
+}
+
+type statsState struct {
+	cards    []stats.Card
+	profile  stats.ProfileBanner
+	viewport viewport.Model
+}
+
+type themeState struct {
+	list     list.Model
+	previous string
+}
+
+type debugState struct {
+	enabled  bool
+	renderer *glamour.TermRenderer
+	info     string
+}
+
+type spawnSource string
+
+const (
+	spawnSourceNormal spawnSource = "normal"
+	spawnSourceDaily  spawnSource = "daily"
+	spawnSourceSeed   spawnSource = "seed"
+)
+
+type spawnRequest struct {
+	source      spawnSource
+	name        string
+	gameType    string
+	modeTitle   string
+	returnState viewState
+}
+
+type model struct {
+	state viewState
+
+	nav     navigationState
+	session sessionState
+	help    helpState
+	stats   statsState
+	theme   themeState
+	debug   debugState
+
+	spinner spinner.Model
 
 	width  int // available content width (terminal - rootStyle frame)
 	height int // available content height (terminal - rootStyle frame)
 
-	debug         bool
-	debugRenderer *glamour.TermRenderer
-	debuginfo     string
-	showFullHelp  bool
-
-	store           *store.Store
-	activeGameID    int64
-	completionSaved bool
-
-	// Daily puzzle state
-	dailyPending   bool   // true while generating a daily puzzle
-	dailyName      string // pre-computed daily name
-	dailyGameType  string // e.g. "Nonogram"
-	dailyModeTitle string // e.g. "Standard"
-
-	// Seed input state
-	seedInput     textinput.Model
-	seedPending   bool   // true while generating a seeded puzzle
-	seedName      string // pre-computed seed-derived name
-	seedGameType  string // game type from rendezvous hashing
-	seedModeTitle string // mode title from rendezvous hashing
-
-	// Help page state
-	helpSelectList    list.Model
-	helpCategory      game.Category
-	helpViewport      viewport.Model
-	helpRenderer      *glamour.TermRenderer
-	helpRendererWidth int
-
-	// Stats page state
-	statsCards    []stats.Card
-	statsProfile  stats.ProfileBanner
-	statsViewport viewport.Model
-
-	// Theme picker state
-	themeList     list.Model
-	previousTheme string // for revert on Esc
+	store *store.Store
 
 	// Config
 	cfg *config.Config
@@ -171,13 +167,12 @@ func InitialModel(s *store.Store, cfg *config.Config) model {
 	l := ui.InitCategoryList(GameCategories, "Select Category")
 	mm := ui.NewMainMenu(mainMenuItems)
 	return model{
-		state:          mainMenuView,
-		debugRenderer:  r,
-		gameSelectList: l,
-		mainMenu:       mm,
-		spinner:        newSpinner(),
-		store:          s,
-		cfg:            cfg,
+		state:   mainMenuView,
+		debug:   debugState{renderer: r},
+		nav:     navigationState{gameSelectList: l, mainMenu: mm},
+		spinner: newSpinner(),
+		store:   s,
+		cfg:     cfg,
 	}
 }
 
@@ -188,16 +183,17 @@ func InitialModelWithGame(s *store.Store, cfg *config.Config, g game.Gamer, acti
 	l := ui.InitCategoryList(GameCategories, "Select Category")
 	mm := ui.NewMainMenu(mainMenuItems)
 	return model{
-		state:           gameView,
-		debugRenderer:   r,
-		gameSelectList:  l,
-		mainMenu:        mm,
-		spinner:         newSpinner(),
-		store:           s,
-		cfg:             cfg,
-		game:            g,
-		activeGameID:    activeGameID,
-		completionSaved: completionSaved,
+		state:   gameView,
+		debug:   debugState{renderer: r},
+		nav:     navigationState{gameSelectList: l, mainMenu: mm},
+		spinner: newSpinner(),
+		store:   s,
+		cfg:     cfg,
+		session: sessionState{
+			game:            g,
+			activeGameID:    activeGameID,
+			completionSaved: completionSaved,
+		},
 	}
 }
 

@@ -2,7 +2,7 @@
 
 A terminal-based puzzle game collection built with [Bubble Tea](https://github.com/charmbracelet/bubbletea).
 
-Nine puzzle types, multiple difficulty modes, daily challenges, XP progression, 365 color themes, and a plugin architecture for adding new games.
+Nine puzzle types, multiple difficulty modes, daily challenges, XP progression, 365 color themes, and an explicit game catalog for adding new games.
 
 ![PuzzleTea menu](vhs/menu.gif)
 
@@ -274,7 +274,7 @@ All code must pass `gofumpt` and `golangci-lint` before committing. CI runs both
 
 ## Adding a New Puzzle
 
-PuzzleTea uses a plugin architecture. To add a new puzzle type:
+PuzzleTea uses an explicit game catalog. To add a new puzzle type:
 
 ### 1. Create the game package
 
@@ -282,7 +282,7 @@ Create a directory (e.g., `mypuzzle/`) with these files:
 
 | File | Purpose |
 |------|---------|
-| `Gamemode.go` | Mode struct embedding `game.BaseMode`, `Spawn()`, `Modes` var, `init()` with `game.Register()` |
+| `Gamemode.go` | Mode struct embedding `game.BaseMode`, `Spawn()`, `Modes`/`DailyModes`, and package-level `Definition` metadata |
 | `Model.go` | `Model` struct implementing `game.Gamer` |
 | `Export.go` | `Save` struct, `GetSave()`, `ImportModel()` for persistence |
 | `keys.go` | Game-specific `KeyMap` struct |
@@ -292,12 +292,21 @@ Create a directory (e.g., `mypuzzle/`) with these files:
 | `mypuzzle_test.go` | Tests (table-driven, save/load round-trip, generator validation) |
 | `README.md` | Game docs: rules, controls table, modes table, quick start examples |
 
-### 2. Wire it into the main application
+### 2. Wire it into the central catalog
 
-These files in the project root must be edited:
+Edit the central catalog once:
 
-- **`model.go`**: Import the package and add a `game.Category` entry to `GameCategories` (maintain alphabetical order). The import triggers `init()`, which registers save/load -- no blank import needed.
-- **`resolve.go`**: Add the canonical name and any CLI aliases to `categoryAliases`.
+- **`catalog/catalog.go`**: Import the package and add its exported `Definition` to `All` (maintain alphabetical order).
+
+The game package's `Definition` owns:
+
+- canonical name
+- description
+- aliases
+- menu modes
+- daily-eligible modes
+- help content
+- save/import function
 
 ### 3. Add a VHS preview
 

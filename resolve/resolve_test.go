@@ -4,28 +4,29 @@ import (
 	"strings"
 	"testing"
 
+	"charm.land/bubbles/v2/list"
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/hashiwokakero"
 	"github.com/FelineStateMachine/puzzletea/hitori"
 	"github.com/FelineStateMachine/puzzletea/lightsout"
 	"github.com/FelineStateMachine/puzzletea/nonogram"
 	"github.com/FelineStateMachine/puzzletea/nurikabe"
+	"github.com/FelineStateMachine/puzzletea/shikaku"
 	"github.com/FelineStateMachine/puzzletea/sudoku"
 	"github.com/FelineStateMachine/puzzletea/takuzu"
 	"github.com/FelineStateMachine/puzzletea/wordsearch"
-
-	"charm.land/bubbles/v2/list"
 )
 
-var testCategories = []list.Item{
-	game.Category{Name: "Hashiwokakero", Desc: "Connect islands with bridges.", Modes: hashiwokakero.Modes},
-	game.Category{Name: "Hitori", Desc: "Shade cells to eliminate duplicates.", Modes: hitori.Modes},
-	game.Category{Name: "Lights Out", Desc: "Turn off all the lights.", Modes: lightsout.Modes},
-	game.Category{Name: "Nonogram", Desc: "Fill cells to match row and column hints.", Modes: nonogram.Modes},
-	game.Category{Name: "Nurikabe", Desc: "Build islands while keeping one connected sea.", Modes: nurikabe.Modes},
-	game.Category{Name: "Sudoku", Desc: "Fill the 9x9 grid following sudoku rules.", Modes: sudoku.Modes},
-	game.Category{Name: "Takuzu", Desc: "Fill the grid with ● and ○.", Modes: takuzu.Modes},
-	game.Category{Name: "Word Search", Desc: "Find hidden words in a letter grid.", Modes: wordsearch.Modes},
+var testDefinitions = []game.Definition{
+	hashiwokakero.Definition,
+	hitori.Definition,
+	lightsout.Definition,
+	nonogram.Definition,
+	nurikabe.Definition,
+	shikaku.Definition,
+	sudoku.Definition,
+	takuzu.Definition,
+	wordsearch.Definition,
 }
 
 func TestNormalize(t *testing.T) {
@@ -79,7 +80,7 @@ func TestCategory(t *testing.T) {
 
 	for _, tt := range exactTests {
 		t.Run(tt.name, func(t *testing.T) {
-			cat, err := Category(tt.input, testCategories)
+			cat, err := Category(tt.input, testDefinitions)
 			if err != nil {
 				t.Fatalf("Category(%q) error: %v", tt.input, err)
 			}
@@ -113,7 +114,7 @@ func TestCategory(t *testing.T) {
 
 	for _, tt := range aliasTests {
 		t.Run("alias_"+tt.alias, func(t *testing.T) {
-			cat, err := Category(tt.alias, testCategories)
+			cat, err := Category(tt.alias, testDefinitions)
 			if err != nil {
 				t.Fatalf("Category(%q) error: %v", tt.alias, err)
 			}
@@ -125,7 +126,7 @@ func TestCategory(t *testing.T) {
 
 	// Error cases.
 	t.Run("unknown game", func(t *testing.T) {
-		_, err := Category("chess", testCategories)
+		_, err := Category("chess", testDefinitions)
 		if err == nil {
 			t.Fatal("expected error for unknown game")
 		}
@@ -135,7 +136,7 @@ func TestCategory(t *testing.T) {
 	})
 
 	t.Run("empty string", func(t *testing.T) {
-		_, err := Category("", testCategories)
+		_, err := Category("", testDefinitions)
 		if err == nil {
 			t.Fatal("expected error for empty string")
 		}
@@ -144,7 +145,7 @@ func TestCategory(t *testing.T) {
 
 func TestMode(t *testing.T) {
 	// Find a known category with modes for testing.
-	sudokuCat, err := Category("Sudoku", testCategories)
+	sudokuCat, err := Category("Sudoku", testDefinitions)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -194,7 +195,7 @@ func TestMode(t *testing.T) {
 	})
 
 	t.Run("empty modes list", func(t *testing.T) {
-		emptyCat := game.Category{Name: "Empty", Modes: []list.Item{}}
+		emptyCat := game.Category{Name: "Empty", Modes: nil}
 		_, _, err := Mode(emptyCat, "any")
 		if err == nil {
 			t.Fatal("expected error for empty modes")
@@ -206,9 +207,9 @@ func TestMode(t *testing.T) {
 }
 
 func TestCategoryNames(t *testing.T) {
-	names := CategoryNames(testCategories)
-	if len(names) != len(testCategories) {
-		t.Fatalf("len(CategoryNames()) = %d, want %d", len(names), len(testCategories))
+	names := CategoryNames(testDefinitions)
+	if len(names) != len(testDefinitions) {
+		t.Fatalf("len(CategoryNames()) = %d, want %d", len(names), len(testDefinitions))
 	}
 
 	// Verify all expected games are present.
@@ -218,6 +219,7 @@ func TestCategoryNames(t *testing.T) {
 		"Lights Out":    true,
 		"Nonogram":      true,
 		"Nurikabe":      true,
+		"Shikaku":       true,
 		"Sudoku":        true,
 		"Takuzu":        true,
 		"Word Search":   true,
@@ -234,7 +236,7 @@ func TestCategoryNames(t *testing.T) {
 }
 
 func TestModeNames(t *testing.T) {
-	cat, err := Category("Lights Out", testCategories)
+	cat, err := Category("Lights Out", testDefinitions)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -291,11 +293,11 @@ func TestRNGFromString(t *testing.T) {
 
 func TestSeededMode(t *testing.T) {
 	t.Run("deterministic selection", func(t *testing.T) {
-		s1, gt1, m1, err := SeededMode("test-seed-42", testCategories)
+		s1, gt1, m1, err := SeededMode("test-seed-42", testDefinitions)
 		if err != nil {
 			t.Fatal(err)
 		}
-		s2, gt2, m2, err := SeededMode("test-seed-42", testCategories)
+		s2, gt2, m2, err := SeededMode("test-seed-42", testDefinitions)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -312,7 +314,7 @@ func TestSeededMode(t *testing.T) {
 	})
 
 	t.Run("returns valid metadata", func(t *testing.T) {
-		spawner, gameType, modeTitle, err := SeededMode("test-seed", testCategories)
+		spawner, gameType, modeTitle, err := SeededMode("test-seed", testDefinitions)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -328,7 +330,7 @@ func TestSeededMode(t *testing.T) {
 	})
 
 	t.Run("empty categories returns error", func(t *testing.T) {
-		_, _, _, err := SeededMode("test", []list.Item{})
+		_, _, _, err := SeededMode("test", nil)
 		if err == nil {
 			t.Fatal("expected error for empty categories")
 		}
@@ -336,8 +338,8 @@ func TestSeededMode(t *testing.T) {
 
 	t.Run("categories with no seeded spawners returns error", func(t *testing.T) {
 		// Category with no modes at all.
-		cats := []list.Item{
-			game.Category{Name: "Empty", Modes: []list.Item{}},
+		cats := []game.Definition{
+			{Name: "Empty", Modes: nil, Import: func([]byte) (game.Gamer, error) { return nil, nil }},
 		}
 		_, _, _, err := SeededMode("test", cats)
 		if err == nil {
@@ -361,7 +363,7 @@ func TestSeededMode(t *testing.T) {
 		// Record selections with original categories.
 		original := make([]selection, len(seeds))
 		for i, seed := range seeds {
-			_, gt, m, err := SeededMode(seed, testCategories)
+			_, gt, m, err := SeededMode(seed, testDefinitions)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -369,12 +371,13 @@ func TestSeededMode(t *testing.T) {
 		}
 
 		// Add a synthetic category with one mode.
-		extended := make([]list.Item, len(testCategories))
-		copy(extended, testCategories)
-		extended = append(extended, game.Category{
-			Name:  "Synthetic",
-			Desc:  "Fake game for testing",
-			Modes: []list.Item{lightsout.Modes[0]},
+		extended := make([]game.Definition, len(testDefinitions))
+		copy(extended, testDefinitions)
+		extended = append(extended, game.Definition{
+			Name:        "Synthetic",
+			Description: "Fake game for testing",
+			Modes:       []list.Item{lightsout.Modes[0]},
+			Import:      func([]byte) (game.Gamer, error) { return nil, nil },
 		})
 
 		for i, seed := range seeds {

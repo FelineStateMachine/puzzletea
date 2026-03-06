@@ -11,12 +11,6 @@ import (
 //go:embed help.md
 var HelpContent string
 
-func init() {
-	game.Register("Hashiwokakero", func(data []byte) (game.Gamer, error) {
-		return ImportModel(data)
-	})
-}
-
 type HashiMode struct {
 	game.BaseMode
 	Width      int
@@ -75,4 +69,14 @@ var Modes = []list.Item{
 var DailyModes = []list.Item{
 	Modes[3], // Easy 9x9
 	Modes[1], // Medium 7x7
+}
+
+var Definition = game.Definition{
+	Name:        "Hashiwokakero",
+	Description: "Connect islands with bridges.",
+	Aliases:     []string{"hashi", "bridges"},
+	Modes:       Modes,
+	DailyModes:  DailyModes,
+	Help:        HelpContent,
+	Import:      func(data []byte) (game.Gamer, error) { return ImportModel(data) },
 }

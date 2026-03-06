@@ -13,12 +13,6 @@ import (
 //go:embed help.md
 var HelpContent string
 
-func init() {
-	game.Register("Nurikabe", func(data []byte) (game.Gamer, error) {
-		return ImportModel(data)
-	})
-}
-
 type NurikabeMode struct {
 	game.BaseMode
 	Width         int
@@ -83,4 +77,14 @@ var Modes = []list.Item{
 var DailyModes = []list.Item{
 	Modes[1], // Easy
 	Modes[2], // Medium
+}
+
+var Definition = game.Definition{
+	Name:        "Nurikabe",
+	Description: "Build islands while keeping one connected sea.",
+	Aliases:     []string{"islands", "sea"},
+	Modes:       Modes,
+	DailyModes:  DailyModes,
+	Help:        HelpContent,
+	Import:      func(data []byte) (game.Gamer, error) { return ImportModel(data) },
 }

@@ -11,12 +11,6 @@ import (
 //go:embed help.md
 var HelpContent string
 
-func init() {
-	game.Register("Word Search", func(data []byte) (game.Gamer, error) {
-		return ImportModel(data)
-	})
-}
-
 type WordSearchMode struct {
 	game.BaseMode
 	Width       int
@@ -63,4 +57,14 @@ var Modes = []list.Item{
 
 var DailyModes = []list.Item{
 	Modes[0], // Easy 10x10
+}
+
+var Definition = game.Definition{
+	Name:        "Word Search",
+	Description: "Find hidden words in a letter grid.",
+	Aliases:     []string{"words", "wordsearch", "ws"},
+	Modes:       Modes,
+	DailyModes:  DailyModes,
+	Help:        HelpContent,
+	Import:      func(data []byte) (game.Gamer, error) { return ImportModel(data) },
 }

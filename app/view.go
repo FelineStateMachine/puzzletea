@@ -16,31 +16,31 @@ func (m model) View() tea.View {
 
 	switch m.state {
 	case mainMenuView:
-		content = ui.CenterView(m.width, m.height, m.mainMenu.View())
+		content = ui.CenterView(m.width, m.height, m.nav.mainMenu.View())
 	case playMenuView:
-		content = ui.CenterView(m.width, m.height, m.playMenu.ViewAsPanel("Play"))
+		content = ui.CenterView(m.width, m.height, m.nav.playMenu.ViewAsPanel("Play"))
 	case optionsMenuView:
-		items := m.optionsMenu.RenderItems() + "\n\n" + ui.DimItemStyle().Render("- Dami")
+		items := m.nav.optionsMenu.RenderItems() + "\n\n" + ui.DimItemStyle().Render("- Dami")
 		panel := ui.Panel("Options", items, "↑/↓ navigate • enter select • esc back")
 		content = ui.CenterView(m.width, m.height, panel)
 	case seedInputView:
 		panel := ui.Panel(
 			"Enter Seed",
-			m.seedInput.View(),
+			m.nav.seedInput.View(),
 			"enter confirm • esc back",
 		)
 		content = ui.CenterView(m.width, m.height, panel)
 	case gameSelectView:
 		panel := ui.Panel(
 			"Select Category",
-			m.gameSelectList.View(),
+			m.nav.gameSelectList.View(),
 			"↑/↓ navigate • enter select • esc back",
 		)
 		content = ui.CenterView(m.width, m.height, panel)
 	case modeSelectView:
 		panel := ui.Panel(
-			m.selectedCategory.Name+" — Select Mode",
-			m.modeSelectList.View(),
+			m.nav.selectedCategory.Name+" — Select Mode",
+			m.nav.modeSelectList.View(),
 			"↑/↓ navigate • enter select • esc back",
 		)
 		content = ui.CenterView(m.width, m.height, panel)
@@ -50,7 +50,7 @@ func (m model) View() tea.View {
 		content = ui.CenterView(m.width, m.height, box)
 	case continueView:
 		var s string
-		if len(m.continueGames) == 0 {
+		if len(m.nav.continueGames) == 0 {
 			s = ui.Panel(
 				"Saved Games",
 				"No saved games yet.",
@@ -58,25 +58,25 @@ func (m model) View() tea.View {
 			)
 		} else {
 			footer := "↑/↓ navigate • enter resume • esc back"
-			if pg := ui.TablePagination(m.continueTable); pg != "" {
+			if pg := ui.TablePagination(m.nav.continueTable); pg != "" {
 				footer = pg + "  " + footer
 			}
 			s = ui.Panel(
 				"Saved Games",
-				m.continueTable.View(),
+				m.nav.continueTable.View(),
 				footer,
 			)
 		}
 		content = ui.CenterView(m.width, m.height, s)
 	case gameView:
-		if m.game == nil {
+		if m.session.game == nil {
 			content = ""
 		} else {
-			gameView := lipgloss.NewStyle().MaxWidth(m.width).Render(m.game.View())
+			gameView := lipgloss.NewStyle().MaxWidth(m.width).Render(m.session.game.View())
 			centered := gameView
-			if m.debug {
+			if m.debug.enabled {
 				debugInfo := lipgloss.NewStyle().MaxWidth(m.width).Render(
-					ui.DebugStyle().Render(m.debuginfo),
+					ui.DebugStyle().Render(m.debug.info),
 				)
 				centered = lipgloss.JoinVertical(lipgloss.Center, gameView, debugInfo)
 			}
@@ -85,30 +85,30 @@ func (m model) View() tea.View {
 	case helpSelectView:
 		panel := ui.Panel(
 			"How to Play",
-			m.helpSelectList.View(),
+			m.nav.helpSelectList.View(),
 			"↑/↓ navigate • enter select • esc back",
 		)
 		content = ui.CenterView(m.width, m.height, panel)
 	case helpDetailView:
 		panel := ui.Panel(
-			m.helpCategory.Name+" — Guide",
-			m.helpViewport.View(),
+			m.help.category.Name+" — Guide",
+			m.help.viewport.View(),
 			"↑/↓ scroll • esc back",
 		)
 		content = ui.CenterView(m.width, m.height, panel)
 	case themeSelectView:
 		content = m.themeSelectViewContent()
 	case statsView:
-		statsWidth, _ := statsViewportSize(m.width, m.height, m.statsCards)
+		statsWidth, _ := statsViewportSize(m.width, m.height, m.stats.cards)
 		var statsBody string
-		if len(m.statsCards) == 0 {
-			statsBody = m.statsViewport.View()
+		if len(m.stats.cards) == 0 {
+			statsBody = m.stats.viewport.View()
 		} else {
-			banner := stats.RenderBanner(m.statsProfile, statsWidth)
+			banner := stats.RenderBanner(m.stats.profile, statsWidth)
 			statsBody = lipgloss.JoinVertical(lipgloss.Left,
 				banner,
 				"",
-				m.statsViewport.View(),
+				m.stats.viewport.View(),
 			)
 		}
 		statsBody = lipgloss.NewStyle().Width(statsWidth).Render(statsBody)
@@ -138,7 +138,7 @@ func (m model) themeSelectViewContent() string {
 
 	// Determine selected theme name for the preview.
 	themeName := theme.DefaultThemeName
-	if item, ok := m.themeList.SelectedItem().(ui.MenuItem); ok {
+	if item, ok := m.theme.list.SelectedItem().(ui.MenuItem); ok {
 		themeName = item.ItemTitle
 	}
 
@@ -151,7 +151,7 @@ func (m model) themeSelectViewContent() string {
 	}
 
 	// Left side: theme list.
-	listView := m.themeList.View()
+	listView := m.theme.list.View()
 
 	// Right side: color preview.
 	previewBorder := lipgloss.NewStyle().

@@ -8,61 +8,32 @@ import (
 	"strings"
 
 	"github.com/FelineStateMachine/puzzletea/game"
-
-	"charm.land/bubbles/v2/list"
 )
 
 // Normalize lowercases and replaces hyphens/underscores with spaces for
-// fuzzy matching of CLI arguments to game/mode names.
+// fuzzy matching of CLI arguments to mode names.
 func Normalize(s string) string {
-	s = strings.ToLower(s)
-	s = strings.ReplaceAll(s, "-", " ")
-	s = strings.ReplaceAll(s, "_", " ")
-	return strings.TrimSpace(s)
-}
-
-// CategoryAliases maps short or alternate names to canonical category names.
-var CategoryAliases = map[string]string{
-	"hashi":      "hashiwokakero",
-	"bridges":    "hashiwokakero",
-	"hitori":     "hitori",
-	"lights":     "lights out",
-	"nonogram":   "nonogram",
-	"nurikabe":   "nurikabe",
-	"islands":    "nurikabe",
-	"sea":        "nurikabe",
-	"sudoku":     "sudoku",
-	"takuzu":     "takuzu",
-	"binairo":    "takuzu",
-	"binary":     "takuzu",
-	"shikaku":    "shikaku",
-	"rectangles": "shikaku",
-	"words":      "word search",
-	"wordsearch": "word search",
-	"ws":         "word search",
+	return game.NormalizeName(s)
 }
 
 // Category finds a game category by name (case-insensitive,
 // hyphen/underscore-tolerant, with alias support).
-func Category(name string, categories []list.Item) (game.Category, error) {
-	norm := Normalize(name)
+func Category(name string, definitions []game.Definition) (game.Category, error) {
+	norm := game.NormalizeName(name)
 
-	if canonical, ok := CategoryAliases[norm]; ok {
-		norm = canonical
-	}
-
-	for _, item := range categories {
-		cat, ok := item.(game.Category)
-		if !ok {
-			continue
+	for _, def := range definitions {
+		if game.NormalizeName(def.Name) == norm {
+			return def.Category(), nil
 		}
-		if Normalize(cat.Name) == norm {
-			return cat, nil
+		for _, alias := range def.Aliases {
+			if game.NormalizeName(alias) == norm {
+				return def.Category(), nil
+			}
 		}
 	}
 
 	return game.Category{}, fmt.Errorf("unknown game %q\n\nAvailable games:\n  %s",
-		name, strings.Join(CategoryNames(categories), "\n  "))
+		name, joinLines(CategoryNames(definitions)))
 }
 
 // Mode finds a mode within a category by name. If name is empty,
@@ -107,14 +78,10 @@ func Mode(cat game.Category, name string) (game.Spawner, string, error) {
 }
 
 // CategoryNames returns the display names of all game categories.
-func CategoryNames(categories []list.Item) []string {
-	names := make([]string, 0, len(categories))
-	for _, item := range categories {
-		cat, ok := item.(game.Category)
-		if !ok {
-			continue
-		}
-		names = append(names, cat.Name)
+func CategoryNames(definitions []game.Definition) []string {
+	names := make([]string, 0, len(definitions))
+	for _, def := range definitions {
+		names = append(names, def.Name)
 	}
 	return names
 }
@@ -156,16 +123,12 @@ type seededEntry struct {
 // This is resilient to changes in the category/mode lists: adding or
 // removing a mode only affects seeds where the changed entry would have
 // been the winner.
-func SeededMode(seed string, categories []list.Item) (game.SeededSpawner, string, string, error) {
+func SeededMode(seed string, definitions []game.Definition) (game.SeededSpawner, string, string, error) {
 	var best seededEntry
 	var bestHash uint64
 	found := false
-	for _, item := range categories {
-		cat, ok := item.(game.Category)
-		if !ok {
-			continue
-		}
-		for _, modeItem := range cat.Modes {
+	for _, def := range definitions {
+		for _, modeItem := range def.Modes {
 			mode, ok := modeItem.(game.Mode)
 			if !ok {
 				continue
@@ -177,7 +140,7 @@ func SeededMode(seed string, categories []list.Item) (game.SeededSpawner, string
 			h := fnv.New64a()
 			h.Write([]byte(seed))
 			h.Write([]byte{0})
-			h.Write([]byte(cat.Name))
+			h.Write([]byte(def.Name))
 			h.Write([]byte{0})
 			h.Write([]byte(mode.Title()))
 			score := h.Sum64()
@@ -185,7 +148,7 @@ func SeededMode(seed string, categories []list.Item) (game.SeededSpawner, string
 				bestHash = score
 				best = seededEntry{
 					spawner:  s,
-					gameType: cat.Name,
+					gameType: def.Name,
 					mode:     mode.Title(),
 				}
 				found = true
@@ -196,4 +159,15 @@ func SeededMode(seed string, categories []list.Item) (game.SeededSpawner, string
 		return nil, "", "", errors.New("no seeded modes available")
 	}
 	return best.spawner, best.gameType, best.mode, nil
+}
+
+func joinLines(values []string) string {
+	if len(values) == 0 {
+		return ""
+	}
+	result := values[0]
+	for i := 1; i < len(values); i++ {
+		result += "\n  " + values[i]
+	}
+	return result
 }

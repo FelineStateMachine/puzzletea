@@ -953,21 +953,16 @@ func findFirstSolutionMarks(puzzle grid, size int) ([][]cellMark, bool) {
 // --- Registration (P0) ---
 
 func TestRegistration(t *testing.T) {
-	fn, ok := game.Registry["Hitori"]
-	if !ok {
-		t.Fatal("Hitori not registered in game.Registry")
-	}
-
 	numbers := makeGrid("123", "231", "312")
 	mode := testMode(3)
 	g, _ := New(mode, numbers)
 	data, _ := g.GetSave()
 
-	loaded, err := fn(data)
+	loaded, err := Definition.Import(data)
 	if err != nil {
-		t.Fatalf("Registry import: %v", err)
+		t.Fatalf("definition import: %v", err)
 	}
 	if loaded == nil {
-		t.Fatal("Registry import returned nil")
+		t.Fatal("definition import returned nil")
 	}
 }

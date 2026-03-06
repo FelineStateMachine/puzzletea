@@ -10,8 +10,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/FelineStateMachine/puzzletea/daily"
 	"github.com/FelineStateMachine/puzzletea/game"
-	"github.com/FelineStateMachine/puzzletea/namegen"
-	"github.com/FelineStateMachine/puzzletea/resolve"
+	"github.com/FelineStateMachine/puzzletea/lightsout"
+	sessionflow "github.com/FelineStateMachine/puzzletea/session"
 	"github.com/FelineStateMachine/puzzletea/store"
 )
 
@@ -64,8 +64,8 @@ func (g *escapeTrackingGame) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 func TestGameViewEscapePassesThroughToGame(t *testing.T) {
 	tracker := &escapeTrackingGame{}
 	m := model{
-		state: gameView,
-		game:  tracker,
+		state:   gameView,
+		session: sessionState{game: tracker},
 	}
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
@@ -88,32 +88,28 @@ func TestImportAndActivateRecordSuccessFlag(t *testing.T) {
 		t.Fatal("expected unknown game type import to fail")
 	}
 
-	const gameType = "TestImportAndActivateRecordGame"
-	prev, hadPrev := game.Registry[gameType]
-	game.Register(gameType, func(_ []byte) (game.Gamer, error) {
-		return &escapeTrackingGame{}, nil
-	})
-	t.Cleanup(func() {
-		if hadPrev {
-			game.Registry[gameType] = prev
-			return
-		}
-		delete(game.Registry, gameType)
-	})
+	loadedGame, err := lightsout.New(3, 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	save, err := loadedGame.GetSave()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	rec := store.GameRecord{
 		ID:        42,
 		Name:      "resume-me",
-		GameType:  gameType,
-		SaveState: "{}",
+		GameType:  "Lights Out",
+		SaveState: string(save),
 		Status:    store.StatusCompleted,
 	}
 
 	next, ok := (model{
-		state:        playMenuView,
-		width:        80,
-		height:       24,
-		showFullHelp: true,
+		state:  playMenuView,
+		width:  80,
+		height: 24,
+		help:   helpState{showFull: true},
 	}).importAndActivateRecord(rec)
 	if !ok {
 		t.Fatal("expected known game type import to succeed")
@@ -121,13 +117,13 @@ func TestImportAndActivateRecordSuccessFlag(t *testing.T) {
 	if next.state != gameView {
 		t.Fatalf("state = %d, want %d (gameView)", next.state, gameView)
 	}
-	if next.activeGameID != rec.ID {
-		t.Fatalf("activeGameID = %d, want %d", next.activeGameID, rec.ID)
+	if next.session.activeGameID != rec.ID {
+		t.Fatalf("activeGameID = %d, want %d", next.session.activeGameID, rec.ID)
 	}
-	if !next.completionSaved {
+	if !next.session.completionSaved {
 		t.Fatal("expected completionSaved to be true for completed record")
 	}
-	if next.game == nil {
+	if next.session.game == nil {
 		t.Fatal("expected game to be activated")
 	}
 }
@@ -135,8 +131,7 @@ func TestImportAndActivateRecordSuccessFlag(t *testing.T) {
 func TestHandleSeedConfirmDoesNotResumeStatusWhenImportFails(t *testing.T) {
 	s := openAppTestStore(t)
 	seed := "import-failure-seed"
-	nameRNG := resolve.RNGFromString("name:" + seed)
-	name := seed + " - " + namegen.GenerateSeeded(nameRNG)
+	name := sessionflow.SeededName(seed)
 	rec := &store.GameRecord{
 		Name:         name,
 		GameType:     "NoSuchGameType",
@@ -152,9 +147,9 @@ func TestHandleSeedConfirmDoesNotResumeStatusWhenImportFails(t *testing.T) {
 	ti := textinput.New()
 	ti.SetValue(seed)
 	m := model{
-		state:     seedInputView,
-		store:     s,
-		seedInput: ti,
+		state: seedInputView,
+		store: s,
+		nav:   navigationState{seedInput: ti},
 	}
 
 	next, _ := m.handleSeedConfirm()

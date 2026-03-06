@@ -10,18 +10,20 @@ import (
 func TestHandleSpawnCompleteIgnoresStaleJob(t *testing.T) {
 	called := false
 	m := model{
-		state:      generatingView,
-		generating: true,
-		spawnJobID: 7,
-		spawnCancel: func() {
-			called = true
+		state: generatingView,
+		session: sessionState{
+			generating: true,
+			spawnJobID: 7,
+			spawnCancel: func() {
+				called = true
+			},
 		},
 	}
 
 	next, _ := m.handleSpawnComplete(6, game.SpawnCompleteMsg{Err: nil})
 	got := next.(model)
 
-	if !got.generating {
+	if !got.session.generating {
 		t.Fatal("expected stale completion to be ignored")
 	}
 	if called {
@@ -32,12 +34,17 @@ func TestHandleSpawnCompleteIgnoresStaleJob(t *testing.T) {
 func TestGeneratingEscapeCancelsActiveSpawn(t *testing.T) {
 	called := false
 	m := model{
-		state:       generatingView,
-		generating:  true,
-		seedPending: true,
-		spawnJobID:  3,
-		spawnCancel: func() {
-			called = true
+		state: generatingView,
+		session: sessionState{
+			generating: true,
+			spawnJobID: 3,
+			spawnCancel: func() {
+				called = true
+			},
+			spawn: &spawnRequest{
+				source:      spawnSourceSeed,
+				returnState: playMenuView,
+			},
 		},
 	}
 
@@ -47,13 +54,13 @@ func TestGeneratingEscapeCancelsActiveSpawn(t *testing.T) {
 	if !called {
 		t.Fatal("expected spawn cancellation callback to run")
 	}
-	if got.generating {
+	if got.session.generating {
 		t.Fatal("expected generating to be false after escape")
 	}
 	if got.state != playMenuView {
 		t.Fatalf("expected playMenuView after seeded generation escape, got %d", got.state)
 	}
-	if got.spawnCancel != nil {
+	if got.session.spawnCancel != nil {
 		t.Fatal("expected spawnCancel to be cleared")
 	}
 }

@@ -11,12 +11,6 @@ import (
 //go:embed help.md
 var HelpContent string
 
-func init() {
-	game.Register("Hitori", func(data []byte) (game.Gamer, error) {
-		return ImportModel(data)
-	})
-}
-
 type HitoriMode struct {
 	game.BaseMode
 	Size       int
@@ -65,4 +59,13 @@ var Modes = []list.Item{
 var DailyModes = []list.Item{
 	Modes[1], // Easy 6x6
 	Modes[2], // Medium 8x8
+}
+
+var Definition = game.Definition{
+	Name:        "Hitori",
+	Description: "Shade cells to eliminate duplicates.",
+	Modes:       Modes,
+	DailyModes:  DailyModes,
+	Help:        HelpContent,
+	Import:      func(data []byte) (game.Gamer, error) { return ImportModel(data) },
 }

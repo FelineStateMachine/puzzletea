@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/FelineStateMachine/puzzletea/app"
+	"github.com/FelineStateMachine/puzzletea/catalog"
 	"github.com/FelineStateMachine/puzzletea/config"
 	"github.com/FelineStateMachine/puzzletea/game"
-	"github.com/FelineStateMachine/puzzletea/namegen"
 	"github.com/FelineStateMachine/puzzletea/resolve"
+	sessionflow "github.com/FelineStateMachine/puzzletea/session"
 	"github.com/FelineStateMachine/puzzletea/stats"
 	"github.com/FelineStateMachine/puzzletea/store"
 
@@ -27,20 +27,20 @@ var newCmd = &cobra.Command{
 	Short: "Start a new puzzle game",
 	Long: fmt.Sprintf("Start a new puzzle game, optionally specifying the difficulty mode.\n"+
 		"Use --set-seed to generate a deterministic puzzle from a seed string.\n\nAvailable games:\n  %s",
-		strings.Join(resolve.CategoryNames(app.GameCategories), "\n  ")),
+		strings.Join(resolve.CategoryNames(catalog.All), "\n  ")),
 	Args: cobra.RangeArgs(0, 2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if flagOutput != "" || cmd.Flags().Changed("export") {
 			return runNewExport(cmd, args)
 		}
 
-		cfg := loadConfig("")
+		cfg := loadActiveConfig()
 
 		if flagSetSeed != "" {
 			if len(args) > 0 {
 				return fmt.Errorf("cannot specify game/mode arguments with --set-seed; the seed determines the puzzle type")
 			}
-			return launchSeededGame(flagSetSeed, cfg)
+			return launchSeededGameFn(flagSetSeed, cfg)
 		}
 		if len(args) == 0 {
 			return fmt.Errorf("requires at least 1 arg(s), only received 0")
@@ -50,7 +50,7 @@ var newCmd = &cobra.Command{
 		if len(args) > 1 {
 			modeArg = args[1]
 		}
-		return launchNewGame(gameArg, modeArg, flagWithSeed, cfg)
+		return launchNewGameFn(gameArg, modeArg, flagWithSeed, cfg)
 	},
 }
 
@@ -63,7 +63,7 @@ func init() {
 
 // launchNewGame resolves the game/mode, spawns a new game, and launches the TUI.
 func launchNewGame(gameArg, modeArg, seed string, cfg *config.Config) error {
-	cat, err := resolve.Category(gameArg, app.GameCategories)
+	cat, err := resolve.Category(gameArg, catalog.All)
 	if err != nil {
 		return err
 	}
@@ -78,23 +78,23 @@ func launchNewGame(gameArg, modeArg, seed string, cfg *config.Config) error {
 		return fmt.Errorf("failed to spawn game: %w", err)
 	}
 
-	s, err := store.Open(cfg.DBPath)
+	s, err := openStoreFn(cfg.DBPath)
 	if err != nil {
 		return err
 	}
 	defer s.Close()
 
-	stats.InitModeXP(app.Categories)
+	stats.InitModeXP(catalog.Categories())
 
-	name := app.GenerateUniqueName(s)
+	name := sessionflow.GenerateUniqueName(s)
 	g = g.SetTitle(name)
 
-	rec, err := createGameRecord(s, g, name, cat.Name, modeTitle)
+	rec, err := sessionflow.CreateRecord(s, g, name, cat.Name, modeTitle)
 	if err != nil {
 		return err
 	}
 
-	return runGameProgram(s, cfg, g, rec.ID, false)
+	return runGameProgramFn(s, cfg, g, rec.ID, false)
 }
 
 func spawnFromMode(spawner game.Spawner, seed string) (game.Gamer, error) {
@@ -117,48 +117,36 @@ func spawnFromMode(spawner game.Spawner, seed string) (game.Gamer, error) {
 // changes to namegen word lists or mode lists don't cascade. The shared
 // RNG is reserved purely for puzzle content generation.
 func launchSeededGame(seed string, cfg *config.Config) error {
-	// Prevent seeded puzzles from mimicking daily puzzle names by
-	// silently lowercasing a "Daily" prefix so titles never start
-	// with the real daily prefix "Daily ".
-	if strings.HasPrefix(strings.ToLower(seed), "daily") {
-		seed = strings.ToLower(seed[:len("daily")]) + seed[len("daily"):]
-	}
+	seed = sessionflow.NormalizeSeed(seed)
+	name := sessionflow.SeededName(seed)
 
-	// Name uses its own sub-RNG so namegen changes can't affect mode
-	// selection or puzzle generation.
-	nameRNG := resolve.RNGFromString("name:" + seed)
-	name := seed + " - " + namegen.GenerateSeeded(nameRNG)
-
-	s, err := store.Open(cfg.DBPath)
+	s, err := openStoreFn(cfg.DBPath)
 	if err != nil {
 		return err
 	}
 	defer s.Close()
 
-	stats.InitModeXP(app.Categories)
+	stats.InitModeXP(catalog.Categories())
 
 	// If a game with this name already exists, resume it (including
 	// abandoned games — seeded puzzles are deterministic and should
 	// always be resumable rather than duplicated).
 	if rec, err := s.GetDailyGame(name); err == nil && rec != nil {
-		g, err := importSavedGame(rec)
+		g, err := sessionflow.ImportRecord(rec)
 		if err != nil {
 			return err
 		}
 		completed := rec.Status == store.StatusCompleted
 
-		// Resume abandoned seeded games by resetting their status.
-		if rec.Status == store.StatusAbandoned {
-			if err := s.UpdateStatus(rec.ID, store.StatusInProgress); err != nil {
-				return fmt.Errorf("failed to mark seeded game in progress: %w", err)
-			}
+		if err := sessionflow.ResumeAbandonedDeterministicRecord(s, rec); err != nil {
+			return err
 		}
 
-		return runGameProgram(s, cfg, g, rec.ID, completed)
+		return runGameProgramFn(s, cfg, g, rec.ID, completed)
 	}
 
 	// Mode selection uses rendezvous hashing (independent of RNG).
-	spawner, gameType, modeTitle, err := resolve.SeededMode(seed, app.GameCategories)
+	spawner, gameType, modeTitle, err := resolve.SeededMode(seed, catalog.All)
 	if err != nil {
 		return err
 	}
@@ -171,10 +159,10 @@ func launchSeededGame(seed string, cfg *config.Config) error {
 	}
 	g = g.SetTitle(name)
 
-	rec, err := createGameRecord(s, g, name, gameType, modeTitle)
+	rec, err := sessionflow.CreateRecord(s, g, name, gameType, modeTitle)
 	if err != nil {
 		return err
 	}
 
-	return runGameProgram(s, cfg, g, rec.ID, false)
+	return runGameProgramFn(s, cfg, g, rec.ID, false)
 }

@@ -11,12 +11,6 @@ import (
 //go:embed help.md
 var HelpContent string
 
-func init() {
-	game.Register("Lights Out", func(data []byte) (game.Gamer, error) {
-		return ImportModel(data)
-	})
-}
-
 type Mode struct {
 	game.BaseMode
 	Width, Height int
@@ -54,4 +48,14 @@ var Modes = []list.Item{
 var DailyModes = []list.Item{
 	Modes[1], // Medium 5x5
 	Modes[2], // Hard 7x7
+}
+
+var Definition = game.Definition{
+	Name:        "Lights Out",
+	Description: "Turn off all the lights.",
+	Aliases:     []string{"lights"},
+	Modes:       Modes,
+	DailyModes:  DailyModes,
+	Help:        HelpContent,
+	Import:      func(data []byte) (game.Gamer, error) { return ImportModel(data) },
 }

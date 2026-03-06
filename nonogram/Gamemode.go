@@ -11,12 +11,6 @@ import (
 //go:embed help.md
 var HelpContent string
 
-func init() {
-	game.Register("Nonogram", func(data []byte) (game.Gamer, error) {
-		return ImportModel(data)
-	})
-}
-
 type NonogramMode struct {
 	game.BaseMode
 	Width, Height int
@@ -68,4 +62,13 @@ var Modes = []list.Item{
 var DailyModes = []list.Item{
 	Modes[3], // Standard 10x10
 	Modes[4], // Classic 10x10
+}
+
+var Definition = game.Definition{
+	Name:        "Nonogram",
+	Description: "Fill cells to match row and column hints.",
+	Modes:       Modes,
+	DailyModes:  DailyModes,
+	Help:        HelpContent,
+	Import:      func(data []byte) (game.Gamer, error) { return ImportModel(data) },
 }

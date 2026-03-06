@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/FelineStateMachine/puzzletea/app"
+	"github.com/FelineStateMachine/puzzletea/catalog"
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/namegen"
 	"github.com/FelineStateMachine/puzzletea/pdfexport"
@@ -31,7 +31,7 @@ func runNewExport(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	cat, err := resolve.Category(args[0], app.GameCategories)
+	cat, err := resolve.Category(args[0], catalog.All)
 	if err != nil {
 		return err
 	}

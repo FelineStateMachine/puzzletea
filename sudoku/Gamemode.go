@@ -11,12 +11,6 @@ import (
 //go:embed help.md
 var HelpContent string
 
-func init() {
-	game.Register("Sudoku", func(data []byte) (game.Gamer, error) {
-		return ImportModel(data)
-	})
-}
-
 type SudokuMode struct {
 	game.BaseMode
 	ProvidedCount int
@@ -55,4 +49,13 @@ var Modes = []list.Item{
 var DailyModes = []list.Item{
 	Modes[1], // Easy
 	Modes[2], // Medium
+}
+
+var Definition = game.Definition{
+	Name:        "Sudoku",
+	Description: "Fill the 9x9 grid following sudoku rules.",
+	Modes:       Modes,
+	DailyModes:  DailyModes,
+	Help:        HelpContent,
+	Import:      func(data []byte) (game.Gamer, error) { return ImportModel(data) },
 }

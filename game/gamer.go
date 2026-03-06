@@ -4,6 +4,7 @@ package game
 import (
 	"context"
 	"math/rand/v2"
+	"strings"
 
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/list"
@@ -87,6 +88,35 @@ func (c Category) Title() string       { return c.Name }
 func (c Category) Description() string { return c.Desc }
 func (c Category) FilterValue() string { return c.Name }
 
+// Definition is the package-level metadata for a puzzle game.
+type Definition struct {
+	Name        string
+	Description string
+	Aliases     []string
+	Modes       []list.Item
+	DailyModes  []list.Item
+	Help        string
+	Import      func([]byte) (Gamer, error)
+}
+
+func (d Definition) Category() Category {
+	return Category{
+		Name:  d.Name,
+		Desc:  d.Description,
+		Modes: d.Modes,
+		Help:  d.Help,
+	}
+}
+
+// NormalizeName lowercases and replaces hyphens/underscores with spaces for
+// fuzzy matching of CLI arguments to game names and aliases.
+func NormalizeName(s string) string {
+	s = strings.ToLower(s)
+	s = strings.ReplaceAll(s, "-", " ")
+	s = strings.ReplaceAll(s, "_", " ")
+	return strings.TrimSpace(s)
+}
+
 // SpawnCompleteMsg is sent when an async Spawn() call finishes.
 type SpawnCompleteMsg struct {
 	Game Gamer
@@ -96,10 +126,3 @@ type SpawnCompleteMsg struct {
 // HelpToggleMsg is sent from the root model to games when the user toggles
 // the full help display with Ctrl+H.
 type HelpToggleMsg struct{ Show bool }
-
-// Registry maps game type names to their import functions.
-var Registry = map[string]func([]byte) (Gamer, error){}
-
-func Register(name string, fn func([]byte) (Gamer, error)) {
-	Registry[name] = fn
-}

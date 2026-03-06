@@ -2,11 +2,9 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 	"text/tabwriter"
 
 	"github.com/FelineStateMachine/puzzletea/store"
-
 	"github.com/spf13/cobra"
 )
 
@@ -17,8 +15,8 @@ var listCmd = &cobra.Command{
 	Short: "List saved games",
 	Long:  "Display a table of saved games. Use --all to include abandoned games.",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		cfg := loadConfig(flagConfigPath)
-		s, err := store.Open(cfg.DBPath)
+		cfg := loadActiveConfig()
+		s, err := openStoreFn(cfg.DBPath)
 		if err != nil {
 			return err
 		}
@@ -35,20 +33,24 @@ var listCmd = &cobra.Command{
 		}
 
 		if len(games) == 0 {
-			fmt.Println("No saved games.")
-			return nil
+			_, err := fmt.Fprintln(cmd.OutOrStdout(), "No saved games.")
+			return err
 		}
 
-		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-		fmt.Fprintln(w, "NAME\tGAME\tMODE\tSTATUS\tLAST UPDATED")
+		w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
+		if _, err := fmt.Fprintln(w, "NAME\tGAME\tMODE\tSTATUS\tLAST UPDATED"); err != nil {
+			return err
+		}
 		for _, g := range games {
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
+			if _, err := fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
 				g.Name,
 				g.GameType,
 				g.Mode,
 				g.Status,
 				g.UpdatedAt.Local().Format("Jan 02 15:04"),
-			)
+			); err != nil {
+				return err
+			}
 		}
 		return w.Flush()
 	},

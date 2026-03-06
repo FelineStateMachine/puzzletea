@@ -5,19 +5,9 @@ import (
 	"math/rand/v2"
 	"time"
 
+	"github.com/FelineStateMachine/puzzletea/catalog"
 	"github.com/FelineStateMachine/puzzletea/game"
-	"github.com/FelineStateMachine/puzzletea/hashiwokakero"
-	"github.com/FelineStateMachine/puzzletea/hitori"
-	"github.com/FelineStateMachine/puzzletea/lightsout"
 	"github.com/FelineStateMachine/puzzletea/namegen"
-	"github.com/FelineStateMachine/puzzletea/nonogram"
-	"github.com/FelineStateMachine/puzzletea/nurikabe"
-	"github.com/FelineStateMachine/puzzletea/shikaku"
-	"github.com/FelineStateMachine/puzzletea/sudoku"
-	"github.com/FelineStateMachine/puzzletea/takuzu"
-	"github.com/FelineStateMachine/puzzletea/wordsearch"
-
-	"charm.land/bubbles/v2/list"
 )
 
 // Entry pairs a SeededSpawner with metadata for the eligible daily pool.
@@ -27,44 +17,18 @@ type Entry struct {
 	Mode     string
 }
 
-// pool maps game type names to their DailyModes exports.
-// Each package owns which of its modes are eligible for daily rotation.
-var pool = []struct {
-	gameType string
-	modes    []list.Item
-}{
-	{"Nonogram", nonogram.DailyModes},
-	{"Sudoku", sudoku.DailyModes},
-	{"Takuzu", takuzu.DailyModes},
-	{"Hashiwokakero", hashiwokakero.DailyModes},
-	{"Hitori", hitori.DailyModes},
-	{"Lights Out", lightsout.DailyModes},
-	{"Shikaku", shikaku.DailyModes},
-	{"Nurikabe", nurikabe.DailyModes},
-	{"Word Search", wordsearch.DailyModes},
-}
-
 // eligibleModes is the flattened pool built from each package's DailyModes.
 var eligibleModes = buildEligibleModes()
 
 func buildEligibleModes() []Entry {
-	var entries []Entry
-	for _, p := range pool {
-		for _, item := range p.modes {
-			s, ok := item.(game.SeededSpawner)
-			if !ok {
-				continue
-			}
-			mode, ok := item.(game.Mode)
-			if !ok {
-				continue
-			}
-			entries = append(entries, Entry{
-				Spawner:  s,
-				GameType: p.gameType,
-				Mode:     mode.Title(),
-			})
-		}
+	catalogEntries := catalog.DailyEntries()
+	entries := make([]Entry, 0, len(catalogEntries))
+	for _, entry := range catalogEntries {
+		entries = append(entries, Entry{
+			Spawner:  entry.Spawner,
+			GameType: entry.GameType,
+			Mode:     entry.Mode,
+		})
 	}
 	return entries
 }

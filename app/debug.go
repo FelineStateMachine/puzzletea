@@ -15,12 +15,12 @@ func initDebugRenderer() *glamour.TermRenderer {
 }
 
 func (m model) renderDebugInfo() string {
-	if m.debugRenderer == nil {
-		return m.game.GetDebugInfo()
+	if m.debug.renderer == nil {
+		return m.session.game.GetDebugInfo()
 	}
-	s, err := m.debugRenderer.Render(m.game.GetDebugInfo())
+	s, err := m.debug.renderer.Render(m.session.game.GetDebugInfo())
 	if err != nil {
-		return m.game.GetDebugInfo()
+		return m.session.game.GetDebugInfo()
 	}
 	return s
 }

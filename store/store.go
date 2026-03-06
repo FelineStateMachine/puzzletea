@@ -113,12 +113,6 @@ func (s *Store) getGameByQuery(query string, args ...any) (*GameRecord, error) {
 	return &g, nil
 }
 
-// DefaultDBPath returns ~/.puzzletea/history.db.
-func DefaultDBPath() string {
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".puzzletea", "history.db")
-}
-
 // Open creates the directory if needed, opens the database, creates the table,
 // and enables WAL mode.
 func Open(dbPath string) (*Store, error) {

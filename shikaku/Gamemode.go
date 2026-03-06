@@ -11,12 +11,6 @@ import (
 //go:embed help.md
 var HelpContent string
 
-func init() {
-	game.Register("Shikaku", func(data []byte) (game.Gamer, error) {
-		return ImportModel(data)
-	})
-}
-
 type ShikakuMode struct {
 	game.BaseMode
 	Width       int
@@ -66,4 +60,14 @@ var Modes = []list.Item{
 var DailyModes = []list.Item{
 	Modes[1], // Easy 7x7
 	Modes[2], // Medium 8x8
+}
+
+var Definition = game.Definition{
+	Name:        "Shikaku",
+	Description: "Divide the grid into rectangles.",
+	Aliases:     []string{"rectangles"},
+	Modes:       Modes,
+	DailyModes:  DailyModes,
+	Help:        HelpContent,
+	Import:      func(data []byte) (game.Gamer, error) { return ImportModel(data) },
 }
