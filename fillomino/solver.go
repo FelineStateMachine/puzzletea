@@ -3,7 +3,6 @@ package fillomino
 import (
 	"errors"
 	"math"
-	"slices"
 )
 
 var errInvalidGridEncoding = errors.New("invalid fillomino grid encoding")
@@ -253,24 +252,4 @@ func isPartialGridValid(g grid) bool {
 	}
 
 	return true
-}
-
-func regionCellsAt(g grid, start point) []point {
-	value := g[start.y][start.x]
-	if value == 0 {
-		return nil
-	}
-
-	visited := make([][]bool, len(g))
-	for y := range len(g) {
-		visited[y] = make([]bool, len(g[y]))
-	}
-	comp := buildComponent(g, start, visited)
-	slices.SortFunc(comp.cells, func(a, b point) int {
-		if a.y != b.y {
-			return a.y - b.y
-		}
-		return a.x - b.x
-	})
-	return comp.cells
 }

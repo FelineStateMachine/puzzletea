@@ -9,6 +9,7 @@ import (
 )
 
 const cellWidth = 3
+
 const shadedCellDisplay = " █ "
 
 func cellView(num rune, mark cellMark, isCursor, inCursorRow, inCursorCol, solved, conflict bool) string {

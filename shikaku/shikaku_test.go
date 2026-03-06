@@ -457,6 +457,40 @@ func TestSaveLoadRoundTrip(t *testing.T) {
 			t.Fatal("expected error for invalid JSON")
 		}
 	})
+
+	t.Run("import preserves saved rectangles without auto-placement", func(t *testing.T) {
+		original := &Model{
+			puzzle: Puzzle{
+				Width:  3,
+				Height: 2,
+				Clues: []Clue{
+					{ID: 0, X: 0, Y: 0, Value: 4},
+					{ID: 1, X: 2, Y: 1, Value: 2},
+				},
+				Rectangles: []Rectangle{
+					{ClueID: 1, X: 2, Y: 0, W: 1, H: 2},
+				},
+			},
+			keys:      DefaultKeyMap,
+			modeTitle: "Test Mode",
+		}
+
+		data, err := original.GetSave()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		got, err := ImportModel(data)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(got.puzzle.Rectangles) != 1 {
+			t.Fatalf("rectangle count = %d, want 1", len(got.puzzle.Rectangles))
+		}
+		if r := got.puzzle.FindRectangleForClue(0); r != nil {
+			t.Fatalf("unexpected auto-placed rectangle for clue 0: %+v", *r)
+		}
+	})
 }
 
 func TestDeleteReplacesForcedRectangle(t *testing.T) {

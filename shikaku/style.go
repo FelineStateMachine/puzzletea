@@ -137,13 +137,6 @@ func horizontalEdge(m Model, preview *Rectangle, x, y int) bool {
 	}
 }
 
-func verticalEdge(m Model, preview *Rectangle, x, y int) rune {
-	if hasVerticalEdge(m, preview, x, y) {
-		return '│'
-	}
-	return ' '
-}
-
 func hasVerticalEdge(m Model, preview *Rectangle, x, y int) bool {
 	switch {
 	case x <= 0, x >= m.puzzle.Width:

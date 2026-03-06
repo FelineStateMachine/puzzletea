@@ -96,18 +96,6 @@ func firstUnused(used [][]bool) (point, bool) {
 	return point{}, false
 }
 
-func remainingUnused(used [][]bool) int {
-	count := 0
-	for y := range len(used) {
-		for x := range len(used[y]) {
-			if !used[y][x] {
-				count++
-			}
-		}
-	}
-	return count
-}
-
 func rectangleCandidates(used [][]bool, start point, maxRegion int, rng *rand.Rand) []region {
 	height := len(used)
 	width := len(used[0])

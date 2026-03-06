@@ -8,20 +8,22 @@ import (
 )
 
 type Save struct {
-	Width     int    `json:"width"`
-	Height    int    `json:"height"`
-	State     string `json:"state"`
-	Provided  string `json:"provided"`
-	ModeTitle string `json:"mode_title"`
+	Width        int    `json:"width"`
+	Height       int    `json:"height"`
+	State        string `json:"state"`
+	Provided     string `json:"provided"`
+	ModeTitle    string `json:"mode_title"`
+	MaxCellValue int    `json:"max_cell_value,omitempty"`
 }
 
 func (m Model) GetSave() ([]byte, error) {
 	save := Save{
-		Width:     m.width,
-		Height:    m.height,
-		State:     encodeGrid(m.grid),
-		Provided:  serializeProvided(m.provided),
-		ModeTitle: m.modeTitle,
+		Width:        m.width,
+		Height:       m.height,
+		State:        encodeGrid(m.grid),
+		Provided:     serializeProvided(m.provided),
+		ModeTitle:    m.modeTitle,
+		MaxCellValue: m.maxCellValue,
 	}
 	data, err := json.Marshal(save)
 	if err != nil {
@@ -61,10 +63,18 @@ func ImportModel(data []byte) (*Model, error) {
 		cursor:       game.Cursor{},
 		keys:         DefaultKeyMap,
 		modeTitle:    save.ModeTitle,
-		maxCellValue: max(9, maxCellValue(state)),
+		maxCellValue: restoredMaxCellValue(save.MaxCellValue, state),
 	}
 	m.recompute()
 	return m, nil
+}
+
+func restoredMaxCellValue(savedMax int, state grid) int {
+	if savedMax > 0 {
+		return savedMax
+	}
+
+	return max(1, maxCellValue(state))
 }
 
 func initialGridForImport(state grid, provided [][]bool) grid {

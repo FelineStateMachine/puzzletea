@@ -200,13 +200,6 @@ func horizontalEdge(g grid, x, y int) bool {
 	}
 }
 
-func verticalEdge(g grid, x, y int) rune {
-	if hasVerticalEdge(g, x, y) {
-		return '│'
-	}
-	return ' '
-}
-
 func hasVerticalEdge(g grid, x, y int) bool {
 	width := len(g[0])
 	switch {

@@ -164,6 +164,20 @@ func TestSaveRoundTrip(t *testing.T) {
 	if !loaded.provided[0][0] || !loaded.provided[0][2] || !loaded.provided[1][1] || !loaded.provided[2][2] {
 		t.Fatal("expected provided mask to persist")
 	}
+	if got, want := loaded.maxCellValue, 3; got != want {
+		t.Fatalf("loaded maxCellValue = %d, want %d", got, want)
+	}
+}
+
+func TestImportLegacySaveRestoresDigitCapFromState(t *testing.T) {
+	loaded, err := ImportModel([]byte(`{"width":3,"height":3,"state":"2 . 1\n. 3 .\n2 . 1","provided":"#.#\n.#.\n#.#","mode_title":"Test"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if got, want := loaded.maxCellValue, 3; got != want {
+		t.Fatalf("loaded maxCellValue = %d, want %d", got, want)
+	}
 }
 
 func TestCellViewConflictedCursorIsDistinct(t *testing.T) {
