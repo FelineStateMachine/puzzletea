@@ -27,7 +27,7 @@ var newCmd = &cobra.Command{
 	Short: "Start a new puzzle game",
 	Long: fmt.Sprintf("Start a new puzzle game, optionally specifying the difficulty mode.\n"+
 		"Use --set-seed to generate a deterministic puzzle from a seed string.\n\nAvailable games:\n  %s",
-		strings.Join(resolve.CategoryNames(catalog.All), "\n  ")),
+		strings.Join(catalog.Names(), "\n  ")),
 	Args: cobra.RangeArgs(0, 2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if flagOutput != "" || cmd.Flags().Changed("export") {
@@ -63,7 +63,7 @@ func init() {
 
 // launchNewGame resolves the game/mode, spawns a new game, and launches the TUI.
 func launchNewGame(gameArg, modeArg, seed string, cfg *config.Config) error {
-	cat, err := resolve.Category(gameArg, catalog.All)
+	cat, err := catalog.Category(gameArg)
 	if err != nil {
 		return err
 	}

@@ -10,36 +10,15 @@ import (
 
 const cellWidth = 3
 
+const shadedCellDisplay = " █ "
+
 func cellView(num rune, mark cellMark, isCursor, inCursorRow, inCursorCol, solved, conflict bool) string {
 	p := theme.Current()
-	var s lipgloss.Style
-	var display string
+	s, display := hitoriCellBase(mark, num)
 
-	switch mark {
-	case shaded:
-		s = lipgloss.NewStyle().
-			Foreground(p.Surface).
-			Background(p.Surface)
-		display = "   "
-	case circled:
-		s = lipgloss.NewStyle().
-			Foreground(p.Info).
-			Background(p.BG)
-		display = fmt.Sprintf(" %c ", num)
-	default:
-		s = lipgloss.NewStyle().
-			Foreground(p.FG).
-			Background(p.BG)
-		display = fmt.Sprintf(" %c ", num)
-	}
-
-	// Priority: cursor+solved > cursor > solved > conflict > crosshair > base.
-	if isCursor && solved {
-		s = game.CursorSolvedStyle()
-		display = game.CursorLeft + fmt.Sprintf("%c", num) + game.CursorRight
-	} else if isCursor {
-		s = game.CursorStyle()
-		display = game.CursorLeft + fmt.Sprintf("%c", num) + game.CursorRight
+	// Priority: cursor+solved > cursor+conflict > cursor > solved > conflict > crosshair > base.
+	if isCursor {
+		s = hitoriCursorStyle(mark, solved, conflict)
 	} else if solved {
 		s = s.Foreground(p.SolvedFG).Background(p.SuccessBG)
 	} else if conflict {
@@ -49,6 +28,68 @@ func cellView(num rune, mark cellMark, isCursor, inCursorRow, inCursorCol, solve
 	}
 
 	return s.Width(cellWidth).AlignHorizontal(lipgloss.Center).Render(display)
+}
+
+func hitoriCellBase(mark cellMark, num rune) (lipgloss.Style, string) {
+	p := theme.Current()
+
+	switch mark {
+	case shaded:
+		return lipgloss.NewStyle().
+				Foreground(p.Surface).
+				Background(p.Surface),
+			shadedCellDisplay
+	case circled:
+		return lipgloss.NewStyle().
+				Foreground(p.Info).
+				Background(p.BG),
+			fmt.Sprintf(" %c ", num)
+	default:
+		return lipgloss.NewStyle().
+				Foreground(p.FG).
+				Background(p.BG),
+			fmt.Sprintf(" %c ", num)
+	}
+}
+
+func hitoriCursorStyle(mark cellMark, solved, conflict bool) lipgloss.Style {
+	p := theme.Current()
+	style := lipgloss.NewStyle().Bold(true)
+
+	switch {
+	case solved:
+		style = style.Background(p.SuccessBG)
+		switch mark {
+		case circled:
+			style = style.Foreground(p.Info)
+		case shaded:
+			style = style.Foreground(p.SolvedFG)
+		default:
+			style = style.Foreground(game.CursorFG())
+		}
+	case conflict:
+		style = style.Background(game.ConflictBG()).Underline(true)
+		switch mark {
+		case circled:
+			style = style.Foreground(p.Info)
+		case shaded:
+			style = style.Foreground(game.CursorFG())
+		default:
+			style = style.Foreground(game.CursorFG())
+		}
+	default:
+		style = style.Background(game.CursorBG())
+		switch mark {
+		case circled:
+			style = style.Foreground(p.Info)
+		case shaded:
+			style = style.Foreground(game.CursorFG())
+		default:
+			style = style.Foreground(game.CursorFG())
+		}
+	}
+
+	return style
 }
 
 func gridView(numbers grid, marks [][]cellMark, c game.Cursor, solved bool, conflicts [][]bool) string {

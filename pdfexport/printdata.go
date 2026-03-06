@@ -62,6 +62,20 @@ type sudokuSave struct {
 	Provided []sudokuCell `json:"provided"`
 }
 
+type fillominoSave struct {
+	Width    int    `json:"width"`
+	Height   int    `json:"height"`
+	State    string `json:"state"`
+	Provided string `json:"provided"`
+}
+
+type rippleEffectSave struct {
+	Width  int                `json:"width"`
+	Height int                `json:"height"`
+	Givens string             `json:"givens"`
+	Cages  []RippleEffectCage `json:"cages"`
+}
+
 type sudokuCell struct {
 	X int `json:"x"`
 	Y int `json:"y"`
@@ -332,6 +346,68 @@ func ParseSudokuPrintData(saveData []byte) (*SudokuData, error) {
 	return &SudokuData{Givens: givens}, nil
 }
 
+func ParseFillominoPrintData(saveData []byte) (*FillominoData, error) {
+	if len(strings.TrimSpace(string(saveData))) == 0 {
+		return nil, nil
+	}
+
+	var save fillominoSave
+	if err := json.Unmarshal(saveData, &save); err != nil {
+		return nil, fmt.Errorf("decode fillomino save: %w", err)
+	}
+	if save.Width <= 0 || save.Height <= 0 {
+		return nil, nil
+	}
+
+	state, err := parseNumberGrid(save.State, save.Width, save.Height)
+	if err != nil {
+		return nil, err
+	}
+	provided := parseProvidedMask(save.Provided, save.Width, save.Height)
+
+	givens := make([][]int, save.Height)
+	for y := 0; y < save.Height; y++ {
+		givens[y] = make([]int, save.Width)
+		for x := 0; x < save.Width; x++ {
+			if provided[y][x] {
+				givens[y][x] = state[y][x]
+			}
+		}
+	}
+
+	return &FillominoData{
+		Width:  save.Width,
+		Height: save.Height,
+		Givens: givens,
+	}, nil
+}
+
+func ParseRippleEffectPrintData(saveData []byte) (*RippleEffectData, error) {
+	if len(strings.TrimSpace(string(saveData))) == 0 {
+		return nil, nil
+	}
+
+	var save rippleEffectSave
+	if err := json.Unmarshal(saveData, &save); err != nil {
+		return nil, fmt.Errorf("decode ripple effect save: %w", err)
+	}
+	if save.Width <= 0 || save.Height <= 0 {
+		return nil, nil
+	}
+
+	givens, err := parseNumberGrid(save.Givens, save.Width, save.Height)
+	if err != nil {
+		return nil, err
+	}
+
+	return &RippleEffectData{
+		Width:  save.Width,
+		Height: save.Height,
+		Givens: givens,
+		Cages:  append([]RippleEffectCage(nil), save.Cages...),
+	}, nil
+}
+
 func ParseWordSearchPrintData(saveData []byte) (*WordSearchData, error) {
 	if len(strings.TrimSpace(string(saveData))) == 0 {
 		return nil, nil
@@ -397,6 +473,59 @@ func ParseWordSearchPrintData(saveData []byte) (*WordSearchData, error) {
 		Grid:   grid,
 		Words:  words,
 	}, nil
+}
+
+func parseNumberGrid(encoded string, width, height int) ([][]int, error) {
+	rows := strings.Split(strings.TrimSpace(encoded), "\n")
+	grid := make([][]int, height)
+	for y := 0; y < height; y++ {
+		grid[y] = make([]int, width)
+		if y >= len(rows) {
+			continue
+		}
+
+		fields := strings.Fields(rows[y])
+		if len(fields) == 0 {
+			fields = splitCompactFields(rows[y])
+		}
+		if len(fields) != width {
+			return nil, fmt.Errorf("decode number grid: invalid row width")
+		}
+		for x := 0; x < width; x++ {
+			if fields[x] == "." {
+				continue
+			}
+			value, err := strconv.Atoi(fields[x])
+			if err != nil {
+				return nil, fmt.Errorf("decode number grid: %w", err)
+			}
+			grid[y][x] = value
+		}
+	}
+	return grid, nil
+}
+
+func parseProvidedMask(encoded string, width, height int) [][]bool {
+	rows := strings.Split(encoded, "\n")
+	mask := make([][]bool, height)
+	for y := 0; y < height; y++ {
+		mask[y] = make([]bool, width)
+		if y >= len(rows) {
+			continue
+		}
+		for x := 0; x < width && x < len(rows[y]); x++ {
+			mask[y][x] = rows[y][x] == '#'
+		}
+	}
+	return mask
+}
+
+func splitCompactFields(row string) []string {
+	fields := make([]string, 0, len(row))
+	for _, r := range row {
+		fields = append(fields, string(r))
+	}
+	return fields
 }
 
 func isSudokuCellInBounds(x, y int) bool {

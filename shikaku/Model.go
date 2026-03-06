@@ -59,13 +59,14 @@ type Model struct {
 
 // New creates a new Shikaku game model.
 func New(mode ShikakuMode, puzzle Puzzle) game.Gamer {
-	puzzle.autoPlaceSingles()
-	return Model{
+	m := Model{
 		puzzle:    puzzle,
 		cursor:    game.Cursor{X: 0, Y: 0},
 		keys:      DefaultKeyMap,
 		modeTitle: mode.Title(),
 	}
+	m.finalizePlacements()
+	return m
 }
 
 func (m Model) Init() tea.Cmd { return nil }
@@ -132,8 +133,7 @@ func (m Model) handleMouseClick(msg tea.MouseClickMsg) Model {
 		// Right-click deletes rectangle at cursor.
 		owner := m.puzzle.CellOwner(col, row)
 		if owner >= 0 {
-			m.puzzle.RemoveRectangle(owner)
-			m.originValid = false
+			m.deleteRectangle(owner)
 		}
 	}
 	return m
@@ -144,7 +144,7 @@ func (m Model) handleMouseMotion(msg tea.MouseMotionMsg) Model {
 		return m
 	}
 
-	col, row, ok := m.screenToGrid(msg.X, msg.Y)
+	col, row, ok := m.screenToGridDrag(msg.X, msg.Y)
 	if !ok {
 		return m
 	}
@@ -159,6 +159,12 @@ func (m Model) handleMouseMotion(msg tea.MouseMotionMsg) Model {
 func (m Model) handleMouseRelease(msg tea.MouseReleaseMsg) Model {
 	if m.mouseDragAnchor == nil {
 		return m
+	}
+
+	if col, row, ok := m.screenToGridDrag(msg.X, msg.Y); ok {
+		r := rectFromCorners(m.mouseDragAnchor[0], m.mouseDragAnchor[1], col, row)
+		m.mousePreview = &r
+		m.syncExpansionFromPreview()
 	}
 
 	preview := m.mousePreview
@@ -187,11 +193,9 @@ func (m Model) handleMouseRelease(msg tea.MouseReleaseMsg) Model {
 		H:      preview.H,
 	}
 
-	// Place if valid: correct area and no overlap.
-	if rect.Area() == clue.Value && !m.puzzle.Overlaps(rect, clue.ID) {
-		m.puzzle.SetRectangle(rect)
+	if m.puzzle.ValidRectangleForClue(rect, clue.ID) {
+		m.commitRectangle(rect)
 		m.selectedClue = nil
-		m.originValid = false
 	} else {
 		// Invalid: enter keyboard expansion mode on this clue so the
 		// player can fine-tune.
@@ -275,7 +279,7 @@ func (m Model) handleNavMode(msg tea.KeyPressMsg) Model {
 		// Delete rectangle at cursor position.
 		owner := m.puzzle.CellOwner(m.cursor.X, m.cursor.Y)
 		if owner >= 0 {
-			m.puzzle.RemoveRectangle(owner)
+			m.deleteRectangle(owner)
 		}
 	case key.Matches(msg, m.keys.Cancel):
 		m = m.cancelPendingRectangle()
@@ -329,14 +333,14 @@ func (m Model) handleExpansionMode(msg tea.KeyPressMsg) Model {
 		}
 	case key.Matches(msg, m.keys.Select):
 		rect := m.expansion.rect(clue)
-		if rect.Area() == clue.Value && !m.puzzle.Overlaps(rect, clue.ID) {
-			m.puzzle.SetRectangle(rect)
+		if m.puzzle.ValidRectangleForClue(rect, clue.ID) {
+			m.commitRectangle(rect)
 			m.selectedClue = nil
 		}
 	case key.Matches(msg, m.keys.Cancel):
 		m = m.cancelPendingRectangle()
 	case key.Matches(msg, m.keys.Delete):
-		m.puzzle.RemoveRectangle(clue.ID)
+		m.deleteRectangle(clue.ID)
 		m.selectedClue = nil
 	}
 	return m
@@ -356,7 +360,7 @@ func (m Model) View() string {
 		title,
 		grid,
 		game.StaticRow(info),
-		game.StableRow(status, statusBarView(selected, false), statusBarView(selected, true)),
+		game.StableRow(status, statusBarVariants()...),
 	)
 }
 
@@ -371,13 +375,28 @@ func (m Model) IsSolved() bool {
 
 func (m Model) Reset() game.Gamer {
 	m.puzzle.Rectangles = nil
-	m.puzzle.autoPlaceSingles()
+	m.finalizePlacements()
 	m.cursor = game.Cursor{}
 	m.selectedClue = nil
 	m.mouseDragAnchor = nil
 	m.mousePreview = nil
 	m.originValid = false
 	return m
+}
+
+func (m *Model) finalizePlacements() {
+	m.puzzle.autoPlaceForcedRectangles()
+	m.originValid = false
+}
+
+func (m *Model) commitRectangle(rect Rectangle) {
+	m.puzzle.SetRectangle(rect)
+	m.finalizePlacements()
+}
+
+func (m *Model) deleteRectangle(clueID int) {
+	m.puzzle.RemoveRectangle(clueID)
+	m.finalizePlacements()
 }
 
 func (m Model) GetDebugInfo() string {

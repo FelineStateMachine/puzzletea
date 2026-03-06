@@ -2,13 +2,13 @@
 
 A terminal-based puzzle game collection built with [Bubble Tea](https://github.com/charmbracelet/bubbletea).
 
-Nine puzzle types, multiple difficulty modes, daily challenges, XP progression, 365 color themes, and an explicit game catalog for adding new games.
+Eleven puzzle types, multiple difficulty modes, daily challenges, XP progression, 365 color themes, and an explicit game catalog for adding new games.
 
 ![PuzzleTea menu](vhs/menu.gif)
 
 ## Features
 
-- **9 puzzle games** -- Nonogram, Nurikabe, Sudoku, Shikaku, Word Search, Hashiwokakero, Hitori, Lights Out, Takuzu
+- **11 puzzle games** -- Fillomino, Nonogram, Nurikabe, Ripple Effect, Sudoku, Shikaku, Word Search, Hashiwokakero, Hitori, Lights Out, Takuzu
 - **Daily puzzles** -- A unique puzzle generated each day using deterministic seeding. Same date, same puzzle for everyone. Streak tracking rewards consecutive daily completions.
 - **XP and leveling** -- Per-category levels based on victories. Harder modes yield more XP. Daily puzzles grant 2x XP.
 - **Stats dashboard** -- Profile level, daily streak, victory counts, and XP progress bars per category.
@@ -21,8 +21,10 @@ Nine puzzle types, multiple difficulty modes, daily challenges, XP progression, 
 
 | Game | Description | Modes |
 |------|-------------|-------|
+| **Fillomino** | Grow numbered regions to their exact sizes | Mini 5x5 through Expert 12x12 |
 | **Nonogram** | Fill cells to match row and column hints | Easy/Medium/Hard across 5x5, 10x10, 15x15, 20x20 |
 | **Nurikabe** | Build islands while keeping one connected sea | 5 modes from 5x5 to 12x12 |
+| **Ripple Effect** | Place digits in cages without violating ripple distance | Mini 5x5 through Expert 9x9 |
 | **Shikaku** | Divide grid into rectangles matching cell counts | 5 modes from 7x7 to 11x11 |
 | **Sudoku** | Classic 9x9 grid | Beginner, Easy, Medium, Hard, Expert, Diabolical |
 | **Word Search** | Find hidden words in a letter grid | Easy, Medium, Hard (3-8 directions) |
@@ -83,6 +85,8 @@ Start a new game directly:
 
 ```bash
 puzzletea new nonogram medium
+puzzletea new fillomino "Hard 10x10"
+puzzletea new ripple-effect "Medium 7x7"
 puzzletea new sudoku hard
 puzzletea new lights-out
 puzzletea new hashi easy
@@ -153,7 +157,7 @@ puzzletea --continue amber-falcon
 
 ### CLI Aliases
 
-Several shorthand names are accepted for games: `hashi`/`bridges` for Hashiwokakero, `lights` for Lights Out, `islands`/`sea` for Nurikabe, `binairo`/`binary` for Takuzu, `words`/`ws` for Word Search, `rectangles` for Shikaku.
+Several shorthand names are accepted for games: `polyomino`/`regions` for Fillomino, `hashi`/`bridges` for Hashiwokakero, `lights` for Lights Out, `islands`/`sea` for Nurikabe, `ripple` for Ripple Effect, `binairo`/`binary` for Takuzu, `words`/`ws` for Word Search, `rectangles` for Shikaku.
 
 ## Controls
 
@@ -182,6 +186,20 @@ Nonogram, Nurikabe, Shikaku, and Word Search support click and drag. Lights Out 
 Games are automatically saved to `~/.puzzletea/history.db` (SQLite). Navigating away saves progress; quitting with `Ctrl+C` marks the game as abandoned. Completed games are preserved and can be revisited.
 
 ## Previews
+
+### Fillomino
+Grow numbered regions so each connected region reaches its exact size.
+
+![Fillomino](vhs/fillomino.gif)
+
+[Game details and controls](fillomino/README.md)
+
+### Ripple Effect
+Place digits in cages while keeping matching values outside each other’s ripple distance.
+
+![Ripple Effect](vhs/rippleeffect.gif)
+
+[Game details and controls](rippleeffect/README.md)
 
 ### Nonogram
 Fill cells to match row and column hints.

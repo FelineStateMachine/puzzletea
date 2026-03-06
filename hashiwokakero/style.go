@@ -76,7 +76,8 @@ func gridBorderSolvedStyle() lipgloss.Style {
 	return lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		Padding(1).
-		BorderForeground(theme.Current().SuccessBorder)
+		BorderForeground(theme.Current().SuccessBorder).
+		BorderBackground(theme.Current().SuccessBG)
 }
 
 // islandSelectedStyle returns the style for a selected island, using the
@@ -297,6 +298,15 @@ func statusBarView(selected, showFullHelp bool) string {
 		return game.StatusBarStyle().Render("arrows/wasd: move  enter/space: select island  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
 	}
 	return game.StatusBarStyle().Render("arrows/wasd: move  enter/space: select island")
+}
+
+func statusBarVariants() []string {
+	return []string{
+		statusBarView(false, false),
+		statusBarView(false, true),
+		statusBarView(true, false),
+		statusBarView(true, true),
+	}
 }
 
 func infoView(p *Puzzle) string {

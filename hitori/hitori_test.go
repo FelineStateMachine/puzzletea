@@ -3,8 +3,10 @@ package hitori
 import (
 	"encoding/json"
 	"math/rand/v2"
+	"strings"
 	"testing"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/FelineStateMachine/puzzletea/game"
 )
 
@@ -93,6 +95,146 @@ func TestCloneMarks(t *testing.T) {
 	c[0][0] = unmarked
 	if marks[0][0] != shaded {
 		t.Error("cloneMarks shares memory with original")
+	}
+}
+
+// --- Rendering: cursor + mark visibility (P0) ---
+
+func TestCellView_CursorUnmarkedPreservesNumber(t *testing.T) {
+	got := cellView('5', unmarked, true, false, false, false, false)
+	if !strings.Contains(got, "5") {
+		t.Fatalf("cursor unmarked cell should show number, got %q", got)
+	}
+	if strings.Contains(got, game.CursorLeft) || strings.Contains(got, game.CursorRight) {
+		t.Fatalf("cursor unmarked cell should not use cursor brackets, got %q", got)
+	}
+}
+
+func TestCellView_CursorCircledPreservesNumberAndDiffersFromUnmarked(t *testing.T) {
+	unmarkedCell := cellView('5', unmarked, true, false, false, false, false)
+	circledCell := cellView('5', circled, true, false, false, false, false)
+
+	if !strings.Contains(circledCell, "5") {
+		t.Fatalf("cursor circled cell should show number, got %q", circledCell)
+	}
+	if circledCell == unmarkedCell {
+		t.Fatalf("cursor circled cell should differ from cursor unmarked cell, got %q", circledCell)
+	}
+}
+
+func TestCellView_CursorShadedShowsVisiblePayload(t *testing.T) {
+	got := cellView('5', shaded, true, false, false, false, false)
+	if !strings.Contains(got, "█") {
+		t.Fatalf("cursor shaded cell should show visible shaded payload, got %q", got)
+	}
+}
+
+func TestCellView_CursorConflictVariantsDifferFromPlainCursor(t *testing.T) {
+	plainCircled := cellView('5', circled, true, false, false, false, false)
+	conflictCircled := cellView('5', circled, true, false, false, false, true)
+	plainShaded := cellView('5', shaded, true, false, false, false, false)
+	conflictShaded := cellView('5', shaded, true, false, false, false, true)
+
+	if conflictCircled == plainCircled {
+		t.Fatalf("cursor circled conflict should differ from plain cursor circled, got %q", conflictCircled)
+	}
+	if conflictShaded == plainShaded {
+		t.Fatalf("cursor shaded conflict should differ from plain cursor shaded, got %q", conflictShaded)
+	}
+}
+
+func TestCellView_CursorSolvedShadedPreservesShadedPayload(t *testing.T) {
+	got := cellView('5', shaded, true, false, false, true, false)
+	if !strings.Contains(got, "█") {
+		t.Fatalf("cursor solved shaded cell should preserve shaded payload, got %q", got)
+	}
+}
+
+// --- Propagation: required moves (P0) ---
+
+func TestPropagateRequiredMarks_ShadedCellForcesOrthogonalWhite(t *testing.T) {
+	numbers := makeGrid("123", "456", "789")
+	userMarks := makeMarks("...", ".X.", "...")
+
+	got := propagateRequiredMarks(numbers, userMarks, 3)
+	want := makeMarks(".O.", "OXO", ".O.")
+
+	for y := range 3 {
+		for x := range 3 {
+			if got[y][x] != want[y][x] {
+				t.Fatalf("mark[%d][%d] = %v, want %v", y, x, got[y][x], want[y][x])
+			}
+		}
+	}
+}
+
+func TestPropagateRequiredMarks_CircledRowDuplicateForcesPeersBlack(t *testing.T) {
+	numbers := makeGrid("121", "345", "678")
+	userMarks := makeMarks("O..", "...", "...")
+
+	got := propagateRequiredMarks(numbers, userMarks, 3)
+
+	if got[0][0] != circled {
+		t.Fatalf("mark[0][0] = %v, want circled", got[0][0])
+	}
+	if got[0][2] != shaded {
+		t.Fatalf("mark[0][2] = %v, want shaded", got[0][2])
+	}
+}
+
+func TestPropagateRequiredMarks_CircledColumnDuplicateForcesPeersBlack(t *testing.T) {
+	numbers := makeGrid("123", "456", "173")
+	userMarks := makeMarks("O..", "...", "...")
+
+	got := propagateRequiredMarks(numbers, userMarks, 3)
+
+	if got[2][0] != shaded {
+		t.Fatalf("mark[2][0] = %v, want shaded", got[2][0])
+	}
+}
+
+func TestPropagateRequiredMarks_OnlyRemainingDuplicateSurvivorBecomesWhite(t *testing.T) {
+	numbers := makeGrid("111", "234", "567")
+	userMarks := makeMarks("X.X", "...", "...")
+
+	got := propagateRequiredMarks(numbers, userMarks, 3)
+
+	if got[0][1] != circled {
+		t.Fatalf("mark[0][1] = %v, want circled", got[0][1])
+	}
+}
+
+func TestPropagateRequiredMarks_DoesNotCascadeFromDerivedMarks(t *testing.T) {
+	numbers := makeGrid("1223", "3412", "4321", "2143")
+	userMarks := makeMarks("X...", "....", "....", "....")
+
+	got := propagateRequiredMarks(numbers, userMarks, 4)
+
+	if got[0][1] != circled {
+		t.Fatalf("mark[0][1] = %v, want circled", got[0][1])
+	}
+	if got[0][2] != unmarked {
+		t.Fatalf("mark[0][2] = %v, want unmarked", got[0][2])
+	}
+	if got[0][3] != unmarked {
+		t.Fatalf("mark[0][3] = %v, want unmarked", got[0][3])
+	}
+	if got[1][2] != unmarked {
+		t.Fatalf("mark[1][2] = %v, want unmarked", got[1][2])
+	}
+}
+
+func TestPropagateRequiredMarks_PreservesConflictingUserMarks(t *testing.T) {
+	numbers := makeGrid("1223", "3412", "4321", "2143")
+	userMarks := makeMarks("XX..", "....", "....", "....")
+
+	got := propagateRequiredMarks(numbers, userMarks, 4)
+
+	if got[0][0] != shaded {
+		t.Fatalf("mark[0][0] = %v, want shaded", got[0][0])
+	}
+	if got[0][1] != shaded {
+		t.Fatalf("mark[0][1] = %v, want shaded", got[0][1])
 	}
 }
 
@@ -589,7 +731,7 @@ func TestSaveLoadRoundTrip(t *testing.T) {
 }
 
 func TestSaveLoadRoundTrip_WithMarks(t *testing.T) {
-	numbers := makeGrid("1213", "2341", "3124", "1432")
+	numbers := makeGrid("1223", "3412", "4321", "2143")
 	mode := testMode(4)
 	gamer, err := New(mode, numbers)
 	if err != nil {
@@ -598,8 +740,9 @@ func TestSaveLoadRoundTrip_WithMarks(t *testing.T) {
 
 	// Apply some marks via the model.
 	m := gamer.(Model)
-	m.marks[0][0] = shaded
-	m.marks[1][1] = circled
+	m.userMarks[0][0] = shaded
+	m.userMarks[1][1] = circled
+	m.recomputeState()
 
 	data, err := m.GetSave()
 	if err != nil {
@@ -611,11 +754,14 @@ func TestSaveLoadRoundTrip_WithMarks(t *testing.T) {
 		t.Fatalf("ImportModel: %v", err)
 	}
 
-	if loaded.marks[0][0] != shaded {
-		t.Error("shaded mark not preserved")
+	if loaded.userMarks[0][0] != shaded {
+		t.Error("shaded user mark not preserved")
 	}
-	if loaded.marks[1][1] != circled {
-		t.Error("circled mark not preserved")
+	if loaded.userMarks[1][1] != circled {
+		t.Error("circled user mark not preserved")
+	}
+	if loaded.marks[0][1] != circled {
+		t.Error("derived white mark not recomputed on load")
 	}
 }
 
@@ -680,12 +826,88 @@ func TestModel_Reset(t *testing.T) {
 	g, _ := New(mode, numbers)
 
 	m := g.(Model)
-	m.marks[0][0] = shaded
-	m.marks[1][1] = circled
+	m.userMarks[0][0] = shaded
+	m.userMarks[1][1] = circled
+	m.recomputeState()
 
 	reset := m.Reset().(Model)
+	if reset.userMarks[0][0] != unmarked || reset.userMarks[1][1] != unmarked {
+		t.Error("Reset did not clear user marks")
+	}
 	if reset.marks[0][0] != unmarked || reset.marks[1][1] != unmarked {
 		t.Error("Reset did not clear marks")
+	}
+}
+
+func TestModel_Update_ShadeRecomputesRequiredMoves(t *testing.T) {
+	mode := testMode(4)
+	numbers := makeGrid("1223", "3412", "4321", "2143")
+	g, err := New(mode, numbers)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	next, _ := g.Update(tea.KeyPressMsg{Code: 'x', Text: "x"})
+	m := next.(Model)
+
+	if m.userMarks[0][0] != shaded {
+		t.Fatalf("user mark at (0,0) = %v, want shaded", m.userMarks[0][0])
+	}
+	if m.marks[0][1] != circled {
+		t.Fatalf("effective mark at (1,0) = %v, want circled", m.marks[0][1])
+	}
+	if m.marks[0][2] != unmarked {
+		t.Fatalf("effective mark at (2,0) = %v, want unmarked", m.marks[0][2])
+	}
+	if m.solved {
+		t.Fatal("single user move should not auto-solve the puzzle")
+	}
+	if m.marks[0][3] != unmarked {
+		t.Fatalf("effective mark at (3,0) = %v, want unmarked", m.marks[0][3])
+	}
+}
+
+func TestModel_Update_ClearSourceRetractsDerivedMarks(t *testing.T) {
+	mode := testMode(4)
+	numbers := makeGrid("1223", "3412", "4321", "2143")
+	g, err := New(mode, numbers)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	next, _ := g.Update(tea.KeyPressMsg{Code: 'x', Text: "x"})
+	m := next.(Model)
+	m.userMarks[0][0] = unmarked
+	m.recomputeState()
+
+	if m.userMarks[0][0] != unmarked {
+		t.Fatalf("user mark at (0,0) = %v, want unmarked", m.userMarks[0][0])
+	}
+	if m.marks[0][1] != unmarked {
+		t.Fatalf("effective mark at (1,0) = %v, want unmarked", m.marks[0][1])
+	}
+}
+
+func TestModel_ContradictingUserMoveIsPreservedAndConflicts(t *testing.T) {
+	mode := testMode(4)
+	numbers := makeGrid("1223", "3412", "4321", "2143")
+	g, err := New(mode, numbers)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	m := g.(Model)
+	m.userMarks = makeMarks("XX..", "....", "....", "....")
+	m.recomputeState()
+
+	if m.marks[0][1] != shaded {
+		t.Fatalf("effective mark at (1,0) = %v, want shaded", m.marks[0][1])
+	}
+	if !m.conflicts[0][0] || !m.conflicts[0][1] {
+		t.Fatal("expected adjacent shaded conflict for contradicting user move")
+	}
+	if m.solved {
+		t.Fatal("contradicting user move should not solve the puzzle")
 	}
 }
 

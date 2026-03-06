@@ -3,6 +3,8 @@ package hashiwokakero
 import (
 	"encoding/json"
 	"testing"
+
+	"charm.land/lipgloss/v2"
 )
 
 // --- helpers ---
@@ -338,6 +340,23 @@ func TestWouldCross(t *testing.T) {
 			t.Error("adjacent islands with nothing between should not cross")
 		}
 	})
+}
+
+func TestViewHeightStableAcrossStatusModes(t *testing.T) {
+	selected := 0
+	views := []Model{
+		{puzzle: *fourCornerPuzzle(), cursorIsland: 0, keys: DefaultKeyMap, modeTitle: "Test"},
+		{puzzle: *fourCornerPuzzle(), cursorIsland: 0, keys: DefaultKeyMap, modeTitle: "Test", showFullHelp: true},
+		{puzzle: *fourCornerPuzzle(), cursorIsland: 0, keys: DefaultKeyMap, modeTitle: "Test", selectedIsland: &selected},
+		{puzzle: *fourCornerPuzzle(), cursorIsland: 0, keys: DefaultKeyMap, modeTitle: "Test", selectedIsland: &selected, showFullHelp: true},
+	}
+
+	wantHeight := lipgloss.Height(views[0].View())
+	for i, m := range views[1:] {
+		if got := lipgloss.Height(m.View()); got != wantHeight {
+			t.Fatalf("view %d height = %d, want %d", i+1, got, wantHeight)
+		}
+	}
 }
 
 // --- IsConnected (P0) ---

@@ -34,6 +34,8 @@ type Puzzle struct {
 	clueIndex     map[[2]int]int
 }
 
+const unownedRegionID = -1
+
 // FindClueAt returns the clue at position (x, y), or nil.
 func (p *Puzzle) FindClueAt(x, y int) *Clue {
 	if p.clueIndex == nil {
@@ -99,6 +101,154 @@ func rectsOverlap(a, b Rectangle) bool {
 	return a.X < b.X+b.W && a.X+a.W > b.X && a.Y < b.Y+b.H && a.Y+a.H > b.Y
 }
 
+// ValidRectangleForClue reports whether rect is a legal placement for clueID.
+func (p *Puzzle) ValidRectangleForClue(rect Rectangle, clueID int) bool {
+	clue := p.FindClueByID(clueID)
+	if clue == nil {
+		return false
+	}
+	if rect.Area() != clue.Value {
+		return false
+	}
+	if rect.X < 0 || rect.Y < 0 || rect.X+rect.W > p.Width || rect.Y+rect.H > p.Height {
+		return false
+	}
+	if !rect.Contains(clue.X, clue.Y) {
+		return false
+	}
+	if p.Overlaps(rect, clueID) {
+		return false
+	}
+
+	clueCount := 0
+	for _, c := range p.Clues {
+		if rect.Contains(c.X, c.Y) {
+			clueCount++
+			if c.ID != clueID {
+				return false
+			}
+		}
+	}
+
+	return clueCount == 1
+}
+
+// CandidateRectanglesForClue returns every legal rectangle for the clue.
+func (p *Puzzle) CandidateRectanglesForClue(clueID int) []Rectangle {
+	clue := p.FindClueByID(clueID)
+	if clue == nil {
+		return nil
+	}
+
+	area := clue.Value
+	candidates := make([]Rectangle, 0, area)
+	for h := 1; h <= area; h++ {
+		if area%h != 0 {
+			continue
+		}
+		w := area / h
+		if w > p.Width || h > p.Height {
+			continue
+		}
+
+		minX := max(0, clue.X-w+1)
+		maxX := min(clue.X, p.Width-w)
+		minY := max(0, clue.Y-h+1)
+		maxY := min(clue.Y, p.Height-h)
+		for y := minY; y <= maxY; y++ {
+			for x := minX; x <= maxX; x++ {
+				rect := Rectangle{ClueID: clueID, X: x, Y: y, W: w, H: h}
+				if p.ValidRectangleForClue(rect, clueID) {
+					candidates = append(candidates, rect)
+				}
+			}
+		}
+	}
+
+	return candidates
+}
+
+func (p *Puzzle) encasedRectangleForClue(clueID int) (Rectangle, bool) {
+	clue := p.FindClueByID(clueID)
+	if clue == nil || p.FindRectangleForClue(clueID) != nil {
+		return Rectangle{}, false
+	}
+	if p.CellOwner(clue.X, clue.Y) != unownedRegionID {
+		return Rectangle{}, false
+	}
+
+	cells := p.unownedRegionFrom(clue.X, clue.Y)
+	if len(cells) == 0 {
+		return Rectangle{}, false
+	}
+
+	minX, maxX := cells[0][0], cells[0][0]
+	minY, maxY := cells[0][1], cells[0][1]
+	for _, cell := range cells[1:] {
+		minX = min(minX, cell[0])
+		maxX = max(maxX, cell[0])
+		minY = min(minY, cell[1])
+		maxY = max(maxY, cell[1])
+	}
+
+	rect := Rectangle{
+		ClueID: clueID,
+		X:      minX,
+		Y:      minY,
+		W:      maxX - minX + 1,
+		H:      maxY - minY + 1,
+	}
+	if rect.Area() != len(cells) {
+		return Rectangle{}, false
+	}
+	if !p.ValidRectangleForClue(rect, clueID) {
+		return Rectangle{}, false
+	}
+	return rect, true
+}
+
+func (p *Puzzle) unownedRegionFrom(x, y int) [][2]int {
+	if x < 0 || x >= p.Width || y < 0 || y >= p.Height || p.CellOwner(x, y) != unownedRegionID {
+		return nil
+	}
+
+	visited := make(map[[2]int]struct{}, p.Width*p.Height)
+	queue := [][2]int{{x, y}}
+	visited[[2]int{x, y}] = struct{}{}
+	cells := make([][2]int, 0, p.Width*p.Height)
+
+	for len(queue) > 0 {
+		cell := queue[0]
+		queue = queue[1:]
+		cells = append(cells, cell)
+
+		cx, cy := cell[0], cell[1]
+		neighbors := [][2]int{
+			{cx - 1, cy},
+			{cx + 1, cy},
+			{cx, cy - 1},
+			{cx, cy + 1},
+		}
+		for _, next := range neighbors {
+			nx, ny := next[0], next[1]
+			key := [2]int{nx, ny}
+			if nx < 0 || nx >= p.Width || ny < 0 || ny >= p.Height {
+				continue
+			}
+			if p.CellOwner(nx, ny) != unownedRegionID {
+				continue
+			}
+			if _, ok := visited[key]; ok {
+				continue
+			}
+			visited[key] = struct{}{}
+			queue = append(queue, key)
+		}
+	}
+
+	return cells
+}
+
 // SetRectangle places or replaces the rectangle for a clue.
 func (p *Puzzle) SetRectangle(rect Rectangle) {
 	for i, r := range p.Rectangles {
@@ -131,19 +281,23 @@ func (p *Puzzle) CluesInRect(r Rectangle) []*Clue {
 	return result
 }
 
-// autoPlaceSingles places 1x1 rectangles for all clues with Value == 1
-// that don't already have a rectangle. These clues have only one possible
-// placement, so requiring manual input is unnecessary busywork.
-func (p *Puzzle) autoPlaceSingles() {
-	for _, c := range p.Clues {
-		if c.Value == 1 && p.FindRectangleForClue(c.ID) == nil {
-			p.SetRectangle(Rectangle{
-				ClueID: c.ID,
-				X:      c.X,
-				Y:      c.Y,
-				W:      1,
-				H:      1,
-			})
+// autoPlaceForcedRectangles places uniquely forced rectangles until stable.
+func (p *Puzzle) autoPlaceForcedRectangles() bool {
+	changedAny := false
+	for {
+		changed := false
+		for _, c := range p.Clues {
+			rect, ok := p.encasedRectangleForClue(c.ID)
+			if !ok {
+				continue
+			}
+
+			p.SetRectangle(rect)
+			changed = true
+			changedAny = true
+		}
+		if !changed {
+			return changedAny
 		}
 	}
 }

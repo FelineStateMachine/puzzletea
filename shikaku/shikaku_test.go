@@ -2,7 +2,9 @@ package shikaku
 
 import (
 	"encoding/json"
+	"image/color"
 	"math/rand/v2"
+	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -41,6 +43,17 @@ func tinyPuzzle() *Puzzle {
 		Clues: []Clue{
 			{ID: 0, X: 0, Y: 0, Value: 2},
 			{ID: 1, X: 1, Y: 1, Value: 2},
+		},
+	}
+}
+
+func forcedCascadePuzzle() *Puzzle {
+	return &Puzzle{
+		Width:  3,
+		Height: 2,
+		Clues: []Clue{
+			{ID: 0, X: 0, Y: 0, Value: 4},
+			{ID: 1, X: 2, Y: 1, Value: 2},
 		},
 	}
 }
@@ -213,6 +226,69 @@ func TestSetAndRemoveRectangle(t *testing.T) {
 	})
 }
 
+func TestCandidateRectanglesForClue(t *testing.T) {
+	t.Run("single forced rectangle", func(t *testing.T) {
+		p := forcedCascadePuzzle()
+		got := p.CandidateRectanglesForClue(0)
+		if len(got) != 1 {
+			t.Fatalf("candidate count = %d, want 1", len(got))
+		}
+		want := Rectangle{ClueID: 0, X: 0, Y: 0, W: 2, H: 2}
+		if got[0] != want {
+			t.Fatalf("candidate = %+v, want %+v", got[0], want)
+		}
+	})
+
+	t.Run("multiple candidates remain", func(t *testing.T) {
+		p := tinyPuzzle()
+		if got := p.CandidateRectanglesForClue(0); len(got) != 2 {
+			t.Fatalf("candidate count = %d, want 2", len(got))
+		}
+	})
+}
+
+func TestAutoPlaceForcedRectangles(t *testing.T) {
+	t.Run("does not place from global uniqueness alone", func(t *testing.T) {
+		p := forcedCascadePuzzle()
+		p.autoPlaceForcedRectangles()
+		if len(p.Rectangles) != 0 {
+			t.Fatalf("rectangle count = %d, want 0", len(p.Rectangles))
+		}
+	})
+
+	t.Run("does not place when multiple candidates exist", func(t *testing.T) {
+		p := tinyPuzzle()
+		p.autoPlaceForcedRectangles()
+		if len(p.Rectangles) != 0 {
+			t.Fatalf("rectangle count = %d, want 0", len(p.Rectangles))
+		}
+	})
+
+	t.Run("places encased rectangle and cascades", func(t *testing.T) {
+		p := forcedCascadePuzzle()
+		p.SetRectangle(Rectangle{ClueID: 1, X: 2, Y: 0, W: 1, H: 2})
+		p.autoPlaceForcedRectangles()
+		if len(p.Rectangles) != 2 {
+			t.Fatalf("rectangle count = %d, want 2", len(p.Rectangles))
+		}
+		if r := p.FindRectangleForClue(0); r == nil || *r != (Rectangle{ClueID: 0, X: 0, Y: 0, W: 2, H: 2}) {
+			t.Fatalf("clue 0 rectangle = %+v, want 2x2 at origin", r)
+		}
+		if r := p.FindRectangleForClue(1); r == nil || *r != (Rectangle{ClueID: 1, X: 2, Y: 0, W: 1, H: 2}) {
+			t.Fatalf("clue 1 rectangle = %+v, want right column", r)
+		}
+	})
+
+	t.Run("does not overwrite existing rectangle", func(t *testing.T) {
+		p := tinyPuzzle()
+		p.SetRectangle(Rectangle{ClueID: 0, X: 0, Y: 0, W: 2, H: 1})
+		p.autoPlaceForcedRectangles()
+		if r := p.FindRectangleForClue(0); r == nil || *r != (Rectangle{ClueID: 0, X: 0, Y: 0, W: 2, H: 1}) {
+			t.Fatalf("existing rectangle changed to %+v", r)
+		}
+	})
+}
+
 // --- IsSolved ---
 
 func TestIsSolved(t *testing.T) {
@@ -381,6 +457,57 @@ func TestSaveLoadRoundTrip(t *testing.T) {
 			t.Fatal("expected error for invalid JSON")
 		}
 	})
+
+	t.Run("import preserves saved rectangles without auto-placement", func(t *testing.T) {
+		original := &Model{
+			puzzle: Puzzle{
+				Width:  3,
+				Height: 2,
+				Clues: []Clue{
+					{ID: 0, X: 0, Y: 0, Value: 4},
+					{ID: 1, X: 2, Y: 1, Value: 2},
+				},
+				Rectangles: []Rectangle{
+					{ClueID: 1, X: 2, Y: 0, W: 1, H: 2},
+				},
+			},
+			keys:      DefaultKeyMap,
+			modeTitle: "Test Mode",
+		}
+
+		data, err := original.GetSave()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		got, err := ImportModel(data)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(got.puzzle.Rectangles) != 1 {
+			t.Fatalf("rectangle count = %d, want 1", len(got.puzzle.Rectangles))
+		}
+		if r := got.puzzle.FindRectangleForClue(0); r != nil {
+			t.Fatalf("unexpected auto-placed rectangle for clue 0: %+v", *r)
+		}
+	})
+}
+
+func TestDeleteReplacesForcedRectangle(t *testing.T) {
+	m := New(NewMode("Test", "test", 3, 2, 4), *forcedCascadePuzzle()).(Model)
+	m.commitRectangle(Rectangle{ClueID: 1, X: 2, Y: 0, W: 1, H: 2})
+	if len(m.puzzle.Rectangles) != 2 {
+		t.Fatalf("rectangle count = %d, want 2", len(m.puzzle.Rectangles))
+	}
+
+	m.deleteRectangle(0)
+
+	if len(m.puzzle.Rectangles) != 2 {
+		t.Fatalf("rectangle count after delete = %d, want 2", len(m.puzzle.Rectangles))
+	}
+	if r := m.puzzle.FindRectangleForClue(0); r == nil || *r != (Rectangle{ClueID: 0, X: 0, Y: 0, W: 2, H: 2}) {
+		t.Fatalf("clue 0 rectangle = %+v, want forced replacement", r)
+	}
 }
 
 func TestSaveJSON(t *testing.T) {
@@ -528,14 +655,16 @@ func TestScreenToGrid(t *testing.T) {
 		wantOk  bool
 	}{
 		{"origin cell", ox, oy, 0, 0, true},
-		{"cell (1,0)", ox + cellWidth, oy, 1, 0, true},
-		{"cell (0,1)", ox, oy + 1, 0, 1, true},
-		{"cell (2,3)", ox + 2*cellWidth, oy + 3, 2, 3, true},
-		{"cell (4,4) last", ox + 4*cellWidth, oy + 4, 4, 4, true},
+		{"cell (1,0)", ox + cellWidth + 1, oy, 1, 0, true},
+		{"cell (0,1)", ox, oy + 2, 0, 1, true},
+		{"cell (2,3)", ox + 2*(cellWidth+1), oy + 3*2, 2, 3, true},
+		{"cell (4,4) last", ox + 4*(cellWidth+1), oy + 4*2, 4, 4, true},
+		{"vertical border miss", ox + cellWidth, oy, 0, 0, false},
+		{"horizontal border miss", ox, oy + 1, 0, 0, false},
 		{"outside left", ox - 1, oy, 0, 0, false},
 		{"outside top", ox, oy - 1, 0, 0, false},
-		{"outside right", ox + 5*cellWidth, oy, 0, 0, false},
-		{"outside bottom", ox, oy + 5, 0, 0, false},
+		{"outside right", ox + 5*(cellWidth+1), oy, 0, 0, false},
+		{"outside bottom", ox, oy + 10, 0, 0, false},
 		{"far outside", 0, 0, 0, 0, false},
 	}
 
@@ -550,6 +679,242 @@ func TestScreenToGrid(t *testing.T) {
 					tt.screenX, tt.screenY, col, row, tt.wantCol, tt.wantRow)
 			}
 		})
+	}
+}
+
+func TestMouseClickStartsDragOnContentCell(t *testing.T) {
+	m := Model{
+		puzzle: Puzzle{
+			Width:  5,
+			Height: 5,
+			Clues:  []Clue{{ID: 0, X: 0, Y: 0, Value: 4}},
+		},
+		keys:       DefaultKeyMap,
+		modeTitle:  "Test",
+		termWidth:  120,
+		termHeight: 40,
+	}
+
+	x, y := cellScreenCoords(&m, 0, 0)
+	next, _ := m.Update(tea.MouseClickMsg{X: x, Y: y, Button: tea.MouseLeft})
+	got := next.(Model)
+
+	if !got.lastMouseHit {
+		t.Fatal("expected content-cell click to register as a hit")
+	}
+	if got.mouseDragAnchor == nil || *got.mouseDragAnchor != ([2]int{0, 0}) {
+		t.Fatalf("mouseDragAnchor = %#v, want {0,0}", got.mouseDragAnchor)
+	}
+	if got.mousePreview == nil || *got.mousePreview != (Rectangle{X: 0, Y: 0, W: 1, H: 1}) {
+		t.Fatalf("mousePreview = %#v, want 1x1 preview at origin", got.mousePreview)
+	}
+}
+
+func TestMouseClickOnBorderMisses(t *testing.T) {
+	m := Model{
+		puzzle: Puzzle{
+			Width:  5,
+			Height: 5,
+			Clues:  []Clue{{ID: 0, X: 0, Y: 0, Value: 4}},
+		},
+		keys:       DefaultKeyMap,
+		modeTitle:  "Test",
+		termWidth:  120,
+		termHeight: 40,
+	}
+
+	x, y := cellScreenCoords(&m, 0, 0)
+	next, _ := m.Update(tea.MouseClickMsg{X: x + cellWidth, Y: y, Button: tea.MouseLeft})
+	got := next.(Model)
+
+	if got.lastMouseHit {
+		t.Fatal("expected border click to miss")
+	}
+	if got.mouseDragAnchor != nil {
+		t.Fatal("expected border click not to start drag")
+	}
+}
+
+func TestMouseDragReleasePlacesRectangle(t *testing.T) {
+	m := Model{
+		puzzle:      *simplePuzzle(),
+		keys:        DefaultKeyMap,
+		modeTitle:   "Test",
+		termWidth:   120,
+		termHeight:  40,
+		originValid: false,
+	}
+
+	startX, startY := cellScreenCoords(&m, 0, 0)
+	endX, endY := cellScreenCoords(&m, 1, 1)
+
+	next, _ := m.Update(tea.MouseClickMsg{X: startX, Y: startY, Button: tea.MouseLeft})
+	dragging := next.(Model)
+	next, _ = dragging.Update(tea.MouseMotionMsg{X: endX, Y: endY, Button: tea.MouseLeft})
+	dragging = next.(Model)
+	next, _ = dragging.Update(tea.MouseReleaseMsg{X: endX, Y: endY, Button: tea.MouseLeft})
+	got := next.(Model)
+
+	if got.mouseDragAnchor != nil || got.mousePreview != nil {
+		t.Fatal("expected drag state to be cleared after release")
+	}
+	if r := got.puzzle.FindRectangleForClue(0); r == nil || *r != (Rectangle{ClueID: 0, X: 0, Y: 0, W: 2, H: 2}) {
+		t.Fatalf("rectangle = %+v, want 2x2 rectangle for clue 0", r)
+	}
+}
+
+func TestMouseDragAcrossSeparatorsPlacesRectangle(t *testing.T) {
+	m := Model{
+		puzzle:      *simplePuzzle(),
+		keys:        DefaultKeyMap,
+		modeTitle:   "Test",
+		termWidth:   120,
+		termHeight:  40,
+		originValid: false,
+	}
+
+	startX, startY := cellScreenCoords(&m, 0, 0)
+	endX, endY := cellScreenCoords(&m, 1, 1)
+
+	next, _ := m.Update(tea.MouseClickMsg{X: startX, Y: startY, Button: tea.MouseLeft})
+	dragging := next.(Model)
+	next, _ = dragging.Update(tea.MouseMotionMsg{X: endX - 1, Y: endY - 1, Button: tea.MouseLeft})
+	dragging = next.(Model)
+	next, _ = dragging.Update(tea.MouseReleaseMsg{X: endX - 1, Y: endY - 1, Button: tea.MouseLeft})
+	got := next.(Model)
+
+	if got.selectedClue != nil {
+		t.Fatal("expected drag release over separators not to fall into expansion mode")
+	}
+	if r := got.puzzle.FindRectangleForClue(0); r == nil || *r != (Rectangle{ClueID: 0, X: 0, Y: 0, W: 2, H: 2}) {
+		t.Fatalf("rectangle = %+v, want 2x2 rectangle for clue 0", r)
+	}
+}
+
+func TestMouseRightClickDeletesRectangle(t *testing.T) {
+	m := Model{
+		puzzle: Puzzle{
+			Width:  2,
+			Height: 2,
+			Clues: []Clue{
+				{ID: 0, X: 0, Y: 0, Value: 2},
+				{ID: 1, X: 1, Y: 1, Value: 2},
+			},
+			Rectangles: []Rectangle{
+				{ClueID: 0, X: 0, Y: 0, W: 2, H: 1},
+			},
+		},
+		keys:       DefaultKeyMap,
+		modeTitle:  "Test",
+		termWidth:  120,
+		termHeight: 40,
+	}
+
+	x, y := cellScreenCoords(&m, 0, 0)
+	next, _ := m.Update(tea.MouseClickMsg{X: x, Y: y, Button: tea.MouseRight})
+	got := next.(Model)
+
+	if got.puzzle.FindRectangleForClue(0) != nil {
+		t.Fatal("expected right-click to delete rectangle")
+	}
+}
+
+func TestDynamicGridEdges(t *testing.T) {
+	m := Model{
+		puzzle: Puzzle{
+			Width:  4,
+			Height: 2,
+			Clues:  []Clue{{ID: 0, X: 0, Y: 0, Value: 4}, {ID: 1, X: 2, Y: 0, Value: 4}},
+			Rectangles: []Rectangle{
+				{ClueID: 0, X: 0, Y: 0, W: 2, H: 2},
+				{ClueID: 1, X: 2, Y: 0, W: 2, H: 2},
+			},
+		},
+	}
+
+	if hasVerticalEdge(m, nil, 1, 0) {
+		t.Fatal("expected open interior edge inside committed rectangle")
+	}
+	if !hasVerticalEdge(m, nil, 2, 0) {
+		t.Fatal("expected wall between committed rectangles")
+	}
+	if horizontalEdge(m, nil, 0, 1) {
+		t.Fatal("expected open horizontal edge inside committed rectangle")
+	}
+}
+
+func TestPreviewOverridesCommittedWalls(t *testing.T) {
+	preview := &Rectangle{X: 0, Y: 0, W: 2, H: 1}
+	m := Model{
+		puzzle: Puzzle{
+			Width:  2,
+			Height: 1,
+			Clues:  []Clue{{ID: 0, X: 0, Y: 0, Value: 1}, {ID: 1, X: 1, Y: 0, Value: 1}},
+			Rectangles: []Rectangle{
+				{ClueID: 0, X: 0, Y: 0, W: 1, H: 1},
+				{ClueID: 1, X: 1, Y: 0, W: 1, H: 1},
+			},
+		},
+		mousePreview: preview,
+	}
+
+	if !hasVerticalEdge(m, nil, 1, 0) {
+		t.Fatal("expected committed wall before preview overlay")
+	}
+	if hasVerticalEdge(m, preview, 1, 0) {
+		t.Fatal("expected preview to remove interior committed wall")
+	}
+}
+
+func TestDynamicGridGapBackgrounds(t *testing.T) {
+	m := Model{
+		puzzle: Puzzle{
+			Width:  2,
+			Height: 2,
+			Clues:  []Clue{{ID: 0, X: 0, Y: 0, Value: 4}},
+			Rectangles: []Rectangle{
+				{ClueID: 0, X: 0, Y: 0, W: 2, H: 2},
+			},
+		},
+	}
+	bg := rectColors()[0]
+
+	if got := verticalGapBackground(m, nil, nil, false, 1, 0); !sameColor(got, bg) {
+		t.Fatal("expected committed rectangle to color vertical interior gap")
+	}
+	if got := horizontalGapBackground(m, nil, nil, false, 0, 1); !sameColor(got, bg) {
+		t.Fatal("expected committed rectangle to color horizontal interior gap")
+	}
+	if got := junctionGapBackground(m, nil, nil, false, 1, 1); !sameColor(got, bg) {
+		t.Fatal("expected committed rectangle to color interior junction")
+	}
+}
+
+func TestGridViewUsesUniformRows(t *testing.T) {
+	m := Model{
+		puzzle: Puzzle{
+			Width:  3,
+			Height: 2,
+			Clues:  []Clue{{ID: 0, X: 0, Y: 0, Value: 4}, {ID: 1, X: 2, Y: 1, Value: 2}},
+			Rectangles: []Rectangle{
+				{ClueID: 0, X: 0, Y: 0, W: 2, H: 2},
+				{ClueID: 1, X: 2, Y: 0, W: 1, H: 2},
+			},
+		},
+		cursor: game.Cursor{X: 1, Y: 0},
+	}
+
+	view := gridView(m, false)
+	lines := strings.Split(view, "\n")
+	if got, want := len(lines), m.puzzle.Height*2+1; got != want {
+		t.Fatalf("grid line count = %d, want %d", got, want)
+	}
+
+	wantWidth := lipgloss.Width(lines[0])
+	for i, line := range lines {
+		if width := lipgloss.Width(line); width != wantWidth {
+			t.Fatalf("line %d width = %d, want %d", i, width, wantWidth)
+		}
 	}
 }
 
@@ -587,6 +952,23 @@ func TestViewWidthStableWhenFullHelpExpanded(t *testing.T) {
 
 	if fullWidth > shortWidth {
 		t.Errorf("full-help width = %d, want <= %d", fullWidth, shortWidth)
+	}
+}
+
+func TestViewHeightStableAcrossStatusModes(t *testing.T) {
+	selected := 0
+	views := []Model{
+		{puzzle: *simplePuzzle(), keys: DefaultKeyMap, modeTitle: "Test"},
+		{puzzle: *simplePuzzle(), keys: DefaultKeyMap, modeTitle: "Test", showFullHelp: true},
+		{puzzle: *simplePuzzle(), keys: DefaultKeyMap, modeTitle: "Test", selectedClue: &selected},
+		{puzzle: *simplePuzzle(), keys: DefaultKeyMap, modeTitle: "Test", selectedClue: &selected, showFullHelp: true},
+	}
+
+	wantHeight := lipgloss.Height(views[0].View())
+	for i, m := range views[1:] {
+		if got := lipgloss.Height(m.View()); got != wantHeight {
+			t.Fatalf("view %d height = %d, want %d", i+1, got, wantHeight)
+		}
 	}
 }
 
@@ -725,4 +1107,18 @@ func TestModeSpawn(t *testing.T) {
 			t.Fatal("expected non-nil game")
 		}
 	})
+}
+
+func sameColor(a, b color.Color) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	ar, ag, ab, aa := a.RGBA()
+	br, bg, bb, ba := b.RGBA()
+	return ar == br && ag == bg && ab == bb && aa == ba
+}
+
+func cellScreenCoords(m *Model, col, row int) (int, int) {
+	ox, oy := m.gridOrigin()
+	return ox + col*(cellWidth+1), oy + row*2
 }

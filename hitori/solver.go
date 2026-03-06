@@ -1,5 +1,97 @@
 package hitori
 
+func propagateRequiredMarks(numbers grid, userMarks [][]cellMark, size int) [][]cellMark {
+	marks := cloneMarks(userMarks)
+	forceWhiteNeighborsFromDrivers(marks, userMarks, size)
+	forceDuplicateGroupsInRows(numbers, marks, userMarks, size)
+	forceDuplicateGroupsInCols(numbers, marks, userMarks, size)
+	return marks
+}
+
+func forceWhiteNeighborsFromDrivers(marks, drivers [][]cellMark, size int) {
+	dirs := [4]cellPos{{0, -1}, {0, 1}, {-1, 0}, {1, 0}}
+
+	for y := range size {
+		for x := range size {
+			if drivers[y][x] != shaded {
+				continue
+			}
+
+			for _, d := range dirs {
+				nx, ny := x+d.x, y+d.y
+				if nx < 0 || nx >= size || ny < 0 || ny >= size {
+					continue
+				}
+				if marks[ny][nx] != unmarked {
+					continue
+				}
+				marks[ny][nx] = circled
+			}
+		}
+	}
+}
+
+func forceDuplicateGroupsInRows(numbers grid, marks, drivers [][]cellMark, size int) {
+	for y := range size {
+		seen := map[rune][]cellPos{}
+		for x := range size {
+			num := numbers[y][x]
+			seen[num] = append(seen[num], cellPos{x, y})
+		}
+		for _, positions := range seen {
+			forceDuplicateGroup(marks, drivers, positions)
+		}
+	}
+}
+
+func forceDuplicateGroupsInCols(numbers grid, marks, drivers [][]cellMark, size int) {
+	for x := range size {
+		seen := map[rune][]cellPos{}
+		for y := range size {
+			num := numbers[y][x]
+			seen[num] = append(seen[num], cellPos{x, y})
+		}
+		for _, positions := range seen {
+			forceDuplicateGroup(marks, drivers, positions)
+		}
+	}
+}
+
+func forceDuplicateGroup(marks, drivers [][]cellMark, positions []cellPos) {
+	if len(positions) <= 1 {
+		return
+	}
+
+	anyCircled := false
+	nonShadedCount := 0
+	survivor := cellPos{-1, -1}
+
+	for _, p := range positions {
+		switch drivers[p.y][p.x] {
+		case circled:
+			anyCircled = true
+			nonShadedCount++
+			survivor = p
+		case unmarked:
+			nonShadedCount++
+			survivor = p
+		}
+	}
+
+	if anyCircled {
+		for _, p := range positions {
+			if marks[p.y][p.x] != unmarked {
+				continue
+			}
+			marks[p.y][p.x] = shaded
+		}
+	}
+
+	if nonShadedCount == 1 && survivor.x >= 0 && marks[survivor.y][survivor.x] == unmarked {
+		marks[survivor.y][survivor.x] = circled
+	}
+}
+
 // hasNoDuplicatesInRows returns true if no row contains a duplicate number
 // among the non-shaded cells.
 func hasNoDuplicatesInRows(numbers grid, marks [][]cellMark, size int) bool {

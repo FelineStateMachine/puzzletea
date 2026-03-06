@@ -16,26 +16,6 @@ func Normalize(s string) string {
 	return game.NormalizeName(s)
 }
 
-// Category finds a game category by name (case-insensitive,
-// hyphen/underscore-tolerant, with alias support).
-func Category(name string, definitions []game.Definition) (game.Category, error) {
-	norm := game.NormalizeName(name)
-
-	for _, def := range definitions {
-		if game.NormalizeName(def.Name) == norm {
-			return def.Category(), nil
-		}
-		for _, alias := range def.Aliases {
-			if game.NormalizeName(alias) == norm {
-				return def.Category(), nil
-			}
-		}
-	}
-
-	return game.Category{}, fmt.Errorf("unknown game %q\n\nAvailable games:\n  %s",
-		name, joinLines(CategoryNames(definitions)))
-}
-
 // Mode finds a mode within a category by name. If name is empty,
 // returns the first (default) mode.
 func Mode(cat game.Category, name string) (game.Spawner, string, error) {
@@ -75,15 +55,6 @@ func Mode(cat game.Category, name string) (game.Spawner, string, error) {
 
 	return nil, "", fmt.Errorf("unknown mode %q for %s\n\nAvailable modes:\n  %s",
 		name, cat.Name, strings.Join(ModeNames(cat), "\n  "))
-}
-
-// CategoryNames returns the display names of all game categories.
-func CategoryNames(definitions []game.Definition) []string {
-	names := make([]string, 0, len(definitions))
-	for _, def := range definitions {
-		names = append(names, def.Name)
-	}
-	return names
 }
 
 // ModeNames returns the display names of all modes in a category.
@@ -159,15 +130,4 @@ func SeededMode(seed string, definitions []game.Definition) (game.SeededSpawner,
 		return nil, "", "", errors.New("no seeded modes available")
 	}
 	return best.spawner, best.gameType, best.mode, nil
-}
-
-func joinLines(values []string) string {
-	if len(values) == 0 {
-		return ""
-	}
-	result := values[0]
-	for i := 1; i < len(values); i++ {
-		result += "\n  " + values[i]
-	}
-	return result
 }

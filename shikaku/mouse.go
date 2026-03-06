@@ -1,31 +1,31 @@
 package shikaku
 
-import (
-	"strings"
-
-	"charm.land/lipgloss/v2"
-	"github.com/FelineStateMachine/puzzletea/game"
-)
+import "github.com/FelineStateMachine/puzzletea/game"
 
 // screenToGrid converts terminal screen coordinates to grid cell coordinates.
 // Returns (col, row, ok) where ok is false if the click landed outside the grid.
 func (m *Model) screenToGrid(screenX, screenY int) (col, row int, ok bool) {
+	return m.screenToGridAt(screenX, screenY, false)
+}
+
+func (m *Model) screenToGridDrag(screenX, screenY int) (col, row int, ok bool) {
+	return m.screenToGridAt(screenX, screenY, true)
+}
+
+func (m *Model) screenToGridAt(screenX, screenY int, includeSeparators bool) (col, row int, ok bool) {
 	ox, oy := m.cachedGridOrigin()
-	lx := screenX - ox
-	ly := screenY - oy
-	if lx < 0 || ly < 0 {
-		return 0, 0, false
-	}
-
-	// Shikaku has no separators: simple division by cell dimensions.
-	col = lx / cellWidth
-	row = ly // cellHeight is 1
-
-	if col < 0 || col >= m.puzzle.Width || row < 0 || row >= m.puzzle.Height {
-		return 0, 0, false
-	}
-
-	return col, row, true
+	return game.DynamicGridScreenToCell(
+		game.DynamicGridMetrics{
+			Width:     m.puzzle.Width,
+			Height:    m.puzzle.Height,
+			CellWidth: cellWidth,
+		},
+		ox,
+		oy,
+		screenX,
+		screenY,
+		includeSeparators,
+	)
 }
 
 // cachedGridOrigin returns the screen position of the top-left corner of
@@ -55,40 +55,12 @@ func (m *Model) cachedGridOrigin() (x, y int) {
 // Within the game view the layout is:
 //
 //	title
-//	┌─────────────┐  <- border (1 line top)
-//	│ cell grid    │  <- border adds 1 char left
-//	└─────────────┘
+//	dynamic grid
 //	info
 //	status
 func (m *Model) gridOrigin() (x, y int) {
-	gameView := m.View()
-	viewWidth := lipgloss.Width(gameView)
-	viewHeight := lipgloss.Height(gameView)
-
-	if viewWidth > m.termWidth {
-		viewWidth = m.termWidth
-	}
-
-	// Centering offset applied by the root's lipgloss.Place().
-	centerX := max((m.termWidth-viewWidth)/2, 0)
-	centerY := max((m.termHeight-viewHeight)/2, 0)
-
-	// Measure the title height.
 	solved := m.puzzle.IsSolved()
 	title := game.TitleBarView("Shikaku", m.modeTitle, solved)
-	titleHeight := strings.Count(title, "\n") + 1
-
-	// The grid is rendered inside a border. Measure its outer width to
-	// compute horizontal padding from JoinVertical(Center, ...).
 	grid := gridView(*m, solved)
-	gridOuterWidth := lipgloss.Width(grid)
-	gridPadLeft := max((viewWidth-gridOuterWidth)/2, 0)
-
-	// Border adds 1 character on the left and 1 line on top.
-	const borderLeft = 1
-	const borderTop = 1
-
-	x = centerX + gridPadLeft + borderLeft
-	y = centerY + titleHeight + borderTop
-	return x, y
+	return game.DynamicGridOrigin(m.termWidth, m.termHeight, m.View(), title, grid)
 }

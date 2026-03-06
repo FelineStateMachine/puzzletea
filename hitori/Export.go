@@ -19,7 +19,7 @@ func (m Model) GetSave() ([]byte, error) {
 	save := Save{
 		Size:      m.size,
 		Numbers:   m.numbers.String(),
-		Marks:     serializeMarks(m.marks),
+		Marks:     serializeMarks(m.userMarks),
 		ModeTitle: m.modeTitle,
 	}
 	data, err := json.Marshal(save)
@@ -43,15 +43,14 @@ func ImportModel(data []byte) (*Model, error) {
 	marks := deserializeMarks(s.Marks, s.Size)
 
 	m := &Model{
-		size:      s.Size,
-		numbers:   numbers,
-		marks:     marks,
-		cursor:    game.Cursor{X: 0, Y: 0},
-		keys:      DefaultKeyMap,
-		modeTitle: s.ModeTitle,
+		size:             s.Size,
+		numbers:          numbers,
+		userMarks:        marks,
+		initialUserMarks: newMarks(s.Size),
+		cursor:           game.Cursor{X: 0, Y: 0},
+		keys:             DefaultKeyMap,
+		modeTitle:        s.ModeTitle,
 	}
-	m.initialMarks = newMarks(s.Size)
-	m.solved = m.checkSolved()
-	m.conflicts = computeConflicts(m.numbers, m.marks, m.size)
+	m.recomputeState()
 	return m, nil
 }

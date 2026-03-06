@@ -41,6 +41,8 @@ clean:
 # Generate VHS GIFs (requires vhs: https://github.com/charmbracelet/vhs).
 vhs: build
     vhs vhs/menu.tape
+    vhs vhs/fillomino.tape
+    vhs vhs/rippleeffect.tape
     vhs vhs/nonogram.tape
     vhs vhs/nurikabe.tape
     vhs vhs/sudoku.tape

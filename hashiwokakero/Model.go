@@ -143,7 +143,7 @@ func (m Model) View() string {
 		title,
 		grid,
 		game.StaticRow(info),
-		game.StableRow(status, statusBarView(selected, false), statusBarView(selected, true)),
+		game.StableRow(status, statusBarVariants()...),
 	)
 }
 
