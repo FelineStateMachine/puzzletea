@@ -3,14 +3,19 @@ package fillomino
 import (
 	"image/color"
 	"strconv"
-	"strings"
 
 	"charm.land/lipgloss/v2"
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/theme"
 )
 
-const cellWidth = 3
+const cellWidth = game.DynamicGridCellWidth
+
+type renderGridState struct {
+	zones      [][]int
+	activeZone int
+	completed  map[int]color.Color
+}
 
 func cellBaseStyle() lipgloss.Style {
 	p := theme.Current()
@@ -78,80 +83,110 @@ func conflictedCursorStyle() lipgloss.Style {
 }
 
 func gridView(m Model) string {
-	highlight := regionCellsAt(m.grid, point{x: m.cursor.X, y: m.cursor.Y})
-	completed := completedRegionBackgrounds(m.grid, m.conflicts)
-	regionSet := make(map[point]struct{}, len(highlight))
-	for _, cell := range highlight {
-		regionSet[cell] = struct{}{}
-	}
+	renderState := buildRenderGridState(m)
 
-	rows := make([]string, 0, m.height*2+1)
-	rows = append(rows, boundaryRow(m, 0, regionSet, completed))
-	for y := range m.height {
-		rows = append(rows, contentRow(m, y, regionSet, completed))
-		rows = append(rows, boundaryRow(m, y+1, regionSet, completed))
-	}
-	return lipgloss.JoinVertical(lipgloss.Left, rows...)
+	return game.RenderDynamicGrid(game.DynamicGridSpec{
+		Width:  m.width,
+		Height: m.height,
+		Solved: m.solved,
+		Cell: func(x, y int) string {
+			zone := renderState.zones[y][x]
+			completedBG := renderState.completed[zone]
+			return cellView(
+				m.grid[y][x],
+				m.provided[y][x],
+				x == m.cursor.X && y == m.cursor.Y,
+				y == m.cursor.Y,
+				x == m.cursor.X,
+				renderState.activeZone >= 0 && zone == renderState.activeZone,
+				m.solved,
+				m.conflicts[y][x],
+				completedBG,
+			)
+		},
+		ZoneAt: func(x, y int) int {
+			return renderState.zones[y][x]
+		},
+		ZoneFill: func(zone int) color.Color {
+			p := theme.Current()
+			switch {
+			case m.solved:
+				return p.SuccessBG
+			case renderState.completed[zone] != nil:
+				return renderState.completed[zone]
+			case renderState.activeZone >= 0 && zone == renderState.activeZone:
+				return p.HighlightBG
+			default:
+				return nil
+			}
+		},
+		BridgeFill: func(bridge game.DynamicGridBridge) color.Color {
+			for i := 0; i < bridge.Count; i++ {
+				cell := bridge.Cells[i]
+				if m.conflicts[cell.Y][cell.X] {
+					return game.ConflictBG()
+				}
+			}
+			return nil
+		},
+	})
 }
 
-func contentRow(m Model, y int, regionSet map[point]struct{}, completed map[point]color.Color) string {
-	var b strings.Builder
-	for x := range m.width {
-		b.WriteString(renderBorderChar(verticalEdge(m.grid, x, y), m.solved, verticalGapBackground(m, regionSet, completed, x, y)))
-		_, inRegion := regionSet[point{x: x, y: y}]
-		b.WriteString(cellView(
-			m.grid[y][x],
-			m.provided[y][x],
-			x == m.cursor.X && y == m.cursor.Y,
-			y == m.cursor.Y,
-			x == m.cursor.X,
-			inRegion,
-			m.solved,
-			m.conflicts[y][x],
-			completed[point{x: x, y: y}],
-		))
+func buildRenderGridState(m Model) renderGridState {
+	height := len(m.grid)
+	if height == 0 {
+		return renderGridState{}
 	}
-	b.WriteString(renderBorderChar(verticalEdge(m.grid, m.width, y), m.solved, verticalGapBackground(m, regionSet, completed, m.width, y)))
-	return b.String()
-}
+	width := len(m.grid[0])
+	zones := make([][]int, height)
+	for y := range height {
+		zones[y] = make([]int, width)
+	}
 
-func boundaryRow(m Model, y int, regionSet map[point]struct{}, completed map[point]color.Color) string {
-	var b strings.Builder
-	for x := 0; x <= m.width; x++ {
-		b.WriteString(renderBorderChar(junctionRune(m.grid, x, y), m.solved, junctionGapBackground(m, regionSet, completed, x, y)))
-		if x == m.width {
-			continue
+	visited := make([][]bool, height)
+	for y := range height {
+		visited[y] = make([]bool, width)
+	}
+
+	palette := theme.Current()
+	colors := palette.ThemeColors()
+	completed := make(map[int]color.Color)
+	nextZone := 0
+	activeZone := -1
+	emptyZone := nextZone
+	nextZone++
+
+	for y := range height {
+		for x := range width {
+			if m.grid[y][x] == 0 {
+				zones[y][x] = emptyZone
+				continue
+			}
+			if visited[y][x] {
+				continue
+			}
+
+			comp := buildComponent(m.grid, point{x: x, y: y}, visited)
+			zone := nextZone
+			nextZone++
+			for _, cell := range comp.cells {
+				zones[cell.y][cell.x] = zone
+			}
+			if len(colors) > 0 && len(comp.cells) == comp.value && !componentHasConflict(comp, m.conflicts) {
+				completed[zone] = completedRegionColor(comp, colors, palette.Surface)
+			}
 		}
-
-		ch := ' '
-		if horizontalEdge(m.grid, x, y) {
-			ch = '─'
-		}
-		b.WriteString(renderBorderSegment(ch, m.solved, horizontalGapBackground(m, regionSet, completed, x, y)))
 	}
-	return b.String()
-}
 
-func renderBorderChar(ch rune, solved bool, bg color.Color) string {
-	p := theme.Current()
-	fg := p.Border
-	if solved {
-		fg = p.SuccessBorder
+	if m.cursor.Y >= 0 && m.cursor.Y < height && m.cursor.X >= 0 && m.cursor.X < width && m.grid[m.cursor.Y][m.cursor.X] != 0 {
+		activeZone = zones[m.cursor.Y][m.cursor.X]
 	}
-	if bg == nil {
-		bg = p.BG
-		if solved {
-			bg = p.SuccessBG
-		}
-	}
-	return lipgloss.NewStyle().
-		Foreground(fg).
-		Background(bg).
-		Render(string(ch))
-}
 
-func renderBorderSegment(ch rune, solved bool, bg color.Color) string {
-	return strings.Repeat(renderBorderChar(ch, solved, bg), cellWidth)
+	return renderGridState{
+		zones:      zones,
+		activeZone: activeZone,
+		completed:  completed,
+	}
 }
 
 func horizontalEdge(g grid, x, y int) bool {

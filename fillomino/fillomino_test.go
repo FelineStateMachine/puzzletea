@@ -10,6 +10,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/theme"
+	"github.com/charmbracelet/x/ansi"
 )
 
 func TestValidateGridState(t *testing.T) {
@@ -263,6 +264,27 @@ func TestGridViewUsesUniformRows(t *testing.T) {
 		if width := lipgloss.Width(line); width != wantWidth {
 			t.Fatalf("line %d width = %d, want %d", i, width, wantWidth)
 		}
+	}
+}
+
+func TestGridViewOmitsBorderBetweenAdjacentEmptyCells(t *testing.T) {
+	m := Model{
+		width:     2,
+		height:    1,
+		grid:      grid{{0, 0}},
+		provided:  newProvidedMask(grid{{0, 0}}),
+		conflicts: validateGridState(grid{{0, 0}}).conflicts,
+	}
+
+	view := ansi.Strip(gridView(m))
+	lines := strings.Split(view, "\n")
+	if len(lines) < 2 {
+		t.Fatalf("expected at least 2 lines, got %d", len(lines))
+	}
+
+	content := []rune(lines[1])
+	if got := content[4]; got != ' ' {
+		t.Fatalf("separator between adjacent empty cells = %q, want space", got)
 	}
 }
 

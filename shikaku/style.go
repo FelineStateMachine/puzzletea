@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	cellWidth       = 3
+	cellWidth       = game.DynamicGridCellWidth
 	previewRegionID = -2
 )
 
@@ -19,77 +19,20 @@ func rectColors() []color.Color { return theme.Current().ThemeColors() }
 
 func gridView(m Model, solved bool) string {
 	preview, previewClue, previewValid := activePreview(m)
-	rows := make([]string, 0, m.puzzle.Height*2+1)
-	rows = append(rows, boundaryRow(m, 0, preview, previewClue, previewValid, solved))
-	for y := range m.puzzle.Height {
-		rows = append(rows, contentRow(m, y, preview, previewClue, previewValid, solved))
-		rows = append(rows, boundaryRow(m, y+1, preview, previewClue, previewValid, solved))
-	}
-	return lipgloss.JoinVertical(lipgloss.Left, rows...)
-}
-
-func activePreview(m Model) (*Rectangle, *Clue, bool) {
-	var preview *Rectangle
-	var previewClue *Clue
-
-	if m.mousePreview != nil {
-		preview = m.mousePreview
-		clues := m.puzzle.CluesInRect(*preview)
-		if len(clues) == 1 {
-			previewClue = clues[0]
-		}
-	} else if m.selectedClue != nil {
-		previewClue = m.puzzle.FindClueByID(*m.selectedClue)
-		if previewClue != nil {
-			r := m.expansion.rect(previewClue)
-			preview = &r
-		}
-	}
-
-	return preview, previewClue, previewClue != nil && m.puzzle.ValidRectangleForClue(*preview, previewClue.ID)
-}
-
-func contentRow(m Model, y int, preview *Rectangle, previewClue *Clue, previewValid, solved bool) string {
-	var b strings.Builder
-	for x := range m.puzzle.Width {
-		b.WriteString(renderBorderChar(
-			verticalEdge(m, preview, x, y),
-			solved,
-			verticalGapBackground(m, preview, previewClue, previewValid, x, y),
-		))
-		b.WriteString(cellView(m, x, y, preview, previewClue, previewValid, solved))
-	}
-	b.WriteString(renderBorderChar(
-		verticalEdge(m, preview, m.puzzle.Width, y),
-		solved,
-		verticalGapBackground(m, preview, previewClue, previewValid, m.puzzle.Width, y),
-	))
-	return b.String()
-}
-
-func boundaryRow(m Model, y int, preview *Rectangle, previewClue *Clue, previewValid, solved bool) string {
-	var b strings.Builder
-	for x := 0; x <= m.puzzle.Width; x++ {
-		b.WriteString(renderBorderChar(
-			junctionRune(m, preview, x, y),
-			solved,
-			junctionGapBackground(m, preview, previewClue, previewValid, x, y),
-		))
-		if x == m.puzzle.Width {
-			continue
-		}
-
-		ch := ' '
-		if horizontalEdge(m, preview, x, y) {
-			ch = '─'
-		}
-		b.WriteString(renderBorderSegment(
-			ch,
-			solved,
-			horizontalGapBackground(m, preview, previewClue, previewValid, x, y),
-		))
-	}
-	return b.String()
+	return game.RenderDynamicGrid(game.DynamicGridSpec{
+		Width:  m.puzzle.Width,
+		Height: m.puzzle.Height,
+		Solved: solved,
+		Cell: func(x, y int) string {
+			return cellView(m, x, y, preview, previewClue, previewValid, solved)
+		},
+		ZoneAt: func(x, y int) int {
+			return regionTokenAt(m, preview, x, y)
+		},
+		ZoneFill: func(zone int) color.Color {
+			return regionBackground(m, zone, previewClue, previewValid)
+		},
+	})
 }
 
 func cellView(m Model, x, y int, preview *Rectangle, previewClue *Clue, previewValid, solved bool) string {
@@ -152,27 +95,25 @@ func cellView(m Model, x, y int, preview *Rectangle, previewClue *Clue, previewV
 	return style.Foreground(fg).Background(bg).Render(display)
 }
 
-func renderBorderChar(ch rune, solved bool, bg color.Color) string {
-	p := theme.Current()
-	fg := p.Border
-	if solved {
-		fg = p.SuccessBorder
-	}
-	if bg == nil {
-		bg = p.BG
-		if solved {
-			bg = p.SuccessBG
+func activePreview(m Model) (*Rectangle, *Clue, bool) {
+	var preview *Rectangle
+	var previewClue *Clue
+
+	if m.mousePreview != nil {
+		preview = m.mousePreview
+		clues := m.puzzle.CluesInRect(*preview)
+		if len(clues) == 1 {
+			previewClue = clues[0]
+		}
+	} else if m.selectedClue != nil {
+		previewClue = m.puzzle.FindClueByID(*m.selectedClue)
+		if previewClue != nil {
+			r := m.expansion.rect(previewClue)
+			preview = &r
 		}
 	}
 
-	return lipgloss.NewStyle().
-		Foreground(fg).
-		Background(bg).
-		Render(string(ch))
-}
-
-func renderBorderSegment(ch rune, solved bool, bg color.Color) string {
-	return strings.Repeat(renderBorderChar(ch, solved, bg), cellWidth)
+	return preview, previewClue, previewClue != nil && m.puzzle.ValidRectangleForClue(*preview, previewClue.ID)
 }
 
 func regionTokenAt(m Model, preview *Rectangle, x, y int) int {
