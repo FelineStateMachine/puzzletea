@@ -13,15 +13,35 @@ type Puzzle struct {
 	Solution grid
 }
 
+type shapeBias int
+
+const (
+	shapeBiasNeutral shapeBias = iota
+	shapeBiasCompact
+	shapeBiasWinding
+)
+
+type generationProfile struct {
+	cageWeights     []int
+	frontierSamples int
+	shapeBias       shapeBias
+	minGivensByCage []int
+}
+
 func GeneratePuzzle(width, height, maxCage int, givenRatio float64) (Puzzle, error) {
 	rng := rand.New(rand.NewPCG(rand.Uint64(), rand.Uint64()))
 	return GeneratePuzzleSeeded(width, height, maxCage, givenRatio, rng)
 }
 
 func GeneratePuzzleSeeded(width, height, maxCage int, givenRatio float64, rng *rand.Rand) (Puzzle, error) {
+	return generatePuzzleSeededWithProfile(width, height, maxCage, givenRatio, defaultGenerationProfile(maxCage), rng)
+}
+
+func generatePuzzleSeededWithProfile(width, height, maxCage int, givenRatio float64, profile generationProfile, rng *rand.Rand) (Puzzle, error) {
 	const maxAttempts = 24
+	profile = profile.withDefaults(maxCage)
 	for attempt := 0; attempt < maxAttempts; attempt++ {
-		cages := generateCages(width, height, maxCage, rng)
+		cages := generateCages(width, height, maxCage, profile, rng)
 		geo, err := buildGeometry(width, height, cages)
 		if err != nil {
 			continue
@@ -32,7 +52,7 @@ func GeneratePuzzleSeeded(width, height, maxCage int, givenRatio float64, rng *r
 			continue
 		}
 
-		givens := removeClues(geo, solution, givenRatio, rng)
+		givens := removeClues(geo, solution, givenRatio, profile, rng)
 		if countSolutions(geo, givens, 2) != 1 {
 			continue
 		}
@@ -49,7 +69,50 @@ func GeneratePuzzleSeeded(width, height, maxCage int, givenRatio float64, rng *r
 	return Puzzle{}, fmt.Errorf("generate ripple effect puzzle %dx%d: exceeded retry budget", width, height)
 }
 
-func generateCages(width, height, maxCage int, rng *rand.Rand) []Cage {
+func defaultGenerationProfile(maxCage int) generationProfile {
+	return generationProfile{
+		cageWeights:     defaultCageWeights(maxCage),
+		frontierSamples: 1,
+		shapeBias:       shapeBiasNeutral,
+		minGivensByCage: make([]int, maxCage+1),
+	}
+}
+
+func defaultCageWeights(maxCage int) []int {
+	base := []int{0, 2, 4, 5, 4, 3, 2, 1, 1, 1}
+	weights := make([]int, maxCage+1)
+	for size := range len(weights) {
+		if size == 0 {
+			continue
+		}
+		weights[size] = base[min(size, len(base)-1)]
+	}
+	return weights
+}
+
+func (p generationProfile) withDefaults(maxCage int) generationProfile {
+	if len(p.cageWeights) == 0 {
+		p.cageWeights = defaultCageWeights(maxCage)
+	}
+	if p.frontierSamples <= 0 {
+		p.frontierSamples = 1
+	}
+	if len(p.minGivensByCage) == 0 {
+		p.minGivensByCage = make([]int, maxCage+1)
+	}
+	if len(p.minGivensByCage) <= maxCage {
+		p.minGivensByCage = growIntSlice(p.minGivensByCage, maxCage+1)
+	}
+	return p
+}
+
+func growIntSlice(values []int, size int) []int {
+	grown := make([]int, size)
+	copy(grown, values)
+	return grown
+}
+
+func generateCages(width, height, maxCage int, profile generationProfile, rng *rand.Rand) []Cage {
 	assigned := make([][]bool, height)
 	for y := range height {
 		assigned[y] = make([]bool, width)
@@ -62,8 +125,8 @@ func generateCages(width, height, maxCage int, rng *rand.Rand) []Cage {
 			return cages
 		}
 
-		target := chooseCageSize(maxCage, remainingUnassigned(assigned), rng)
-		shape := growCageShape(start, target, assigned, rng)
+		target := chooseCageSize(maxCage, remainingUnassigned(assigned), profile.cageWeights, rng)
+		shape := growCageShape(start, target, assigned, profile, rng)
 		for _, cell := range shape {
 			assigned[cell.y][cell.x] = true
 		}
@@ -103,11 +166,10 @@ func remainingUnassigned(assigned [][]bool) int {
 	return count
 }
 
-func chooseCageSize(maxCage, remaining int, rng *rand.Rand) int {
+func chooseCageSize(maxCage, remaining int, weights []int, rng *rand.Rand) int {
 	if remaining < maxCage {
 		maxCage = remaining
 	}
-	weights := []int{0, 2, 4, 5, 4, 3, 2, 1, 1, 1}
 	totalWeight := 0
 	for size := 1; size <= maxCage; size++ {
 		totalWeight += weights[min(size, len(weights)-1)]
@@ -126,7 +188,7 @@ func chooseCageSize(maxCage, remaining int, rng *rand.Rand) int {
 	return 1
 }
 
-func growCageShape(start point, target int, assigned [][]bool, rng *rand.Rand) []point {
+func growCageShape(start point, target int, assigned [][]bool, profile generationProfile, rng *rand.Rand) []point {
 	shape := []point{start}
 	inShape := map[point]struct{}{start: {}}
 	height := len(assigned)
@@ -153,12 +215,57 @@ func growCageShape(start point, target int, assigned [][]bool, rng *rand.Rand) [
 		if len(frontier) == 0 {
 			break
 		}
-		next := frontier[rng.IntN(len(frontier))]
+		next := chooseFrontierPoint(frontier, inShape, assigned, profile, rng)
 		shape = append(shape, next)
 		inShape[next] = struct{}{}
 	}
 
 	return shape
+}
+
+func chooseFrontierPoint(frontier []point, inShape map[point]struct{}, assigned [][]bool, profile generationProfile, rng *rand.Rand) point {
+	if len(frontier) == 1 || profile.shapeBias == shapeBiasNeutral {
+		return frontier[rng.IntN(len(frontier))]
+	}
+
+	sampleCount := min(profile.frontierSamples, len(frontier))
+	best := frontier[rng.IntN(len(frontier))]
+	bestScore := frontierScore(best, inShape, assigned)
+
+	for pick := 1; pick < sampleCount; pick++ {
+		candidate := frontier[rng.IntN(len(frontier))]
+		score := frontierScore(candidate, inShape, assigned)
+		if prefersFrontierScore(profile.shapeBias, score, bestScore) {
+			best = candidate
+			bestScore = score
+		}
+	}
+
+	return best
+}
+
+func frontierScore(candidate point, inShape map[point]struct{}, assigned [][]bool) int {
+	score := 0
+	for _, neighbor := range orthogonalNeighbors(candidate, len(assigned[0]), len(assigned)) {
+		if assigned[neighbor.y][neighbor.x] {
+			continue
+		}
+		if _, ok := inShape[neighbor]; ok {
+			score++
+		}
+	}
+	return score
+}
+
+func prefersFrontierScore(bias shapeBias, candidate, current int) bool {
+	switch bias {
+	case shapeBiasCompact:
+		return candidate > current
+	case shapeBiasWinding:
+		return candidate < current
+	default:
+		return false
+	}
 }
 
 func generateSolution(geo *geometry, rng *rand.Rand) (grid, bool) {
@@ -229,17 +336,22 @@ func chooseNextFillCell(geo *geometry, state grid, rng *rand.Rand) (point, []int
 	return best, bestCandidates, true
 }
 
-func removeClues(geo *geometry, solution grid, givenRatio float64, rng *rand.Rand) grid {
+func removeClues(geo *geometry, solution grid, givenRatio float64, profile generationProfile, rng *rand.Rand) grid {
 	givens := cloneGrid(solution)
 	totalCells := geo.width * geo.height
 	target := int(float64(totalCells) * givenRatio)
-	if target < len(geo.cages) {
-		target = len(geo.cages)
-	}
 
 	remainingByCage := make([]int, len(geo.cages))
+	minimumByCage := make([]int, len(geo.cages))
+	minimumTotal := 0
 	for cageIdx, cells := range geo.cageCells {
 		remainingByCage[cageIdx] = len(cells)
+		minimumByCage[cageIdx] = minGivensForCage(profile, len(cells))
+		minimumTotal += minimumByCage[cageIdx]
+	}
+
+	if target < minimumTotal {
+		target = minimumTotal
 	}
 
 	cells := make([]point, 0, totalCells)
@@ -259,7 +371,7 @@ func removeClues(geo *geometry, solution grid, givenRatio float64, rng *rand.Ran
 		}
 
 		cageIdx := geo.cageGrid[cell.y][cell.x]
-		if remainingByCage[cageIdx] <= 1 {
+		if remainingByCage[cageIdx] <= minimumByCage[cageIdx] {
 			continue
 		}
 
@@ -275,4 +387,14 @@ func removeClues(geo *geometry, solution grid, givenRatio float64, rng *rand.Ran
 	}
 
 	return givens
+}
+
+func minGivensForCage(profile generationProfile, cageSize int) int {
+	if cageSize <= 0 {
+		return 0
+	}
+	if cageSize >= len(profile.minGivensByCage) {
+		return max(1, profile.minGivensByCage[len(profile.minGivensByCage)-1])
+	}
+	return max(1, min(profile.minGivensByCage[cageSize], cageSize))
 }

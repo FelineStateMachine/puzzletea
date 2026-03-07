@@ -23,7 +23,7 @@ The puzzle is solved when all three rules hold simultaneously.
 | `Backspace` | Clear cell to unmarked |
 | `Ctrl+H` | Toggle help bar |
 | `Ctrl+R` | Reset puzzle |
-| `Ctrl+N` | Return to main menu |
+| `Escape` | Return to main menu |
 
 ## Tips
 

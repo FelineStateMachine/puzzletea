@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 )
 
@@ -164,6 +165,27 @@ func TestSetBridge(t *testing.T) {
 			t.Error("bridgeIndex should remain available after SetBridge")
 		}
 	})
+}
+
+func TestSelectTogglesBridgeMode(t *testing.T) {
+	p := linePuzzle()
+	m := Model{
+		puzzle:       *p,
+		cursorIsland: 0,
+		keys:         DefaultKeyMap,
+	}
+
+	next, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	selected := next.(Model)
+	if selected.selectedIsland == nil || *selected.selectedIsland != 0 {
+		t.Fatal("expected enter to select the current island")
+	}
+
+	next, _ = selected.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	deselected := next.(Model)
+	if deselected.selectedIsland != nil {
+		t.Fatal("expected enter to deselect the current island")
+	}
 }
 
 // --- BridgeCount (P0) ---

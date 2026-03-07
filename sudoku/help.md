@@ -19,7 +19,7 @@ Fill a 9x9 grid with digits so every row, column, and box is complete.
 | `Backspace` | Clear cell |
 | `Ctrl+H` | Toggle help bar |
 | `Ctrl+R` | Reset puzzle |
-| `Ctrl+N` | Return to main menu |
+| `Escape` | Return to main menu |
 
 ## Tips
 

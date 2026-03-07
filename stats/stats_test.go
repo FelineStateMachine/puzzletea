@@ -370,7 +370,13 @@ func TestRenderCardGridWrapsRowsByWidth(t *testing.T) {
 	if got := strings.Count(lines[0], "╭"); got != 3 {
 		t.Fatalf("first row cards = %d, want 3", got)
 	}
-	if got := strings.Count(lines[CardHeight], "╭"); got != 2 {
+	secondRowStart := CardHeight + cardRowGap
+	for i := CardHeight; i < secondRowStart; i++ {
+		if lines[i] != "" {
+			t.Fatalf("row gap line %d = %q, want blank", i, lines[i])
+		}
+	}
+	if got := strings.Count(lines[secondRowStart], "╭"); got != 2 {
 		t.Fatalf("second row cards = %d, want 2", got)
 	}
 	if got := maxRenderedWidth(rendered); got > width {

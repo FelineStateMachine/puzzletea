@@ -5,6 +5,7 @@ import (
 	"math/rand/v2"
 	"testing"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/FelineStateMachine/puzzletea/game"
 )
 
@@ -126,6 +127,23 @@ func TestWordPositions(t *testing.T) {
 			t.Errorf("len(Positions()) = %d, want %d", got, len(w.Text))
 		}
 	})
+}
+
+func TestBackspaceCancelsSelection(t *testing.T) {
+	m := Model{
+		width:      3,
+		height:     3,
+		grid:       createEmptyGrid(3, 3),
+		selection:  startSelected,
+		keys:       DefaultKeyMap,
+		foundCells: buildFoundCells(3, 3, nil),
+	}
+
+	next, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyBackspace})
+	got := next.(Model)
+	if got.selection != noSelection {
+		t.Fatal("expected backspace to clear the current selection")
+	}
 }
 
 // --- Grid operations (P1) ---

@@ -276,13 +276,15 @@ func (m Model) handleNavMode(msg tea.KeyPressMsg) Model {
 			}
 		}
 	case key.Matches(msg, m.keys.Delete):
-		// Delete rectangle at cursor position.
+		// Backspace prioritizes dismissing transient previews before deleting a committed rectangle.
+		if m.mouseDragAnchor != nil || m.mousePreview != nil {
+			m = m.cancelPendingRectangle()
+			break
+		}
 		owner := m.puzzle.CellOwner(m.cursor.X, m.cursor.Y)
 		if owner >= 0 {
 			m.deleteRectangle(owner)
 		}
-	case key.Matches(msg, m.keys.Cancel):
-		m = m.cancelPendingRectangle()
 	default:
 		m.cursor.Move(m.keys.CursorKeyMap, msg, m.puzzle.Width-1, m.puzzle.Height-1)
 	}
@@ -337,11 +339,8 @@ func (m Model) handleExpansionMode(msg tea.KeyPressMsg) Model {
 			m.commitRectangle(rect)
 			m.selectedClue = nil
 		}
-	case key.Matches(msg, m.keys.Cancel):
-		m = m.cancelPendingRectangle()
 	case key.Matches(msg, m.keys.Delete):
-		m.deleteRectangle(clue.ID)
-		m.selectedClue = nil
+		m = m.cancelPendingRectangle()
 	}
 	return m
 }

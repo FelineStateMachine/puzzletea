@@ -79,6 +79,54 @@ func TestRenderDynamicGridUsesUniformRows(t *testing.T) {
 	}
 }
 
+func TestRenderDynamicGridEdgeOverridesSuppressInteriorBorders(t *testing.T) {
+	view := RenderDynamicGrid(DynamicGridSpec{
+		Width:  2,
+		Height: 2,
+		Cell: func(_, _ int) string {
+			return "   "
+		},
+		ZoneAt: func(x, y int) int {
+			return y*10 + x
+		},
+		HasVerticalEdge: func(x, _ int) bool {
+			return x <= 0 || x >= 2
+		},
+		HasHorizontalEdge: func(_, y int) bool {
+			return y <= 0 || y >= 2
+		},
+	})
+
+	lines := strings.Split(ansi.Strip(view), "\n")
+	if got := []rune(lines[1])[4]; got != ' ' {
+		t.Fatalf("interior vertical bridge rune = %q, want %q", got, ' ')
+	}
+	if got := []rune(lines[2])[4]; got != ' ' {
+		t.Fatalf("interior junction rune = %q, want %q", got, ' ')
+	}
+}
+
+func TestRenderDynamicGridDefaultsToZoneEdgesWithoutOverrides(t *testing.T) {
+	view := RenderDynamicGrid(DynamicGridSpec{
+		Width:  2,
+		Height: 2,
+		Cell: func(_, _ int) string {
+			return "   "
+		},
+		ZoneAt: func(x, y int) int {
+			return y*10 + x
+		},
+	})
+
+	lines := strings.Split(ansi.Strip(view), "\n")
+	if got := []rune(lines[1])[4]; got != '│' {
+		t.Fatalf("interior vertical bridge rune = %q, want %q", got, '│')
+	}
+	if got := []rune(lines[2])[4]; got != '┼' {
+		t.Fatalf("interior junction rune = %q, want %q", got, '┼')
+	}
+}
+
 func TestDynamicGridRenderBorderCharSolvedDefaults(t *testing.T) {
 	got := dynamicGridRenderBorderChar('│', DefaultBorderColors(), true, nil)
 	want := lipgloss.NewStyle().
@@ -87,6 +135,30 @@ func TestDynamicGridRenderBorderCharSolvedDefaults(t *testing.T) {
 		Render("│")
 	if got != want {
 		t.Fatal("expected solved border char to use solved colors")
+	}
+}
+
+func TestDynamicGridRenderBorderCharUsesTextOnTintedBackground(t *testing.T) {
+	bg := theme.Current().Surface
+	got := dynamicGridRenderBorderChar('│', DefaultBorderColors(), false, bg)
+	want := lipgloss.NewStyle().
+		Foreground(theme.TextOnBG(bg)).
+		Background(bg).
+		Render("│")
+	if got != want {
+		t.Fatal("expected tinted border char to use contrast-aware foreground")
+	}
+}
+
+func TestBorderCharHighlightUsesTextOnCrosshairBackground(t *testing.T) {
+	colors := DefaultBorderColors()
+	got := BorderChar("│", colors, false, true)
+	want := lipgloss.NewStyle().
+		Foreground(theme.TextOnBG(colors.CrosshairBG)).
+		Background(colors.CrosshairBG).
+		Render("│")
+	if got != want {
+		t.Fatal("expected highlighted border char to use contrast-aware foreground")
 	}
 }
 

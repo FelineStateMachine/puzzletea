@@ -18,7 +18,7 @@ The puzzle is solved when all three rules hold simultaneously.
 |-----|--------|
 | `Arrows` / `wasd` / `hjkl` | Move cursor |
 | `Enter` / `Space` | Select clue to expand |
-| `Backspace` | Delete rectangle at cursor |
+| `Backspace` | Cancel preview or delete rectangle at cursor |
 
 ### Keyboard — Expansion Mode
 
@@ -30,8 +30,7 @@ rectangle is controlled independently.
 | `Arrow` / `wasd` / `hjkl` | Expand rectangle in that direction |
 | `Shift+Arrow` / `WASD` / `HJKL` | Shrink rectangle from that side |
 | `Enter` / `Space` | Confirm placement (if valid) |
-| `Escape` | Cancel, discard preview |
-| `Backspace` | Delete existing rectangle, return to nav |
+| `Backspace` | Cancel, discard preview |
 
 ### Mouse
 
@@ -52,7 +51,7 @@ Expansion Mode so you can fine-tune with the keyboard.
 |-----|--------|
 | `Ctrl+R` | Reset puzzle |
 | `Ctrl+H` | Toggle help bar |
-| `Ctrl+N` | Return to main menu |
+| `Escape` | Return to main menu |
 
 ## Tips
 

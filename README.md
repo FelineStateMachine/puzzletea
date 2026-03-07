@@ -167,8 +167,7 @@ Several shorthand names are accepted for games: `polyomino`/`regions` for Fillom
 | Key | Action |
 |-----|--------|
 | `Enter` | Select |
-| `Escape` | Go back |
-| `Ctrl+N` | Return to main menu |
+| `Escape` | Return to the menu or go back |
 | `Ctrl+R` | Reset puzzle |
 | `Ctrl+H` | Toggle full help |
 | `Ctrl+E` | Toggle debug overlay |

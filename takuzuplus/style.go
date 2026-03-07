@@ -168,7 +168,7 @@ func relationStateBackground(state int) color.Color {
 
 func statusBarView(showFullHelp bool) string {
 	if showFullHelp {
-		return game.StatusBarStyle().Render("arrows/wasd: move  mouse: click/cycle  z: ●  x: ○  bkspc: clear  =: same clue  x: opposite clue  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
+		return game.StatusBarStyle().Render("arrows/wasd: move  mouse: click/cycle  z: ●  x: ○  bkspc: clear  =: same clue  x: opposite clue  esc: menu  ctrl+r: reset  ctrl+h: help")
 	}
 	return game.StatusBarStyle().Render("mouse: click/cycle  z: ●  x: ○  fixed clues: = and x")
 }

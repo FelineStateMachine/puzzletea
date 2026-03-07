@@ -22,4 +22,4 @@ Pre-filled cells are locked. Relation clues are also fixed and cannot be edited.
 | `Backspace` | Clear cell |
 | `Ctrl+H` | Toggle help bar |
 | `Ctrl+R` | Reset puzzle |
-| `Ctrl+N` | Return to main menu |
+| `Escape` | Return to main menu |

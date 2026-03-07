@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"charm.land/lipgloss/v2"
-	"github.com/FelineStateMachine/puzzletea/theme"
 )
 
 const DynamicGridCellWidth = 3
@@ -47,6 +46,8 @@ type DynamicGridSpec struct {
 	Colors               *GridBorderColors
 	Cell                 func(x, y int) string
 	ZoneAt               func(x, y int) int
+	HasVerticalEdge      func(x, y int) bool
+	HasHorizontalEdge    func(x, y int) bool
 	ZoneFill             func(zone int) color.Color
 	BridgeFill           func(bridge DynamicGridBridge) color.Color
 	VerticalBridgeText   func(x, y int) string
@@ -168,16 +169,7 @@ func dynamicGridColors(spec DynamicGridSpec) GridBorderColors {
 }
 
 func dynamicGridRenderBorderChar(ch rune, colors GridBorderColors, solved bool, bg color.Color) string {
-	fg := colors.BorderFG
-	if solved {
-		fg = colors.SolvedBorderFG
-	}
-	if bg == nil {
-		bg = colors.BackgroundBG
-		if solved {
-			bg = colors.SolvedBG
-		}
-	}
+	fg, bg := borderColors(colors, solved, bg)
 	return lipgloss.NewStyle().
 		Foreground(fg).
 		Background(bg).
@@ -239,18 +231,7 @@ func dynamicGridRenderHorizontalBridge(spec DynamicGridSpec, x, y int, bridge Dy
 }
 
 func dynamicGridRenderBridgeText(text string, width int, colors GridBorderColors, solved bool, bg color.Color) string {
-	fg := colors.BorderFG
-	if solved {
-		fg = colors.SolvedBorderFG
-	}
-	if bg == nil {
-		bg = colors.BackgroundBG
-		if solved {
-			bg = colors.SolvedBG
-		}
-	} else {
-		fg = theme.TextOnBG(bg)
-	}
+	fg, bg := borderColors(colors, solved, bg)
 
 	return lipgloss.NewStyle().
 		Width(width).
@@ -261,6 +242,10 @@ func dynamicGridRenderBridgeText(text string, width int, colors GridBorderColors
 }
 
 func dynamicGridHasHorizontalEdge(spec DynamicGridSpec, x, y int) bool {
+	if spec.HasHorizontalEdge != nil {
+		return spec.HasHorizontalEdge(x, y)
+	}
+
 	switch {
 	case y <= 0, y >= spec.Height:
 		return true
@@ -270,6 +255,10 @@ func dynamicGridHasHorizontalEdge(spec DynamicGridSpec, x, y int) bool {
 }
 
 func dynamicGridHasVerticalEdge(spec DynamicGridSpec, x, y int) bool {
+	if spec.HasVerticalEdge != nil {
+		return spec.HasVerticalEdge(x, y)
+	}
+
 	switch {
 	case x <= 0, x >= spec.Width:
 		return true

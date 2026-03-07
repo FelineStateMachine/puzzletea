@@ -12,7 +12,6 @@ type KeyMap struct {
 	ShrinkLeft  key.Binding
 	ShrinkRight key.Binding
 	Select      key.Binding
-	Cancel      key.Binding
 	Delete      key.Binding
 }
 
@@ -38,13 +37,9 @@ var DefaultKeyMap = KeyMap{
 		key.WithKeys("enter", "space"),
 		key.WithHelp("enter/space", "Select/Confirm"),
 	),
-	Cancel: key.NewBinding(
-		key.WithKeys("esc"),
-		key.WithHelp("esc", "Cancel"),
-	),
 	Delete: key.NewBinding(
-		key.WithKeys("backspace", "delete"),
-		key.WithHelp("bkspc", "Delete"),
+		key.WithKeys("backspace"),
+		key.WithHelp("bkspc", "Cancel/Delete"),
 	),
 }
 
@@ -52,6 +47,6 @@ func (m Model) GetFullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{m.keys.Up, m.keys.Down, m.keys.Left, m.keys.Right},
 		{m.keys.ShrinkUp, m.keys.ShrinkDown, m.keys.ShrinkLeft, m.keys.ShrinkRight},
-		{m.keys.Select, m.keys.Cancel, m.keys.Delete},
+		{m.keys.Select, m.keys.Delete},
 	}
 }

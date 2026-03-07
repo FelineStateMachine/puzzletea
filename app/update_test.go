@@ -64,7 +64,7 @@ func (g *escapeTrackingGame) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 	return g, nil
 }
 
-func TestGameViewEscapePassesThroughToGame(t *testing.T) {
+func TestGameViewEscapeReturnsToMainMenu(t *testing.T) {
 	tracker := &escapeTrackingGame{}
 	m := model{
 		state:   gameView,
@@ -74,14 +74,14 @@ func TestGameViewEscapePassesThroughToGame(t *testing.T) {
 	next, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
 	got := next.(model)
 
-	if got.state != gameView {
-		t.Fatalf("expected to remain in gameView, got %d", got.state)
+	if got.state != mainMenuView {
+		t.Fatalf("expected to return to mainMenuView, got %d", got.state)
 	}
-	if tracker.updateCalls != 1 {
-		t.Fatalf("expected game Update to be called once, got %d", tracker.updateCalls)
+	if tracker.updateCalls != 0 {
+		t.Fatalf("expected game Update not to be called, got %d", tracker.updateCalls)
 	}
-	if !tracker.sawEscape {
-		t.Fatal("expected game to receive escape key")
+	if tracker.sawEscape {
+		t.Fatal("expected escape to be handled by the app before reaching the game")
 	}
 }
 

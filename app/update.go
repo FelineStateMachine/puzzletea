@@ -29,7 +29,7 @@ const (
 	helpPanelVerticalTrim   = 8
 	categoryPanelChrome     = 8
 	categoryBodyMaxWidth    = 86
-	categoryBodyMaxHeight   = 14
+	categoryBodyMaxHeight   = 16
 	categoryMinListWidth    = 24
 	categoryMaxListWidth    = 30
 	categoryGapWidth        = 2
@@ -322,10 +322,11 @@ func (m model) handleGlobalKey(msg tea.KeyPressMsg) (model, tea.Cmd, bool) {
 	case m.state == gameSelectView && msg.String() == "pgdown":
 		m.nav.categoryDetail.PageDown()
 		return m, nil, true
-	case key.Matches(msg, rootKeys.MainMenu):
+	case m.state == gameView && key.Matches(msg, rootKeys.Escape):
 		m = saveCurrentGame(m, store.StatusInProgress)
 		m.state = mainMenuView
 		m.debug.enabled = false
+		return m, nil, true
 	case key.Matches(msg, rootKeys.Enter):
 		if m.state != gameView {
 			next, cmd := m.handleEnter()

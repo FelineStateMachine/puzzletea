@@ -78,7 +78,7 @@ func (m Model) handleBridgeMode(msg tea.KeyPressMsg) Model {
 		m = m.cycleBridge(-1, 0)
 	case key.Matches(msg, m.keys.Right):
 		m = m.cycleBridge(1, 0)
-	case key.Matches(msg, m.keys.Select), key.Matches(msg, m.keys.Cancel):
+	case key.Matches(msg, m.keys.Select):
 		m.selectedIsland = nil
 	}
 	return m

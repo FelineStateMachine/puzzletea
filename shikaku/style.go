@@ -273,14 +273,14 @@ func infoView(puzzle *Puzzle) string {
 func statusBarView(selected, showFullHelp bool) string {
 	if selected {
 		if showFullHelp {
-			return game.StatusBarStyle().Render("arrows: expand  shift+arrows: shrink  enter: confirm  esc: cancel  bkspc: delete  mouse: drag rect  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
+			return game.StatusBarStyle().Render("arrows: expand  shift+arrows: shrink  enter: confirm  bkspc: cancel  mouse: drag rect  esc: menu  ctrl+r: reset  ctrl+h: help")
 		}
-		return game.StatusBarStyle().Render("arrows: expand  shift+arrows: shrink  enter: confirm  esc: cancel  mouse: drag")
+		return game.StatusBarStyle().Render("arrows: expand  shift+arrows: shrink  enter: confirm  bkspc: cancel  mouse: drag")
 	}
 	if showFullHelp {
-		return game.StatusBarStyle().Render("arrows/wasd: move  enter/space: select clue  bkspc: delete  mouse: click clue & drag  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
+		return game.StatusBarStyle().Render("arrows/wasd: move  enter/space: select clue  bkspc: cancel/delete  mouse: click clue & drag  esc: menu  ctrl+r: reset  ctrl+h: help")
 	}
-	return game.StatusBarStyle().Render("enter/space: select clue  bkspc: delete  mouse: click & drag")
+	return game.StatusBarStyle().Render("enter/space: select clue  bkspc: cancel/delete  mouse: click & drag")
 }
 
 func statusBarVariants() []string {

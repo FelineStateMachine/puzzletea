@@ -126,7 +126,7 @@ func gridView(numbers grid, marks [][]cellMark, c game.Cursor, solved bool, conf
 
 func statusBarView(showFullHelp bool) string {
 	if showFullHelp {
-		return game.StatusBarStyle().Render("arrows/wasd: move  x: shade  z: circle  bkspc: clear  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
+		return game.StatusBarStyle().Render("arrows/wasd: move  x: shade  z: circle  bkspc: clear  esc: menu  ctrl+r: reset  ctrl+h: help")
 	}
 	return game.StatusBarStyle().Render("x: shade  z: circle  bkspc: clear")
 }

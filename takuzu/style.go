@@ -107,7 +107,7 @@ func gridView(m Model) string {
 
 func statusBarView(showFullHelp bool) string {
 	if showFullHelp {
-		return game.StatusBarStyle().Render("arrows/wasd: move  mouse: click/cycle  z: ●  x: ○  bkspc: clear  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
+		return game.StatusBarStyle().Render("arrows/wasd: move  mouse: click/cycle  z: ●  x: ○  bkspc: clear  esc: menu  ctrl+r: reset  ctrl+h: help")
 	}
 	return game.StatusBarStyle().Render("mouse: click/cycle  z: ●  x: ○")
 }

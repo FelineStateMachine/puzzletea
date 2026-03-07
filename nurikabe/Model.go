@@ -129,7 +129,7 @@ func (m Model) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 		if m.solved || !m.dragging {
 			break
 		}
-		col, row, ok := m.screenToGrid(msg.X, msg.Y)
+		col, row, ok := m.screenToGridDrag(msg.X, msg.Y)
 		if !ok {
 			break
 		}

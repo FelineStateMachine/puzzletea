@@ -1,6 +1,7 @@
 package rippleeffect
 
 import (
+	"fmt"
 	"image"
 	"image/color"
 	"math/rand/v2"
@@ -182,6 +183,67 @@ func TestGeneratePuzzleSeeded(t *testing.T) {
 	}
 	if got := countSolutions(geo, a.Givens, 2); got != 1 {
 		t.Fatalf("generated puzzle solutions = %d, want 1", got)
+	}
+}
+
+func TestSampledGivenValueDistributionMatchesSolutions(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping sampled ripple given-value distribution test in short mode")
+	}
+
+	sampleCounts := []int{8, 6, 4, 2, 1}
+	shareDriftTolerances := []float64{0.12, 0.10, 0.10, 0.12, 0.16}
+
+	for i, item := range Modes {
+		mode := item.(Mode)
+		samples := sampleCounts[i]
+		tolerance := shareDriftTolerances[i]
+
+		t.Run(fmt.Sprintf("%s-%d", mode.Title(), samples), func(t *testing.T) {
+			solutionCounts := make([]int, mode.MaxCage+1)
+			givenCounts := make([]int, mode.MaxCage+1)
+			totalSolutions := 0
+			totalGivens := 0
+
+			for sample := 0; sample < samples; sample++ {
+				rng := rand.New(rand.NewPCG(uint64(3000+i*37+sample), uint64(4000+i*41+sample)))
+				puzzle, err := mode.generatePuzzleSeeded(rng)
+				if err != nil {
+					t.Fatalf("generatePuzzleSeeded failed: %v", err)
+				}
+
+				totalSolutions += accumulateValueCounts(solutionCounts, puzzle.Solution)
+				totalGivens += accumulateValueCounts(givenCounts, puzzle.Givens)
+			}
+
+			if totalSolutions == 0 {
+				t.Fatal("expected sampled solutions to contain values")
+			}
+			if totalGivens == 0 {
+				t.Fatal("expected sampled puzzles to contain givens")
+			}
+
+			t.Logf("sampled solution values: %s", formatValueDistribution(solutionCounts))
+			t.Logf("sampled given values: %s", formatValueDistribution(givenCounts))
+
+			for value := 1; value < len(solutionCounts); value++ {
+				if solutionCounts[value] == 0 {
+					continue
+				}
+
+				solutionShare := float64(solutionCounts[value]) / float64(totalSolutions)
+				givenShare := float64(givenCounts[value]) / float64(totalGivens)
+				if diff := givenShare - solutionShare; diff < -tolerance || diff > tolerance {
+					t.Fatalf(
+						"value %d share %.2f outside %.2f +/- %.2f",
+						value,
+						givenShare,
+						solutionShare,
+						tolerance,
+					)
+				}
+			}
+		})
 	}
 }
 
@@ -564,4 +626,38 @@ func TestImportRejectsInvalidGivens(t *testing.T) {
 
 func pointCursor(x, y int) game.Cursor {
 	return game.Cursor{X: x, Y: y}
+}
+
+func accumulateValueCounts(counts []int, state grid) int {
+	total := 0
+	for y := range len(state) {
+		for x := range len(state[y]) {
+			value := state[y][x]
+			if value <= 0 {
+				continue
+			}
+			counts[value]++
+			total++
+		}
+	}
+	return total
+}
+
+func formatValueDistribution(counts []int) string {
+	total := 0
+	for value := 1; value < len(counts); value++ {
+		total += counts[value]
+	}
+	if total == 0 {
+		return "none"
+	}
+
+	parts := make([]string, 0, len(counts)-1)
+	for value := 1; value < len(counts); value++ {
+		if counts[value] == 0 {
+			continue
+		}
+		parts = append(parts, fmt.Sprintf("%d=%d(%.1f%%)", value, counts[value], 100*float64(counts[value])/float64(total)))
+	}
+	return strings.Join(parts, ", ")
 }

@@ -1046,9 +1046,9 @@ func TestRectFromCorners(t *testing.T) {
 	}
 }
 
-// --- Escape cancel behavior (P1) ---
+// --- Backspace cancel behavior (P1) ---
 
-func TestEscapeCancelsPendingExpansion(t *testing.T) {
+func TestBackspaceCancelsPendingExpansion(t *testing.T) {
 	p := simplePuzzle()
 	selected := 0
 	m := Model{
@@ -1061,15 +1061,15 @@ func TestEscapeCancelsPendingExpansion(t *testing.T) {
 		keys: DefaultKeyMap,
 	}
 
-	next, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	next, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyBackspace})
 	got := next.(Model)
 
 	if got.selectedClue != nil {
-		t.Fatal("expected selected clue to be cleared on escape")
+		t.Fatal("expected selected clue to be cleared on backspace")
 	}
 }
 
-func TestEscapeCancelsPendingMousePreviewInNavMode(t *testing.T) {
+func TestBackspaceCancelsPendingMousePreviewInNavMode(t *testing.T) {
 	p := simplePuzzle()
 	anchor := [2]int{0, 0}
 	preview := Rectangle{X: 0, Y: 0, W: 2, H: 2}
@@ -1080,14 +1080,14 @@ func TestEscapeCancelsPendingMousePreviewInNavMode(t *testing.T) {
 		mousePreview:    &preview,
 	}
 
-	next, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	next, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyBackspace})
 	got := next.(Model)
 
 	if got.mouseDragAnchor != nil {
-		t.Fatal("expected mouse drag anchor to be cleared on escape")
+		t.Fatal("expected mouse drag anchor to be cleared on backspace")
 	}
 	if got.mousePreview != nil {
-		t.Fatal("expected mouse preview to be cleared on escape")
+		t.Fatal("expected mouse preview to be cleared on backspace")
 	}
 }
 

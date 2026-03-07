@@ -20,7 +20,7 @@ Toggle lights in a cross pattern to turn them all off.
 | `Enter` / `Space` | Toggle light |
 | `Ctrl+H` | Toggle help bar |
 | `Ctrl+R` | Reset puzzle |
-| `Ctrl+N` | Return to main menu |
+| `Escape` | Return to main menu |
 
 ### Mouse
 

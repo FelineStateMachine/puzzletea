@@ -241,7 +241,10 @@ func StaticHeight(cards []Card) int {
 // CardFullWidth is the rendered width of a single card including border + padding.
 const CardFullWidth = CardInnerWidth + 4 // 34
 
-const cardColumnGap = 1
+const (
+	cardColumnGap = 2
+	cardRowGap    = 2
+)
 
 // ContentWidth returns the inner content width for the stats panel.
 // It snaps to the widest whole-card grid that fits the available panel space.
@@ -494,5 +497,5 @@ func renderCardRows(cards []Card, cols int) string {
 		rows = append(rows, row)
 	}
 
-	return lipgloss.JoinVertical(lipgloss.Left, rows...)
+	return strings.Join(rows, strings.Repeat("\n", cardRowGap+1))
 }

@@ -370,7 +370,7 @@ func junctionGapBackground(geo *geometry, backgrounds map[int]color.Color, x, y 
 
 func statusBarView(showFullHelp bool) string {
 	if showFullHelp {
-		return game.StatusBarStyle().Render("1-9: place  bkspc: clear  arrows/wasd: move  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
+		return game.StatusBarStyle().Render("1-9: place  bkspc: clear  arrows/wasd: move  esc: menu  ctrl+r: reset  ctrl+h: help")
 	}
 	return game.StatusBarStyle().Render("1-9: place  bkspc: clear")
 }

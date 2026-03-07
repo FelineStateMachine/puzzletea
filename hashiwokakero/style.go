@@ -290,12 +290,12 @@ func bridgeVView(count int, solved bool) string {
 func statusBarView(selected, showFullHelp bool) string {
 	if selected {
 		if showFullHelp {
-			return game.StatusBarStyle().Render("arrows/wasd: build bridge  enter/space/esc: cancel  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
+			return game.StatusBarStyle().Render("arrows/wasd: build bridge  enter/space: deselect  esc: menu  ctrl+r: reset  ctrl+h: help")
 		}
-		return game.StatusBarStyle().Render("arrows/wasd: build bridge  enter/space/esc: cancel")
+		return game.StatusBarStyle().Render("arrows/wasd: build bridge  enter/space: deselect")
 	}
 	if showFullHelp {
-		return game.StatusBarStyle().Render("arrows/wasd: move  enter/space: select island  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
+		return game.StatusBarStyle().Render("arrows/wasd: move  enter/space: select island  esc: menu  ctrl+r: reset  ctrl+h: help")
 	}
 	return game.StatusBarStyle().Render("arrows/wasd: move  enter/space: select island")
 }

@@ -195,17 +195,48 @@ func renderModeList(cat game.Category, width int) string {
 		return ui.DimItemStyle().Render("No modes available.")
 	}
 
-	lines := make([]string, 0, len(cat.Modes))
+	modeNames := make([]string, 0, len(cat.Modes))
 	for _, item := range cat.Modes {
 		mode, ok := item.(game.Mode)
 		if !ok {
 			continue
 		}
-		line := lipgloss.NewStyle().Width(width).Render("• " + mode.Title())
-		lines = append(lines, line)
+		modeNames = append(modeNames, "• "+mode.Title())
 	}
-	if len(lines) == 0 {
+	if len(modeNames) == 0 {
 		return ui.DimItemStyle().Render("No modes available.")
+	}
+
+	if width < 24 || len(modeNames) == 1 {
+		lines := make([]string, 0, len(modeNames))
+		for _, name := range modeNames {
+			lines = append(lines, lipgloss.NewStyle().Width(width).Render(name))
+		}
+		return strings.Join(lines, "\n")
+	}
+
+	rows := (len(modeNames) + 1) / 2
+	leftWidth := max(width/2-1, 1)
+	rightWidth := max(width-leftWidth-2, 1)
+
+	left := make([]string, 0, rows)
+	right := make([]string, 0, rows)
+	for i, name := range modeNames {
+		line := lipgloss.NewStyle().Width(leftWidth).Render(name)
+		if i < rows {
+			left = append(left, line)
+			continue
+		}
+		line = lipgloss.NewStyle().Width(rightWidth).Render(name)
+		right = append(right, line)
+	}
+	for len(right) < len(left) {
+		right = append(right, strings.Repeat(" ", rightWidth))
+	}
+
+	lines := make([]string, 0, rows)
+	for i := range left {
+		lines = append(lines, lipgloss.JoinHorizontal(lipgloss.Top, left[i], "  ", right[i]))
 	}
 	return strings.Join(lines, "\n")
 }

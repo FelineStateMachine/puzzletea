@@ -111,9 +111,9 @@ func renderView(m Model) string {
 
 func statusBarView(showFullHelp bool) string {
 	if showFullHelp {
-		return game.StatusBarStyle().Render("arrows/wasd: move  enter/space: select  esc: cancel  mouse: click & drag  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
+		return game.StatusBarStyle().Render("arrows/wasd: move  enter/space: select  bkspc: cancel  mouse: click & drag  esc: menu  ctrl+r: reset  ctrl+h: help")
 	}
-	return game.StatusBarStyle().Render("enter/space: select  esc: cancel  mouse: click & drag")
+	return game.StatusBarStyle().Render("enter/space: select  bkspc: cancel  mouse: click & drag")
 }
 
 func renderGrid(m Model) string {
