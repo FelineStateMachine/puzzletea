@@ -15,6 +15,7 @@ func TestNormalizeSeed(t *testing.T) {
 	}{
 		{input: "daily-challenge", want: "daily-challenge"},
 		{input: "DailyChallenge", want: "dailyChallenge"},
+		{input: "Week 01-2026 - #01", want: "week 01-2026 - #01"},
 		{input: "seed-123", want: "seed-123"},
 	}
 

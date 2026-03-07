@@ -4,6 +4,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/FelineStateMachine/puzzletea/weekly"
 )
 
 func openTestStore(t *testing.T) *Store {
@@ -505,6 +507,69 @@ func TestGetGameByName(t *testing.T) {
 			t.Fatal("expected CompletedAt to be set")
 		}
 	})
+}
+
+func TestGetDeterministicGame(t *testing.T) {
+	s := openTestStore(t)
+	rec := newTestRecord("Week 01-2026 - #01")
+	if err := s.CreateGame(rec); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.UpdateStatus(rec.ID, StatusAbandoned); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := s.GetDeterministicGame(rec.Name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got == nil {
+		t.Fatal("expected deterministic record")
+	}
+	if got.Status != StatusAbandoned {
+		t.Fatalf("status = %q, want %q", got.Status, StatusAbandoned)
+	}
+}
+
+func TestWeeklyQueries(t *testing.T) {
+	s := openTestStore(t)
+
+	records := []*GameRecord{
+		newTestRecord(weekly.Name(2026, 1, 1)),
+		newTestRecord(weekly.Name(2026, 1, 2)),
+		newTestRecord(weekly.Name(2026, 2, 1)),
+		newTestRecord("Week 1-2026 - #01"),
+	}
+	for _, rec := range records {
+		if err := s.CreateGame(rec); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	got, err := s.GetWeeklyGame(2026, 1, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got == nil || got.Name != weekly.Name(2026, 1, 2) {
+		t.Fatalf("GetWeeklyGame() = %#v, want %q", got, weekly.Name(2026, 1, 2))
+	}
+
+	weeklyGames, err := s.ListWeeklyGames(2026, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(weeklyGames) != 2 {
+		t.Fatalf("ListWeeklyGames() len = %d, want 2", len(weeklyGames))
+	}
+	for _, rec := range weeklyGames {
+		info, ok := weekly.ParseName(rec.Name)
+		if !ok {
+			t.Fatalf("ListWeeklyGames() included non-canonical name %q", rec.Name)
+		}
+		if info.Year != 2026 || info.Week != 1 {
+			t.Fatalf("ListWeeklyGames() included wrong week %#v", info)
+		}
+	}
 }
 
 func TestFullLifecycle(t *testing.T) {

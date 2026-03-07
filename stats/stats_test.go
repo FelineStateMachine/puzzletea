@@ -245,6 +245,14 @@ func TestComputeCategoryXP(t *testing.T) {
 			want: 1,
 		},
 		{
+			name:     "weekly bonus xp added on top",
+			gameType: "Sudoku",
+			modeStats: []store.ModeStat{
+				{GameType: "Sudoku", Mode: "Easy", Victories: 2, WeeklyBonusXP: 5},
+			},
+			want: 7,
+		},
+		{
 			name:     "unknown mode defaults to 1 XP",
 			gameType: "Sudoku",
 			modeStats: []store.ModeStat{
@@ -333,6 +341,38 @@ func TestRenderViewEmpty(t *testing.T) {
 	result := RenderView(ProfileBanner{}, nil, 80)
 	if result == "" {
 		t.Error("expected non-empty output for empty state")
+	}
+}
+
+func TestRenderBannerAppendsDailyStatusToStreak(t *testing.T) {
+	withCurrent := ansi.Strip(RenderBanner(ProfileBanner{
+		ProfileLevel:         3,
+		DailyStreak:          2,
+		TotalDailies:         5,
+		CurrentDaily:         true,
+		WeekliesCompleted:    4,
+		ThisWeekHighestIndex: 17,
+	}, 80))
+	if !strings.Contains(withCurrent, "Daily Streak: 2 days (✔)") {
+		t.Fatalf("expected current daily marker in banner:\n%s", withCurrent)
+	}
+	if !strings.Contains(withCurrent, "Weeklies Completed: 4 total (17/99 this week)") {
+		t.Fatalf("expected weekly completion summary in banner:\n%s", withCurrent)
+	}
+
+	withoutCurrent := ansi.Strip(RenderBanner(ProfileBanner{
+		ProfileLevel:         3,
+		DailyStreak:          2,
+		TotalDailies:         5,
+		CurrentDaily:         false,
+		WeekliesCompleted:    0,
+		ThisWeekHighestIndex: 0,
+	}, 80))
+	if !strings.Contains(withoutCurrent, "Daily Streak: 2 days ( )") {
+		t.Fatalf("expected empty daily marker in banner:\n%s", withoutCurrent)
+	}
+	if !strings.Contains(withoutCurrent, "Weeklies Completed: 0 total ( 0/99 this week)") {
+		t.Fatalf("expected weekly completion summary in banner:\n%s", withoutCurrent)
 	}
 }
 

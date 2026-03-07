@@ -15,8 +15,10 @@ import (
 // NormalizeSeed keeps seeded names distinct from real dailies.
 func NormalizeSeed(seed string) string {
 	seed = strings.TrimSpace(seed)
-	if strings.HasPrefix(strings.ToLower(seed), "daily") {
-		return strings.ToLower(seed[:len("daily")]) + seed[len("daily"):]
+	for _, reserved := range []string{"daily", "week"} {
+		if strings.HasPrefix(strings.ToLower(seed), reserved) {
+			return strings.ToLower(seed[:len(reserved)]) + seed[len(reserved):]
+		}
 	}
 	return seed
 }

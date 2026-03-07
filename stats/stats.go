@@ -77,6 +77,7 @@ func ComputeCategoryXP(gameType string, modeStats []store.ModeStat) int {
 		normalVictories := ms.Victories - ms.DailyVictories
 		total += normalVictories * baseXP
 		total += ms.DailyVictories * baseXP * 2
+		total += ms.WeeklyBonusXP
 	}
 	return total
 }
@@ -181,10 +182,12 @@ func BuildCards(catStats []store.CategoryStat, modeStats []store.ModeStat) []Car
 
 // ProfileBanner holds the summary data shown above the card grid.
 type ProfileBanner struct {
-	ProfileLevel int
-	DailyStreak  int
-	TotalDailies int
-	CurrentDaily bool
+	ProfileLevel         int
+	DailyStreak          int
+	TotalDailies         int
+	CurrentDaily         bool
+	WeekliesCompleted    int
+	ThisWeekHighestIndex int
 }
 
 // BuildProfileBanner constructs the summary banner shown above the card grid.
@@ -193,6 +196,8 @@ func BuildProfileBanner(
 	modeStats []store.ModeStat,
 	streakDates []time.Time,
 	currentDaily bool,
+	weekliesCompleted int,
+	thisWeekHighestIndex int,
 ) ProfileBanner {
 	profileLevel := 0
 	totalDailies := 0
@@ -205,10 +210,12 @@ func BuildProfileBanner(
 	streak := ComputeDailyStreak(streakDates, time.Now())
 
 	return ProfileBanner{
-		ProfileLevel: profileLevel,
-		DailyStreak:  streak,
-		TotalDailies: totalDailies,
-		CurrentDaily: currentDaily,
+		ProfileLevel:         profileLevel,
+		DailyStreak:          streak,
+		TotalDailies:         totalDailies,
+		CurrentDaily:         currentDaily,
+		WeekliesCompleted:    weekliesCompleted,
+		ThisWeekHighestIndex: thisWeekHighestIndex,
 	}
 }
 
@@ -396,20 +403,23 @@ func RenderBanner(b ProfileBanner, width int) string {
 		"\u2500\u2500\u2500 Profile " + strings.Repeat("\u2500", max(width-12, 1)),
 	)
 
-	check := bannerValueStyle().Render("\u2714")
-	if !b.CurrentDaily {
-		check = lipgloss.NewStyle().Foreground(theme.Current().TextDim).Render("\u2014")
-	}
-
 	streakStr := fmt.Sprintf("%d days", b.DailyStreak)
 	if b.DailyStreak == 1 {
 		streakStr = "1 day"
 	}
+	streakSuffix := "( )"
+	if b.CurrentDaily {
+		streakSuffix = "(\u2714)"
+	}
+	streakStr += " " + streakSuffix
 
 	col1 := bannerLabelStyle().Render("Profile Level: ") + bannerValueStyle().Render(fmt.Sprintf("%d", b.ProfileLevel))
 	col2 := bannerLabelStyle().Render("Daily Streak: ") + bannerValueStyle().Render(streakStr)
 	col3 := bannerLabelStyle().Render("Total Dailies: ") + bannerValueStyle().Render(fmt.Sprintf("%d", b.TotalDailies))
-	col4 := bannerLabelStyle().Render("Current daily: ") + check
+	col4 := bannerLabelStyle().Render("Weeklies Completed: ") +
+		bannerValueStyle().Render(
+			fmt.Sprintf("%d total (%2d/99 this week)", b.WeekliesCompleted, b.ThisWeekHighestIndex),
+		)
 
 	// Two-column layout: left side + gap + right side.
 	gap := width - lipgloss.Width(col1) - lipgloss.Width(col2)

@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 	"time"
+
+	"github.com/FelineStateMachine/puzzletea/weekly"
 )
 
 // CategoryStat holds aggregate statistics for a single game category.
@@ -23,6 +25,7 @@ type ModeStat struct {
 	Mode           string
 	Victories      int
 	DailyVictories int
+	WeeklyBonusXP  int
 }
 
 // GetCategoryStats returns aggregate stats per game category from the
@@ -78,7 +81,15 @@ func (s *Store) GetModeStats() ([]ModeStat, error) {
 		}
 		stats = append(stats, ms)
 	}
-	return stats, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	stats, err = s.applyWeeklyBonusXP(stats)
+	if err != nil {
+		return nil, err
+	}
+	return stats, nil
 }
 
 // GetDailyStreakDates returns distinct completion dates for daily games,
@@ -110,4 +121,126 @@ func (s *Store) GetDailyStreakDates() ([]time.Time, error) {
 		dates = append(dates, t)
 	}
 	return dates, rows.Err()
+}
+
+// GetCompletedWeeklyGauntlets returns the number of ISO weeks whose highest
+// completed weekly index is 99.
+func (s *Store) GetCompletedWeeklyGauntlets() (int, error) {
+	highestByWeek, err := s.highestCompletedWeeklyIndexByWeek()
+	if err != nil {
+		return 0, err
+	}
+
+	completed := 0
+	for _, highest := range highestByWeek {
+		if highest >= 99 {
+			completed++
+		}
+	}
+	return completed, nil
+}
+
+// GetCurrentWeeklyHighestCompletedIndex returns the highest completed weekly
+// index for the provided ISO week-year.
+func (s *Store) GetCurrentWeeklyHighestCompletedIndex(year, week int) (int, error) {
+	highestByWeek, err := s.highestCompletedWeeklyIndexByWeek()
+	if err != nil {
+		return 0, err
+	}
+	return highestByWeek[weeklyKey{year: year, week: week}], nil
+}
+
+type weeklyKey struct {
+	year int
+	week int
+}
+
+func (s *Store) highestCompletedWeeklyIndexByWeek() (map[weeklyKey]int, error) {
+	rows, err := s.db.Query(
+		`SELECT name
+		 FROM games
+		 WHERE status = 'completed'
+		   AND name LIKE 'Week %'`,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("querying completed weekly names: %w", err)
+	}
+	defer rows.Close()
+
+	highestByWeek := make(map[weeklyKey]int)
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, fmt.Errorf("scanning completed weekly name: %w", err)
+		}
+
+		info, ok := weekly.ParseName(name)
+		if !ok {
+			continue
+		}
+
+		key := weeklyKey{year: info.Year, week: info.Week}
+		if info.Index > highestByWeek[key] {
+			highestByWeek[key] = info.Index
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("reading completed weekly names: %w", err)
+	}
+	return highestByWeek, nil
+}
+
+func (s *Store) applyWeeklyBonusXP(stats []ModeStat) ([]ModeStat, error) {
+	rows, err := s.db.Query(
+		`SELECT name, game_type, mode
+		 FROM games
+		 WHERE status = 'completed'
+		   AND name LIKE 'Week %'`,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("querying completed weekly games: %w", err)
+	}
+	defer rows.Close()
+
+	type key struct {
+		gameType string
+		mode     string
+	}
+
+	indexByKey := make(map[key]int, len(stats))
+	for i := range stats {
+		indexByKey[key{gameType: stats[i].GameType, mode: stats[i].Mode}] = i
+	}
+
+	for rows.Next() {
+		var name string
+		var gameType string
+		var mode string
+		if err := rows.Scan(&name, &gameType, &mode); err != nil {
+			return nil, fmt.Errorf("scanning completed weekly game: %w", err)
+		}
+
+		info, ok := weekly.ParseName(name)
+		if !ok {
+			continue
+		}
+
+		k := key{gameType: gameType, mode: mode}
+		i, ok := indexByKey[k]
+		if !ok {
+			stats = append(stats, ModeStat{
+				GameType:  gameType,
+				Mode:      mode,
+				Victories: 1,
+			})
+			i = len(stats) - 1
+			indexByKey[k] = i
+		}
+		stats[i].WeeklyBonusXP += weekly.BonusXP(info.Index)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("reading completed weekly games: %w", err)
+	}
+	return stats, nil
 }

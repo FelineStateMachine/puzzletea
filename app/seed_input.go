@@ -5,6 +5,7 @@ import (
 
 	"github.com/FelineStateMachine/puzzletea/catalog"
 	"github.com/FelineStateMachine/puzzletea/game"
+	"github.com/FelineStateMachine/puzzletea/theme"
 	"github.com/FelineStateMachine/puzzletea/ui"
 
 	"charm.land/bubbles/v2/textinput"
@@ -146,14 +147,7 @@ func (m model) handleSeedInputUpdate(msg tea.Msg) (model, tea.Cmd) {
 }
 
 func (m model) seedInputBody() string {
-	selector := "< " + m.currentSeedMode().label + " >"
-	if m.nav.seedFocus == seedFocusMode {
-		selector = ui.SelectedItemStyle().Render(selector)
-	} else {
-		selector = ui.NormalItemStyle().Render(selector)
-	}
-
-	modeLabel := ui.DimItemStyle().Render("game ")
+	selector := renderSeedModeTitle(m.currentSeedMode().label, m.nav.seedModeIndex)
 	modePrefix := "  "
 	if m.nav.seedFocus == seedFocusMode {
 		modePrefix = ui.CursorStyle().Render("> ")
@@ -168,6 +162,25 @@ func (m model) seedInputBody() string {
 		lipgloss.Left,
 		seedInputView,
 		"",
-		modePrefix+modeLabel+selector,
+		modePrefix+selector,
 	)
+}
+
+func renderSeedModeTitle(label string, colorIndex int) string {
+	colors := theme.Current().ThemeColors()
+	if len(colors) == 0 {
+		return ui.PanelTitle().Render("game: " + label)
+	}
+
+	bg := colors[((colorIndex%len(colors))+len(colors))%len(colors)]
+	chip := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(theme.TextOnBG(bg)).
+		Background(bg).
+		Render(label)
+
+	var b strings.Builder
+	b.WriteString(ui.PanelTitle().Render("game: "))
+	b.WriteString(chip)
+	return b.String()
 }

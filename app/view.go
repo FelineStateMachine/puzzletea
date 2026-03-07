@@ -65,6 +65,8 @@ func (m model) View() tea.View {
 			)
 		}
 		content = ui.CenterView(m.width, m.height, s)
+	case weeklyView:
+		content = ui.CenterView(m.width, m.height, m.weeklyViewContent())
 	case gameView:
 		if m.session.game == nil {
 			content = ""
@@ -159,6 +161,41 @@ func (m model) gameSelectViewContent() string {
 		"↑/↓ navigate • pgup/pgdn details • / filter • enter select • esc back",
 	)
 	return ui.CenterView(m.width, m.height, panel)
+}
+
+func (m model) weeklyViewContent() string {
+	title := "Weekly Gauntlet — " + m.weeklyPanelTitle()
+	if len(m.nav.weeklyRows) == 0 {
+		body := "No completed puzzles for this week yet."
+		if m.isCurrentWeeklySelection() {
+			body = "No weekly puzzles are available."
+		}
+		return ui.Panel(
+			title,
+			body,
+			"←/→ week • esc back",
+		)
+	}
+
+	footer := "←/→ week • enter open • esc back"
+	if !m.isCurrentWeeklySelection() {
+		footer = "←/→ week • enter review • esc back"
+	}
+	if pg := ui.TablePagination(m.nav.weeklyTable); pg != "" {
+		footer = pg + "  " + footer
+	}
+
+	description := m.nav.weeklyTable.View()
+	if !m.isCurrentWeeklySelection() {
+		description = lipgloss.JoinVertical(
+			lipgloss.Left,
+			ui.DimItemStyle().Render("Review only: completed puzzles from this week."),
+			"",
+			description,
+		)
+	}
+
+	return ui.Panel(title, description, footer)
 }
 
 func categoryPickerListHeight() int {

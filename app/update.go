@@ -231,6 +231,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.nav.modeSelectList, cmd = m.nav.modeSelectList.Update(msg)
 	case continueView:
 		m.nav.continueTable, cmd = m.nav.continueTable.Update(msg)
+	case weeklyView:
+		m.nav.weeklyTable, cmd = m.nav.weeklyTable.Update(msg)
 	case helpSelectView:
 		m.nav.helpSelectList, cmd = m.nav.helpSelectList.Update(msg)
 	case helpDetailView:
@@ -268,6 +270,9 @@ func (m model) handleWindowSize(msg tea.WindowSizeMsg) model {
 		m.nav.continueTable.SetWidth(m.width)
 		visibleRows := min(len(m.nav.continueGames), ui.MaxTableRows)
 		m.nav.continueTable.SetHeight(min(m.height, visibleRows))
+	}
+	if m.state == weeklyView {
+		m = m.refreshWeeklyBrowser()
 	}
 	if m.state == helpSelectView {
 		m.nav.helpSelectList.SetSize(menuW, min(m.height, ui.ListHeight(m.nav.helpSelectList)))
@@ -316,6 +321,17 @@ func (m model) handleGlobalKey(msg tea.KeyPressMsg) (model, tea.Cmd, bool) {
 	}
 
 	switch {
+	case m.state == weeklyView && (msg.String() == "left" || msg.String() == "h"):
+		m = m.moveWeeklyWeek(-1)
+		return m, nil, true
+	case m.state == weeklyView && (msg.String() == "right" || msg.String() == "l"):
+		m = m.moveWeeklyWeek(1)
+		return m, nil, true
+	case m.state == gameView && key.Matches(msg, rootKeys.Enter):
+		next, cmd, handled := m.advanceSolvedWeekly()
+		if handled {
+			return next, cmd, true
+		}
 	case m.state == gameSelectView && msg.String() == "pgup":
 		m.nav.categoryDetail.PageUp()
 		return m, nil, true
@@ -323,8 +339,12 @@ func (m model) handleGlobalKey(msg tea.KeyPressMsg) (model, tea.Cmd, bool) {
 		m.nav.categoryDetail.PageDown()
 		return m, nil, true
 	case m.state == gameView && key.Matches(msg, rootKeys.Escape):
+		returnState := m.session.returnState
 		m = saveCurrentGame(m, store.StatusInProgress)
-		m.state = mainMenuView
+		m.state = returnState
+		if returnState == weeklyView {
+			m = m.refreshWeeklyBrowser()
+		}
 		m.debug.enabled = false
 		return m, nil, true
 	case key.Matches(msg, rootKeys.Enter):
@@ -364,7 +384,8 @@ func (m model) activeSpawnReturnState() viewState {
 }
 
 func (m model) persistCompletionIfSolved() model {
-	if m.session.game == nil || m.session.completionSaved || !m.session.game.IsSolved() {
+	if m.session.game == nil || m.session.activeGameID == 0 ||
+		m.session.completionSaved || !m.session.game.IsSolved() {
 		return m
 	}
 
@@ -410,6 +431,8 @@ func (m model) handleEnter() (tea.Model, tea.Cmd) {
 		return m.handleModeSelectEnter()
 	case continueView:
 		return m.handleContinueEnter()
+	case weeklyView:
+		return m.handleWeeklyEnter()
 	case helpSelectView:
 		return m.handleHelpSelectEnter()
 	case themeSelectView:
@@ -422,7 +445,7 @@ func (m model) handleMainMenuEnter() (tea.Model, tea.Cmd) {
 	item := m.nav.mainMenu.Selected()
 	switch item.Title() {
 	case "Play":
-		m.nav.playMenu = ui.NewMainMenu(playMenuItems)
+		m.nav.playMenu = ui.NewMainMenu(buildPlayMenuItems(time.Now(), m.currentWeeklyMenuIndex()))
 		m.state = playMenuView
 	case "Stats":
 		return m.handleStatsEnter()
@@ -435,18 +458,39 @@ func (m model) handleMainMenuEnter() (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m model) currentWeeklyMenuIndex() int {
+	if m.store == nil {
+		return 1
+	}
+
+	year, week := time.Now().ISOWeek()
+	highestCompleted, err := m.store.GetCurrentWeeklyHighestCompletedIndex(year, week)
+	if err != nil {
+		return 1
+	}
+	if highestCompleted >= weeklyEntryCount {
+		return weeklyEntryCount
+	}
+	if highestCompleted < 1 {
+		return 1
+	}
+	return highestCompleted + 1
+}
+
 func (m model) handlePlayMenuEnter() (tea.Model, tea.Cmd) {
 	item := m.nav.playMenu.Selected()
 	switch item.Title() {
-	case "Daily Puzzle":
-		return m.handleDailyPuzzle()
-	case "Generate":
+	case "Create":
 		m.state = gameSelectView
 		m = m.updateCategoryDetailViewport()
 	case "Continue":
 		m.nav.continueTable, m.nav.continueGames = ui.InitContinueTable(m.store, m.height)
 		m.state = continueView
-	case "Enter Seed":
+	case "Daily":
+		return m.handleDailyPuzzle()
+	case "Weekly":
+		return m.enterWeeklyView()
+	case "Seeded":
 		return m.enterSeedInputView()
 	}
 	return m, nil
@@ -518,6 +562,7 @@ func (m model) handleSeedConfirm() (tea.Model, tea.Cmd) {
 		gameType:    gameType,
 		modeTitle:   modeTitle,
 		returnState: playMenuView,
+		exitState:   mainMenuView,
 	}
 	m.state = generatingView
 	return m, tea.Batch(m.spinner.Tick, spawnSeededCmd(spawner, rng, ctx, jobID))
@@ -557,6 +602,7 @@ func (m model) handleDailyPuzzle() (tea.Model, tea.Cmd) {
 		gameType:    gameType,
 		modeTitle:   modeTitle,
 		returnState: playMenuView,
+		exitState:   mainMenuView,
 	}
 	m.state = generatingView
 	return m, tea.Batch(m.spinner.Tick, spawnSeededCmd(spawner, rng, ctx, jobID))
@@ -592,6 +638,7 @@ func (m model) handleModeSelectEnter() (tea.Model, tea.Cmd) {
 		gameType:    m.nav.selectedCategory.Name,
 		modeTitle:   m.nav.selectedModeTitle,
 		returnState: modeSelectView,
+		exitState:   mainMenuView,
 	}
 	m.state = generatingView
 	return m, tea.Batch(m.spinner.Tick, spawnCmd(spawner, ctx, jobID))
@@ -622,7 +669,7 @@ func (m model) handleEscape() (tea.Model, tea.Cmd) {
 	switch m.state {
 	case playMenuView, optionsMenuView, statsView:
 		m.state = mainMenuView
-	case seedInputView, gameSelectView, continueView:
+	case seedInputView, gameSelectView, continueView, weeklyView:
 		m.state = playMenuView
 	case generatingView:
 		returnState := m.activeSpawnReturnState()
@@ -713,7 +760,18 @@ func (m model) handleStatsEnter() (tea.Model, tea.Cmd) {
 		log.Printf("failed to get daily streak dates: %v", err)
 		return m, nil
 	}
+	weekliesCompleted, err := m.store.GetCompletedWeeklyGauntlets()
+	if err != nil {
+		log.Printf("failed to get weekly gauntlet completions: %v", err)
+		return m, nil
+	}
 	now := time.Now()
+	currentYear, currentWeek := now.ISOWeek()
+	thisWeekHighestIndex, err := m.store.GetCurrentWeeklyHighestCompletedIndex(currentYear, currentWeek)
+	if err != nil {
+		log.Printf("failed to get current weekly progress: %v", err)
+		return m, nil
+	}
 	currentDaily := false
 	rec, err := m.store.GetDailyGame(daily.Name(now))
 	if err != nil {
@@ -723,7 +781,14 @@ func (m model) handleStatsEnter() (tea.Model, tea.Cmd) {
 	}
 
 	m.stats.cards = stats.BuildCards(catStats, modeStats)
-	m.stats.profile = stats.BuildProfileBanner(catStats, modeStats, streakDates, currentDaily)
+	m.stats.profile = stats.BuildProfileBanner(
+		catStats,
+		modeStats,
+		streakDates,
+		currentDaily,
+		weekliesCompleted,
+		thisWeekHighestIndex,
+	)
 
 	statsWidth, statsHeight := statsViewportSize(m.width, m.height, m.stats.cards)
 	m.stats.viewport = viewport.New(

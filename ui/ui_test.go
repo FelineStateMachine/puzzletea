@@ -5,6 +5,7 @@ import (
 	"testing"
 	"unicode"
 
+	"charm.land/bubbles/v2/table"
 	"github.com/FelineStateMachine/puzzletea/store"
 	"github.com/FelineStateMachine/puzzletea/theme"
 
@@ -55,6 +56,22 @@ func TestFormatStatus(t *testing.T) {
 				t.Errorf("FormatStatus(%q) = %q, want %q", tt.status, got, tt.want)
 			}
 		})
+	}
+}
+
+func TestInitWeeklyTableKeepsFixedHeight(t *testing.T) {
+	short := InitWeeklyTable([]table.Row{{"#01", "Sudoku", "Easy", "+0", "New"}}, 40)
+	longRows := make([]table.Row, MaxTableRows)
+	for i := range longRows {
+		longRows[i] = table.Row{"#01", "Sudoku", "Easy", "+0", "New"}
+	}
+	long := InitWeeklyTable(longRows, 40)
+
+	if got, want := short.Height(), long.Height(); got != want {
+		t.Fatalf("short Height() = %d, want %d", got, want)
+	}
+	if short.Height() <= 1 {
+		t.Fatalf("Height() = %d, want > 1", short.Height())
 	}
 }
 

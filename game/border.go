@@ -17,13 +17,14 @@ type GridBorderColors struct {
 	SolvedBG       color.Color
 }
 
-func borderColors(colors GridBorderColors, solved bool, bg color.Color) (fg color.Color, background color.Color) {
-	fg = colors.BorderFG
+func borderColors(colors GridBorderColors, solved bool, bg color.Color) (color.Color, color.Color) {
+	fg := colors.BorderFG
+	background := bg
+
 	if solved {
 		fg = colors.SolvedBorderFG
 	}
 
-	background = bg
 	if background == nil {
 		background = colors.BackgroundBG
 		if solved {

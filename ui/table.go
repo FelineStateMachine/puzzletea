@@ -62,8 +62,6 @@ func InitContinueTable(s *store.Store, height int) (table.Model, []store.GameRec
 	// Account for column gaps (2 chars between each column).
 	tableWidth += (len(columns) - 1) * 2
 
-	p := theme.Current()
-
 	visibleRows := min(len(rows), MaxTableRows)
 	t := table.New(
 		table.WithColumns(columns),
@@ -72,6 +70,41 @@ func InitContinueTable(s *store.Store, height int) (table.Model, []store.GameRec
 		table.WithWidth(tableWidth),
 		table.WithHeight(min(max(height-2, 1), visibleRows)),
 	)
+	t.SetStyles(defaultTableStyles())
+
+	return t, games
+}
+
+// InitWeeklyTable builds the weekly browser table from pre-rendered rows.
+func InitWeeklyTable(rows []table.Row, height int) table.Model {
+	columns := []table.Column{
+		{Title: "Puzzle", Width: 8},
+		{Title: "Game", Width: 15},
+		{Title: "Mode", Width: 18},
+		{Title: "Bonus XP", Width: 10},
+		{Title: "Status", Width: 12},
+	}
+
+	tableWidth := 0
+	for _, c := range columns {
+		tableWidth += c.Width
+	}
+	tableWidth += (len(columns) - 1) * 2
+
+	tableHeight := min(max(height-2, 1), MaxTableRows)
+	t := table.New(
+		table.WithColumns(columns),
+		table.WithRows(rows),
+		table.WithFocused(true),
+		table.WithWidth(tableWidth),
+		table.WithHeight(tableHeight),
+	)
+	t.SetStyles(defaultTableStyles())
+	return t
+}
+
+func defaultTableStyles() table.Styles {
+	p := theme.Current()
 
 	st := table.DefaultStyles()
 	st.Header = st.Header.
@@ -86,9 +119,7 @@ func InitContinueTable(s *store.Store, height int) (table.Model, []store.GameRec
 		Bold(true)
 	st.Cell = st.Cell.
 		Foreground(p.FG)
-	t.SetStyles(st)
-
-	return t, games
+	return st
 }
 
 // TablePagination returns a pagination string like "1-20 of 45" for the

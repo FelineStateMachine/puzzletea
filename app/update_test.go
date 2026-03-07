@@ -16,11 +16,16 @@ import (
 	sessionflow "github.com/FelineStateMachine/puzzletea/session"
 	"github.com/FelineStateMachine/puzzletea/store"
 	"github.com/FelineStateMachine/puzzletea/ui"
+	"github.com/FelineStateMachine/puzzletea/weekly"
 )
 
 type escapeTrackingGame struct {
 	updateCalls int
 	sawEscape   bool
+}
+
+type solvedWeeklyGame struct {
+	save []byte
 }
 
 func (g *escapeTrackingGame) GetDebugInfo() string {
@@ -61,6 +66,42 @@ func (g *escapeTrackingGame) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 	if ok && keyMsg.Code == tea.KeyEscape {
 		g.sawEscape = true
 	}
+	return g, nil
+}
+
+func (g *solvedWeeklyGame) GetDebugInfo() string {
+	return ""
+}
+
+func (g *solvedWeeklyGame) GetFullHelp() [][]key.Binding {
+	return nil
+}
+
+func (g *solvedWeeklyGame) GetSave() ([]byte, error) {
+	return g.save, nil
+}
+
+func (g *solvedWeeklyGame) IsSolved() bool {
+	return true
+}
+
+func (g *solvedWeeklyGame) Reset() game.Gamer {
+	return g
+}
+
+func (g *solvedWeeklyGame) SetTitle(string) game.Gamer {
+	return g
+}
+
+func (g *solvedWeeklyGame) Init() tea.Cmd {
+	return nil
+}
+
+func (g *solvedWeeklyGame) View() string {
+	return ""
+}
+
+func (g *solvedWeeklyGame) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 	return g, nil
 }
 
@@ -197,19 +238,12 @@ func TestSeedInputSelectorCyclesAndPersistsDefault(t *testing.T) {
 		t.Fatalf("lastSeedModeKey = %q, want %q", got.nav.lastSeedModeKey, options[1].key)
 	}
 
-	playMenu := ui.NewMainMenu(playMenuItems)
-	for range 3 {
-		playMenu.CursorDown()
-	}
-
-	reopened, _ := (model{
+	reopenedModel, _ := (model{
 		state: playMenuView,
 		nav: navigationState{
-			playMenu:        playMenu,
 			lastSeedModeKey: got.nav.lastSeedModeKey,
 		},
-	}).handlePlayMenuEnter()
-	reopenedModel := reopened.(model)
+	}).enterSeedInputView()
 
 	if reopenedModel.state != seedInputView {
 		t.Fatalf("state = %d, want %d (seedInputView)", reopenedModel.state, seedInputView)
@@ -333,6 +367,198 @@ func TestGameSelectEscapeClearsAppliedFilterBeforeLeavingView(t *testing.T) {
 	}
 	if got.nav.gameSelectList.FilterState() != list.Unfiltered {
 		t.Fatalf("filter state = %s, want %s", got.nav.gameSelectList.FilterState(), list.Unfiltered)
+	}
+}
+
+func TestBuildCurrentWeeklyRowsStartsAtOne(t *testing.T) {
+	rows := buildCurrentWeeklyRows(2026, 1, nil)
+	if len(rows) != 1 {
+		t.Fatalf("len(rows) = %d, want 1", len(rows))
+	}
+	if rows[0].Index != 1 || !rows[0].Playable || rows[0].Status != store.StatusNew {
+		t.Fatalf("row[0] = %+v, want index=1 playable status=new", rows[0])
+	}
+}
+
+func TestBuildCurrentWeeklyRowsUnlocksSequentially(t *testing.T) {
+	games := []store.GameRecord{
+		{Name: weekly.Name(2026, 1, 1), GameType: "Sudoku", Mode: "Easy", Status: store.StatusCompleted},
+		{Name: weekly.Name(2026, 1, 2), GameType: "Sudoku", Mode: "Easy", Status: store.StatusInProgress},
+		{Name: weekly.Name(2026, 1, 4), GameType: "Sudoku", Mode: "Easy", Status: store.StatusCompleted},
+	}
+
+	rows := buildCurrentWeeklyRows(2026, 1, games)
+	if len(rows) != 2 {
+		t.Fatalf("len(rows) = %d, want 2", len(rows))
+	}
+	if rows[0].Index != 2 || !rows[0].Playable {
+		t.Fatalf("row[0] = %+v, want playable #2", rows[0])
+	}
+	if rows[1].Index != 1 || !rows[1].ReadOnly {
+		t.Fatalf("row[1] = %+v, want read-only #1", rows[1])
+	}
+}
+
+func TestBuildReviewWeeklyRowsOnlyIncludesCompleted(t *testing.T) {
+	games := []store.GameRecord{
+		{Name: weekly.Name(2026, 1, 1), GameType: "Sudoku", Mode: "Easy", Status: store.StatusCompleted},
+		{Name: weekly.Name(2026, 1, 2), GameType: "Sudoku", Mode: "Easy", Status: store.StatusInProgress},
+		{Name: weekly.Name(2026, 1, 3), GameType: "Sudoku", Mode: "Easy", Status: store.StatusCompleted},
+	}
+
+	rows := buildReviewWeeklyRows(games)
+	if len(rows) != 2 {
+		t.Fatalf("len(rows) = %d, want 2", len(rows))
+	}
+	if rows[0].Index != 3 || rows[1].Index != 1 {
+		t.Fatalf("rows = %+v, want descending completed rows", rows)
+	}
+}
+
+func TestImportAndActivateWeeklyReviewRecordSkipsSaveBinding(t *testing.T) {
+	loadedGame, err := lightsout.New(3, 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	save, err := loadedGame.GetSave()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rec := store.GameRecord{
+		ID:        42,
+		Name:      weekly.Name(2026, 1, 1),
+		GameType:  "Lights Out",
+		SaveState: string(save),
+		Status:    store.StatusCompleted,
+	}
+
+	next, ok := (model{
+		state:  weeklyView,
+		width:  80,
+		height: 24,
+	}).importAndActivateRecordWithOptions(rec, gameOpenOptions{
+		readOnly:    true,
+		returnState: weeklyView,
+	})
+	if !ok {
+		t.Fatal("expected import to succeed")
+	}
+	if next.session.activeGameID != 0 {
+		t.Fatalf("activeGameID = %d, want 0", next.session.activeGameID)
+	}
+	if next.session.returnState != weeklyView {
+		t.Fatalf("returnState = %d, want %d", next.session.returnState, weeklyView)
+	}
+}
+
+func TestEnterOnSolvedLatestWeeklyCompletesAndQueuesNext(t *testing.T) {
+	s := openAppTestStore(t)
+	now := time.Now()
+	year, weekNumber := now.ISOWeek()
+	currentName := weekly.Name(year, weekNumber, 1)
+
+	rec := &store.GameRecord{
+		Name:         currentName,
+		GameType:     "Lights Out",
+		Mode:         "Easy",
+		InitialState: "{}",
+		SaveState:    "{}",
+		Status:       store.StatusInProgress,
+	}
+	if err := s.CreateGame(rec); err != nil {
+		t.Fatal(err)
+	}
+
+	m := model{
+		state:   gameView,
+		store:   s,
+		spinner: newSpinner(),
+		session: sessionState{
+			game:            &solvedWeeklyGame{save: []byte(`{"done":true}`)},
+			activeGameID:    rec.ID,
+			returnState:     weeklyView,
+			weeklyAdvance:   &weekly.Info{Year: year, Week: weekNumber, Index: 1},
+			completionSaved: false,
+		},
+		nav: navigationState{
+			weeklyCursor: weekly.StartOfWeek(year, weekNumber, time.Local),
+		},
+	}
+
+	next, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	got := next.(model)
+
+	if got.state != generatingView {
+		t.Fatalf("state = %d, want %d (generatingView)", got.state, generatingView)
+	}
+	if got.session.spawn == nil {
+		t.Fatal("expected spawn request")
+	}
+	if got.session.spawn.name != weekly.Name(year, weekNumber, 2) {
+		t.Fatalf("spawn name = %q, want %q", got.session.spawn.name, weekly.Name(year, weekNumber, 2))
+	}
+
+	saved, err := s.GetWeeklyGame(year, weekNumber, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if saved == nil {
+		t.Fatal("expected weekly record")
+	}
+	if saved.Status != store.StatusCompleted {
+		t.Fatalf("status = %q, want %q", saved.Status, store.StatusCompleted)
+	}
+}
+
+func TestMoveWeeklyWeekDoesNotAdvancePastCurrentWeek(t *testing.T) {
+	s := openAppTestStore(t)
+	current := weekly.Current(time.Now())
+	currentCursor := weekly.StartOfWeek(current.Year, current.Week, time.Local)
+
+	m := model{
+		store: s,
+		nav: navigationState{
+			weeklyCursor: currentCursor,
+		},
+	}
+
+	got := m.moveWeeklyWeek(1)
+	if !got.nav.weeklyCursor.Equal(currentCursor) {
+		t.Fatalf("weeklyCursor = %v, want %v", got.nav.weeklyCursor, currentCursor)
+	}
+}
+
+func TestCurrentWeeklyMenuIndexTracksNextPlayableSlot(t *testing.T) {
+	s := openAppTestStore(t)
+	year, weekNumber := time.Now().ISOWeek()
+
+	for index := 1; index <= 2; index++ {
+		rec := &store.GameRecord{
+			Name:         weekly.Name(year, weekNumber, index),
+			GameType:     "Nonogram",
+			Mode:         "Easy",
+			InitialState: "{}",
+			SaveState:    "{}",
+			Status:       store.StatusCompleted,
+		}
+		if err := s.CreateGame(rec); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	m := model{store: s}
+	if got := m.currentWeeklyMenuIndex(); got != 3 {
+		t.Fatalf("currentWeeklyMenuIndex() = %d, want 3", got)
+	}
+}
+
+func TestBuildPlayMenuItemsShowsCurrentWeeklyChallenge(t *testing.T) {
+	now := time.Date(2026, time.March, 7, 12, 0, 0, 0, time.Local)
+
+	items := buildPlayMenuItems(now, 7)
+	if got := items[3].Desc; got != "Week 10-2026 # 7" {
+		t.Fatalf("weekly desc = %q, want %q", got, "Week 10-2026 # 7")
 	}
 }
 
