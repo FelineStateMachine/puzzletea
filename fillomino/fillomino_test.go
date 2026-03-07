@@ -474,6 +474,63 @@ func TestGridViewOmitsBorderBetweenAdjacentEmptyCells(t *testing.T) {
 	}
 }
 
+func TestCursorRegionInfoViewNumberedCell(t *testing.T) {
+	m := Model{
+		width:     3,
+		height:    3,
+		grid:      grid{{2, 2, 1}, {3, 0, 0}, {0, 0, 1}},
+		provided:  newProvidedMask(grid{{2, 2, 1}, {3, 0, 0}, {0, 0, 1}}),
+		conflicts: validateGridState(grid{{2, 2, 1}, {3, 0, 0}, {0, 0, 1}}).conflicts,
+		cursor:    pointCursor(0, 0),
+	}
+
+	if got, want := ansi.Strip(cursorRegionInfoView(m)), "region size: 2/2"; got != want {
+		t.Fatalf("cursorRegionInfoView() = %q, want %q", got, want)
+	}
+}
+
+func TestCursorRegionInfoViewEmptyRegion(t *testing.T) {
+	m := Model{
+		width:     3,
+		height:    3,
+		grid:      grid{{2, 2, 0}, {3, 0, 0}, {0, 0, 1}},
+		provided:  newProvidedMask(grid{{2, 2, 0}, {3, 0, 0}, {0, 0, 1}}),
+		conflicts: validateGridState(grid{{2, 2, 0}, {3, 0, 0}, {0, 0, 1}}).conflicts,
+		cursor:    pointCursor(2, 1),
+	}
+
+	if got, want := ansi.Strip(cursorRegionInfoView(m)), "region size: 5/-"; got != want {
+		t.Fatalf("cursorRegionInfoView() = %q, want %q", got, want)
+	}
+}
+
+func TestViewKeepsStableHeightAcrossCursorRegionInfoChanges(t *testing.T) {
+	baseGrid := grid{
+		{2, 2, 1},
+		{3, 0, 0},
+		{0, 0, 1},
+	}
+	m := Model{
+		width:        3,
+		height:       3,
+		grid:         baseGrid,
+		provided:     newProvidedMask(baseGrid),
+		conflicts:    validateGridState(baseGrid).conflicts,
+		modeTitle:    "Test",
+		maxCellValue: 3,
+	}
+
+	numbered := m
+	numbered.cursor = pointCursor(0, 0)
+
+	empty := m
+	empty.cursor = pointCursor(2, 1)
+
+	if got, want := lipgloss.Height(empty.View()), lipgloss.Height(numbered.View()); got != want {
+		t.Fatalf("height(empty) = %d, want %d", got, want)
+	}
+}
+
 func TestSolvedGapBackgroundUsesSolvedColor(t *testing.T) {
 	conflicts := validateGridState(grid{{2, 2}}).conflicts
 	m := Model{

@@ -11,7 +11,6 @@ import (
 const DynamicGridCellWidth = 3
 
 const (
-	dynamicGridCellStepX = DynamicGridCellWidth + 1
 	dynamicGridCellStepY = 2
 )
 
@@ -42,6 +41,7 @@ type DynamicGridBridge struct {
 type DynamicGridSpec struct {
 	Width                int
 	Height               int
+	CellWidth            int
 	Solved               bool
 	Colors               *GridBorderColors
 	Cell                 func(x, y int) string
@@ -50,6 +50,8 @@ type DynamicGridSpec struct {
 	HasHorizontalEdge    func(x, y int) bool
 	ZoneFill             func(zone int) color.Color
 	BridgeFill           func(bridge DynamicGridBridge) color.Color
+	BridgeForeground     func(bridge DynamicGridBridge) color.Color
+	BridgeBold           func(bridge DynamicGridBridge) bool
 	VerticalBridgeText   func(x, y int) string
 	HorizontalBridgeText func(x, y int) string
 }
@@ -62,6 +64,13 @@ func RenderDynamicGrid(spec DynamicGridSpec) string {
 		rows = append(rows, dynamicGridBoundaryRow(spec, y+1))
 	}
 	return lipgloss.JoinVertical(lipgloss.Left, rows...)
+}
+
+func dynamicGridCellWidth(spec DynamicGridSpec) int {
+	if spec.CellWidth > 0 {
+		return spec.CellWidth
+	}
+	return DynamicGridCellWidth
 }
 
 func DynamicGridOrigin(termW, termH int, fullView, title, grid string) (x, y int) {
@@ -188,7 +197,15 @@ func dynamicGridRenderVerticalBridge(spec DynamicGridSpec, x, y int, bridge Dyna
 
 	if spec.VerticalBridgeText != nil {
 		if text := strings.TrimSpace(spec.VerticalBridgeText(x, y)); text != "" {
-			return dynamicGridRenderBridgeText(text, 1, dynamicGridColors(spec), spec.Solved, dynamicGridBridgeBackground(spec, bridge))
+			return dynamicGridRenderBridgeText(
+				text,
+				1,
+				dynamicGridColors(spec),
+				spec.Solved,
+				dynamicGridBridgeBackground(spec, bridge),
+				dynamicGridBridgeForeground(spec, bridge),
+				dynamicGridBridgeBold(spec, bridge),
+			)
 		}
 	}
 
@@ -201,6 +218,7 @@ func dynamicGridRenderVerticalBridge(spec DynamicGridSpec, x, y int, bridge Dyna
 }
 
 func dynamicGridRenderHorizontalBridge(spec DynamicGridSpec, x, y int, bridge DynamicGridBridge) string {
+	cellWidth := dynamicGridCellWidth(spec)
 	if dynamicGridHasHorizontalEdge(spec, x, y) {
 		return strings.Repeat(
 			dynamicGridRenderBorderChar(
@@ -209,13 +227,21 @@ func dynamicGridRenderHorizontalBridge(spec DynamicGridSpec, x, y int, bridge Dy
 				spec.Solved,
 				dynamicGridBridgeBackground(spec, bridge),
 			),
-			DynamicGridCellWidth,
+			cellWidth,
 		)
 	}
 
 	if spec.HorizontalBridgeText != nil {
 		if text := strings.TrimSpace(spec.HorizontalBridgeText(x, y)); text != "" {
-			return dynamicGridRenderBridgeText(text, DynamicGridCellWidth, dynamicGridColors(spec), spec.Solved, dynamicGridBridgeBackground(spec, bridge))
+			return dynamicGridRenderBridgeText(
+				text,
+				cellWidth,
+				dynamicGridColors(spec),
+				spec.Solved,
+				dynamicGridBridgeBackground(spec, bridge),
+				dynamicGridBridgeForeground(spec, bridge),
+				dynamicGridBridgeBold(spec, bridge),
+			)
 		}
 	}
 
@@ -226,19 +252,33 @@ func dynamicGridRenderHorizontalBridge(spec DynamicGridSpec, x, y int, bridge Dy
 			spec.Solved,
 			dynamicGridBridgeBackground(spec, bridge),
 		),
-		DynamicGridCellWidth,
+		cellWidth,
 	)
 }
 
-func dynamicGridRenderBridgeText(text string, width int, colors GridBorderColors, solved bool, bg color.Color) string {
+func dynamicGridRenderBridgeText(
+	text string,
+	width int,
+	colors GridBorderColors,
+	solved bool,
+	bg color.Color,
+	fgOverride color.Color,
+	bold bool,
+) string {
 	fg, bg := borderColors(colors, solved, bg)
+	if fgOverride != nil {
+		fg = fgOverride
+	}
 
-	return lipgloss.NewStyle().
+	style := lipgloss.NewStyle().
 		Width(width).
 		AlignHorizontal(lipgloss.Center).
 		Foreground(fg).
-		Background(bg).
-		Render(text)
+		Background(bg)
+	if bold {
+		style = style.Bold(true)
+	}
+	return style.Render(text)
 }
 
 func dynamicGridHasHorizontalEdge(spec DynamicGridSpec, x, y int) bool {
@@ -311,6 +351,20 @@ func dynamicGridBridgeBackground(spec DynamicGridSpec, bridge DynamicGridBridge)
 		return spec.ZoneFill(bridge.Zone)
 	}
 	return nil
+}
+
+func dynamicGridBridgeForeground(spec DynamicGridSpec, bridge DynamicGridBridge) color.Color {
+	if spec.BridgeForeground != nil {
+		return spec.BridgeForeground(bridge)
+	}
+	return nil
+}
+
+func dynamicGridBridgeBold(spec DynamicGridSpec, bridge DynamicGridBridge) bool {
+	if spec.BridgeBold != nil {
+		return spec.BridgeBold(bridge)
+	}
+	return false
 }
 
 func dynamicGridVerticalBridge(spec DynamicGridSpec, x, y int) DynamicGridBridge {

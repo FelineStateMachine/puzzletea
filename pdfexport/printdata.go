@@ -435,6 +435,30 @@ func ParseSudokuPrintData(saveData []byte) (*SudokuData, error) {
 	return &SudokuData{Givens: givens}, nil
 }
 
+func ParseSudokuRGBPrintData(saveData []byte) (*SudokuData, error) {
+	if len(strings.TrimSpace(string(saveData))) == 0 {
+		return nil, nil
+	}
+
+	var save sudokuSave
+	if err := json.Unmarshal(saveData, &save); err != nil {
+		return nil, fmt.Errorf("decode sudoku rgb save: %w", err)
+	}
+
+	var givens [9][9]int
+	for _, cell := range save.Provided {
+		if !isSudokuCellInBounds(cell.X, cell.Y) {
+			continue
+		}
+		if cell.V < 1 || cell.V > 3 {
+			continue
+		}
+		givens[cell.Y][cell.X] = cell.V
+	}
+
+	return &SudokuData{Givens: givens}, nil
+}
+
 func ParseFillominoPrintData(saveData []byte) (*FillominoData, error) {
 	if len(strings.TrimSpace(string(saveData))) == 0 {
 		return nil, nil

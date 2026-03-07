@@ -211,6 +211,46 @@ func TestParseJSONLFileHydratesSudokuFromSave(t *testing.T) {
 	}
 }
 
+func TestParseJSONLFileHydratesSudokuRGBFromSave(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "sudoku-rgb.jsonl")
+	record := JSONLRecord{
+		Schema: ExportSchemaV1,
+		Pack: JSONLPackMeta{
+			Generated:     "2026-02-22T10:00:00Z",
+			Version:       "v-test",
+			Category:      "Sudoku RGB",
+			ModeSelection: "Easy",
+			Count:         1,
+		},
+		Puzzle: JSONLPuzzle{
+			Index: 1,
+			Name:  "ember-wave",
+			Game:  "Sudoku RGB",
+			Mode:  "Easy",
+			Save:  json.RawMessage(`{"grid":"100000000\n000000000\n000000000\n000000000\n000000000\n000000000\n000000000\n000000000\n000000000","provided":[{"x":0,"y":0,"v":1},{"x":1,"y":0,"v":4},{"x":2,"y":0,"v":3}]}`),
+		},
+	}
+	writeSingleJSONLRecord(t, path, record)
+
+	doc, err := ParseJSONLFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := len(doc.Puzzles), 1; got != want {
+		t.Fatalf("puzzles = %d, want %d", got, want)
+	}
+	payload, ok := doc.Puzzles[0].PrintPayload.(*SudokuData)
+	if !ok || payload == nil {
+		t.Fatal("expected sudoku rgb print payload from save hydration")
+	}
+	if got, want := payload.Givens[0][0], 1; got != want {
+		t.Fatalf("sudoku rgb givens[0][0] = %d, want %d", got, want)
+	}
+	if got := payload.Givens[0][1]; got != 0 {
+		t.Fatalf("sudoku rgb givens[0][1] = %d, want 0", got)
+	}
+}
+
 func TestParseJSONLFileHydratesWordSearchFromSave(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "wordsearch.jsonl")
 	record := JSONLRecord{
@@ -504,6 +544,9 @@ func ensureJSONLTestAdapters() {
 		register("Sudoku", buildPayloadAdapter("Sudoku", func(save []byte) (any, error) {
 			return ParseSudokuPrintData(save)
 		}), "sudoku")
+		register("Sudoku RGB", buildPayloadAdapter("Sudoku RGB", func(save []byte) (any, error) {
+			return ParseSudokuRGBPrintData(save)
+		}), "sudoku rgb", "rgb sudoku", "ripeto", "sudoku ripeto")
 		register("Fillomino", buildPayloadAdapter("Fillomino", func(save []byte) (any, error) {
 			return ParseFillominoPrintData(save)
 		}), "fillomino")

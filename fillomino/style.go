@@ -508,6 +508,47 @@ func completedRegionColor(comp component, colors []color.Color, base color.Color
 	return theme.Blend(base, colors[index], 0.52)
 }
 
+func cursorRegionInfoStyle() lipgloss.Style {
+	return lipgloss.NewStyle().Foreground(theme.Current().Info)
+}
+
+func cursorRegionInfoView(m Model) string {
+	current, target := cursorRegionInfoData(m)
+	return cursorRegionInfoStyle().Render("region size: " + strconv.Itoa(current) + "/" + target)
+}
+
+func cursorRegionInfoVariants(m Model) []string {
+	area := m.width * m.height
+	maxTarget := m.maxCellValue
+	if maxTarget < 1 {
+		maxTarget = 1
+	}
+
+	return []string{
+		cursorRegionInfoStyle().Render("region size: " + strconv.Itoa(area) + "/-"),
+		cursorRegionInfoStyle().Render("region size: " + strconv.Itoa(area) + "/" + strconv.Itoa(maxTarget)),
+	}
+}
+
+func cursorRegionInfoData(m Model) (current int, target string) {
+	if len(m.grid) == 0 || len(m.grid[0]) == 0 {
+		return 0, "-"
+	}
+
+	cursor := point{x: m.cursor.X, y: m.cursor.Y}
+	value := m.grid[cursor.y][cursor.x]
+	visited := make([][]bool, len(m.grid))
+	for y := range len(m.grid) {
+		visited[y] = make([]bool, len(m.grid[y]))
+	}
+
+	comp := buildComponent(m.grid, cursor, visited)
+	if value == 0 {
+		return len(comp.cells), "-"
+	}
+	return len(comp.cells), strconv.Itoa(value)
+}
+
 func statusBarView(showFullHelp bool) string {
 	if showFullHelp {
 		return game.StatusBarStyle().Render("1-9: place  bkspc: clear  arrows/wasd: move  esc: menu  ctrl+r: reset  ctrl+h: help")

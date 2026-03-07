@@ -79,6 +79,34 @@ func TestRenderDynamicGridUsesUniformRows(t *testing.T) {
 	}
 }
 
+func TestRenderDynamicGridSupportsCustomCellWidth(t *testing.T) {
+	view := RenderDynamicGrid(DynamicGridSpec{
+		Width:     2,
+		Height:    1,
+		CellWidth: 5,
+		Cell: func(_, _ int) string {
+			return "     "
+		},
+		ZoneAt: func(_, _ int) int {
+			return 0
+		},
+		VerticalBridgeText: func(x, y int) string {
+			if x == 1 && y == 0 {
+				return "x"
+			}
+			return ""
+		},
+	})
+
+	lines := strings.Split(ansi.Strip(view), "\n")
+	if got := len([]rune(lines[0])); got != 13 {
+		t.Fatalf("top row width = %d, want %d", got, 13)
+	}
+	if !strings.Contains(lines[1], "x") {
+		t.Fatalf("content row = %q, want custom-width bridge text", lines[1])
+	}
+}
+
 func TestRenderDynamicGridEdgeOverridesSuppressInteriorBorders(t *testing.T) {
 	view := RenderDynamicGrid(DynamicGridSpec{
 		Width:  2,

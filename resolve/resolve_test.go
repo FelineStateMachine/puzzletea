@@ -104,6 +104,24 @@ func TestMode(t *testing.T) {
 	})
 }
 
+func TestModeSupportsSudokuRGBAliasCategory(t *testing.T) {
+	cat, err := catalog.Category("ripeto")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cat.Name != "Sudoku RGB" {
+		t.Fatalf("category name = %q, want %q", cat.Name, "Sudoku RGB")
+	}
+
+	_, title, err := Mode(cat, "easy")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if title != "Easy" {
+		t.Fatalf("mode title = %q, want %q", title, "Easy")
+	}
+}
+
 func TestModeNames(t *testing.T) {
 	cat, err := catalog.Category("Lights Out")
 	if err != nil {

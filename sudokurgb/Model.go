@@ -1,5 +1,4 @@
-// Package sudoku implements the classic number-placement puzzle.
-package sudoku
+package sudokurgb
 
 import (
 	"fmt"
@@ -10,7 +9,11 @@ import (
 	"github.com/FelineStateMachine/puzzletea/game"
 )
 
-const gridSize = 9
+const (
+	gridSize   = 9
+	valueCount = 3
+	houseQuota = 3
+)
 
 var _ game.Gamer = Model{}
 
@@ -38,7 +41,7 @@ func buildProvidedGrid(provided []cell) [gridSize][gridSize]bool {
 	return pg
 }
 
-func New(mode SudokuMode, provided []cell) (game.Gamer, error) {
+func New(mode SudokuRGBMode, provided []cell) (game.Gamer, error) {
 	g := newGrid(provided)
 	m := Model{
 		grid:         g,
@@ -74,14 +77,15 @@ func (m Model) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 	case tea.KeyPressMsg:
 		switch {
 		case key.Matches(msg, m.keys.FillValue):
-			val, _ := strconv.Atoi(msg.String())
-			m.updateCell(val)
+			value, _ := strconv.Atoi(msg.String())
+			m.updateCell(value)
 		case key.Matches(msg, m.keys.ClearCell):
 			m.updateCell(0)
 		default:
 			m.cursor.Move(m.keys.CursorKeyMap, msg, gridSize-1, gridSize-1)
 		}
 	}
+
 	m.updateKeyBindings()
 	return m, nil
 }
@@ -102,13 +106,13 @@ func (m Model) Reset() game.Gamer {
 	return m
 }
 
-func (m *Model) updateCell(v int) {
+func (m *Model) updateCell(value int) {
 	if m.providedGrid[m.cursor.Y][m.cursor.X] {
 		return
 	}
 
 	wasSolved := m.isSolved()
-	m.grid[m.cursor.Y][m.cursor.X].v = v
+	m.grid[m.cursor.Y][m.cursor.X].v = value
 	m.conflicts = computeConflicts(m.grid)
 	if m.isSolved() != wasSolved {
 		m.originValid = false
@@ -117,14 +121,13 @@ func (m *Model) updateCell(v int) {
 
 func (m Model) View() string {
 	solved := isSolvedWith(m.grid, m.conflicts)
-	title := game.TitleBarView("Sudoku", m.modeTitle, solved)
+	title := game.TitleBarView("Sudoku RGB", m.modeTitle, solved)
 	grid := renderGrid(m, solved)
 	if solved {
 		return game.ComposeGameView(title, grid)
 	}
 
 	status := statusBarView(m.showFullHelp)
-
 	return game.ComposeGameViewRows(title, grid, game.StableRow(status, statusBarView(false), statusBarView(true)))
 }
 
@@ -152,28 +155,21 @@ func (m Model) GetDebugInfo() string {
 		status = "Solved"
 	}
 
-	s := game.DebugHeader("Sudoku", [][2]string{
+	return game.DebugHeader("Sudoku RGB", [][2]string{
 		{"Status", status},
 		{"Cursor", fmt.Sprintf("(%d, %d)", m.cursor.X, m.cursor.Y)},
-		{"Cell Value", cellContent(cursorCell)},
+		{"Cell Value", cellDebugValue(cursorCell.v)},
 		{"Is Provided", fmt.Sprintf("%v", isProvided)},
 		{"Has Conflict", fmt.Sprintf("%v", conflict)},
 		{"Cells Filled", fmt.Sprintf("%d / 81", filledCount)},
 		{"Conflict Count", fmt.Sprintf("%d", conflictCount)},
 		{"Provided Count", fmt.Sprintf("%d", len(m.provided))},
 	})
+}
 
-	if len(m.provided) > 0 {
-		var rows [][]string
-		for _, p := range m.provided {
-			rows = append(rows, []string{
-				fmt.Sprintf("%d", p.y),
-				fmt.Sprintf("%d", p.x),
-				fmt.Sprintf("%d", p.v),
-			})
-		}
-		s += game.DebugTable("Provided Cells", []string{"Row", "Col", "Value"}, rows)
+func cellDebugValue(value int) string {
+	if value == 0 {
+		return "empty"
 	}
-
-	return s
+	return fmt.Sprintf("%d (%s)", value, cellContentValue(value))
 }

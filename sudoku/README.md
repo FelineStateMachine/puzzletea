@@ -16,6 +16,7 @@ in red.
 | Key | Action |
 |-----|--------|
 | Arrow keys / WASD / hjkl | Move cursor |
+| Mouse left-click | Focus a cell |
 | `1`-`9` | Fill cell with digit |
 | `Backspace` | Clear cell |
 | `Ctrl+R` | Reset puzzle |

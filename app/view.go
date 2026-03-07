@@ -232,13 +232,10 @@ func renderModeList(cat game.Category, width int) string {
 		return ui.DimItemStyle().Render("No modes available.")
 	}
 
-	modeNames := make([]string, 0, len(cat.Modes))
-	for _, item := range cat.Modes {
-		mode, ok := item.(game.Mode)
-		if !ok {
-			continue
-		}
-		modeNames = append(modeNames, "• "+mode.Title())
+	displayTitles := modeDisplayTitles(cat)
+	modeNames := make([]string, 0, len(displayTitles))
+	for _, title := range displayTitles {
+		modeNames = append(modeNames, "• "+title)
 	}
 	if len(modeNames) == 0 {
 		return ui.DimItemStyle().Render("No modes available.")

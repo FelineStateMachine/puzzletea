@@ -113,8 +113,14 @@ func (m Model) View() string {
 	if m.solved {
 		return game.ComposeGameView(title, body)
 	}
+	info := cursorRegionInfoView(m)
 	status := statusBarView(m.showFullHelp)
-	return game.ComposeGameViewRows(title, body, game.StableRow(status, statusBarView(false), statusBarView(true)))
+	return game.ComposeGameViewRows(
+		title,
+		body,
+		game.StableRow(info, cursorRegionInfoVariants(m)...),
+		game.StableRow(status, statusBarView(false), statusBarView(true)),
+	)
 }
 
 func (m Model) SetTitle(t string) game.Gamer {

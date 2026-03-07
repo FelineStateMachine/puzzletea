@@ -144,18 +144,23 @@ func (m model) updateCategoryDetailViewport() model {
 
 func (m model) updateHelpDetailViewport() model {
 	helpWidth, helpHeight := helpViewportSize(m.width, m.height)
-	if m.help.renderer == nil || m.help.rendererWidth != helpWidth {
+	palette := theme.Current()
+	themeKey := helpMarkdownThemeKey(palette)
+	if m.help.renderer == nil || m.help.rendererWidth != helpWidth || m.help.rendererTheme != themeKey {
 		renderer, err := glamour.NewTermRenderer(
-			glamour.WithAutoStyle(),
+			glamour.WithStyles(helpMarkdownStyle(palette)),
 			glamour.WithWordWrap(helpWidth),
+			glamour.WithChromaFormatter("terminal16m"),
 		)
 		if err != nil {
 			log.Printf("failed to create help renderer: %v", err)
 			m.help.renderer = nil
 			m.help.rendererWidth = 0
+			m.help.rendererTheme = ""
 		} else {
 			m.help.renderer = renderer
 			m.help.rendererWidth = helpWidth
+			m.help.rendererTheme = themeKey
 		}
 	}
 
@@ -614,14 +619,14 @@ func (m model) handleGameSelectEnter() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	m.nav.selectedCategory = cat
-	m.nav.modeSelectList = ui.InitList(cat.Modes, cat.Name+" - Select Mode")
+	m.nav.modeSelectList = ui.InitList(buildModeDisplayItems(cat), cat.Name+" - Select Mode")
 	m.nav.modeSelectList.SetSize(min(m.width, 64), min(m.height, ui.ListHeight(m.nav.modeSelectList)))
 	m.state = modeSelectView
 	return m, nil
 }
 
 func (m model) handleModeSelectEnter() (tea.Model, tea.Cmd) {
-	item := m.nav.modeSelectList.SelectedItem()
+	item := unwrapModeDisplayItem(m.nav.modeSelectList.SelectedItem())
 	mode, ok := item.(game.Mode)
 	if !ok {
 		return m, nil

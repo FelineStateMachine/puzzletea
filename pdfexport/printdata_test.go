@@ -209,6 +209,27 @@ func TestParseTakuzuPlusPrintData(t *testing.T) {
 	}
 }
 
+func TestParseSudokuRGBPrintData(t *testing.T) {
+	save := []byte(`{"grid":"100000000\n000000000\n000000000\n000000000\n000000000\n000000000\n000000000\n000000000\n000000000","provided":[{"x":0,"y":0,"v":1},{"x":1,"y":0,"v":4},{"x":2,"y":0,"v":3}]}`)
+
+	data, err := ParseSudokuRGBPrintData(save)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if data == nil {
+		t.Fatal("expected sudoku rgb print data")
+	}
+	if got, want := data.Givens[0][0], 1; got != want {
+		t.Fatalf("givens[0][0] = %d, want %d", got, want)
+	}
+	if got := data.Givens[0][1]; got != 0 {
+		t.Fatalf("givens[0][1] = %d, want 0", got)
+	}
+	if got, want := data.Givens[0][2], 3; got != want {
+		t.Fatalf("givens[0][2] = %d, want %d", got, want)
+	}
+}
+
 func TestParseFillominoPrintData(t *testing.T) {
 	save := []byte(`{"width":3,"height":2,"state":"1 . 2\n. 3 .","provided":"#.#\n.#."}`)
 

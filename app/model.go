@@ -102,6 +102,7 @@ type helpState struct {
 	viewport      viewport.Model
 	renderer      *glamour.TermRenderer
 	rendererWidth int
+	rendererTheme string
 	showFull      bool
 }
 
