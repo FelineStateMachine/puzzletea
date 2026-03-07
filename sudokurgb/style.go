@@ -77,7 +77,7 @@ func cellView(m Model, x, y int, solved bool) string {
 
 func cellStyle(m Model, c cell, x, y int, conflict, solved bool) lipgloss.Style {
 	isCursor := m.cursor.X == x && m.cursor.Y == y
-	base := lipgloss.NewStyle()
+	var base lipgloss.Style
 
 	switch c.v {
 	case 0:

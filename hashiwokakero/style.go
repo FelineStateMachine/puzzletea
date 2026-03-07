@@ -11,6 +11,7 @@ import (
 )
 
 const cellWidth = 5
+
 const islandPillWidth = game.DynamicGridCellWidth
 
 type cellVisual struct {
@@ -49,46 +50,6 @@ func baseCellStyle(fg, bg color.Color, bold bool) lipgloss.Style {
 		style = style.Bold(true)
 	}
 	return style
-}
-
-func selectedIslandStyle() lipgloss.Style {
-	bg := theme.Current().SelectionBG
-	return lipgloss.NewStyle().
-		Width(islandPillWidth).
-		AlignHorizontal(lipgloss.Center).
-		Foreground(theme.TextOnBG(bg)).
-		Background(bg).
-		Bold(true)
-}
-
-func satisfiedIslandStyle() lipgloss.Style {
-	p := theme.Current()
-	return lipgloss.NewStyle().
-		Width(islandPillWidth).
-		AlignHorizontal(lipgloss.Center).
-		Foreground(theme.TextOnBG(p.SuccessBG)).
-		Background(p.SuccessBG).
-		Bold(true)
-}
-
-func overfilledIslandStyle() lipgloss.Style {
-	p := theme.Current()
-	return lipgloss.NewStyle().
-		Width(islandPillWidth).
-		AlignHorizontal(lipgloss.Center).
-		Foreground(theme.TextOnBG(p.ErrorBG)).
-		Background(p.ErrorBG).
-		Bold(true)
-}
-
-func adjacentIslandStyle() lipgloss.Style {
-	bg := adjacentIslandBackground()
-	return lipgloss.NewStyle().
-		Width(islandPillWidth).
-		AlignHorizontal(lipgloss.Center).
-		Foreground(theme.TextOnBG(bg)).
-		Background(bg).
-		Bold(true)
 }
 
 func bridgeColors() []color.Color {
@@ -341,8 +302,7 @@ func bridgeBold(m Model, bridge game.DynamicGridBridge) bool {
 }
 
 func bridgeIndexForDynamicBridge(p *Puzzle, bridge game.DynamicGridBridge) int {
-	count, index := dynamicBridgeIdentity(p, bridge)
-	_ = count
+	_, index := dynamicBridgeIdentity(p, bridge)
 	return index
 }
 
@@ -351,7 +311,7 @@ func bridgeCountForDynamicBridge(p *Puzzle, bridge game.DynamicGridBridge) int {
 	return count
 }
 
-func dynamicBridgeIdentity(p *Puzzle, bridge game.DynamicGridBridge) (count int, index int) {
+func dynamicBridgeIdentity(p *Puzzle, bridge game.DynamicGridBridge) (int, int) {
 	for i := 0; i < bridge.Count; i++ {
 		cell := p.CellContent(bridge.Cells[i].X, bridge.Cells[i].Y)
 		switch cell.Kind {

@@ -154,10 +154,6 @@ func fillGridRec(g *grid, rng *rand.Rand, state *quotaState) bool {
 	return false
 }
 
-func fillGrid(g *grid) bool {
-	return fillGridSeeded(g, newRNG())
-}
-
 func fillGridSeeded(g *grid, rng *rand.Rand) bool {
 	state, ok := buildQuotaState(g)
 	if !ok {
@@ -305,34 +301,4 @@ func GenerateProvidedCellsSeeded(mode SudokuRGBMode, rng *rand.Rand) []cell {
 	}
 
 	return bestCells
-}
-
-func isValid(g *grid, value, x, y int) bool {
-	if value < 1 || value > valueCount {
-		return false
-	}
-
-	rowCount, colCount, boxCount := 0, 0, 0
-	boxX, boxY := (x/3)*3, (y/3)*3
-	for i := range gridSize {
-		if i != x && g[y][i].v == value {
-			rowCount++
-		}
-		if i != y && g[i][x].v == value {
-			colCount++
-		}
-	}
-	for dy := range 3 {
-		for dx := range 3 {
-			cx, cy := boxX+dx, boxY+dy
-			if cx == x && cy == y {
-				continue
-			}
-			if g[cy][cx].v == value {
-				boxCount++
-			}
-		}
-	}
-
-	return rowCount < houseQuota && colCount < houseQuota && boxCount < houseQuota
 }
