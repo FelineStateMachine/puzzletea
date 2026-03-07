@@ -97,15 +97,23 @@ func TestInitListDisablesQuitAndFilter(t *testing.T) {
 	}
 }
 
-func TestInitCategoryListDisablesQuitAndFilter(t *testing.T) {
-	l := InitCategoryList(nil, "Categories")
+func TestInitCategoryListEnablesFilterAndHidesDescriptions(t *testing.T) {
+	items := []list.Item{
+		MenuItem{ItemTitle: "Sudoku", Desc: "number puzzle"},
+	}
+	l := InitCategoryList(items, "Categories")
 
-	if l.FilteringEnabled() {
-		t.Error("expected filtering to be disabled")
+	if !l.FilteringEnabled() {
+		t.Error("expected filtering to be enabled")
 	}
 
 	if l.ShowHelp() {
 		t.Error("expected help to be disabled")
+	}
+
+	rendered := ansi.Strip(l.View())
+	if strings.Contains(rendered, "number puzzle") {
+		t.Fatalf("expected category list to hide item descriptions\nview:\n%s", rendered)
 	}
 }
 

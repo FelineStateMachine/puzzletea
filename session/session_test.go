@@ -32,6 +32,20 @@ func TestSeededNameDeterministic(t *testing.T) {
 	}
 }
 
+func TestSeededNameForGameDeterministicAndDistinct(t *testing.T) {
+	seed := "zebra-seed"
+	got := SeededNameForGame(seed, "Sudoku")
+	if want := SeededNameForGame(seed, "Sudoku"); got != want {
+		t.Fatalf("SeededNameForGame returned %q then %q", got, want)
+	}
+	if got == SeededName(seed) {
+		t.Fatalf("SeededNameForGame(%q) should differ from SeededName(%q)", seed, seed)
+	}
+	if got == SeededNameForGame(seed, "Nonogram") {
+		t.Fatal("different selected games should produce different seeded names")
+	}
+}
+
 func TestImportRecordReappliesTitle(t *testing.T) {
 	g, err := lightsout.New(3, 3)
 	if err != nil {

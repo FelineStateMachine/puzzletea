@@ -27,6 +27,22 @@ func SeededName(seed string) string {
 	return seed + " - " + namegen.GenerateSeeded(nameRNG)
 }
 
+// SeededNameForGame derives the deterministic display name for a seeded
+// puzzle locked to a specific game.
+func SeededNameForGame(seed, gameType string) string {
+	if strings.TrimSpace(gameType) == "" {
+		return SeededName(seed)
+	}
+
+	scope := game.NormalizeName(gameType)
+	nameRNG := resolve.RNGFromString("name:" + seed + ":" + scope)
+	return fmt.Sprintf("%s [%s] - %s",
+		seed,
+		gameType,
+		namegen.GenerateSeeded(nameRNG),
+	)
+}
+
 // ImportRecord reconstructs a saved game and reapplies the record title.
 func ImportRecord(rec *store.GameRecord) (game.Gamer, error) {
 	if rec == nil {

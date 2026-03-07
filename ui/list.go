@@ -84,10 +84,15 @@ func InitList(items []list.Item, title string) list.Model {
 // colors sourced from the active theme color set.
 func InitCategoryList(items []list.Item, title string) list.Model {
 	p := theme.Current()
-	d := categoryColorDelegate{DefaultDelegate: newMenuDelegate(p)}
+	base := newMenuDelegate(p)
+	base.ShowDescription = false
+	base.SetHeight(1)
+	base.SetSpacing(0)
+	d := categoryColorDelegate{DefaultDelegate: base}
 
 	l := list.New(items, d, 64, 64)
 	configureMenuList(&l, title)
+	l.SetFilteringEnabled(true)
 	return l
 }
 

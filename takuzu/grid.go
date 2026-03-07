@@ -10,6 +10,12 @@ const (
 	oneCell   rune = '1'
 )
 
+const (
+	EmptyCell = emptyCell
+	ZeroCell  = zeroCell
+	OneCell   = oneCell
+)
+
 type (
 	grid  [][]rune
 	state string
@@ -53,4 +59,12 @@ func (g grid) clone() grid {
 		copy(c[i], row)
 	}
 	return c
+}
+
+func CloneGrid(g [][]rune) [][]rune {
+	return grid(g).clone()
+}
+
+func CreateEmptyGrid(size int) [][]rune {
+	return newGrid(createEmptyState(size)).clone()
 }

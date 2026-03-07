@@ -86,6 +86,41 @@ type seededEntry struct {
 	mode     string
 }
 
+func seededModeForDefinition(seed string, def game.Definition) (seededEntry, bool) {
+	var best seededEntry
+	var bestHash uint64
+	found := false
+
+	for _, modeItem := range def.Modes {
+		mode, ok := modeItem.(game.Mode)
+		if !ok {
+			continue
+		}
+		s, ok := modeItem.(game.SeededSpawner)
+		if !ok {
+			continue
+		}
+		h := fnv.New64a()
+		h.Write([]byte(seed))
+		h.Write([]byte{0})
+		h.Write([]byte(def.Name))
+		h.Write([]byte{0})
+		h.Write([]byte(mode.Title()))
+		score := h.Sum64()
+		if !found || score > bestHash {
+			bestHash = score
+			best = seededEntry{
+				spawner:  s,
+				gameType: def.Name,
+				mode:     mode.Title(),
+			}
+			found = true
+		}
+	}
+
+	return best, found
+}
+
 // SeededMode selects a game type and mode from all available modes across
 // all categories using rendezvous hashing (highest random weight). Each
 // eligible mode is scored by hashing the seed string together with its
@@ -99,35 +134,45 @@ func SeededMode(seed string, definitions []game.Definition) (game.SeededSpawner,
 	var bestHash uint64
 	found := false
 	for _, def := range definitions {
-		for _, modeItem := range def.Modes {
-			mode, ok := modeItem.(game.Mode)
-			if !ok {
-				continue
-			}
-			s, ok := modeItem.(game.SeededSpawner)
-			if !ok {
-				continue
-			}
-			h := fnv.New64a()
-			h.Write([]byte(seed))
-			h.Write([]byte{0})
-			h.Write([]byte(def.Name))
-			h.Write([]byte{0})
-			h.Write([]byte(mode.Title()))
-			score := h.Sum64()
-			if !found || score > bestHash {
-				bestHash = score
-				best = seededEntry{
-					spawner:  s,
-					gameType: def.Name,
-					mode:     mode.Title(),
-				}
-				found = true
-			}
+		entry, ok := seededModeForDefinition(seed, def)
+		if !ok {
+			continue
+		}
+		h := fnv.New64a()
+		h.Write([]byte(seed))
+		h.Write([]byte{0})
+		h.Write([]byte(entry.gameType))
+		h.Write([]byte{0})
+		h.Write([]byte(entry.mode))
+		score := h.Sum64()
+		if !found || score > bestHash {
+			bestHash = score
+			best = entry
+			found = true
 		}
 	}
 	if !found {
 		return nil, "", "", errors.New("no seeded modes available")
 	}
 	return best.spawner, best.gameType, best.mode, nil
+}
+
+// SeededModeForGame deterministically selects a seeded mode within a single
+// game definition, so the same seed and game name always produce the same
+// puzzle for that game.
+func SeededModeForGame(seed, gameType string, definitions []game.Definition) (game.SeededSpawner, string, string, error) {
+	norm := Normalize(gameType)
+	for _, def := range definitions {
+		if Normalize(def.Name) != norm {
+			continue
+		}
+
+		entry, ok := seededModeForDefinition(seed, def)
+		if !ok {
+			return nil, "", "", fmt.Errorf("game %q has no seeded modes", def.Name)
+		}
+		return entry.spawner, entry.gameType, entry.mode, nil
+	}
+
+	return nil, "", "", fmt.Errorf("unknown game %q", gameType)
 }

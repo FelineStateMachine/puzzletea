@@ -17,7 +17,6 @@ import (
 
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/list"
-	"charm.land/bubbles/v2/textinput"
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/glamour"
@@ -28,6 +27,16 @@ const (
 	helpPanelInsetY         = 1
 	helpPanelHorizontalTrim = 6
 	helpPanelVerticalTrim   = 8
+	categoryPanelChrome     = 8
+	categoryBodyMaxWidth    = 86
+	categoryBodyMaxHeight   = 14
+	categoryMinListWidth    = 24
+	categoryMaxListWidth    = 30
+	categoryGapWidth        = 2
+	categoryDetailTrimX     = 6
+	categoryDetailTrimY     = 4
+	categoryStackGapHeight  = 1
+	categoryMinSideBySideW  = 72
 )
 
 func helpViewportSize(width, height int) (int, int) {
@@ -43,6 +52,94 @@ func statsViewportSize(width, height int, cards []stats.Card) (int, int) {
 	panelHeight := max(height-(helpPanelInsetY*2), 1)
 	contentHeight := max(panelHeight-stats.StaticHeight(cards), 1)
 	return contentWidth, contentHeight
+}
+
+type categoryPickerMetrics struct {
+	bodyWidth    int
+	bodyHeight   int
+	listWidth    int
+	listHeight   int
+	detailWidth  int
+	detailHeight int
+	stacked      bool
+}
+
+func categoryPickerSize(width, height int) categoryPickerMetrics {
+	bodyWidth := min(width, categoryBodyMaxWidth)
+	bodyHeight := min(max(height-categoryPanelChrome, 1), categoryBodyMaxHeight)
+
+	if bodyWidth < categoryMinSideBySideW {
+		listHeight := min(bodyHeight, categoryPickerListHeight())
+		detailHeight := max(bodyHeight-listHeight-categoryStackGapHeight, 1)
+		if detailHeight == 1 && bodyHeight > 1 {
+			listHeight = max(bodyHeight-categoryStackGapHeight-detailHeight, 1)
+		}
+		return categoryPickerMetrics{
+			bodyWidth:    bodyWidth,
+			bodyHeight:   bodyHeight,
+			listWidth:    bodyWidth,
+			listHeight:   listHeight,
+			detailWidth:  bodyWidth,
+			detailHeight: detailHeight,
+			stacked:      true,
+		}
+	}
+
+	listWidth := min(categoryMaxListWidth, max(categoryMinListWidth, bodyWidth/3))
+	detailWidth := max(bodyWidth-listWidth-categoryGapWidth, 1)
+	return categoryPickerMetrics{
+		bodyWidth:    bodyWidth,
+		bodyHeight:   bodyHeight,
+		listWidth:    listWidth,
+		listHeight:   bodyHeight,
+		detailWidth:  detailWidth,
+		detailHeight: bodyHeight,
+	}
+}
+
+func selectedCategoryName(item list.Item) string {
+	cat, ok := item.(game.Category)
+	if !ok {
+		return ""
+	}
+	return cat.Name
+}
+
+func activeFilterList(m model) *list.Model {
+	switch m.state {
+	case gameSelectView:
+		return &m.nav.gameSelectList
+	case themeSelectView:
+		return &m.theme.list
+	default:
+		return nil
+	}
+}
+
+func (m model) updateCategoryDetailViewport() model {
+	metrics := categoryPickerSize(m.width, m.height)
+	contentWidth := max(metrics.detailWidth-categoryDetailTrimX, 1)
+	contentHeight := max(metrics.detailHeight-categoryDetailTrimY, 1)
+
+	if m.nav.categoryDetail.Width() == 0 || m.nav.categoryDetail.Height() == 0 {
+		m.nav.categoryDetail = viewport.New(
+			viewport.WithWidth(contentWidth),
+			viewport.WithHeight(contentHeight),
+		)
+	}
+	m.nav.categoryDetail.SetWidth(contentWidth)
+	m.nav.categoryDetail.SetHeight(contentHeight)
+	m.nav.categoryDetail.FillHeight = true
+
+	cat, ok := m.nav.gameSelectList.SelectedItem().(game.Category)
+	if !ok {
+		m.nav.categoryDetail.SetContent("")
+		return m
+	}
+
+	m.nav.categoryDetail.SetContent(renderCategoryDetailContent(cat, contentWidth))
+	m.nav.categoryDetail.GotoTop()
+	return m
 }
 
 func (m model) updateHelpDetailViewport() model {
@@ -115,7 +212,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case optionsMenuView:
 		updateMainMenuCursor(msg, &m.nav.optionsMenu)
 	case seedInputView:
-		m.nav.seedInput, cmd = m.nav.seedInput.Update(msg)
+		m, cmd = m.handleSeedInputUpdate(msg)
 	case generatingView:
 		m.spinner, cmd = m.spinner.Update(msg)
 	case gameView:
@@ -125,7 +222,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m = m.persistCompletionIfSolved()
 	case gameSelectView:
+		prev := selectedCategoryName(m.nav.gameSelectList.SelectedItem())
 		m.nav.gameSelectList, cmd = m.nav.gameSelectList.Update(msg)
+		if selectedCategoryName(m.nav.gameSelectList.SelectedItem()) != prev {
+			m = m.updateCategoryDetailViewport()
+		}
 	case modeSelectView:
 		m.nav.modeSelectList, cmd = m.nav.modeSelectList.Update(msg)
 	case continueView:
@@ -154,7 +255,9 @@ func (m model) handleWindowSize(msg tea.WindowSizeMsg) model {
 	m.width = msg.Width
 	m.height = msg.Height
 	menuW := min(m.width, 64)
-	m.nav.gameSelectList.SetSize(menuW, min(m.height, ui.ListHeight(m.nav.gameSelectList)))
+	metrics := categoryPickerSize(m.width, m.height)
+	m.nav.gameSelectList.SetSize(metrics.listWidth, metrics.listHeight)
+	m = m.updateCategoryDetailViewport()
 	if m.state == seedInputView {
 		m.nav.seedInput.SetWidth(min(m.width, 48))
 	}
@@ -197,7 +300,28 @@ func (m model) handleGlobalKey(msg tea.KeyPressMsg) (model, tea.Cmd, bool) {
 		return m, nil, true
 	}
 
+	if l := activeFilterList(m); l != nil {
+		switch {
+		case l.SettingFilter() && l.FilterValue() == "" && key.Matches(msg, rootKeys.Enter):
+			l.ResetFilter()
+			if m.state == gameSelectView {
+				m = m.updateCategoryDetailViewport()
+			}
+			return m, nil, true
+		case l.SettingFilter() && key.Matches(msg, rootKeys.Enter):
+			return m, nil, false
+		case l.FilterState() != list.Unfiltered && key.Matches(msg, rootKeys.Escape):
+			return m, nil, false
+		}
+	}
+
 	switch {
+	case m.state == gameSelectView && msg.String() == "pgup":
+		m.nav.categoryDetail.PageUp()
+		return m, nil, true
+	case m.state == gameSelectView && msg.String() == "pgdown":
+		m.nav.categoryDetail.PageDown()
+		return m, nil, true
 	case key.Matches(msg, rootKeys.MainMenu):
 		m = saveCurrentGame(m, store.StatusInProgress)
 		m.state = mainMenuView
@@ -317,17 +441,12 @@ func (m model) handlePlayMenuEnter() (tea.Model, tea.Cmd) {
 		return m.handleDailyPuzzle()
 	case "Generate":
 		m.state = gameSelectView
+		m = m.updateCategoryDetailViewport()
 	case "Continue":
 		m.nav.continueTable, m.nav.continueGames = ui.InitContinueTable(m.store, m.height)
 		m.state = continueView
 	case "Enter Seed":
-		ti := textinput.New()
-		ti.Placeholder = "any word or phrase"
-		ti.CharLimit = 64
-		ti.SetWidth(min(m.width, 48))
-		m.nav.seedInput = ti
-		m.state = seedInputView
-		return m, m.nav.seedInput.Focus()
+		return m.enterSeedInputView()
 	}
 	return m, nil
 }
@@ -351,7 +470,12 @@ func (m model) handleSeedConfirm() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
+	selectedMode := m.currentSeedMode()
 	name := sessionflow.SeededName(seed)
+	if selectedMode.key != "" {
+		name = sessionflow.SeededNameForGame(seed, selectedMode.gameType)
+	}
+
 	rec, err := m.store.GetDailyGame(name)
 	if err != nil {
 		log.Printf("failed to check seeded game: %v", err)
@@ -368,10 +492,21 @@ func (m model) handleSeedConfirm() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	spawner, gameType, modeTitle, err := resolve.SeededMode(seed, catalog.All)
-	if err != nil {
-		log.Printf("failed to select seeded mode: %v", err)
-		return m, nil
+	var spawner game.SeededSpawner
+	var gameType string
+	modeTitle := ""
+	if selectedMode.key == "" {
+		spawner, gameType, modeTitle, err = resolve.SeededMode(seed, catalog.All)
+		if err != nil {
+			log.Printf("failed to select seeded mode: %v", err)
+			return m, nil
+		}
+	} else {
+		spawner, gameType, modeTitle, err = resolve.SeededModeForGame(seed, selectedMode.gameType, catalog.All)
+		if err != nil {
+			log.Printf("failed to select seeded mode for %s: %v", selectedMode.gameType, err)
+			return m, nil
+		}
 	}
 
 	rng := resolve.RNGFromString(seed)
@@ -494,6 +629,7 @@ func (m model) handleEscape() (tea.Model, tea.Cmd) {
 		m.state = returnState
 	case modeSelectView:
 		m.state = gameSelectView
+		m = m.updateCategoryDetailViewport()
 	case helpDetailView:
 		m.state = helpSelectView
 	case helpSelectView, themeSelectView:

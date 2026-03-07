@@ -15,6 +15,7 @@ import (
 	"github.com/FelineStateMachine/puzzletea/shikaku"
 	"github.com/FelineStateMachine/puzzletea/sudoku"
 	"github.com/FelineStateMachine/puzzletea/takuzu"
+	"github.com/FelineStateMachine/puzzletea/takuzuplus"
 	"github.com/FelineStateMachine/puzzletea/wordsearch"
 )
 
@@ -30,6 +31,7 @@ var All = []game.Definition{
 	shikaku.Definition,
 	sudoku.Definition,
 	takuzu.Definition,
+	takuzuplus.Definition,
 	wordsearch.Definition,
 }
 

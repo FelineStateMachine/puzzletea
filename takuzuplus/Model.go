@@ -1,5 +1,5 @@
-// Package takuzu implements the binary (Binairo) puzzle game.
-package takuzu
+// Package takuzuplus implements the Takuzu+ puzzle game.
+package takuzuplus
 
 import (
 	"fmt"
@@ -7,14 +7,15 @@ import (
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"github.com/FelineStateMachine/puzzletea/game"
+	"github.com/FelineStateMachine/puzzletea/takuzu"
 )
 
-// Model implements game.Gamer for Takuzu.
 type Model struct {
 	size         int
 	grid         grid
 	initialGrid  grid
 	provided     [][]bool
+	relations    relations
 	cursor       game.Cursor
 	solved       bool
 	keys         KeyMap
@@ -29,13 +30,13 @@ type Model struct {
 
 var _ game.Gamer = Model{}
 
-// New creates a new Takuzu game model.
-func New(mode TakuzuMode, puzzle grid, provided [][]bool) (game.Gamer, error) {
+func New(mode TakuzuPlusMode, puzzle grid, provided [][]bool, rels relations) (game.Gamer, error) {
 	m := Model{
 		size:        mode.Size,
 		grid:        puzzle,
 		initialGrid: puzzle.clone(),
 		provided:    provided,
+		relations:   rels,
 		cursor:      game.Cursor{X: 0, Y: 0},
 		keys:        DefaultKeyMap,
 		modeTitle:   mode.Title(),
@@ -78,7 +79,7 @@ func (m Model) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 }
 
 func (m Model) View() string {
-	title := game.TitleBarView("Takuzu", m.modeTitle, m.solved)
+	title := game.TitleBarView("Takuzu+", m.modeTitle, m.solved)
 	grid := gridView(m)
 	if m.solved {
 		return game.ComposeGameView(title, grid)
@@ -105,7 +106,6 @@ func (m Model) Reset() game.Gamer {
 }
 
 func (m Model) checkSolved() bool {
-	// All cells must be filled.
 	for y := range m.size {
 		for x := range m.size {
 			if m.grid[y][x] == emptyCell {
@@ -113,7 +113,9 @@ func (m Model) checkSolved() bool {
 			}
 		}
 	}
-	return checkConstraints(m.grid, m.size) && hasUniqueLines(m.grid, m.size)
+	return takuzu.CheckConstraintsGrid(m.grid, m.size) &&
+		takuzu.HasUniqueLinesGrid(m.grid, m.size) &&
+		checkRelations(m.grid, m.relations)
 }
 
 func (m Model) GetDebugInfo() string {
@@ -131,11 +133,12 @@ func (m Model) GetDebugInfo() string {
 		}
 	}
 
-	return game.DebugHeader("Takuzu", [][2]string{
+	return game.DebugHeader("Takuzu+", [][2]string{
 		{"Status", status},
 		{"Cursor", fmt.Sprintf("(%d, %d)", m.cursor.X, m.cursor.Y)},
 		{"Grid Size", fmt.Sprintf("%d×%d", m.size, m.size)},
 		{"Cells Filled", fmt.Sprintf("%d / %d", filled, m.size*m.size)},
+		{"Relation Clues", fmt.Sprintf("%d", countRelations(m.relations))},
 	})
 }
 

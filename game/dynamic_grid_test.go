@@ -151,3 +151,51 @@ func TestDynamicGridOriginStableAcrossSecondaryRows(t *testing.T) {
 		t.Fatalf("origin changed from (%d,%d) to (%d,%d)", shortX, shortY, longX, longY)
 	}
 }
+
+func TestRenderDynamicGridVerticalBridgeText(t *testing.T) {
+	view := RenderDynamicGrid(DynamicGridSpec{
+		Width:  2,
+		Height: 1,
+		Cell: func(_, _ int) string {
+			return "   "
+		},
+		ZoneAt: func(_, _ int) int {
+			return 0
+		},
+		VerticalBridgeText: func(x, y int) string {
+			if x == 1 && y == 0 {
+				return "x"
+			}
+			return ""
+		},
+	})
+
+	lines := strings.Split(ansi.Strip(view), "\n")
+	if got := []rune(lines[1])[4]; got != 'x' {
+		t.Fatalf("vertical bridge rune = %q, want %q", got, 'x')
+	}
+}
+
+func TestRenderDynamicGridHorizontalBridgeText(t *testing.T) {
+	view := RenderDynamicGrid(DynamicGridSpec{
+		Width:  1,
+		Height: 2,
+		Cell: func(_, _ int) string {
+			return "   "
+		},
+		ZoneAt: func(_, _ int) int {
+			return 0
+		},
+		HorizontalBridgeText: func(x, y int) string {
+			if x == 0 && y == 1 {
+				return "="
+			}
+			return ""
+		},
+	})
+
+	lines := strings.Split(ansi.Strip(view), "\n")
+	if got := []rune(lines[2])[2]; got != '=' {
+		t.Fatalf("horizontal bridge rune = %q, want %q", got, '=')
+	}
+}

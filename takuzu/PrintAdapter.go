@@ -20,12 +20,12 @@ func (printAdapter) BuildPDFPayload(save []byte) (any, error) {
 func (printAdapter) RenderPDFBody(pdf *fpdf.Fpdf, payload any) error {
 	switch data := payload.(type) {
 	case *pdfexport.TakuzuData:
-		renderTakuzuPage(pdf, data)
+		RenderTakuzuPDFBody(pdf, data)
 	}
 	return nil
 }
 
-func renderTakuzuPage(pdf *fpdf.Fpdf, data *pdfexport.TakuzuData) {
+func RenderTakuzuPDFBody(pdf *fpdf.Fpdf, data *pdfexport.TakuzuData) {
 	if data == nil || data.Size <= 0 {
 		return
 	}
@@ -80,6 +80,8 @@ func renderTakuzuPage(pdf *fpdf.Fpdf, data *pdfexport.TakuzuData) {
 		}
 	}
 
+	drawTakuzuRelations(pdf, data, startX, startY, cellSize)
+
 	pdf.SetDrawColor(35, 35, 35)
 	pdf.SetLineWidth(pdfexport.OuterBorderLineMM)
 	pdf.Rect(startX, startY, blockW, blockH, "D")
@@ -112,6 +114,52 @@ func renderTakuzuPage(pdf *fpdf.Fpdf, data *pdfexport.TakuzuData) {
 	)
 }
 
+func drawTakuzuRelations(pdf *fpdf.Fpdf, data *pdfexport.TakuzuData, startX, startY, cellSize float64) {
+	if data == nil {
+		return
+	}
+
+	pdf.SetTextColor(95, 95, 95)
+	fontSize := takuzuRelationFontSize(cellSize, data.Size)
+	pdf.SetFont(pdfexport.SansFontFamily, "B", fontSize)
+	pdf.SetFillColor(255, 255, 255)
+
+	for y, row := range data.HorizontalRelations {
+		for x, value := range row {
+			if strings.TrimSpace(value) == "" {
+				continue
+			}
+
+			centerX := startX + float64(x+1)*cellSize
+			centerY := startY + float64(y)*cellSize + cellSize/2
+			drawTakuzuRelation(pdf, centerX, centerY, cellSize, fontSize, value)
+		}
+	}
+
+	for y, row := range data.VerticalRelations {
+		for x, value := range row {
+			if strings.TrimSpace(value) == "" {
+				continue
+			}
+
+			centerX := startX + float64(x)*cellSize + cellSize/2
+			centerY := startY + float64(y+1)*cellSize
+			drawTakuzuRelation(pdf, centerX, centerY, cellSize, fontSize, value)
+		}
+	}
+}
+
+func drawTakuzuRelation(pdf *fpdf.Fpdf, centerX, centerY, cellSize, fontSize float64, value string) {
+	boxSize := takuzuRelationBackdropSize(cellSize, fontSize)
+	left := centerX - boxSize/2
+	top := centerY - boxSize/2
+	lineH := fontSize * 0.9
+
+	pdf.Rect(left, top, boxSize, boxSize, "F")
+	pdf.SetXY(left, centerY-lineH/2)
+	pdf.CellFormat(boxSize, lineH, value, "", 0, "C", false, 0, "")
+}
+
 func drawTakuzuGiven(pdf *fpdf.Fpdf, x, y, cellSize float64, size int, text string) {
 	fontSize := takuzuGivenFontSize(cellSize, size)
 
@@ -131,6 +179,21 @@ func takuzuGivenFontSize(cellSize float64, size int) float64 {
 		fontSize *= 0.97
 	}
 	return pdfexport.ClampStandardCellFontSize(fontSize)
+}
+
+func takuzuRelationFontSize(cellSize float64, size int) float64 {
+	fontSize := cellSize * 0.58
+	if size >= 12 {
+		fontSize *= 0.97
+	}
+	if fontSize < 6.0 {
+		return 6.0
+	}
+	return pdfexport.ClampStandardCellFontSize(fontSize)
+}
+
+func takuzuRelationBackdropSize(cellSize, fontSize float64) float64 {
+	return fontSize + cellSize*0.12
 }
 
 func init() {

@@ -2,7 +2,9 @@ package app
 
 import (
 	"fmt"
+	"strings"
 
+	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/stats"
 	"github.com/FelineStateMachine/puzzletea/theme"
 	"github.com/FelineStateMachine/puzzletea/ui"
@@ -26,17 +28,12 @@ func (m model) View() tea.View {
 	case seedInputView:
 		panel := ui.Panel(
 			"Enter Seed",
-			m.nav.seedInput.View(),
-			"enter confirm • esc back",
+			m.seedInputBody(),
+			"↑/↓ change field • ←/→ game • enter confirm • esc back",
 		)
 		content = ui.CenterView(m.width, m.height, panel)
 	case gameSelectView:
-		panel := ui.Panel(
-			"Select Category",
-			m.nav.gameSelectList.View(),
-			"↑/↓ navigate • enter select • esc back",
-		)
-		content = ui.CenterView(m.width, m.height, panel)
+		content = m.gameSelectViewContent()
 	case modeSelectView:
 		panel := ui.Panel(
 			m.nav.selectedCategory.Name+" — Select Mode",
@@ -129,6 +126,88 @@ func (m model) View() tea.View {
 		v.KeyboardEnhancements.ReportEventTypes = true
 	}
 	return v
+}
+
+func (m model) gameSelectViewContent() string {
+	metrics := categoryPickerSize(m.width, m.height)
+
+	listView := lipgloss.NewStyle().
+		Width(metrics.listWidth).
+		Height(metrics.listHeight).
+		Render(m.nav.gameSelectList.View())
+
+	detailBox := lipgloss.NewStyle().
+		Width(metrics.detailWidth).
+		Height(metrics.detailHeight).
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(theme.Current().Border).
+		Padding(1, 2).
+		Render(m.nav.categoryDetail.View())
+
+	body := lipgloss.JoinHorizontal(lipgloss.Top, listView, strings.Repeat(" ", categoryGapWidth), detailBox)
+	if metrics.stacked {
+		body = lipgloss.JoinVertical(lipgloss.Left, listView, "", detailBox)
+	}
+	body = lipgloss.NewStyle().
+		Width(metrics.bodyWidth).
+		Height(metrics.bodyHeight).
+		Render(body)
+
+	panel := ui.Panel(
+		"Select Category",
+		body,
+		"↑/↓ navigate • pgup/pgdn details • / filter • enter select • esc back",
+	)
+	return ui.CenterView(m.width, m.height, panel)
+}
+
+func categoryPickerListHeight() int {
+	const (
+		maxVisibleItems = 8
+		filterChrome    = 2
+	)
+
+	return maxVisibleItems + filterChrome
+}
+
+func renderCategoryDetailContent(cat game.Category, width int) string {
+	p := theme.Current()
+	desc := lipgloss.NewStyle().
+		Foreground(p.FG).
+		Width(width).
+		Render(cat.Desc)
+
+	meta := ui.DimItemStyle().Render(fmt.Sprintf("%d modes available", len(cat.Modes)))
+	content := lipgloss.JoinVertical(lipgloss.Left,
+		ui.PanelTitle().Render(cat.Name),
+		meta,
+		"",
+		desc,
+		"",
+		ui.SelectedItemStyle().Render("Modes"),
+		renderModeList(cat, width),
+	)
+	return content
+}
+
+func renderModeList(cat game.Category, width int) string {
+	if len(cat.Modes) == 0 {
+		return ui.DimItemStyle().Render("No modes available.")
+	}
+
+	lines := make([]string, 0, len(cat.Modes))
+	for _, item := range cat.Modes {
+		mode, ok := item.(game.Mode)
+		if !ok {
+			continue
+		}
+		line := lipgloss.NewStyle().Width(width).Render("• " + mode.Title())
+		lines = append(lines, line)
+	}
+	if len(lines) == 0 {
+		return ui.DimItemStyle().Render("No modes available.")
+	}
+	return strings.Join(lines, "\n")
 }
 
 // themeSelectViewContent renders the theme picker as a side-by-side layout:

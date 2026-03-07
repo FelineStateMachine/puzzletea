@@ -134,6 +134,46 @@ func TestParseJSONLFileHydratesTakuzuFromSave(t *testing.T) {
 	}
 }
 
+func TestParseJSONLFileHydratesTakuzuPlusFromSave(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "takuzuplus-pack.jsonl")
+	record := JSONLRecord{
+		Schema: ExportSchemaV1,
+		Pack: JSONLPackMeta{
+			Generated:     "2026-02-22T10:00:00Z",
+			Version:       "v-test",
+			Category:      "Takuzu+",
+			ModeSelection: "Beginner",
+			Count:         1,
+		},
+		Puzzle: JSONLPuzzle{
+			Index: 1,
+			Name:  "binary-link",
+			Game:  "Takuzu+",
+			Mode:  "Beginner",
+			Save:  json.RawMessage(`{"size":4,"state":"01..\n10..\n0011\n1111","provided":"#...\n.##.\n####\n#...","horizontal_relations":"=x.\n...\n..=\n...","vertical_relations":"x...\n.=..\n...x"}`),
+		},
+	}
+	writeSingleJSONLRecord(t, path, record)
+
+	doc, err := ParseJSONLFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := len(doc.Puzzles), 1; got != want {
+		t.Fatalf("puzzles = %d, want %d", got, want)
+	}
+	payload, ok := doc.Puzzles[0].PrintPayload.(*TakuzuData)
+	if !ok || payload == nil {
+		t.Fatal("expected takuzu+ print payload from save hydration")
+	}
+	if got, want := payload.HorizontalRelations[0][0], "="; got != want {
+		t.Fatalf("horizontal relation = %q, want %q", got, want)
+	}
+	if got, want := payload.VerticalRelations[1][1], "="; got != want {
+		t.Fatalf("vertical relation = %q, want %q", got, want)
+	}
+}
+
 func TestParseJSONLFileHydratesSudokuFromSave(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "sudoku.jsonl")
 	record := JSONLRecord{
@@ -458,6 +498,9 @@ func ensureJSONLTestAdapters() {
 		register("Takuzu", buildPayloadAdapter("Takuzu", func(save []byte) (any, error) {
 			return ParseTakuzuPrintData(save)
 		}), "takuzu")
+		register("Takuzu+", buildPayloadAdapter("Takuzu+", func(save []byte) (any, error) {
+			return ParseTakuzuPlusPrintData(save)
+		}), "takuzu+", "takuzu plus", "binario+")
 		register("Sudoku", buildPayloadAdapter("Sudoku", func(save []byte) (any, error) {
 			return ParseSudokuPrintData(save)
 		}), "sudoku")

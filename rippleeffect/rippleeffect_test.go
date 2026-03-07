@@ -1,6 +1,7 @@
 package rippleeffect
 
 import (
+	"image"
 	"image/color"
 	"math/rand/v2"
 	"strings"
@@ -415,6 +416,133 @@ func TestActiveCageBridgeBackgrounds(t *testing.T) {
 	}
 	if got := horizontalGapBackground(geo, bridge, 1, 1); got != nil {
 		t.Fatal("expected cage boundary row to keep nil background for hover highlight")
+	}
+}
+
+func TestBridgeFillUsesOpenAnchoredCrosshair(t *testing.T) {
+	geo, err := buildGeometry(3, 2, []Cage{
+		{ID: 0, Size: 2, Cells: []Cell{{0, 0}, {0, 1}}},
+		{ID: 1, Size: 2, Cells: []Cell{{1, 0}, {2, 0}}},
+		{ID: 2, Size: 1, Cells: []Cell{{1, 1}}},
+		{ID: 3, Size: 1, Cells: []Cell{{2, 1}}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	m := Model{
+		width:     3,
+		height:    2,
+		grid:      newGrid(3, 2),
+		givens:    newGrid(3, 2),
+		conflicts: newConflictGrid(3, 2),
+		cursor:    pointCursor(0, 0),
+		geo:       geo,
+	}
+	bridgeBG := bridgeBackgrounds(m, nil)
+
+	got := bridgeFill(m, bridgeBG, game.DynamicGridBridge{
+		Kind:    game.DynamicGridBridgeVertical,
+		X:       2,
+		Y:       0,
+		Count:   2,
+		Zone:    geo.cageGrid[0][1],
+		Uniform: true,
+		Cells: [4]image.Point{
+			{X: 1, Y: 0},
+			{X: 2, Y: 0},
+		},
+	})
+	if !sameColor(got, theme.Current().Surface) {
+		t.Fatal("expected anchored open bridge on cursor row to use crosshair background")
+	}
+}
+
+func TestBridgeFillDoesNotExpandIntoOpenInterior(t *testing.T) {
+	geo, err := buildGeometry(4, 3, []Cage{
+		{ID: 0, Size: 1, Cells: []Cell{{0, 1}}},
+		{ID: 1, Size: 9, Cells: []Cell{{1, 0}, {2, 0}, {3, 0}, {1, 1}, {2, 1}, {3, 1}, {1, 2}, {2, 2}, {3, 2}}},
+		{ID: 2, Size: 1, Cells: []Cell{{0, 0}}},
+		{ID: 3, Size: 1, Cells: []Cell{{0, 2}}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	m := Model{
+		width:     4,
+		height:    3,
+		grid:      newGrid(4, 3),
+		givens:    newGrid(4, 3),
+		conflicts: newConflictGrid(4, 3),
+		cursor:    pointCursor(0, 1),
+		geo:       geo,
+	}
+	bridgeBG := bridgeBackgrounds(m, nil)
+
+	if got := bridgeFill(m, bridgeBG, game.DynamicGridBridge{
+		Kind:    game.DynamicGridBridgeVertical,
+		X:       2,
+		Y:       1,
+		Count:   2,
+		Zone:    geo.cageGrid[1][1],
+		Uniform: true,
+		Cells: [4]image.Point{
+			{X: 1, Y: 1},
+			{X: 2, Y: 1},
+		},
+	}); got != nil {
+		t.Fatal("expected fully open interior bridge to remain unfilled")
+	}
+}
+
+func TestBridgeFillVerticalUsesRowCrosshairOnly(t *testing.T) {
+	m := Model{cursor: pointCursor(0, 1)}
+
+	if got := bridgeFill(m, nil, game.DynamicGridBridge{
+		Kind: game.DynamicGridBridgeVertical,
+		X:    1,
+		Y:    0,
+	}); got != nil {
+		t.Fatal("expected vertical separator to ignore column-only crosshair match")
+	}
+}
+
+func TestBridgeFillHorizontalUsesColumnCrosshairOnly(t *testing.T) {
+	m := Model{cursor: pointCursor(1, 0)}
+
+	if got := bridgeFill(m, nil, game.DynamicGridBridge{
+		Kind: game.DynamicGridBridgeHorizontal,
+		X:    0,
+		Y:    1,
+	}); got != nil {
+		t.Fatal("expected horizontal separator to ignore row-only crosshair match")
+	}
+}
+
+func TestBridgeFillExtendsThroughClosedVerticalSeparator(t *testing.T) {
+	m := Model{cursor: pointCursor(0, 0)}
+
+	got := bridgeFill(m, nil, game.DynamicGridBridge{
+		Kind: game.DynamicGridBridgeVertical,
+		X:    1,
+		Y:    0,
+	})
+	if !sameColor(got, theme.Current().Surface) {
+		t.Fatal("expected closed vertical separator on cursor row to use surface background")
+	}
+}
+
+func TestBridgeFillExtendsThroughClosedHorizontalSeparator(t *testing.T) {
+	m := Model{cursor: pointCursor(0, 0)}
+
+	got := bridgeFill(m, nil, game.DynamicGridBridge{
+		Kind: game.DynamicGridBridgeHorizontal,
+		X:    0,
+		Y:    1,
+	})
+	if !sameColor(got, theme.Current().Surface) {
+		t.Fatal("expected closed horizontal separator on cursor column to use surface background")
 	}
 }
 

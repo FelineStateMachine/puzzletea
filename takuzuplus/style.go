@@ -1,4 +1,4 @@
-package takuzu
+package takuzuplus
 
 import (
 	"image/color"
@@ -94,6 +94,9 @@ func gridView(m Model) string {
 			if m.solved {
 				return theme.Current().SuccessBG
 			}
+			if bg := relationBridgeBackground(m, bridge); bg != nil {
+				return bg
+			}
 			for i := 0; i < bridge.Count; i++ {
 				cell := bridge.Cells[i]
 				if cell.X == m.cursor.X || cell.Y == m.cursor.Y {
@@ -102,12 +105,70 @@ func gridView(m Model) string {
 			}
 			return nil
 		},
+		VerticalBridgeText: func(x, y int) string {
+			if x <= 0 || x >= m.size {
+				return ""
+			}
+			rel := m.relations.horizontal[y][x-1]
+			if rel == relationNone {
+				return ""
+			}
+			return string(rel)
+		},
+		HorizontalBridgeText: func(x, y int) string {
+			if y <= 0 || y >= m.size {
+				return ""
+			}
+			rel := m.relations.vertical[y-1][x]
+			if rel == relationNone {
+				return ""
+			}
+			return string(rel)
+		},
 	})
+}
+
+func relationBridgeBackground(m Model, bridge game.DynamicGridBridge) color.Color {
+	switch bridge.Kind {
+	case game.DynamicGridBridgeVertical:
+		if bridge.X <= 0 || bridge.X >= m.size || bridge.Y < 0 || bridge.Y >= m.size {
+			return nil
+		}
+		return relationStateBackground(relationState(m.relations.horizontal[bridge.Y][bridge.X-1], m.grid[bridge.Y][bridge.X-1], m.grid[bridge.Y][bridge.X]))
+	case game.DynamicGridBridgeHorizontal:
+		if bridge.Y <= 0 || bridge.Y >= m.size || bridge.X < 0 || bridge.X >= m.size {
+			return nil
+		}
+		return relationStateBackground(relationState(m.relations.vertical[bridge.Y-1][bridge.X], m.grid[bridge.Y-1][bridge.X], m.grid[bridge.Y][bridge.X]))
+	default:
+		return nil
+	}
+}
+
+func relationState(rel, left, right rune) int {
+	if rel == relationNone || left == emptyCell || right == emptyCell {
+		return 0
+	}
+	if relationSatisfied(rel, left, right) {
+		return 1
+	}
+	return -1
+}
+
+func relationStateBackground(state int) color.Color {
+	switch state {
+	case 1:
+		return theme.Current().SuccessBG
+	case -1:
+		return game.ConflictBG()
+	default:
+		return nil
+	}
 }
 
 func statusBarView(showFullHelp bool) string {
 	if showFullHelp {
-		return game.StatusBarStyle().Render("arrows/wasd: move  mouse: click/cycle  z: ●  x: ○  bkspc: clear  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
+		return game.StatusBarStyle().Render("arrows/wasd: move  mouse: click/cycle  z: ●  x: ○  bkspc: clear  =: same clue  x: opposite clue  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
 	}
-	return game.StatusBarStyle().Render("mouse: click/cycle  z: ●  x: ○")
+	return game.StatusBarStyle().Render("mouse: click/cycle  z: ●  x: ○  fixed clues: = and x")
 }

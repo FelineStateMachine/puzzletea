@@ -72,12 +72,17 @@ type navigationState struct {
 	playMenu          ui.MainMenu
 	optionsMenu       ui.MainMenu
 	gameSelectList    list.Model
+	categoryDetail    viewport.Model
 	modeSelectList    list.Model
 	selectedCategory  game.Category
 	selectedModeTitle string
 	continueTable     table.Model
 	continueGames     []store.GameRecord
 	seedInput         textinput.Model
+	seedModeOptions   []seedModeOption
+	seedModeIndex     int
+	seedFocus         seedInputFocus
+	lastSeedModeKey   string
 	helpSelectList    list.Model
 }
 
@@ -130,6 +135,19 @@ type spawnRequest struct {
 	gameType    string
 	modeTitle   string
 	returnState viewState
+}
+
+type seedInputFocus int
+
+const (
+	seedFocusText seedInputFocus = iota
+	seedFocusMode
+)
+
+type seedModeOption struct {
+	key      string
+	label    string
+	gameType string
 }
 
 type model struct {

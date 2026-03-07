@@ -121,15 +121,131 @@ func gridView(m Model) string {
 			}
 		},
 		BridgeFill: func(bridge game.DynamicGridBridge) color.Color {
-			for i := 0; i < bridge.Count; i++ {
-				cell := bridge.Cells[i]
-				if m.conflicts[cell.Y][cell.X] {
-					return game.ConflictBG()
-				}
-			}
-			return nil
+			return bridgeFill(m, renderState, bridge)
 		},
 	})
+}
+
+func bridgeFill(m Model, renderState renderGridState, bridge game.DynamicGridBridge) color.Color {
+	for i := 0; i < bridge.Count; i++ {
+		cell := bridge.Cells[i]
+		if m.conflicts[cell.Y][cell.X] {
+			return game.ConflictBG()
+		}
+	}
+
+	if m.solved {
+		return nil
+	}
+
+	if bridge.Uniform {
+		switch {
+		case renderState.completed[bridge.Zone] != nil:
+			return nil
+		case renderState.activeZone >= 0 && bridge.Zone == renderState.activeZone:
+			return nil
+		}
+	}
+
+	if bridge.Count > 0 && !bridgeTouchesBorder(renderState, bridge, m.width, m.height) {
+		return nil
+	}
+
+	if bridgeOnCrosshairAxis(m.cursor, bridge) {
+		return theme.Current().Surface
+	}
+
+	return nil
+}
+
+func bridgeOnCrosshairAxis(cursor game.Cursor, bridge game.DynamicGridBridge) bool {
+	switch bridge.Kind {
+	case game.DynamicGridBridgeVertical:
+		if bridge.Count == 0 {
+			return bridge.Y == cursor.Y
+		}
+		for i := 0; i < bridge.Count; i++ {
+			if bridge.Cells[i].Y == cursor.Y {
+				return true
+			}
+		}
+	case game.DynamicGridBridgeHorizontal:
+		if bridge.Count == 0 {
+			return bridge.X == cursor.X
+		}
+		for i := 0; i < bridge.Count; i++ {
+			if bridge.Cells[i].X == cursor.X {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func bridgeTouchesBorder(renderState renderGridState, bridge game.DynamicGridBridge, width, height int) bool {
+	switch bridge.Kind {
+	case game.DynamicGridBridgeVertical:
+		return zoneJunctionRune(renderState.zones, width, height, bridge.X, bridge.Y) != ' ' ||
+			zoneJunctionRune(renderState.zones, width, height, bridge.X, bridge.Y+1) != ' '
+	case game.DynamicGridBridgeHorizontal:
+		return zoneJunctionRune(renderState.zones, width, height, bridge.X, bridge.Y) != ' ' ||
+			zoneJunctionRune(renderState.zones, width, height, bridge.X+1, bridge.Y) != ' '
+	default:
+		return false
+	}
+}
+
+func zoneHorizontalEdge(zones [][]int, width, height, x, y int) bool {
+	switch {
+	case y <= 0, y >= height:
+		return true
+	default:
+		return zones[y-1][x] != zones[y][x]
+	}
+}
+
+func zoneVerticalEdge(zones [][]int, width, height, x, y int) bool {
+	_ = height
+	switch {
+	case x <= 0, x >= width:
+		return true
+	default:
+		return zones[y][x-1] != zones[y][x]
+	}
+}
+
+func zoneJunctionRune(zones [][]int, width, height, x, y int) rune {
+	north := y > 0 && zoneVerticalEdge(zones, width, height, x, y-1)
+	south := y < height && zoneVerticalEdge(zones, width, height, x, y)
+	west := x > 0 && zoneHorizontalEdge(zones, width, height, x-1, y)
+	east := x < width && zoneHorizontalEdge(zones, width, height, x, y)
+
+	switch {
+	case north && south && west && east:
+		return '┼'
+	case north && south && west:
+		return '┤'
+	case north && south && east:
+		return '├'
+	case west && east && north:
+		return '┴'
+	case west && east && south:
+		return '┬'
+	case south && east:
+		return '┌'
+	case south && west:
+		return '┐'
+	case north && east:
+		return '└'
+	case north && west:
+		return '┘'
+	case north || south:
+		return '│'
+	case west || east:
+		return '─'
+	default:
+		return ' '
+	}
 }
 
 func buildRenderGridState(m Model) renderGridState {

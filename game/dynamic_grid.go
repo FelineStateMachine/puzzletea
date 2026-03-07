@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"charm.land/lipgloss/v2"
+	"github.com/FelineStateMachine/puzzletea/theme"
 )
 
 const DynamicGridCellWidth = 3
@@ -40,14 +41,16 @@ type DynamicGridBridge struct {
 }
 
 type DynamicGridSpec struct {
-	Width      int
-	Height     int
-	Solved     bool
-	Colors     *GridBorderColors
-	Cell       func(x, y int) string
-	ZoneAt     func(x, y int) int
-	ZoneFill   func(zone int) color.Color
-	BridgeFill func(bridge DynamicGridBridge) color.Color
+	Width                int
+	Height               int
+	Solved               bool
+	Colors               *GridBorderColors
+	Cell                 func(x, y int) string
+	ZoneAt               func(x, y int) int
+	ZoneFill             func(zone int) color.Color
+	BridgeFill           func(bridge DynamicGridBridge) color.Color
+	VerticalBridgeText   func(x, y int) string
+	HorizontalBridgeText func(x, y int) string
 }
 
 func RenderDynamicGrid(spec DynamicGridSpec) string {
@@ -127,24 +130,14 @@ func dynamicGridContentRow(spec DynamicGridSpec, y int) string {
 	var b strings.Builder
 	for x := range spec.Width {
 		bridge := dynamicGridVerticalBridge(spec, x, y)
-		b.WriteString(dynamicGridRenderBorderChar(
-			verticalEdgeRune(dynamicGridHasVerticalEdge(spec, x, y)),
-			dynamicGridColors(spec),
-			spec.Solved,
-			dynamicGridBridgeBackground(spec, bridge),
-		))
+		b.WriteString(dynamicGridRenderVerticalBridge(spec, x, y, bridge))
 		if spec.Cell != nil {
 			b.WriteString(spec.Cell(x, y))
 		}
 	}
 
 	bridge := dynamicGridVerticalBridge(spec, spec.Width, y)
-	b.WriteString(dynamicGridRenderBorderChar(
-		verticalEdgeRune(dynamicGridHasVerticalEdge(spec, spec.Width, y)),
-		dynamicGridColors(spec),
-		spec.Solved,
-		dynamicGridBridgeBackground(spec, bridge),
-	))
+	b.WriteString(dynamicGridRenderVerticalBridge(spec, spec.Width, y, bridge))
 	return b.String()
 }
 
@@ -161,20 +154,8 @@ func dynamicGridBoundaryRow(spec DynamicGridSpec, y int) string {
 		if x == spec.Width {
 			continue
 		}
-
-		ch := ' '
-		if dynamicGridHasHorizontalEdge(spec, x, y) {
-			ch = '─'
-		}
-		b.WriteString(strings.Repeat(
-			dynamicGridRenderBorderChar(
-				ch,
-				dynamicGridColors(spec),
-				spec.Solved,
-				dynamicGridBridgeBackground(spec, dynamicGridHorizontalBridge(spec, x, y)),
-			),
-			DynamicGridCellWidth,
-		))
+		bridge := dynamicGridHorizontalBridge(spec, x, y)
+		b.WriteString(dynamicGridRenderHorizontalBridge(spec, x, y, bridge))
 	}
 	return b.String()
 }
@@ -201,6 +182,82 @@ func dynamicGridRenderBorderChar(ch rune, colors GridBorderColors, solved bool, 
 		Foreground(fg).
 		Background(bg).
 		Render(string(ch))
+}
+
+func dynamicGridRenderVerticalBridge(spec DynamicGridSpec, x, y int, bridge DynamicGridBridge) string {
+	if dynamicGridHasVerticalEdge(spec, x, y) {
+		return dynamicGridRenderBorderChar(
+			verticalEdgeRune(true),
+			dynamicGridColors(spec),
+			spec.Solved,
+			dynamicGridBridgeBackground(spec, bridge),
+		)
+	}
+
+	if spec.VerticalBridgeText != nil {
+		if text := strings.TrimSpace(spec.VerticalBridgeText(x, y)); text != "" {
+			return dynamicGridRenderBridgeText(text, 1, dynamicGridColors(spec), spec.Solved, dynamicGridBridgeBackground(spec, bridge))
+		}
+	}
+
+	return dynamicGridRenderBorderChar(
+		verticalEdgeRune(false),
+		dynamicGridColors(spec),
+		spec.Solved,
+		dynamicGridBridgeBackground(spec, bridge),
+	)
+}
+
+func dynamicGridRenderHorizontalBridge(spec DynamicGridSpec, x, y int, bridge DynamicGridBridge) string {
+	if dynamicGridHasHorizontalEdge(spec, x, y) {
+		return strings.Repeat(
+			dynamicGridRenderBorderChar(
+				'─',
+				dynamicGridColors(spec),
+				spec.Solved,
+				dynamicGridBridgeBackground(spec, bridge),
+			),
+			DynamicGridCellWidth,
+		)
+	}
+
+	if spec.HorizontalBridgeText != nil {
+		if text := strings.TrimSpace(spec.HorizontalBridgeText(x, y)); text != "" {
+			return dynamicGridRenderBridgeText(text, DynamicGridCellWidth, dynamicGridColors(spec), spec.Solved, dynamicGridBridgeBackground(spec, bridge))
+		}
+	}
+
+	return strings.Repeat(
+		dynamicGridRenderBorderChar(
+			' ',
+			dynamicGridColors(spec),
+			spec.Solved,
+			dynamicGridBridgeBackground(spec, bridge),
+		),
+		DynamicGridCellWidth,
+	)
+}
+
+func dynamicGridRenderBridgeText(text string, width int, colors GridBorderColors, solved bool, bg color.Color) string {
+	fg := colors.BorderFG
+	if solved {
+		fg = colors.SolvedBorderFG
+	}
+	if bg == nil {
+		bg = colors.BackgroundBG
+		if solved {
+			bg = colors.SolvedBG
+		}
+	} else {
+		fg = theme.TextOnBG(bg)
+	}
+
+	return lipgloss.NewStyle().
+		Width(width).
+		AlignHorizontal(lipgloss.Center).
+		Foreground(fg).
+		Background(bg).
+		Render(text)
 }
 
 func dynamicGridHasHorizontalEdge(spec DynamicGridSpec, x, y int) bool {
@@ -256,9 +313,6 @@ func dynamicGridJunctionRune(spec DynamicGridSpec, x, y int) rune {
 }
 
 func dynamicGridBridgeBackground(spec DynamicGridSpec, bridge DynamicGridBridge) color.Color {
-	if bridge.Count == 0 {
-		return nil
-	}
 	if spec.BridgeFill != nil {
 		if bg := spec.BridgeFill(bridge); bg != nil {
 			return bg

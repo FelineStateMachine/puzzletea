@@ -6,13 +6,16 @@ import (
 	"time"
 
 	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/list"
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
+	"github.com/FelineStateMachine/puzzletea/catalog"
 	"github.com/FelineStateMachine/puzzletea/daily"
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/lightsout"
 	sessionflow "github.com/FelineStateMachine/puzzletea/session"
 	"github.com/FelineStateMachine/puzzletea/store"
+	"github.com/FelineStateMachine/puzzletea/ui"
 )
 
 type escapeTrackingGame struct {
@@ -170,6 +173,92 @@ func TestHandleSeedConfirmDoesNotResumeStatusWhenImportFails(t *testing.T) {
 	}
 }
 
+func TestSeedInputSelectorCyclesAndPersistsDefault(t *testing.T) {
+	options := buildSeedModeOptions(catalog.All)
+	if len(options) < 2 {
+		t.Fatal("expected at least one seeded game option in addition to Random")
+	}
+
+	m := model{
+		state: seedInputView,
+		nav: navigationState{
+			seedModeOptions: options,
+			seedFocus:       seedFocusMode,
+		},
+	}
+
+	next, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyRight})
+	got := next.(model)
+
+	if got.nav.seedModeIndex != 1 {
+		t.Fatalf("seedModeIndex = %d, want 1", got.nav.seedModeIndex)
+	}
+	if got.nav.lastSeedModeKey != options[1].key {
+		t.Fatalf("lastSeedModeKey = %q, want %q", got.nav.lastSeedModeKey, options[1].key)
+	}
+
+	playMenu := ui.NewMainMenu(playMenuItems)
+	for range 3 {
+		playMenu.CursorDown()
+	}
+
+	reopened, _ := (model{
+		state: playMenuView,
+		nav: navigationState{
+			playMenu:        playMenu,
+			lastSeedModeKey: got.nav.lastSeedModeKey,
+		},
+	}).handlePlayMenuEnter()
+	reopenedModel := reopened.(model)
+
+	if reopenedModel.state != seedInputView {
+		t.Fatalf("state = %d, want %d (seedInputView)", reopenedModel.state, seedInputView)
+	}
+	if reopenedModel.currentSeedMode().key != options[1].key {
+		t.Fatalf("reopened seed mode key = %q, want %q", reopenedModel.currentSeedMode().key, options[1].key)
+	}
+}
+
+func TestHandleSeedConfirmUsesSelectedSpecificMode(t *testing.T) {
+	s := openAppTestStore(t)
+	options := buildSeedModeOptions(catalog.All)
+	if len(options) < 2 {
+		t.Fatal("expected at least one seeded game option in addition to Random")
+	}
+
+	ti := textinput.New()
+	ti.SetValue("specific-mode-seed")
+
+	m := model{
+		state: seedInputView,
+		store: s,
+		nav: navigationState{
+			seedInput:       ti,
+			seedModeOptions: options,
+			seedModeIndex:   1,
+		},
+	}
+
+	next, _ := m.handleSeedConfirm()
+	got := next.(model)
+
+	if got.state != generatingView {
+		t.Fatalf("state = %d, want %d (generatingView)", got.state, generatingView)
+	}
+	if got.session.spawn == nil {
+		t.Fatal("expected spawn request to be populated")
+	}
+	if got.session.spawn.gameType != options[1].gameType {
+		t.Fatalf("gameType = %q, want %q", got.session.spawn.gameType, options[1].gameType)
+	}
+	if got.session.spawn.modeTitle == "" {
+		t.Fatal("expected a deterministic mode to be selected within the chosen game")
+	}
+	if got.session.spawn.name == sessionflow.SeededName("specific-mode-seed") {
+		t.Fatal("specific seeded game should not reuse the random seeded name")
+	}
+}
+
 func TestHandleDailyPuzzleDoesNotResumeStatusWhenImportFails(t *testing.T) {
 	s := openAppTestStore(t)
 	now := time.Now()
@@ -221,6 +310,29 @@ func TestHandleDailyPuzzleDoesNotResumeStatusWhenImportFails(t *testing.T) {
 		if saved.Status != store.StatusAbandoned {
 			t.Fatalf("record %q status = %q, want %q", name, saved.Status, store.StatusAbandoned)
 		}
+	}
+}
+
+func TestGameSelectEscapeClearsAppliedFilterBeforeLeavingView(t *testing.T) {
+	l := ui.InitCategoryList(GameCategories, "Select Category")
+	l.SetFilterText("tak")
+	l.SetFilterState(list.FilterApplied)
+
+	m := model{
+		state: gameSelectView,
+		nav: navigationState{
+			gameSelectList: l,
+		},
+	}
+
+	next, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	got := next.(model)
+
+	if got.state != gameSelectView {
+		t.Fatalf("state = %d, want %d (gameSelectView)", got.state, gameSelectView)
+	}
+	if got.nav.gameSelectList.FilterState() != list.Unfiltered {
+		t.Fatalf("filter state = %s, want %s", got.nav.gameSelectList.FilterState(), list.Unfiltered)
 	}
 }
 

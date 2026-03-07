@@ -62,6 +62,9 @@ func gridView(m Model) string {
 		ZoneFill: func(zone int) color.Color {
 			return bridgeBG[zone]
 		},
+		BridgeFill: func(bridge game.DynamicGridBridge) color.Color {
+			return bridgeFill(m, bridgeBG, bridge)
+		},
 	})
 }
 
@@ -179,6 +182,115 @@ func bridgeBackgrounds(m Model, completed map[int]color.Color) map[int]color.Col
 		backgrounds[cageIdx] = bg
 	}
 	return backgrounds
+}
+
+func bridgeFill(m Model, bridgeBG map[int]color.Color, bridge game.DynamicGridBridge) color.Color {
+	if m.solved {
+		return nil
+	}
+	if bridge.Uniform && bridgeBG[bridge.Zone] != nil {
+		return nil
+	}
+	if bridge.Count > 0 && !bridgeTouchesBorder(m.geo, bridge) {
+		return nil
+	}
+	if bridgeOnCrosshairAxis(m.cursor, bridge) {
+		return theme.Current().Surface
+	}
+	return nil
+}
+
+func bridgeOnCrosshairAxis(cursor game.Cursor, bridge game.DynamicGridBridge) bool {
+	switch bridge.Kind {
+	case game.DynamicGridBridgeVertical:
+		if bridge.Count == 0 {
+			return bridge.Y == cursor.Y
+		}
+		for i := 0; i < bridge.Count; i++ {
+			if bridge.Cells[i].Y == cursor.Y {
+				return true
+			}
+		}
+	case game.DynamicGridBridgeHorizontal:
+		if bridge.Count == 0 {
+			return bridge.X == cursor.X
+		}
+		for i := 0; i < bridge.Count; i++ {
+			if bridge.Cells[i].X == cursor.X {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func bridgeTouchesBorder(geo *geometry, bridge game.DynamicGridBridge) bool {
+	if geo == nil {
+		return false
+	}
+
+	switch bridge.Kind {
+	case game.DynamicGridBridgeVertical:
+		return cageJunctionRune(geo.cageGrid, geo.width, geo.height, bridge.X, bridge.Y) != ' ' ||
+			cageJunctionRune(geo.cageGrid, geo.width, geo.height, bridge.X, bridge.Y+1) != ' '
+	case game.DynamicGridBridgeHorizontal:
+		return cageJunctionRune(geo.cageGrid, geo.width, geo.height, bridge.X, bridge.Y) != ' ' ||
+			cageJunctionRune(geo.cageGrid, geo.width, geo.height, bridge.X+1, bridge.Y) != ' '
+	default:
+		return false
+	}
+}
+
+func cageHorizontalEdge(cageGrid [][]int, height, x, y int) bool {
+	switch {
+	case y <= 0, y >= height:
+		return true
+	default:
+		return cageGrid[y-1][x] != cageGrid[y][x]
+	}
+}
+
+func cageVerticalEdge(cageGrid [][]int, width, x, y int) bool {
+	switch {
+	case x <= 0, x >= width:
+		return true
+	default:
+		return cageGrid[y][x-1] != cageGrid[y][x]
+	}
+}
+
+func cageJunctionRune(cageGrid [][]int, width, height, x, y int) rune {
+	north := y > 0 && cageVerticalEdge(cageGrid, width, x, y-1)
+	south := y < height && cageVerticalEdge(cageGrid, width, x, y)
+	west := x > 0 && cageHorizontalEdge(cageGrid, height, x-1, y)
+	east := x < width && cageHorizontalEdge(cageGrid, height, x, y)
+
+	switch {
+	case north && south && west && east:
+		return '┼'
+	case north && south && west:
+		return '┤'
+	case north && south && east:
+		return '├'
+	case west && east && north:
+		return '┴'
+	case west && east && south:
+		return '┬'
+	case south && east:
+		return '┌'
+	case south && west:
+		return '┐'
+	case north && east:
+		return '└'
+	case north && west:
+		return '┘'
+	case north || south:
+		return '│'
+	case west || east:
+		return '─'
+	default:
+		return ' '
+	}
 }
 
 func activeCageBridgeBackgrounds(m Model) map[int]color.Color {
