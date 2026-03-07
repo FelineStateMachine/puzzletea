@@ -146,6 +146,62 @@ func TestBackspaceCancelsSelection(t *testing.T) {
 	}
 }
 
+func TestSelectionMoveSnapsToNearestRay(t *testing.T) {
+	m := Model{
+		width:      5,
+		height:     5,
+		grid:       createEmptyGrid(5, 5),
+		cursor:     game.Cursor{X: 1, Y: 1},
+		keys:       DefaultKeyMap,
+		foundCells: buildFoundCells(5, 5, nil),
+	}
+
+	m.handleSelect()
+
+	next, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyRight})
+	got := next.(Model)
+	if got.cursor != (game.Cursor{X: 2, Y: 1}) {
+		t.Fatalf("after right, cursor = (%d,%d), want (2,1)", got.cursor.X, got.cursor.Y)
+	}
+
+	next, _ = got.Update(tea.KeyPressMsg{Code: tea.KeyDown})
+	got = next.(Model)
+	if got.cursor != (game.Cursor{X: 2, Y: 2}) {
+		t.Fatalf("after down, cursor = (%d,%d), want (2,2)", got.cursor.X, got.cursor.Y)
+	}
+}
+
+func TestSelectionMoveShrinksDiagonalWithArrowKeys(t *testing.T) {
+	m := Model{
+		width:          5,
+		height:         5,
+		grid:           createEmptyGrid(5, 5),
+		cursor:         game.Cursor{X: 3, Y: 3},
+		selection:      startSelected,
+		selectionStart: game.Cursor{X: 1, Y: 1},
+		keys:           DefaultKeyMap,
+		foundCells:     buildFoundCells(5, 5, nil),
+	}
+
+	next, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyLeft})
+	got := next.(Model)
+	if got.cursor != (game.Cursor{X: 2, Y: 2}) {
+		t.Fatalf("after left, cursor = (%d,%d), want (2,2)", got.cursor.X, got.cursor.Y)
+	}
+
+	next, _ = got.Update(tea.KeyPressMsg{Code: tea.KeyUp})
+	got = next.(Model)
+	if got.cursor != (game.Cursor{X: 1, Y: 1}) {
+		t.Fatalf("after up, cursor = (%d,%d), want (1,1)", got.cursor.X, got.cursor.Y)
+	}
+
+	next, _ = got.Update(tea.KeyPressMsg{Code: tea.KeyDown})
+	got = next.(Model)
+	if got.cursor != (game.Cursor{X: 1, Y: 2}) {
+		t.Fatalf("after down from collapsed selection, cursor = (%d,%d), want (1,2)", got.cursor.X, got.cursor.Y)
+	}
+}
+
 // --- Grid operations (P1) ---
 
 func TestGridGetSet(t *testing.T) {
@@ -387,6 +443,97 @@ func TestWalkLine(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestSnapSelectionCursor(t *testing.T) {
+	tests := []struct {
+		name   string
+		start  game.Cursor
+		target game.Cursor
+		maxX   int
+		maxY   int
+		want   game.Cursor
+	}{
+		{
+			name:   "keeps exact horizontal target",
+			start:  game.Cursor{X: 2, Y: 2},
+			target: game.Cursor{X: 4, Y: 2},
+			maxX:   4,
+			maxY:   4,
+			want:   game.Cursor{X: 4, Y: 2},
+		},
+		{
+			name:   "snaps off-axis target to diagonal",
+			start:  game.Cursor{X: 2, Y: 2},
+			target: game.Cursor{X: 3, Y: 4},
+			maxX:   4,
+			maxY:   4,
+			want:   game.Cursor{X: 4, Y: 4},
+		},
+		{
+			name:   "snaps closer to vertical than diagonal",
+			start:  game.Cursor{X: 2, Y: 2},
+			target: game.Cursor{X: 2, Y: 4},
+			maxX:   4,
+			maxY:   4,
+			want:   game.Cursor{X: 2, Y: 4},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := snapSelectionCursor(tt.start, tt.target, tt.maxX, tt.maxY)
+			if got != tt.want {
+				t.Fatalf("snapSelectionCursor(%v, %v) = %v, want %v", tt.start, tt.target, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestCurrentSelectionPreview(t *testing.T) {
+	m := Model{
+		width:  5,
+		height: 5,
+		grid: newGrid(state(
+			"HELLO\n" +
+				"AAAAA\n" +
+				"BBBBB\n" +
+				"CCCCC\n" +
+				"DDDDD",
+		)),
+		words: []Word{
+			{Text: "HELLO", Start: Position{0, 0}, End: Position{4, 0}, Direction: Right},
+			{Text: "HELL", Start: Position{0, 1}, End: Position{3, 1}, Direction: Right, Found: true},
+		},
+		cursor:         game.Cursor{X: 2, Y: 0},
+		selection:      startSelected,
+		selectionStart: game.Cursor{X: 0, Y: 0},
+		keys:           DefaultKeyMap,
+		foundCells:     buildFoundCells(5, 5, nil),
+	}
+
+	preview := m.currentSelectionPreview()
+	if !preview.Valid {
+		t.Fatal("expected preview to be valid")
+	}
+	if preview.Letters != "HEL" {
+		t.Fatalf("Letters = %q, want HEL", preview.Letters)
+	}
+	if preview.Direction != "right" {
+		t.Fatalf("Direction = %q, want right", preview.Direction)
+	}
+	if preview.NearWord != "HELLO" {
+		t.Fatalf("NearWord = %q, want HELLO", preview.NearWord)
+	}
+	if preview.ExactWord != "" {
+		t.Fatalf("ExactWord = %q, want empty", preview.ExactWord)
+	}
+
+	m.cursor = game.Cursor{X: 4, Y: 0}
+	preview = m.currentSelectionPreview()
+	if preview.ExactWord != "HELLO" {
+		t.Fatalf("ExactWord = %q, want HELLO", preview.ExactWord)
 	}
 }
 
