@@ -19,6 +19,7 @@ func TestResolveSupportsCanonicalNamesAndAliases(t *testing.T) {
 		want  string
 	}{
 		{input: "Sudoku", want: "Sudoku"},
+		{input: "ripeto", want: "Sudoku RGB"},
 		{input: "fillomino", want: "Fillomino"},
 		{input: "hashi", want: "Hashiwokakero"},
 		{input: "lights", want: "Lights Out"},
@@ -43,6 +44,7 @@ func TestCategorySupportsCanonicalNamesAndAliases(t *testing.T) {
 		want  string
 	}{
 		{input: "Sudoku", want: "Sudoku"},
+		{input: "sudoku-rgb", want: "Sudoku RGB"},
 		{input: "lights-out", want: "Lights Out"},
 		{input: "polyomino", want: "Fillomino"},
 		{input: "wordsearch", want: "Word Search"},

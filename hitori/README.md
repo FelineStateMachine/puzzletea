@@ -26,7 +26,7 @@ The puzzle is solved when all three rules hold simultaneously.
 | `Ctrl+H` | Toggle full help |
 | `Ctrl+E` | Toggle debug overlay |
 | `Ctrl+R` | Reset puzzle |
-| `Ctrl+N` | Return to main menu |
+| `Escape` | Return to main menu |
 
 ## Modes
 

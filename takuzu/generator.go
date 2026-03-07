@@ -519,6 +519,40 @@ func rowFilled(g grid, y, size int) bool {
 	return true
 }
 
+func GenerateCompleteGrid(size int) [][]rune {
+	return generateComplete(size).clone()
+}
+
+func GenerateCompleteGridSeeded(size int, rng *rand.Rand) [][]rune {
+	return generateCompleteSeeded(size, rng).clone()
+}
+
+func GeneratePuzzleFromComplete(complete [][]rune, size int, prefilled float64) ([][]rune, [][]bool) {
+	puzzle, provided := generatePuzzle(grid(complete).clone(), size, prefilled)
+	return puzzle.clone(), provided
+}
+
+func GeneratePuzzleFromCompleteSeeded(complete [][]rune, size int, prefilled float64, rng *rand.Rand) ([][]rune, [][]bool) {
+	puzzle, provided := generatePuzzleSeeded(grid(complete).clone(), size, prefilled, rng)
+	return puzzle.clone(), provided
+}
+
+func CountSolutionsGrid(g [][]rune, size, limit int) int {
+	return countSolutions(grid(g).clone(), size, limit)
+}
+
+func CheckConstraintsGrid(g [][]rune, size int) bool {
+	return checkConstraints(grid(g), size)
+}
+
+func HasUniqueLinesGrid(g [][]rune, size int) bool {
+	return hasUniqueLines(grid(g), size)
+}
+
+func CanPlaceInGrid(g [][]rune, size, x, y int, val rune) bool {
+	return canPlace(grid(g), size, x, y, val)
+}
+
 func colFilled(g grid, x, size int) bool {
 	for y := range size {
 		if g[y][x] == emptyCell {

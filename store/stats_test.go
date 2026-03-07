@@ -3,6 +3,8 @@ package store
 import (
 	"testing"
 	"time"
+
+	"github.com/FelineStateMachine/puzzletea/weekly"
 )
 
 // --- GetCategoryStats (P1) ---
@@ -170,6 +172,42 @@ func TestGetModeStats(t *testing.T) {
 			t.Errorf("Medium DailyVictories = %d, want 0", medium.DailyVictories)
 		}
 	})
+
+	t.Run("weekly bonus xp is aggregated by parsed name", func(t *testing.T) {
+		s := openTestStore(t)
+		games := []*GameRecord{
+			{Name: weekly.Name(2026, 1, 10), GameType: "Sudoku", Mode: "Easy", InitialState: "{}", SaveState: "{}", Status: StatusNew},
+			{Name: weekly.Name(2026, 1, 25), GameType: "Sudoku", Mode: "Easy", InitialState: "{}", SaveState: "{}", Status: StatusNew},
+		}
+		for _, g := range games {
+			if err := s.CreateGame(g); err != nil {
+				t.Fatal(err)
+			}
+			if err := s.UpdateStatus(g.ID, StatusCompleted); err != nil {
+				t.Fatal(err)
+			}
+		}
+
+		stats, err := s.GetModeStats()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		found := false
+		for _, ms := range stats {
+			if ms.GameType != "Sudoku" || ms.Mode != "Easy" {
+				continue
+			}
+			found = true
+			want := weekly.BonusXP(10) + weekly.BonusXP(25)
+			if ms.WeeklyBonusXP != want {
+				t.Fatalf("WeeklyBonusXP = %d, want %d", ms.WeeklyBonusXP, want)
+			}
+		}
+		if !found {
+			t.Fatal("expected Sudoku/Easy mode stats")
+		}
+	})
 }
 
 // --- GetDailyStreakDates (P1) ---
@@ -251,4 +289,58 @@ func TestGetDailyStreakDates(t *testing.T) {
 			t.Errorf("expected 0 dates for non-completed dailies, got %d", len(dates))
 		}
 	})
+}
+
+func TestGetCompletedWeeklyGauntlets(t *testing.T) {
+	s := openTestStore(t)
+
+	games := []*GameRecord{
+		{Name: weekly.Name(2026, 1, 98), GameType: "Sudoku", Mode: "Easy", InitialState: "{}", SaveState: "{}", Status: StatusNew},
+		{Name: weekly.Name(2026, 1, 99), GameType: "Sudoku", Mode: "Easy", InitialState: "{}", SaveState: "{}", Status: StatusNew},
+		{Name: weekly.Name(2026, 2, 50), GameType: "Sudoku", Mode: "Easy", InitialState: "{}", SaveState: "{}", Status: StatusNew},
+		{Name: weekly.Name(2026, 3, 99), GameType: "Sudoku", Mode: "Easy", InitialState: "{}", SaveState: "{}", Status: StatusNew},
+		{Name: "Week 3-2026 - #99", GameType: "Sudoku", Mode: "Easy", InitialState: "{}", SaveState: "{}", Status: StatusNew},
+	}
+	for _, g := range games {
+		if err := s.CreateGame(g); err != nil {
+			t.Fatal(err)
+		}
+		if err := s.UpdateStatus(g.ID, StatusCompleted); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	got, err := s.GetCompletedWeeklyGauntlets()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != 2 {
+		t.Fatalf("GetCompletedWeeklyGauntlets() = %d, want 2", got)
+	}
+}
+
+func TestGetCurrentWeeklyHighestCompletedIndex(t *testing.T) {
+	s := openTestStore(t)
+	games := []*GameRecord{
+		{Name: weekly.Name(2026, 10, 1), GameType: "Sudoku", Mode: "Easy", InitialState: "{}", SaveState: "{}", Status: StatusNew},
+		{Name: weekly.Name(2026, 10, 17), GameType: "Sudoku", Mode: "Easy", InitialState: "{}", SaveState: "{}", Status: StatusNew},
+		{Name: weekly.Name(2026, 10, 9), GameType: "Sudoku", Mode: "Easy", InitialState: "{}", SaveState: "{}", Status: StatusNew},
+		{Name: weekly.Name(2026, 11, 30), GameType: "Sudoku", Mode: "Easy", InitialState: "{}", SaveState: "{}", Status: StatusNew},
+	}
+	for _, g := range games {
+		if err := s.CreateGame(g); err != nil {
+			t.Fatal(err)
+		}
+		if err := s.UpdateStatus(g.ID, StatusCompleted); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	got, err := s.GetCurrentWeeklyHighestCompletedIndex(2026, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != 17 {
+		t.Fatalf("GetCurrentWeeklyHighestCompletedIndex() = %d, want 17", got)
+	}
 }

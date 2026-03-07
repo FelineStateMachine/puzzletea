@@ -24,7 +24,7 @@ Clue cells are fixed and always island cells.
 | `Ctrl+R` | Reset puzzle |
 | `Ctrl+H` | Toggle full help |
 | `Ctrl+E` | Toggle debug overlay |
-| `Ctrl+N` | Return to main menu |
+| `Escape` | Return to main menu |
 
 ## Mouse
 

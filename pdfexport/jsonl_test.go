@@ -134,6 +134,46 @@ func TestParseJSONLFileHydratesTakuzuFromSave(t *testing.T) {
 	}
 }
 
+func TestParseJSONLFileHydratesTakuzuPlusFromSave(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "takuzuplus-pack.jsonl")
+	record := JSONLRecord{
+		Schema: ExportSchemaV1,
+		Pack: JSONLPackMeta{
+			Generated:     "2026-02-22T10:00:00Z",
+			Version:       "v-test",
+			Category:      "Takuzu+",
+			ModeSelection: "Beginner",
+			Count:         1,
+		},
+		Puzzle: JSONLPuzzle{
+			Index: 1,
+			Name:  "binary-link",
+			Game:  "Takuzu+",
+			Mode:  "Beginner",
+			Save:  json.RawMessage(`{"size":4,"state":"01..\n10..\n0011\n1111","provided":"#...\n.##.\n####\n#...","horizontal_relations":"=x.\n...\n..=\n...","vertical_relations":"x...\n.=..\n...x"}`),
+		},
+	}
+	writeSingleJSONLRecord(t, path, record)
+
+	doc, err := ParseJSONLFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := len(doc.Puzzles), 1; got != want {
+		t.Fatalf("puzzles = %d, want %d", got, want)
+	}
+	payload, ok := doc.Puzzles[0].PrintPayload.(*TakuzuData)
+	if !ok || payload == nil {
+		t.Fatal("expected takuzu+ print payload from save hydration")
+	}
+	if got, want := payload.HorizontalRelations[0][0], "="; got != want {
+		t.Fatalf("horizontal relation = %q, want %q", got, want)
+	}
+	if got, want := payload.VerticalRelations[1][1], "="; got != want {
+		t.Fatalf("vertical relation = %q, want %q", got, want)
+	}
+}
+
 func TestParseJSONLFileHydratesSudokuFromSave(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "sudoku.jsonl")
 	record := JSONLRecord{
@@ -168,6 +208,46 @@ func TestParseJSONLFileHydratesSudokuFromSave(t *testing.T) {
 	}
 	if got, want := payload.Givens[0][0], 5; got != want {
 		t.Fatalf("sudoku givens[0][0] = %d, want %d", got, want)
+	}
+}
+
+func TestParseJSONLFileHydratesSudokuRGBFromSave(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "sudoku-rgb.jsonl")
+	record := JSONLRecord{
+		Schema: ExportSchemaV1,
+		Pack: JSONLPackMeta{
+			Generated:     "2026-02-22T10:00:00Z",
+			Version:       "v-test",
+			Category:      "Sudoku RGB",
+			ModeSelection: "Easy",
+			Count:         1,
+		},
+		Puzzle: JSONLPuzzle{
+			Index: 1,
+			Name:  "ember-wave",
+			Game:  "Sudoku RGB",
+			Mode:  "Easy",
+			Save:  json.RawMessage(`{"grid":"100000000\n000000000\n000000000\n000000000\n000000000\n000000000\n000000000\n000000000\n000000000","provided":[{"x":0,"y":0,"v":1},{"x":1,"y":0,"v":4},{"x":2,"y":0,"v":3}]}`),
+		},
+	}
+	writeSingleJSONLRecord(t, path, record)
+
+	doc, err := ParseJSONLFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := len(doc.Puzzles), 1; got != want {
+		t.Fatalf("puzzles = %d, want %d", got, want)
+	}
+	payload, ok := doc.Puzzles[0].PrintPayload.(*SudokuData)
+	if !ok || payload == nil {
+		t.Fatal("expected sudoku rgb print payload from save hydration")
+	}
+	if got, want := payload.Givens[0][0], 1; got != want {
+		t.Fatalf("sudoku rgb givens[0][0] = %d, want %d", got, want)
+	}
+	if got := payload.Givens[0][1]; got != 0 {
+		t.Fatalf("sudoku rgb givens[0][1] = %d, want 0", got)
 	}
 }
 
@@ -458,9 +538,15 @@ func ensureJSONLTestAdapters() {
 		register("Takuzu", buildPayloadAdapter("Takuzu", func(save []byte) (any, error) {
 			return ParseTakuzuPrintData(save)
 		}), "takuzu")
+		register("Takuzu+", buildPayloadAdapter("Takuzu+", func(save []byte) (any, error) {
+			return ParseTakuzuPlusPrintData(save)
+		}), "takuzu+", "takuzu plus", "binario+")
 		register("Sudoku", buildPayloadAdapter("Sudoku", func(save []byte) (any, error) {
 			return ParseSudokuPrintData(save)
 		}), "sudoku")
+		register("Sudoku RGB", buildPayloadAdapter("Sudoku RGB", func(save []byte) (any, error) {
+			return ParseSudokuRGBPrintData(save)
+		}), "sudoku rgb", "rgb sudoku", "ripeto", "sudoku ripeto")
 		register("Fillomino", buildPayloadAdapter("Fillomino", func(save []byte) (any, error) {
 			return ParseFillominoPrintData(save)
 		}), "fillomino")

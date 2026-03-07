@@ -4,6 +4,7 @@ package app
 
 import (
 	"context"
+	"strconv"
 	"time"
 
 	"github.com/FelineStateMachine/puzzletea/catalog"
@@ -13,6 +14,7 @@ import (
 	"github.com/FelineStateMachine/puzzletea/store"
 	"github.com/FelineStateMachine/puzzletea/theme"
 	"github.com/FelineStateMachine/puzzletea/ui"
+	"github.com/FelineStateMachine/puzzletea/weekly"
 
 	"charm.land/bubbles/v2/list"
 	"charm.land/bubbles/v2/spinner"
@@ -39,13 +41,6 @@ var mainMenuItems = []ui.MenuItem{
 	{ItemTitle: "Quit", Desc: "exit puzzletea"},
 }
 
-var playMenuItems = []ui.MenuItem{
-	{ItemTitle: "Daily Puzzle", Desc: time.Now().Format("Jan _2 06")},
-	{ItemTitle: "Generate", Desc: "a new puzzle"},
-	{ItemTitle: "Continue", Desc: "a previously played puzzle"},
-	{ItemTitle: "Enter Seed", Desc: "for a set puzzle"},
-}
-
 var optionsMenuItems = []ui.MenuItem{
 	{ItemTitle: "Theme", Desc: "change colors"},
 	{ItemTitle: "Guides", Desc: "learn the rules"},
@@ -61,6 +56,7 @@ const (
 	generatingView
 	gameView
 	continueView
+	weeklyView
 	helpSelectView
 	helpDetailView
 	statsView
@@ -72,12 +68,20 @@ type navigationState struct {
 	playMenu          ui.MainMenu
 	optionsMenu       ui.MainMenu
 	gameSelectList    list.Model
+	categoryDetail    viewport.Model
 	modeSelectList    list.Model
 	selectedCategory  game.Category
 	selectedModeTitle string
 	continueTable     table.Model
 	continueGames     []store.GameRecord
+	weeklyTable       table.Model
+	weeklyRows        []weeklyRow
+	weeklyCursor      time.Time
 	seedInput         textinput.Model
+	seedModeOptions   []seedModeOption
+	seedModeIndex     int
+	seedFocus         seedInputFocus
+	lastSeedModeKey   string
 	helpSelectList    list.Model
 }
 
@@ -85,6 +89,8 @@ type sessionState struct {
 	game            game.Gamer
 	activeGameID    int64
 	completionSaved bool
+	returnState     viewState
+	weeklyAdvance   *weekly.Info
 	generating      bool
 	spawnJobID      int64
 	spawnCancel     context.CancelFunc
@@ -96,6 +102,7 @@ type helpState struct {
 	viewport      viewport.Model
 	renderer      *glamour.TermRenderer
 	rendererWidth int
+	rendererTheme string
 	showFull      bool
 }
 
@@ -122,6 +129,7 @@ const (
 	spawnSourceNormal spawnSource = "normal"
 	spawnSourceDaily  spawnSource = "daily"
 	spawnSourceSeed   spawnSource = "seed"
+	spawnSourceWeekly spawnSource = "weekly"
 )
 
 type spawnRequest struct {
@@ -130,6 +138,21 @@ type spawnRequest struct {
 	gameType    string
 	modeTitle   string
 	returnState viewState
+	exitState   viewState
+	weeklyInfo  *weekly.Info
+}
+
+type seedInputFocus int
+
+const (
+	seedFocusText seedInputFocus = iota
+	seedFocusMode
+)
+
+type seedModeOption struct {
+	key      string
+	label    string
+	gameType string
 }
 
 type model struct {
@@ -193,10 +216,22 @@ func InitialModelWithGame(s *store.Store, cfg *config.Config, g game.Gamer, acti
 			game:            g,
 			activeGameID:    activeGameID,
 			completionSaved: completionSaved,
+			returnState:     mainMenuView,
 		},
 	}
 }
 
 func (m model) Init() tea.Cmd {
 	return nil
+}
+
+func buildPlayMenuItems(now time.Time, currentWeeklyIndex int) []ui.MenuItem {
+	year, week := now.ISOWeek()
+	return []ui.MenuItem{
+		{ItemTitle: "Create", Desc: "a new puzzle"},
+		{ItemTitle: "Continue", Desc: "a previously played puzzle"},
+		{ItemTitle: "Daily", Desc: now.Format("Jan _2 06")},
+		{ItemTitle: "Weekly", Desc: "Week " + formatTwoDigits(week) + "-" + strconv.Itoa(year) + " #" + formatWeeklyMenuIndex(currentWeeklyIndex)},
+		{ItemTitle: "Seeded", Desc: "enter a specific seed"},
+	}
 }

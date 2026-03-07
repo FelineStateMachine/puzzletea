@@ -245,6 +245,14 @@ func TestComputeCategoryXP(t *testing.T) {
 			want: 1,
 		},
 		{
+			name:     "weekly bonus xp added on top",
+			gameType: "Sudoku",
+			modeStats: []store.ModeStat{
+				{GameType: "Sudoku", Mode: "Easy", Victories: 2, WeeklyBonusXP: 5},
+			},
+			want: 7,
+		},
+		{
 			name:     "unknown mode defaults to 1 XP",
 			gameType: "Sudoku",
 			modeStats: []store.ModeStat{
@@ -336,6 +344,38 @@ func TestRenderViewEmpty(t *testing.T) {
 	}
 }
 
+func TestRenderBannerAppendsDailyStatusToStreak(t *testing.T) {
+	withCurrent := ansi.Strip(RenderBanner(ProfileBanner{
+		ProfileLevel:         3,
+		DailyStreak:          2,
+		TotalDailies:         5,
+		CurrentDaily:         true,
+		WeekliesCompleted:    4,
+		ThisWeekHighestIndex: 17,
+	}, 80))
+	if !strings.Contains(withCurrent, "Daily Streak: 2 days (✔)") {
+		t.Fatalf("expected current daily marker in banner:\n%s", withCurrent)
+	}
+	if !strings.Contains(withCurrent, "Weeklies Completed: 4 total (17/99 this week)") {
+		t.Fatalf("expected weekly completion summary in banner:\n%s", withCurrent)
+	}
+
+	withoutCurrent := ansi.Strip(RenderBanner(ProfileBanner{
+		ProfileLevel:         3,
+		DailyStreak:          2,
+		TotalDailies:         5,
+		CurrentDaily:         false,
+		WeekliesCompleted:    0,
+		ThisWeekHighestIndex: 0,
+	}, 80))
+	if !strings.Contains(withoutCurrent, "Daily Streak: 2 days ( )") {
+		t.Fatalf("expected empty daily marker in banner:\n%s", withoutCurrent)
+	}
+	if !strings.Contains(withoutCurrent, "Weeklies Completed: 0 total ( 0/99 this week)") {
+		t.Fatalf("expected weekly completion summary in banner:\n%s", withoutCurrent)
+	}
+}
+
 // --- Card grid layout (P1) ---
 
 func TestCardColumnCount(t *testing.T) {
@@ -370,7 +410,13 @@ func TestRenderCardGridWrapsRowsByWidth(t *testing.T) {
 	if got := strings.Count(lines[0], "╭"); got != 3 {
 		t.Fatalf("first row cards = %d, want 3", got)
 	}
-	if got := strings.Count(lines[CardHeight], "╭"); got != 2 {
+	secondRowStart := CardHeight + cardRowGap
+	for i := CardHeight; i < secondRowStart; i++ {
+		if lines[i] != "" {
+			t.Fatalf("row gap line %d = %q, want blank", i, lines[i])
+		}
+	}
+	if got := strings.Count(lines[secondRowStart], "╭"); got != 2 {
 		t.Fatalf("second row cards = %d, want 2", got)
 	}
 	if got := maxRenderedWidth(rendered); got > width {

@@ -18,7 +18,7 @@ Fill each cage with the digits `1` through the cage size, then keep equal digits
 | `Backspace` / `Delete` | Clear cell |
 | `Ctrl+H` | Toggle help bar |
 | `Ctrl+R` | Reset puzzle |
-| `Ctrl+N` | Return to main menu |
+| `Escape` | Return to main menu |
 
 ## Tips
 

@@ -5,6 +5,7 @@ import (
 	"math/rand/v2"
 	"testing"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/FelineStateMachine/puzzletea/game"
 )
 
@@ -994,4 +995,90 @@ func TestGeneratePuzzle_AllModes_SeededRegression(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestMouseClickMovesCursor(t *testing.T) {
+	m := testMouseModel()
+
+	x, y := takuzuCellScreenCoords(&m, 2, 1)
+	next, _ := m.Update(tea.MouseClickMsg{X: x, Y: y, Button: tea.MouseLeft})
+	got := next.(Model)
+
+	if got.cursor.X != 2 || got.cursor.Y != 1 {
+		t.Fatalf("cursor = (%d,%d), want (2,1)", got.cursor.X, got.cursor.Y)
+	}
+	if got.grid[1][2] != emptyCell {
+		t.Fatalf("clicked destination cell changed to %q, want unchanged empty", got.grid[1][2])
+	}
+}
+
+func TestMouseClickSameCellCyclesEditableCell(t *testing.T) {
+	m := testMouseModel()
+	m.cursor.X, m.cursor.Y = 1, 1
+
+	x, y := takuzuCellScreenCoords(&m, 1, 1)
+
+	next, _ := m.Update(tea.MouseClickMsg{X: x, Y: y, Button: tea.MouseLeft})
+	got := next.(Model)
+	if got.grid[1][1] != zeroCell {
+		t.Fatalf("first click = %q, want %q", got.grid[1][1], zeroCell)
+	}
+
+	next, _ = got.Update(tea.MouseClickMsg{X: x, Y: y, Button: tea.MouseLeft})
+	got = next.(Model)
+	if got.grid[1][1] != oneCell {
+		t.Fatalf("second click = %q, want %q", got.grid[1][1], oneCell)
+	}
+
+	next, _ = got.Update(tea.MouseClickMsg{X: x, Y: y, Button: tea.MouseLeft})
+	got = next.(Model)
+	if got.grid[1][1] != emptyCell {
+		t.Fatalf("third click = %q, want %q", got.grid[1][1], emptyCell)
+	}
+}
+
+func TestMouseClickSameCellDoesNotCycleProvidedCell(t *testing.T) {
+	m := testMouseModel()
+	m.cursor.X, m.cursor.Y = 0, 0
+
+	x, y := takuzuCellScreenCoords(&m, 0, 0)
+	next, _ := m.Update(tea.MouseClickMsg{X: x, Y: y, Button: tea.MouseLeft})
+	got := next.(Model)
+
+	if got.grid[0][0] != zeroCell {
+		t.Fatalf("provided cell changed to %q, want %q", got.grid[0][0], zeroCell)
+	}
+}
+
+func testMouseModel() Model {
+	return Model{
+		size: 4,
+		grid: grid{
+			[]rune("0..1"),
+			[]rune("...."),
+			[]rune("...."),
+			[]rune("1..0"),
+		},
+		initialGrid: grid{
+			[]rune("0..1"),
+			[]rune("...."),
+			[]rune("...."),
+			[]rune("1..0"),
+		},
+		provided: [][]bool{
+			{true, false, false, true},
+			{false, false, false, false},
+			{false, false, false, false},
+			{true, false, false, true},
+		},
+		keys:       DefaultKeyMap,
+		modeTitle:  "Test",
+		termWidth:  120,
+		termHeight: 40,
+	}
+}
+
+func takuzuCellScreenCoords(m *Model, col, row int) (int, int) {
+	ox, oy := m.gridOrigin()
+	return ox + col*(cellWidth+1), oy + row*2
 }

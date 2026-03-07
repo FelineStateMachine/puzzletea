@@ -3,13 +3,18 @@ package nurikabe
 import (
 	"context"
 	"errors"
+	"image"
+	"image/color"
 	"math/rand/v2"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/FelineStateMachine/puzzletea/game"
+	"github.com/FelineStateMachine/puzzletea/theme"
+	"github.com/charmbracelet/x/ansi"
 )
 
 func makeClues(rows ...[]int) clueGrid {
@@ -252,6 +257,24 @@ func pointToCursor(x, y int) game.Cursor {
 	return game.Cursor{X: x, Y: y}
 }
 
+func cellPoint(originX, originY, col, row int) (x, y int) {
+	return originX + col*(cellWidth+1), originY + row*2
+}
+
+func separatorPoint(originX, originY, col, row int) (x, y int) {
+	x, y = cellPoint(originX, originY, col, row)
+	return x - 1, y
+}
+
+func sameColor(left, right color.Color) bool {
+	if left == nil || right == nil {
+		return left == nil && right == nil
+	}
+	lr, lg, lb, la := left.RGBA()
+	rr, rg, rb, ra := right.RGBA()
+	return lr == rr && lg == rg && lb == rb && la == ra
+}
+
 // --- Model input behavior (P1) ---
 
 func TestModelKeyboardUpdate(t *testing.T) {
@@ -303,12 +326,14 @@ func TestModelMouseDragPaint(t *testing.T) {
 	next, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 	m = next.(Model)
 	ox, oy := m.gridOrigin()
+	clickX, clickY := cellPoint(ox, oy, 1, 1)
+	dragX, dragY := separatorPoint(ox, oy, 2, 1)
 
-	click := tea.MouseClickMsg{X: ox + cellWidth, Y: oy + 1, Button: tea.MouseLeft}
+	click := tea.MouseClickMsg{X: clickX, Y: clickY, Button: tea.MouseLeft}
 	next, _ = m.Update(click)
 	m = next.(Model)
 
-	drag := tea.MouseMotionMsg{X: ox + 2*cellWidth, Y: oy + 1, Button: tea.MouseLeft}
+	drag := tea.MouseMotionMsg{X: dragX, Y: dragY, Button: tea.MouseLeft}
 	next, _ = m.Update(drag)
 	m = next.(Model)
 
@@ -337,8 +362,7 @@ func TestModelMouseClickMirrorsKeyboard(t *testing.T) {
 	m = next.(Model)
 	ox, oy := m.gridOrigin()
 
-	cellX := ox + cellWidth
-	cellY := oy + 1
+	cellX, cellY := cellPoint(ox, oy, 1, 1)
 
 	next, _ = m.Update(tea.MouseClickMsg{X: cellX, Y: cellY, Button: tea.MouseLeft})
 	m = next.(Model)
@@ -388,8 +412,7 @@ func TestModelMouseRightClickTogglesIsland(t *testing.T) {
 	m = next.(Model)
 	ox, oy := m.gridOrigin()
 
-	cellX := ox + cellWidth
-	cellY := oy + 1
+	cellX, cellY := cellPoint(ox, oy, 1, 1)
 
 	next, _ = m.Update(tea.MouseClickMsg{X: cellX, Y: cellY, Button: tea.MouseRight})
 	m = next.(Model)
@@ -420,11 +443,13 @@ func TestModelMouseRightDragPaintIsland(t *testing.T) {
 	next, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 	m = next.(Model)
 	ox, oy := m.gridOrigin()
+	clickX, clickY := cellPoint(ox, oy, 1, 1)
+	dragX, dragY := separatorPoint(ox, oy, 2, 1)
 
-	next, _ = m.Update(tea.MouseClickMsg{X: ox + cellWidth, Y: oy + 1, Button: tea.MouseRight})
+	next, _ = m.Update(tea.MouseClickMsg{X: clickX, Y: clickY, Button: tea.MouseRight})
 	m = next.(Model)
 
-	next, _ = m.Update(tea.MouseMotionMsg{X: ox + 2*cellWidth, Y: oy + 1, Button: tea.MouseRight})
+	next, _ = m.Update(tea.MouseMotionMsg{X: dragX, Y: dragY, Button: tea.MouseRight})
 	m = next.(Model)
 
 	next, _ = m.Update(tea.MouseReleaseMsg{})
@@ -455,11 +480,13 @@ func TestModelMouseRightDragClearsIsland(t *testing.T) {
 	next, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 	m = next.(Model)
 	ox, oy := m.gridOrigin()
+	clickX, clickY := cellPoint(ox, oy, 1, 1)
+	dragX, dragY := separatorPoint(ox, oy, 2, 1)
 
-	next, _ = m.Update(tea.MouseClickMsg{X: ox + cellWidth, Y: oy + 1, Button: tea.MouseRight})
+	next, _ = m.Update(tea.MouseClickMsg{X: clickX, Y: clickY, Button: tea.MouseRight})
 	m = next.(Model)
 
-	next, _ = m.Update(tea.MouseMotionMsg{X: ox + 2*cellWidth, Y: oy + 1, Button: tea.MouseRight})
+	next, _ = m.Update(tea.MouseMotionMsg{X: dragX, Y: dragY, Button: tea.MouseRight})
 	m = next.(Model)
 
 	next, _ = m.Update(tea.MouseReleaseMsg{})
@@ -488,11 +515,13 @@ func TestModelMouseLeftDragPaintSeaFromSea(t *testing.T) {
 	next, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 	m = next.(Model)
 	ox, oy := m.gridOrigin()
+	clickX, clickY := cellPoint(ox, oy, 1, 1)
+	dragX, dragY := separatorPoint(ox, oy, 2, 1)
 
-	next, _ = m.Update(tea.MouseClickMsg{X: ox + cellWidth, Y: oy + 1, Button: tea.MouseLeft})
+	next, _ = m.Update(tea.MouseClickMsg{X: clickX, Y: clickY, Button: tea.MouseLeft})
 	m = next.(Model)
 
-	next, _ = m.Update(tea.MouseMotionMsg{X: ox + 2*cellWidth, Y: oy + 1, Button: tea.MouseLeft})
+	next, _ = m.Update(tea.MouseMotionMsg{X: dragX, Y: dragY, Button: tea.MouseLeft})
 	m = next.(Model)
 
 	next, _ = m.Update(tea.MouseReleaseMsg{})
@@ -527,6 +556,233 @@ func TestHelpToggleInvalidatesOriginCache(t *testing.T) {
 	}
 	if got.originValid {
 		t.Fatal("expected origin cache to be invalidated")
+	}
+}
+
+func TestWindowSizeInvalidatesOriginCache(t *testing.T) {
+	mode := NewMode("Mini", "test", 3, 3, 0.3, 5)
+	p := Puzzle{Width: 3, Height: 3, Clues: makeClues(
+		[]int{2, 0, 0},
+		[]int{0, 0, 0},
+		[]int{0, 0, 1},
+	)}
+	g, err := New(mode, p)
+	if err != nil {
+		t.Fatalf("New error: %v", err)
+	}
+	m := g.(Model)
+	m.originValid = true
+	m.originX = 5
+	m.originY = 7
+
+	next, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+	got := next.(Model)
+
+	if got.originValid {
+		t.Fatal("expected origin cache to be invalidated")
+	}
+}
+
+func TestResetInvalidatesOriginCache(t *testing.T) {
+	mode := NewMode("Mini", "test", 3, 3, 0.3, 5)
+	p := Puzzle{Width: 3, Height: 3, Clues: makeClues(
+		[]int{2, 0, 0},
+		[]int{0, 0, 0},
+		[]int{0, 0, 1},
+	)}
+	g, err := New(mode, p)
+	if err != nil {
+		t.Fatalf("New error: %v", err)
+	}
+	m := g.(Model)
+	m.originValid = true
+
+	got := m.Reset().(Model)
+	if got.originValid {
+		t.Fatal("expected reset to invalidate origin cache")
+	}
+}
+
+func TestSolvedStateTransitionInvalidatesOriginCache(t *testing.T) {
+	mode := NewMode("Mini", "test", 5, 5, 0.3, 5)
+	p := uniquePuzzleFixture()
+	g, err := New(mode, p)
+	if err != nil {
+		t.Fatalf("New error: %v", err)
+	}
+	m := g.(Model)
+	m.originValid = true
+	m.marks = makeMarksFromClues(p.Clues)
+
+	m.afterBoardChange()
+
+	if !m.solved {
+		t.Fatal("expected puzzle to be solved")
+	}
+	if m.originValid {
+		t.Fatal("expected solved transition to invalidate origin cache")
+	}
+}
+
+func TestScreenToGridRejectsSeparatorClicks(t *testing.T) {
+	mode := NewMode("Mini", "test", 3, 3, 0.3, 5)
+	p := Puzzle{Width: 3, Height: 3, Clues: makeClues(
+		[]int{2, 0, 0},
+		[]int{0, 0, 0},
+		[]int{0, 0, 1},
+	)}
+	g, err := New(mode, p)
+	if err != nil {
+		t.Fatalf("New error: %v", err)
+	}
+	m := g.(Model)
+
+	next, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+	m = next.(Model)
+	ox, oy := m.gridOrigin()
+	separatorX, separatorY := separatorPoint(ox, oy, 2, 1)
+
+	if _, _, ok := m.screenToGrid(separatorX, separatorY); ok {
+		t.Fatal("expected separator click to miss")
+	}
+}
+
+func TestScreenToGridDragSnapsAcrossSeparator(t *testing.T) {
+	mode := NewMode("Mini", "test", 3, 3, 0.3, 5)
+	p := Puzzle{Width: 3, Height: 3, Clues: makeClues(
+		[]int{2, 0, 0},
+		[]int{0, 0, 0},
+		[]int{0, 0, 1},
+	)}
+	g, err := New(mode, p)
+	if err != nil {
+		t.Fatalf("New error: %v", err)
+	}
+	m := g.(Model)
+
+	next, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+	m = next.(Model)
+	ox, oy := m.gridOrigin()
+	separatorX, separatorY := separatorPoint(ox, oy, 2, 1)
+
+	col, row, ok := m.screenToGridDrag(separatorX, separatorY)
+	if !ok {
+		t.Fatal("expected separator drag to snap to adjacent cell")
+	}
+	if col != 2 || row != 1 {
+		t.Fatalf("drag snapped to (%d,%d), want (2,1)", col, row)
+	}
+}
+
+func TestGridViewUsesDynamicGridWithoutInteriorSeparators(t *testing.T) {
+	mode := NewMode("Mini", "test", 3, 3, 0.3, 5)
+	p := Puzzle{Width: 3, Height: 3, Clues: makeClues(
+		[]int{2, 0, 0},
+		[]int{0, 0, 0},
+		[]int{0, 0, 1},
+	)}
+	g, err := New(mode, p)
+	if err != nil {
+		t.Fatalf("New error: %v", err)
+	}
+	m := g.(Model)
+	m.cursor = pointToCursor(1, 1)
+	m.setCellAtCursor(seaCell)
+	m.cursor = pointToCursor(2, 1)
+	m.setCellAtCursor(islandCell)
+
+	lines := strings.Split(ansi.Strip(gridView(m)), "\n")
+	if got, want := len(lines), m.height*2+1; got != want {
+		t.Fatalf("line count = %d, want %d", got, want)
+	}
+	if !strings.HasPrefix(lines[0], "┌") || !strings.HasSuffix(lines[0], "┐") {
+		t.Fatal("expected top border")
+	}
+	last := lines[len(lines)-1]
+	if !strings.HasPrefix(last, "└") || !strings.HasSuffix(last, "┘") {
+		t.Fatal("expected bottom border")
+	}
+	for _, idx := range []int{1, 2, 3, 4, 5} {
+		line := lines[idx]
+		if strings.Count(line, "│") != 2 {
+			t.Fatalf("line %d = %q, want only outer vertical borders", idx, line)
+		}
+	}
+	for _, idx := range []int{2, 4} {
+		if strings.Contains(lines[idx], "─") {
+			t.Fatalf("line %d = %q, want no interior horizontal separators", idx, lines[idx])
+		}
+	}
+}
+
+func TestBridgeFillBlendsMixedTerrainBackgrounds(t *testing.T) {
+	mode := NewMode("Mini", "test", 3, 1, 0.3, 5)
+	p := Puzzle{Width: 3, Height: 1, Clues: makeClues(
+		[]int{1, 0, 0},
+	)}
+	g, err := New(mode, p)
+	if err != nil {
+		t.Fatalf("New error: %v", err)
+	}
+	m := g.(Model)
+	m.cursor = pointToCursor(1, 0)
+	m.setCellAtCursor(seaCell)
+	m.cursor = pointToCursor(2, 0)
+
+	got := bridgeFill(m, game.DynamicGridBridge{
+		Kind:    game.DynamicGridBridgeVertical,
+		X:       1,
+		Y:       0,
+		Count:   2,
+		Uniform: false,
+		Cells: [4]image.Point{
+			{X: 0, Y: 0},
+			{X: 1, Y: 0},
+		},
+	})
+
+	palette := theme.Current()
+	want := color.NRGBA{}
+	land := theme.Blend(palette.BG, palette.Success, 0.45)
+	sea := theme.Blend(palette.BG, palette.Secondary, 0.24)
+	lr, lg, lb, la := land.RGBA()
+	sr, sg, sb, sa := sea.RGBA()
+	want.R = uint8(((lr >> 8) + (sr >> 8)) / 2)
+	want.G = uint8(((lg >> 8) + (sg >> 8)) / 2)
+	want.B = uint8(((lb >> 8) + (sb >> 8)) / 2)
+	want.A = uint8(((la >> 8) + (sa >> 8)) / 2)
+
+	if !sameColor(got, want) {
+		t.Fatal("expected mixed land/sea bridge to use blended background")
+	}
+}
+
+func TestBridgeFillDoesNotExpandCursorBackground(t *testing.T) {
+	mode := NewMode("Mini", "test", 3, 1, 0.3, 5)
+	p := Puzzle{Width: 3, Height: 1, Clues: makeClues(
+		[]int{1, 0, 0},
+	)}
+	g, err := New(mode, p)
+	if err != nil {
+		t.Fatalf("New error: %v", err)
+	}
+	m := g.(Model)
+	m.cursor = pointToCursor(1, 0)
+	m.setCellAtCursor(seaCell)
+	got := bridgeFill(m, game.DynamicGridBridge{
+		Kind:    game.DynamicGridBridgeVertical,
+		X:       1,
+		Y:       0,
+		Count:   2,
+		Uniform: false,
+		Cells: [4]image.Point{
+			{X: 0, Y: 0},
+			{X: 1, Y: 0},
+		},
+	})
+
+	if sameColor(got, game.CursorBG()) {
+		t.Fatal("expected cursor color to stay inside the cell body")
 	}
 }
 

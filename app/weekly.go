@@ -1,0 +1,311 @@
+package app
+
+import (
+	"log"
+	"sort"
+	"strconv"
+	"time"
+
+	"charm.land/bubbles/v2/table"
+	tea "charm.land/bubbletea/v2"
+	sessionflow "github.com/FelineStateMachine/puzzletea/session"
+	"github.com/FelineStateMachine/puzzletea/store"
+	"github.com/FelineStateMachine/puzzletea/ui"
+	"github.com/FelineStateMachine/puzzletea/weekly"
+)
+
+const weeklyEntryCount = 99
+
+type weeklyRow struct {
+	Index    int
+	Name     string
+	GameType string
+	Mode     string
+	BonusXP  int
+	Status   store.GameStatus
+	Record   *store.GameRecord
+	Playable bool
+	ReadOnly bool
+}
+
+func (r weeklyRow) tableRow() table.Row {
+	return table.Row{
+		formatWeeklyIndex(r.Index),
+		r.GameType,
+		r.Mode,
+		formatWeeklyBonus(r.BonusXP),
+		ui.FormatStatus(r.Status),
+	}
+}
+
+func (m model) enterWeeklyView() (tea.Model, tea.Cmd) {
+	current := weekly.Current(time.Now())
+	m.nav.weeklyCursor = weekly.StartOfWeek(current.Year, current.Week, time.Local)
+	m = m.refreshWeeklyBrowser()
+	m.state = weeklyView
+	return m, nil
+}
+
+func (m model) refreshWeeklyBrowser() model {
+	year, weekNumber := m.selectedWeek()
+	games, err := m.store.ListWeeklyGames(year, weekNumber)
+	if err != nil {
+		log.Printf("failed to list weekly games: %v", err)
+		games = nil
+	}
+
+	if m.isCurrentWeeklySelection() {
+		m.nav.weeklyRows = buildCurrentWeeklyRows(year, weekNumber, games)
+	} else {
+		m.nav.weeklyRows = buildReviewWeeklyRows(games)
+	}
+
+	rows := make([]table.Row, 0, len(m.nav.weeklyRows))
+	for _, row := range m.nav.weeklyRows {
+		rows = append(rows, row.tableRow())
+	}
+	m.nav.weeklyTable = ui.InitWeeklyTable(rows, m.height)
+	return m
+}
+
+func (m model) isCurrentWeeklySelection() bool {
+	current := weekly.Current(time.Now())
+	year, weekNumber := m.selectedWeek()
+	return current.Year == year && current.Week == weekNumber
+}
+
+func (m model) selectedWeek() (int, int) {
+	cursor := m.nav.weeklyCursor
+	if cursor.IsZero() {
+		current := weekly.Current(time.Now())
+		cursor = weekly.StartOfWeek(current.Year, current.Week, time.Local)
+	}
+	return cursor.ISOWeek()
+}
+
+func (m model) weeklyPanelTitle() string {
+	year, weekNumber := m.selectedWeek()
+	return "Week " + formatTwoDigits(weekNumber) + "-" + strconv.Itoa(year)
+}
+
+func (m model) moveWeeklyWeek(delta int) model {
+	if m.nav.weeklyCursor.IsZero() {
+		current := weekly.Current(time.Now())
+		m.nav.weeklyCursor = weekly.StartOfWeek(current.Year, current.Week, time.Local)
+	}
+
+	nextCursor := weekly.AddWeeks(m.nav.weeklyCursor, delta)
+	current := weekly.Current(time.Now())
+	currentCursor := weekly.StartOfWeek(current.Year, current.Week, time.Local)
+	if nextCursor.After(currentCursor) {
+		nextCursor = currentCursor
+	}
+
+	m.nav.weeklyCursor = nextCursor
+	return m.refreshWeeklyBrowser()
+}
+
+func (m model) handleWeeklyEnter() (tea.Model, tea.Cmd) {
+	idx := m.nav.weeklyTable.Cursor()
+	if idx < 0 || idx >= len(m.nav.weeklyRows) {
+		return m, nil
+	}
+
+	return m.openWeeklyRow(m.nav.weeklyRows[idx])
+}
+
+func (m model) openWeeklyRow(row weeklyRow) (tea.Model, tea.Cmd) {
+	info, ok := weekly.ParseName(row.Name)
+	if !ok {
+		return m, nil
+	}
+
+	options := gameOpenOptions{
+		returnState: weeklyView,
+	}
+	if row.Playable && !row.ReadOnly {
+		infoCopy := info
+		options.weeklyInfo = &infoCopy
+	}
+
+	if row.Record != nil {
+		if row.ReadOnly {
+			m, _ = m.importAndActivateRecordWithOptions(*row.Record, gameOpenOptions{
+				readOnly:    true,
+				returnState: weeklyView,
+			})
+			return m, nil
+		}
+
+		var resumed bool
+		m, resumed = m.importAndActivateRecordWithOptions(*row.Record, options)
+		if resumed {
+			if err := sessionflow.ResumeAbandonedDeterministicRecord(m.store, row.Record); err != nil {
+				log.Printf("%v", err)
+			}
+		}
+		return m, nil
+	}
+
+	if !row.Playable {
+		return m, nil
+	}
+
+	spawner, gameType, modeTitle := weekly.Mode(info.Year, info.Week, info.Index)
+	if spawner == nil {
+		log.Printf("no weekly mode available for %s", row.Name)
+		return m, nil
+	}
+
+	rng := weekly.RNG(info.Year, info.Week, info.Index)
+	ctx, jobID := m.beginSpawnContext()
+	infoCopy := info
+	m.session.spawn = &spawnRequest{
+		source:      spawnSourceWeekly,
+		name:        row.Name,
+		gameType:    gameType,
+		modeTitle:   modeTitle,
+		returnState: weeklyView,
+		exitState:   weeklyView,
+		weeklyInfo:  &infoCopy,
+	}
+	m.state = generatingView
+	return m, tea.Batch(m.spinner.Tick, spawnSeededCmd(spawner, rng, ctx, jobID))
+}
+
+func (m model) advanceSolvedWeekly() (model, tea.Cmd, bool) {
+	if m.state != gameView || m.session.game == nil || !m.session.game.IsSolved() || m.session.weeklyAdvance == nil {
+		return m, nil, false
+	}
+
+	info := *m.session.weeklyAdvance
+	m = m.persistCompletionIfSolved()
+	m.nav.weeklyCursor = weekly.StartOfWeek(info.Year, info.Week, time.Local)
+	m = m.refreshWeeklyBrowser()
+	m.state = weeklyView
+	if len(m.nav.weeklyRows) == 0 || !m.nav.weeklyRows[0].Playable {
+		return m, nil, true
+	}
+
+	next, cmd := m.openWeeklyRow(m.nav.weeklyRows[0])
+	return next.(model), cmd, true
+}
+
+func buildCurrentWeeklyRows(year, weekNumber int, games []store.GameRecord) []weeklyRow {
+	byIndex := make(map[int]store.GameRecord, len(games))
+	completed := make(map[int]store.GameRecord, len(games))
+
+	for _, rec := range games {
+		info, ok := weekly.ParseName(rec.Name)
+		if !ok || info.Year != year || info.Week != weekNumber {
+			continue
+		}
+		byIndex[info.Index] = rec
+		if rec.Status == store.StatusCompleted {
+			completed[info.Index] = rec
+		}
+	}
+
+	prefix := 0
+	for index := 1; index <= weeklyEntryCount; index++ {
+		if _, ok := completed[index]; !ok {
+			break
+		}
+		prefix = index
+	}
+
+	rows := make([]weeklyRow, 0, prefix+1)
+	if prefix < weeklyEntryCount {
+		nextIndex := prefix + 1
+		if rec, ok := byIndex[nextIndex]; ok {
+			recCopy := rec
+			rows = append(rows, weeklyRow{
+				Index:    nextIndex,
+				Name:     rec.Name,
+				GameType: rec.GameType,
+				Mode:     rec.Mode,
+				BonusXP:  weekly.BonusXP(nextIndex),
+				Status:   rec.Status,
+				Record:   &recCopy,
+				Playable: true,
+			})
+		} else {
+			_, gameType, modeTitle := weekly.Mode(year, weekNumber, nextIndex)
+			rows = append(rows, weeklyRow{
+				Index:    nextIndex,
+				Name:     weekly.Name(year, weekNumber, nextIndex),
+				GameType: gameType,
+				Mode:     modeTitle,
+				BonusXP:  weekly.BonusXP(nextIndex),
+				Status:   store.StatusNew,
+				Playable: true,
+			})
+		}
+	}
+
+	for index := prefix; index >= 1; index-- {
+		rec := completed[index]
+		recCopy := rec
+		rows = append(rows, weeklyRow{
+			Index:    index,
+			Name:     rec.Name,
+			GameType: rec.GameType,
+			Mode:     rec.Mode,
+			BonusXP:  weekly.BonusXP(index),
+			Status:   rec.Status,
+			Record:   &recCopy,
+			ReadOnly: true,
+		})
+	}
+
+	return rows
+}
+
+func buildReviewWeeklyRows(games []store.GameRecord) []weeklyRow {
+	rows := make([]weeklyRow, 0, len(games))
+	for _, rec := range games {
+		info, ok := weekly.ParseName(rec.Name)
+		if !ok || rec.Status != store.StatusCompleted {
+			continue
+		}
+
+		recCopy := rec
+		rows = append(rows, weeklyRow{
+			Index:    info.Index,
+			Name:     rec.Name,
+			GameType: rec.GameType,
+			Mode:     rec.Mode,
+			BonusXP:  weekly.BonusXP(info.Index),
+			Status:   rec.Status,
+			Record:   &recCopy,
+			ReadOnly: true,
+		})
+	}
+
+	sort.Slice(rows, func(i, j int) bool {
+		return rows[i].Index > rows[j].Index
+	})
+	return rows
+}
+
+func formatWeeklyIndex(index int) string {
+	return "#" + formatTwoDigits(index)
+}
+
+func formatWeeklyBonus(bonus int) string {
+	return "+" + strconv.Itoa(bonus)
+}
+
+func formatWeeklyMenuIndex(index int) string {
+	if index < 10 {
+		return " " + strconv.Itoa(index)
+	}
+	return strconv.Itoa(index)
+}
+
+func formatTwoDigits(value int) string {
+	if value < 10 {
+		return "0" + strconv.Itoa(value)
+	}
+	return strconv.Itoa(value)
+}

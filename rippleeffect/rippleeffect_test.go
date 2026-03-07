@@ -1,6 +1,8 @@
 package rippleeffect
 
 import (
+	"fmt"
+	"image"
 	"image/color"
 	"math/rand/v2"
 	"strings"
@@ -181,6 +183,67 @@ func TestGeneratePuzzleSeeded(t *testing.T) {
 	}
 	if got := countSolutions(geo, a.Givens, 2); got != 1 {
 		t.Fatalf("generated puzzle solutions = %d, want 1", got)
+	}
+}
+
+func TestSampledGivenValueDistributionMatchesSolutions(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping sampled ripple given-value distribution test in short mode")
+	}
+
+	sampleCounts := []int{8, 6, 4, 2, 1}
+	shareDriftTolerances := []float64{0.12, 0.10, 0.10, 0.12, 0.16}
+
+	for i, item := range Modes {
+		mode := item.(Mode)
+		samples := sampleCounts[i]
+		tolerance := shareDriftTolerances[i]
+
+		t.Run(fmt.Sprintf("%s-%d", mode.Title(), samples), func(t *testing.T) {
+			solutionCounts := make([]int, mode.MaxCage+1)
+			givenCounts := make([]int, mode.MaxCage+1)
+			totalSolutions := 0
+			totalGivens := 0
+
+			for sample := 0; sample < samples; sample++ {
+				rng := rand.New(rand.NewPCG(uint64(3000+i*37+sample), uint64(4000+i*41+sample)))
+				puzzle, err := mode.generatePuzzleSeeded(rng)
+				if err != nil {
+					t.Fatalf("generatePuzzleSeeded failed: %v", err)
+				}
+
+				totalSolutions += accumulateValueCounts(solutionCounts, puzzle.Solution)
+				totalGivens += accumulateValueCounts(givenCounts, puzzle.Givens)
+			}
+
+			if totalSolutions == 0 {
+				t.Fatal("expected sampled solutions to contain values")
+			}
+			if totalGivens == 0 {
+				t.Fatal("expected sampled puzzles to contain givens")
+			}
+
+			t.Logf("sampled solution values: %s", formatValueDistribution(solutionCounts))
+			t.Logf("sampled given values: %s", formatValueDistribution(givenCounts))
+
+			for value := 1; value < len(solutionCounts); value++ {
+				if solutionCounts[value] == 0 {
+					continue
+				}
+
+				solutionShare := float64(solutionCounts[value]) / float64(totalSolutions)
+				givenShare := float64(givenCounts[value]) / float64(totalGivens)
+				if diff := givenShare - solutionShare; diff < -tolerance || diff > tolerance {
+					t.Fatalf(
+						"value %d share %.2f outside %.2f +/- %.2f",
+						value,
+						givenShare,
+						solutionShare,
+						tolerance,
+					)
+				}
+			}
+		})
 	}
 }
 
@@ -418,6 +481,133 @@ func TestActiveCageBridgeBackgrounds(t *testing.T) {
 	}
 }
 
+func TestBridgeFillUsesOpenAnchoredCrosshair(t *testing.T) {
+	geo, err := buildGeometry(3, 2, []Cage{
+		{ID: 0, Size: 2, Cells: []Cell{{0, 0}, {0, 1}}},
+		{ID: 1, Size: 2, Cells: []Cell{{1, 0}, {2, 0}}},
+		{ID: 2, Size: 1, Cells: []Cell{{1, 1}}},
+		{ID: 3, Size: 1, Cells: []Cell{{2, 1}}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	m := Model{
+		width:     3,
+		height:    2,
+		grid:      newGrid(3, 2),
+		givens:    newGrid(3, 2),
+		conflicts: newConflictGrid(3, 2),
+		cursor:    pointCursor(0, 0),
+		geo:       geo,
+	}
+	bridgeBG := bridgeBackgrounds(m, nil)
+
+	got := bridgeFill(m, bridgeBG, game.DynamicGridBridge{
+		Kind:    game.DynamicGridBridgeVertical,
+		X:       2,
+		Y:       0,
+		Count:   2,
+		Zone:    geo.cageGrid[0][1],
+		Uniform: true,
+		Cells: [4]image.Point{
+			{X: 1, Y: 0},
+			{X: 2, Y: 0},
+		},
+	})
+	if !sameColor(got, theme.Current().Surface) {
+		t.Fatal("expected anchored open bridge on cursor row to use crosshair background")
+	}
+}
+
+func TestBridgeFillDoesNotExpandIntoOpenInterior(t *testing.T) {
+	geo, err := buildGeometry(4, 3, []Cage{
+		{ID: 0, Size: 1, Cells: []Cell{{0, 1}}},
+		{ID: 1, Size: 9, Cells: []Cell{{1, 0}, {2, 0}, {3, 0}, {1, 1}, {2, 1}, {3, 1}, {1, 2}, {2, 2}, {3, 2}}},
+		{ID: 2, Size: 1, Cells: []Cell{{0, 0}}},
+		{ID: 3, Size: 1, Cells: []Cell{{0, 2}}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	m := Model{
+		width:     4,
+		height:    3,
+		grid:      newGrid(4, 3),
+		givens:    newGrid(4, 3),
+		conflicts: newConflictGrid(4, 3),
+		cursor:    pointCursor(0, 1),
+		geo:       geo,
+	}
+	bridgeBG := bridgeBackgrounds(m, nil)
+
+	if got := bridgeFill(m, bridgeBG, game.DynamicGridBridge{
+		Kind:    game.DynamicGridBridgeVertical,
+		X:       2,
+		Y:       1,
+		Count:   2,
+		Zone:    geo.cageGrid[1][1],
+		Uniform: true,
+		Cells: [4]image.Point{
+			{X: 1, Y: 1},
+			{X: 2, Y: 1},
+		},
+	}); got != nil {
+		t.Fatal("expected fully open interior bridge to remain unfilled")
+	}
+}
+
+func TestBridgeFillVerticalUsesRowCrosshairOnly(t *testing.T) {
+	m := Model{cursor: pointCursor(0, 1)}
+
+	if got := bridgeFill(m, nil, game.DynamicGridBridge{
+		Kind: game.DynamicGridBridgeVertical,
+		X:    1,
+		Y:    0,
+	}); got != nil {
+		t.Fatal("expected vertical separator to ignore column-only crosshair match")
+	}
+}
+
+func TestBridgeFillHorizontalUsesColumnCrosshairOnly(t *testing.T) {
+	m := Model{cursor: pointCursor(1, 0)}
+
+	if got := bridgeFill(m, nil, game.DynamicGridBridge{
+		Kind: game.DynamicGridBridgeHorizontal,
+		X:    0,
+		Y:    1,
+	}); got != nil {
+		t.Fatal("expected horizontal separator to ignore row-only crosshair match")
+	}
+}
+
+func TestBridgeFillExtendsThroughClosedVerticalSeparator(t *testing.T) {
+	m := Model{cursor: pointCursor(0, 0)}
+
+	got := bridgeFill(m, nil, game.DynamicGridBridge{
+		Kind: game.DynamicGridBridgeVertical,
+		X:    1,
+		Y:    0,
+	})
+	if !sameColor(got, theme.Current().Surface) {
+		t.Fatal("expected closed vertical separator on cursor row to use surface background")
+	}
+}
+
+func TestBridgeFillExtendsThroughClosedHorizontalSeparator(t *testing.T) {
+	m := Model{cursor: pointCursor(0, 0)}
+
+	got := bridgeFill(m, nil, game.DynamicGridBridge{
+		Kind: game.DynamicGridBridgeHorizontal,
+		X:    0,
+		Y:    1,
+	})
+	if !sameColor(got, theme.Current().Surface) {
+		t.Fatal("expected closed horizontal separator on cursor column to use surface background")
+	}
+}
+
 func sameColor(a, b color.Color) bool {
 	if a == nil || b == nil {
 		return a == b
@@ -436,4 +626,38 @@ func TestImportRejectsInvalidGivens(t *testing.T) {
 
 func pointCursor(x, y int) game.Cursor {
 	return game.Cursor{X: x, Y: y}
+}
+
+func accumulateValueCounts(counts []int, state grid) int {
+	total := 0
+	for y := range len(state) {
+		for x := range len(state[y]) {
+			value := state[y][x]
+			if value <= 0 {
+				continue
+			}
+			counts[value]++
+			total++
+		}
+	}
+	return total
+}
+
+func formatValueDistribution(counts []int) string {
+	total := 0
+	for value := 1; value < len(counts); value++ {
+		total += counts[value]
+	}
+	if total == 0 {
+		return "none"
+	}
+
+	parts := make([]string, 0, len(counts)-1)
+	for value := 1; value < len(counts); value++ {
+		if counts[value] == 0 {
+			continue
+		}
+		parts = append(parts, fmt.Sprintf("%d=%d(%.1f%%)", value, counts[value], 100*float64(counts[value])/float64(total)))
+	}
+	return strings.Join(parts, ", ")
 }

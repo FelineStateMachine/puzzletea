@@ -55,3 +55,31 @@ func TestStatsViewportSizeReservesBannerHeight(t *testing.T) {
 		t.Fatalf("stats height = %d, want %d", statsHeight, helpHeight-5)
 	}
 }
+
+func TestGameSelectViewContentSizeIsStableAcrossCategories(t *testing.T) {
+	l := ui.InitCategoryList(GameCategories, "Select Category")
+	m := model{
+		state:  gameSelectView,
+		width:  120,
+		height: 40,
+		nav: navigationState{
+			gameSelectList: l,
+		},
+	}
+	m = m.updateCategoryDetailViewport()
+
+	wantWidth := lipgloss.Width(m.gameSelectViewContent())
+	wantHeight := lipgloss.Height(m.gameSelectViewContent())
+
+	for i := range m.nav.gameSelectList.Items() {
+		m.nav.gameSelectList.Select(i)
+		m = m.updateCategoryDetailViewport()
+
+		if got := lipgloss.Width(m.gameSelectViewContent()); got != wantWidth {
+			t.Fatalf("selection %d width = %d, want %d", i, got, wantWidth)
+		}
+		if got := lipgloss.Height(m.gameSelectViewContent()); got != wantHeight {
+			t.Fatalf("selection %d height = %d, want %d", i, got, wantHeight)
+		}
+	}
+}

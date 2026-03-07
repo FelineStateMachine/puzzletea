@@ -15,11 +15,12 @@ Fill a 9x9 grid with digits so every row, column, and box is complete.
 | Key | Action |
 |-----|--------|
 | `Arrows` / `wasd` / `hjkl` | Move cursor |
+| `Mouse left-click` | Focus a cell |
 | `1`-`9` | Fill cell with digit |
 | `Backspace` | Clear cell |
 | `Ctrl+H` | Toggle help bar |
 | `Ctrl+R` | Reset puzzle |
-| `Ctrl+N` | Return to main menu |
+| `Escape` | Return to main menu |
 
 ## Tips
 

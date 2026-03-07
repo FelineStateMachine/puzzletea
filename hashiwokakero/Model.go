@@ -18,6 +18,11 @@ type Model struct {
 	keys           KeyMap
 	modeTitle      string
 	showFullHelp   bool
+	termWidth      int
+	termHeight     int
+	originX        int
+	originY        int
+	originValid    bool
 }
 
 func New(mode HashiMode, puzzle Puzzle) game.Gamer {
@@ -41,6 +46,19 @@ func (m Model) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 	switch msg := msg.(type) {
 	case game.HelpToggleMsg:
 		m.showFullHelp = msg.Show
+		m.originValid = false
+	case tea.WindowSizeMsg:
+		m.termWidth = msg.Width
+		m.termHeight = msg.Height
+		m.originValid = false
+	case tea.MouseClickMsg:
+		if msg.Button == tea.MouseLeft {
+			if col, row, ok := m.screenToGrid(msg.X, msg.Y); ok {
+				if isl := m.puzzle.FindIslandAt(col, row); isl != nil {
+					m.cursorIsland = isl.ID
+				}
+			}
+		}
 	case tea.KeyPressMsg:
 		if m.selectedIsland != nil {
 			m = m.handleBridgeMode(msg)
@@ -78,7 +96,7 @@ func (m Model) handleBridgeMode(msg tea.KeyPressMsg) Model {
 		m = m.cycleBridge(-1, 0)
 	case key.Matches(msg, m.keys.Right):
 		m = m.cycleBridge(1, 0)
-	case key.Matches(msg, m.keys.Select), key.Matches(msg, m.keys.Cancel):
+	case key.Matches(msg, m.keys.Select):
 		m.selectedIsland = nil
 	}
 	return m
@@ -122,6 +140,7 @@ func (m Model) cycleBridge(dx, dy int) Model {
 	m.puzzle.SetBridge(*m.selectedIsland, adj.ID, newCount)
 	if m.puzzle.IsSolved() {
 		m.selectedIsland = nil
+		m.originValid = false
 	}
 	return m
 }
@@ -138,13 +157,12 @@ func (m Model) View() string {
 
 	selected := m.selectedIsland != nil
 	status := statusBarView(selected, m.showFullHelp)
-
-	return game.ComposeGameViewRows(
-		title,
-		grid,
+	rows := []game.SecondaryRow{
 		game.StaticRow(info),
 		game.StableRow(status, statusBarVariants()...),
-	)
+	}
+
+	return game.ComposeGameViewRows(title, grid, rows...)
 }
 
 func (m Model) SetTitle(t string) game.Gamer {
@@ -164,6 +182,7 @@ func (m Model) Reset() game.Gamer {
 		m.cursorIsland = m.puzzle.Islands[0].ID
 	}
 	m.selectedIsland = nil
+	m.originValid = false
 	return m
 }
 

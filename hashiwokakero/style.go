@@ -10,84 +10,58 @@ import (
 	"github.com/FelineStateMachine/puzzletea/theme"
 )
 
-const cellWidth = 3
+const cellWidth = 5
 
-func islandColors() []color.Color { return theme.Current().ThemeColors() }
+const islandPillWidth = game.DynamicGridCellWidth
 
-func islandDefaultStyle(islandID int) lipgloss.Style {
-	colors := islandColors()
-	bg := colors[islandID%len(colors)]
-	return lipgloss.NewStyle().
-		Foreground(theme.TextOnBG(bg)).
-		Background(bg).
-		Bold(true)
+type cellVisual struct {
+	text    string
+	fg      color.Color
+	bg      color.Color
+	outerBG color.Color
+	bold    bool
+	pill    bool
 }
 
-func islandSatisfiedStyle() lipgloss.Style {
+func boardBackground() color.Color {
+	return theme.Current().BG
+}
+
+func baseIslandBackground() color.Color {
 	p := theme.Current()
-	return lipgloss.NewStyle().
-		Foreground(p.SuccessBorder).
-		Background(p.SuccessBG).
-		Bold(true)
+	return theme.Blend(p.BG, p.Success, 0.45)
 }
 
-func islandOverStyle() lipgloss.Style {
-	p := theme.Current()
-	return lipgloss.NewStyle().
-		Foreground(p.Error).
-		Background(p.ErrorBG).
-		Bold(true)
+func adjacentIslandBackground() color.Color {
+	return theme.Blend(baseIslandBackground(), theme.Current().Highlight, 0.12)
 }
 
-// islandHighlightBGStyle returns the style for adjacent/neighbor islands.
-
-func islandAdjacentStyle(islandID int) lipgloss.Style {
-	colors := islandColors()
-	bg := colors[islandID%len(colors)]
-	return lipgloss.NewStyle().
-		Foreground(theme.TextOnBG(bg)).
-		Background(bg).
-		Bold(true)
+func solvedIslandBackground() color.Color {
+	return theme.Blend(baseIslandBackground(), theme.Current().Success, 0.18)
 }
 
-func bridgeStyle() lipgloss.Style {
-	return lipgloss.NewStyle().
-		Foreground(theme.Current().Linked)
+func baseCellStyle(fg, bg color.Color, bold bool) lipgloss.Style {
+	style := lipgloss.NewStyle().
+		Width(cellWidth).
+		AlignHorizontal(lipgloss.Center).
+		Foreground(fg).
+		Background(bg)
+	if bold {
+		style = style.Bold(true)
+	}
+	return style
 }
 
-func bridgeSolvedStyle() lipgloss.Style {
-	return lipgloss.NewStyle().
-		Foreground(theme.Current().SuccessBorder)
+func bridgeColors() []color.Color {
+	return theme.Current().ThemeColors()
 }
 
-func emptyDotStyle() lipgloss.Style {
-	return lipgloss.NewStyle().
-		Foreground(theme.Current().TextDim)
-}
-
-func gridBorderStyle() lipgloss.Style {
-	return lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		Padding(1).
-		BorderForeground(theme.Current().TextDim)
-}
-
-func gridBorderSolvedStyle() lipgloss.Style {
-	return lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		Padding(1).
-		BorderForeground(theme.Current().SuccessBorder).
-		BorderBackground(theme.Current().SuccessBG)
-}
-
-// islandSelectedStyle returns the style for a selected island, using the
-// current theme's Highlight color for the background.
-func islandSelectedStyle() lipgloss.Style {
-	p := theme.Current()
-	return lipgloss.NewStyle().
-		Foreground(p.Highlight).
-		Background(p.SelectionBG).
-		Bold(true)
+func bridgeColor(index int) color.Color {
+	colors := bridgeColors()
+	if index < 0 || len(colors) == 0 {
+		return theme.TextOnBG(boardBackground())
+	}
+	return colors[index%len(colors)]
 }
 
 // isHighlightedNeighbor returns true if islandID is directly connectable
@@ -109,193 +83,285 @@ func isHighlightedNeighbor(m Model, islandID int) bool {
 	return false
 }
 
-// emptyCellView renders an empty grid cell as a subtle dot.
-func emptyCellView(solved bool) string {
-	p := theme.Current()
-	s := emptyDotStyle()
-	if solved {
-		s = s.Foreground(p.SolvedFG).Background(p.SuccessBG)
+func resolveCellVisual(m Model, x, y int, solved bool) cellVisual {
+	boardBG := boardBackground()
+	visual := cellVisual{
+		text:    "   ",
+		fg:      theme.TextOnBG(boardBG),
+		bg:      boardBG,
+		outerBG: boardBG,
 	}
-	return s.Width(cellWidth).AlignHorizontal(lipgloss.Center).Render("\u00b7")
-}
 
-// gridView renders the puzzle using a display grid with gap cells between
-// logical cells so that bridges between directly adjacent islands are visible.
-// Display grid is (2*width-1) x (2*height-1): even coords are logical cells,
-// odd coords are gap cells showing bridge connectors.
-func gridView(m Model, solved bool) string {
-	dispW := 2*m.puzzle.Width - 1
-	dispH := 2*m.puzzle.Height - 1
-
-	var rows []string
-	for dy := range dispH {
-		var cells []string
-		for dx := range dispW {
-			cells = append(cells, displayCellView(m, dx, dy, solved))
+	ci := m.puzzle.CellContent(x, y)
+	switch ci.Kind {
+	case cellIsland:
+		isl := m.puzzle.FindIslandByID(ci.IslandID)
+		if isl == nil {
+			return visual
 		}
-		rows = append(rows, lipgloss.JoinHorizontal(lipgloss.Top, cells...))
-	}
-	grid := lipgloss.JoinVertical(lipgloss.Left, rows...)
 
-	if solved {
-		return gridBorderSolvedStyle().Render(grid)
-	}
-	return gridBorderStyle().Render(grid)
-}
+		label := fmt.Sprintf(" %d ", isl.Required)
+		isCursor := m.cursorIsland == ci.IslandID
+		current := m.puzzle.BridgeCount(ci.IslandID)
+		islandBG := baseIslandBackground()
+		visual.pill = true
+		visual.outerBG = boardBG
 
-// displayCellView renders a single cell in the display grid.
-func displayCellView(m Model, dx, dy int, solved bool) string {
-	evenX := dx%2 == 0
-	evenY := dy%2 == 0
-
-	if evenX && evenY {
-		// Logical cell position
-		lx, ly := dx/2, dy/2
-		ci := m.puzzle.CellContent(lx, ly)
-		switch ci.Kind {
-		case cellIsland:
-			return islandView(m, ci.IslandID, solved)
-		case cellBridgeH:
-			return bridgeHView(ci.BridgeCount, solved)
-		case cellBridgeV:
-			return bridgeVView(ci.BridgeCount, solved)
+		switch {
+		case solved && isCursor:
+			visual.fg = game.CursorFG()
+			visual.bg = theme.Current().SuccessBG
+			visual.bold = true
+		case solved:
+			islandBG = solvedIslandBackground()
+			visual.fg = theme.TextOnBG(islandBG)
+			visual.bg = islandBG
+			visual.bold = true
+		case m.selectedIsland != nil && *m.selectedIsland == ci.IslandID:
+			visual.fg = theme.TextOnBG(theme.Current().SelectionBG)
+			visual.bg = theme.Current().SelectionBG
+			visual.bold = true
+		case isCursor:
+			visual.fg = game.CursorFG()
+			visual.bg = game.CursorBG()
+			visual.bold = true
+		case current > isl.Required:
+			visual.fg = theme.TextOnBG(theme.Current().ErrorBG)
+			visual.bg = theme.Current().ErrorBG
+			visual.bold = true
+		case current == isl.Required:
+			visual.fg = theme.TextOnBG(theme.Current().SuccessBG)
+			visual.bg = theme.Current().SuccessBG
+			visual.bold = true
+		case isHighlightedNeighbor(m, ci.IslandID):
+			adjacentBG := adjacentIslandBackground()
+			visual.fg = theme.TextOnBG(adjacentBG)
+			visual.bg = adjacentBG
+			visual.bold = true
 		default:
-			return emptyCellView(solved)
+			visual.fg = theme.TextOnBG(islandBG)
+			visual.bg = islandBG
+			visual.bold = true
 		}
-	}
 
-	if !evenX && evenY {
-		// Horizontal gap between (dx/2, dy/2) and (dx/2+1, dy/2)
-		lx, ly := dx/2, dy/2
-		return hGapView(m, lx, ly, solved)
-	}
-
-	if evenX && !evenY {
-		// Vertical gap between (dx/2, dy/2) and (dx/2, dy/2+1)
-		lx, ly := dx/2, dy/2
-		return vGapView(m, lx, ly, solved)
-	}
-
-	// Odd x and odd y — intersection of gaps, always empty
-	return lipgloss.NewStyle().Width(cellWidth).Render(" ")
-}
-
-// hGapView renders the horizontal gap between logical cell (lx,ly) and (lx+1,ly).
-// Shows a bridge connector if both neighbors are islands connected by a bridge.
-func hGapView(m Model, lx, ly int, solved bool) string {
-	left := m.puzzle.FindIslandAt(lx, ly)
-	right := m.puzzle.FindIslandAt(lx+1, ly)
-	if left != nil && right != nil {
-		if b := m.puzzle.GetBridge(left.ID, right.ID); b != nil {
-			return bridgeHView(b.Count, solved)
+		if isCursor && !solved {
+			label = game.CursorLeft + fmt.Sprintf("%d", isl.Required) + game.CursorRight
 		}
+		visual.text = label
+
+	case cellBridgeH:
+		visual.text = horizontalBridgeGlyph(ci.BridgeCount)
+		visual.fg = bridgeColor(ci.BridgeIdx)
+		visual.bold = ci.BridgeCount == 2
+	case cellBridgeV:
+		visual.text = verticalBridgeGlyph(ci.BridgeCount)
+		visual.fg = bridgeColor(ci.BridgeIdx)
+		visual.bold = ci.BridgeCount == 2
 	}
-	// Also check if a bridge passes through this gap (non-adjacent islands)
-	ci := m.puzzle.CellContent(lx, ly)
-	if ci.Kind == cellBridgeH {
-		return bridgeHView(ci.BridgeCount, solved)
-	}
-	ciR := m.puzzle.CellContent(lx+1, ly)
-	if ciR.Kind == cellBridgeH {
-		return bridgeHView(ciR.BridgeCount, solved)
-	}
-	return lipgloss.NewStyle().Width(cellWidth).Render(" ")
+
+	return visual
 }
 
-// vGapView renders the vertical gap between logical cell (lx,ly) and (lx,ly+1).
-// Shows a bridge connector if both neighbors are islands connected by a bridge.
-func vGapView(m Model, lx, ly int, solved bool) string {
-	top := m.puzzle.FindIslandAt(lx, ly)
-	bottom := m.puzzle.FindIslandAt(lx, ly+1)
-	if top != nil && bottom != nil {
-		if b := m.puzzle.GetBridge(top.ID, bottom.ID); b != nil {
-			return bridgeVView(b.Count, solved)
+func renderCellVisual(visual cellVisual) string {
+	if visual.pill {
+		sideWidth := max((cellWidth-islandPillWidth)/2, 0)
+		left := lipgloss.NewStyle().Width(sideWidth).Background(visual.outerBG).Render("")
+		right := lipgloss.NewStyle().Width(cellWidth - islandPillWidth - sideWidth).Background(visual.outerBG).Render("")
+		center := lipgloss.NewStyle().
+			Width(islandPillWidth).
+			AlignHorizontal(lipgloss.Center).
+			Foreground(visual.fg).
+			Background(visual.bg)
+		if visual.bold {
+			center = center.Bold(true)
 		}
+		return left + center.Render(visual.text) + right
 	}
-	// Also check if a bridge passes through this gap (non-adjacent islands)
-	ci := m.puzzle.CellContent(lx, ly)
-	if ci.Kind == cellBridgeV {
-		return bridgeVView(ci.BridgeCount, solved)
-	}
-	ciB := m.puzzle.CellContent(lx, ly+1)
-	if ciB.Kind == cellBridgeV {
-		return bridgeVView(ciB.BridgeCount, solved)
-	}
-	return lipgloss.NewStyle().Width(cellWidth).Render(" ")
+	return baseCellStyle(visual.fg, visual.bg, visual.bold).Render(visual.text)
 }
 
-func islandView(m Model, islandID int, solved bool) string {
-	isl := m.puzzle.FindIslandByID(islandID)
-	if isl == nil {
-		return emptyDotStyle().Width(cellWidth).Render(" ")
-	}
-
-	style := islandDefaultStyle(islandID)
-	current := m.puzzle.BridgeCount(islandID)
-	isCursor := m.cursorIsland == islandID
-
-	if solved && isCursor {
-		style = game.CursorSolvedStyle()
-	} else if solved {
-		colors := islandColors()
-		bg := colors[islandID%len(colors)]
-		style = lipgloss.NewStyle().
-			Foreground(theme.TextOnBG(bg)).
-			Background(bg).
-			Bold(true)
-	} else if m.selectedIsland != nil && *m.selectedIsland == islandID {
-		style = islandSelectedStyle()
-	} else if isCursor {
-		style = game.CursorStyle()
-	} else if current == isl.Required {
-		style = islandSatisfiedStyle()
-	} else if current > isl.Required {
-		style = islandOverStyle()
-	} else if isHighlightedNeighbor(m, islandID) {
-		style = islandAdjacentStyle(islandID)
-	}
-
-	label := fmt.Sprintf("%d", isl.Required)
-	if isCursor && !solved {
-		label = game.CursorLeft + fmt.Sprintf("%d", isl.Required) + game.CursorRight
-		return style.Render(label)
-	}
-	return style.Width(cellWidth).AlignHorizontal(lipgloss.Center).Render(label)
+func gridView(m Model, solved bool) string {
+	return game.RenderDynamicGrid(game.DynamicGridSpec{
+		Width:     m.puzzle.Width,
+		Height:    m.puzzle.Height,
+		CellWidth: cellWidth,
+		Solved:    solved,
+		Cell: func(x, y int) string {
+			return renderCellVisual(resolveCellVisual(m, x, y, solved))
+		},
+		ZoneAt: func(_, _ int) int {
+			return 0
+		},
+		HasVerticalEdge: func(x, _ int) bool {
+			return x <= 0 || x >= m.puzzle.Width
+		},
+		HasHorizontalEdge: func(_, y int) bool {
+			return y <= 0 || y >= m.puzzle.Height
+		},
+		BridgeForeground: func(bridge game.DynamicGridBridge) color.Color {
+			return bridgeForeground(m, bridge)
+		},
+		BridgeBold: func(bridge game.DynamicGridBridge) bool {
+			return bridgeBold(m, bridge)
+		},
+		VerticalBridgeText: func(x, y int) string {
+			return horizontalSeparatorBridge(m, x, y)
+		},
+		HorizontalBridgeText: func(x, y int) string {
+			return verticalSeparatorBridge(m, x, y)
+		},
+	})
 }
 
-func bridgeHView(count int, solved bool) string {
-	r := "\u2500\u2500\u2500"
+func horizontalBridgeGlyph(count int) string {
 	if count == 2 {
-		r = "\u2550\u2550\u2550"
+		return "═════"
 	}
-	s := bridgeStyle()
-	if solved {
-		s = bridgeSolvedStyle()
-	}
-	return s.Width(cellWidth).AlignHorizontal(lipgloss.Center).Render(r)
+	return "━━━━━"
 }
 
-func bridgeVView(count int, solved bool) string {
-	r := "\u2502"
+func verticalBridgeGlyph(count int) string {
 	if count == 2 {
-		r = "\u2551"
+		return "  ║  "
 	}
-	s := bridgeStyle()
-	if solved {
-		s = bridgeSolvedStyle()
+	return "  ┃  "
+}
+
+func horizontalSeparatorBridge(m Model, x, y int) string {
+	count := horizontalBridgeCountAt(m.puzzle, x, y)
+	if count == 0 {
+		return ""
 	}
-	return s.Width(cellWidth).AlignHorizontal(lipgloss.Center).Render(r)
+	if count == 2 {
+		return "═"
+	}
+	return "━"
+}
+
+func verticalSeparatorBridge(m Model, x, y int) string {
+	count := verticalBridgeCountAt(m.puzzle, x, y)
+	if count == 0 {
+		return ""
+	}
+	if count == 2 {
+		return "  ║  "
+	}
+	return "  ┃  "
+}
+
+func horizontalBridgeCountAt(p Puzzle, x, y int) int {
+	if x <= 0 || x >= p.Width || y < 0 || y >= p.Height {
+		return 0
+	}
+
+	left := p.CellContent(x-1, y)
+	right := p.CellContent(x, y)
+
+	switch {
+	case left.Kind == cellBridgeH:
+		return left.BridgeCount
+	case right.Kind == cellBridgeH:
+		return right.BridgeCount
+	case left.Kind == cellIsland && right.Kind == cellIsland:
+		if b := p.GetBridge(left.IslandID, right.IslandID); b != nil {
+			return b.Count
+		}
+	}
+
+	return 0
+}
+
+func verticalBridgeCountAt(p Puzzle, x, y int) int {
+	if y <= 0 || y >= p.Height || x < 0 || x >= p.Width {
+		return 0
+	}
+
+	top := p.CellContent(x, y-1)
+	bottom := p.CellContent(x, y)
+
+	switch {
+	case top.Kind == cellBridgeV:
+		return top.BridgeCount
+	case bottom.Kind == cellBridgeV:
+		return bottom.BridgeCount
+	case top.Kind == cellIsland && bottom.Kind == cellIsland:
+		if b := p.GetBridge(top.IslandID, bottom.IslandID); b != nil {
+			return b.Count
+		}
+	}
+
+	return 0
+}
+
+func bridgeForeground(m Model, bridge game.DynamicGridBridge) color.Color {
+	return bridgeColor(bridgeIndexForDynamicBridge(&m.puzzle, bridge))
+}
+
+func bridgeBold(m Model, bridge game.DynamicGridBridge) bool {
+	return bridgeCountForDynamicBridge(&m.puzzle, bridge) == 2
+}
+
+func bridgeIndexForDynamicBridge(p *Puzzle, bridge game.DynamicGridBridge) int {
+	_, index := dynamicBridgeIdentity(p, bridge)
+	return index
+}
+
+func bridgeCountForDynamicBridge(p *Puzzle, bridge game.DynamicGridBridge) int {
+	count, _ := dynamicBridgeIdentity(p, bridge)
+	return count
+}
+
+func dynamicBridgeIdentity(p *Puzzle, bridge game.DynamicGridBridge) (int, int) {
+	for i := 0; i < bridge.Count; i++ {
+		cell := p.CellContent(bridge.Cells[i].X, bridge.Cells[i].Y)
+		switch cell.Kind {
+		case cellBridgeH, cellBridgeV:
+			return cell.BridgeCount, cell.BridgeIdx
+		}
+	}
+
+	ids := make([]int, 0, 2)
+	for i := 0; i < bridge.Count; i++ {
+		cell := p.CellContent(bridge.Cells[i].X, bridge.Cells[i].Y)
+		if cell.Kind != cellIsland {
+			continue
+		}
+		duplicate := false
+		for _, id := range ids {
+			if id == cell.IslandID {
+				duplicate = true
+				break
+			}
+		}
+		if !duplicate {
+			ids = append(ids, cell.IslandID)
+		}
+	}
+
+	if len(ids) == 2 {
+		if p.bridgeIndex == nil {
+			p.buildBridgeIndex()
+		}
+		if idx, ok := p.bridgeIndex[bridgeKey(ids[0], ids[1])]; ok {
+			if idx >= 0 && idx < len(p.Bridges) {
+				return p.Bridges[idx].Count, idx
+			}
+			return 0, idx
+		}
+	}
+
+	return 0, -1
 }
 
 func statusBarView(selected, showFullHelp bool) string {
 	if selected {
 		if showFullHelp {
-			return game.StatusBarStyle().Render("arrows/wasd: build bridge  enter/space/esc: cancel  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
+			return game.StatusBarStyle().Render("arrows/wasd: build bridge  enter/space: deselect  esc: menu  ctrl+r: reset  ctrl+h: help")
 		}
-		return game.StatusBarStyle().Render("arrows/wasd: build bridge  enter/space/esc: cancel")
+		return game.StatusBarStyle().Render("bridge mode  arrows/wasd: build  enter/space: deselect")
 	}
 	if showFullHelp {
-		return game.StatusBarStyle().Render("arrows/wasd: move  enter/space: select island  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
+		return game.StatusBarStyle().Render("arrows/wasd: move  enter/space: select island  esc: menu  ctrl+r: reset  ctrl+h: help")
 	}
 	return game.StatusBarStyle().Render("arrows/wasd: move  enter/space: select island")
 }
@@ -306,6 +372,7 @@ func statusBarVariants() []string {
 		statusBarView(false, true),
 		statusBarView(true, false),
 		statusBarView(true, true),
+		game.StatusBarStyle().Render("arrows/wasd: build bridge\nenter/space: deselect"),
 	}
 }
 

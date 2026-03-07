@@ -2,16 +2,17 @@
 
 A terminal-based puzzle game collection built with [Bubble Tea](https://github.com/charmbracelet/bubbletea).
 
-Eleven puzzle types, multiple difficulty modes, daily challenges, XP progression, 365 color themes, and an explicit game catalog for adding new games.
+Twelve puzzle types, multiple difficulty modes, daily and weekly deterministic challenges, XP progression, 365 color themes, and an explicit game catalog for adding new games.
 
 ![PuzzleTea menu](vhs/menu.gif)
 
 ## Features
 
-- **11 puzzle games** -- Fillomino, Nonogram, Nurikabe, Ripple Effect, Sudoku, Shikaku, Word Search, Hashiwokakero, Hitori, Lights Out, Takuzu
+- **12 puzzle games** -- Fillomino, Nonogram, Nurikabe, Ripple Effect, Sudoku, Shikaku, Word Search, Hashiwokakero, Hitori, Lights Out, Takuzu, Takuzu+
 - **Daily puzzles** -- A unique puzzle generated each day using deterministic seeding. Same date, same puzzle for everyone. Streak tracking rewards consecutive daily completions.
-- **XP and leveling** -- Per-category levels based on victories. Harder modes yield more XP. Daily puzzles grant 2x XP.
-- **Stats dashboard** -- Profile level, daily streak, victory counts, and XP progress bars per category.
+- **Weekly gauntlet** -- Each ISO calendar week has a shared 99-puzzle ladder. The current week unlocks sequentially from `#01` to `#99`; past weeks can be reviewed from completed saves only.
+- **XP and leveling** -- Per-category levels based on victories. Harder modes yield more XP. Daily puzzles grant 2x XP, and weekly puzzles add slot-based bonus XP.
+- **Stats dashboard** -- Profile level, daily streak status, weekly completion progress, victory counts, and XP progress bars per category.
 - **365 color themes** -- Live-preview theme picker with WCAG-compliant contrast enforcement. Dark and light themes included.
 - **Mouse support** -- Click and drag in Nonogram, Nurikabe, Shikaku, and Word Search. Lights Out supports click-to-toggle.
 - **Seeded puzzles** -- Share a seed string to generate identical puzzles across sessions and machines.
@@ -32,6 +33,7 @@ Eleven puzzle types, multiple difficulty modes, daily challenges, XP progression
 | **Hitori** | Shade cells to eliminate duplicates | 6 modes from 5x5 to 12x12 |
 | **Lights Out** | Toggle lights to turn all off | Easy (3x3) to Extreme (9x9) |
 | **Takuzu** | Fill grid with two symbols | 7 modes from 6x6 to 14x14 |
+| **Takuzu+** | Fill grid with symbols plus `=` and `x` relation clues | 7 modes from 6x6 to 14x14 |
 
 ## Install
 
@@ -80,6 +82,18 @@ Launch the interactive menu:
 ```
 puzzletea
 ```
+
+The Play menu includes:
+
+- `Create` for a new puzzle by category and mode
+- `Continue` for saved games
+- `Daily` for the shared deterministic daily puzzle
+- `Weekly` for the current or historical weekly gauntlet
+- `Seeded` for a custom deterministic seed
+
+Weekly gauntlets use the ISO week-year format shown in the menu, for example
+`Week 10-2026 # 7`. The `#` value is the currently active weekly challenge for
+that week. Current-week puzzles unlock one at a time; older weeks are review-only.
 
 Start a new game directly:
 
@@ -157,7 +171,7 @@ puzzletea --continue amber-falcon
 
 ### CLI Aliases
 
-Several shorthand names are accepted for games: `polyomino`/`regions` for Fillomino, `hashi`/`bridges` for Hashiwokakero, `lights` for Lights Out, `islands`/`sea` for Nurikabe, `ripple` for Ripple Effect, `binairo`/`binary` for Takuzu, `words`/`ws` for Word Search, `rectangles` for Shikaku.
+Several shorthand names are accepted for games: `polyomino`/`regions` for Fillomino, `hashi`/`bridges` for Hashiwokakero, `lights` for Lights Out, `islands`/`sea` for Nurikabe, `ripple` for Ripple Effect, `binairo`/`binary` for Takuzu, `binario+` for Takuzu+, `words`/`ws` for Word Search, `rectangles` for Shikaku.
 
 ## Controls
 
@@ -166,8 +180,7 @@ Several shorthand names are accepted for games: `polyomino`/`regions` for Fillom
 | Key | Action |
 |-----|--------|
 | `Enter` | Select |
-| `Escape` | Go back |
-| `Ctrl+N` | Return to main menu |
+| `Escape` | Return to the menu or go back |
 | `Ctrl+R` | Reset puzzle |
 | `Ctrl+H` | Toggle full help |
 | `Ctrl+E` | Toggle debug overlay |
@@ -184,6 +197,8 @@ Nonogram, Nurikabe, Shikaku, and Word Search support click and drag. Lights Out 
 ## Game Persistence
 
 Games are automatically saved to `~/.puzzletea/history.db` (SQLite). Navigating away saves progress; quitting with `Ctrl+C` marks the game as abandoned. Completed games are preserved and can be revisited.
+
+Daily and current-week weekly puzzles keep a single deterministic save per seed/week slot. Completed weekly puzzles from prior weeks reopen in review mode and are not modified when viewed again.
 
 ## Previews
 

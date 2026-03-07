@@ -182,6 +182,54 @@ func TestParseTakuzuPrintData(t *testing.T) {
 	}
 }
 
+func TestParseTakuzuPlusPrintData(t *testing.T) {
+	save := []byte(`{"size":4,"state":"01..\n10..\n0011\n1111","provided":"#...\n.##.\n####\n#...","horizontal_relations":"=x.\n...\n..=\n...","vertical_relations":"x...\n.=..\n...x"}`)
+
+	data, err := ParseTakuzuPlusPrintData(save)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if data == nil {
+		t.Fatal("expected takuzu+ print data")
+	}
+	if got, want := data.HorizontalRelations[0][0], "="; got != want {
+		t.Fatalf("horizontal relation[0][0] = %q, want %q", got, want)
+	}
+	if got, want := data.HorizontalRelations[0][1], "x"; got != want {
+		t.Fatalf("horizontal relation[0][1] = %q, want %q", got, want)
+	}
+	if got, want := data.VerticalRelations[0][0], "x"; got != want {
+		t.Fatalf("vertical relation[0][0] = %q, want %q", got, want)
+	}
+	if got, want := data.VerticalRelations[1][1], "="; got != want {
+		t.Fatalf("vertical relation[1][1] = %q, want %q", got, want)
+	}
+	if got, want := data.Givens[1][1], "0"; got != want {
+		t.Fatalf("given[1][1] = %q, want %q", got, want)
+	}
+}
+
+func TestParseSudokuRGBPrintData(t *testing.T) {
+	save := []byte(`{"grid":"100000000\n000000000\n000000000\n000000000\n000000000\n000000000\n000000000\n000000000\n000000000","provided":[{"x":0,"y":0,"v":1},{"x":1,"y":0,"v":4},{"x":2,"y":0,"v":3}]}`)
+
+	data, err := ParseSudokuRGBPrintData(save)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if data == nil {
+		t.Fatal("expected sudoku rgb print data")
+	}
+	if got, want := data.Givens[0][0], 1; got != want {
+		t.Fatalf("givens[0][0] = %d, want %d", got, want)
+	}
+	if got := data.Givens[0][1]; got != 0 {
+		t.Fatalf("givens[0][1] = %d, want 0", got)
+	}
+	if got, want := data.Givens[0][2], 3; got != want {
+		t.Fatalf("givens[0][2] = %d, want %d", got, want)
+	}
+}
+
 func TestParseFillominoPrintData(t *testing.T) {
 	save := []byte(`{"width":3,"height":2,"state":"1 . 2\n. 3 .","provided":"#.#\n.#."}`)
 

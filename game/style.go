@@ -67,7 +67,7 @@ func TitleBarView(gameName, modeName string, solved bool) string {
 	title := titleStyle().Render(gameName + " - " + modeName)
 	if solved {
 		badge := solvedBadgeStyle().Render("  SOLVED")
-		return title + badge + "\nctrl+n to play again"
+		return title + badge + "\nesc to return to menu"
 	}
 	return lipgloss.NewStyle().PaddingBottom(1).Render(title)
 }

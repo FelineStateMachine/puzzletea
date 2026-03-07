@@ -14,7 +14,9 @@ import (
 	"github.com/FelineStateMachine/puzzletea/rippleeffect"
 	"github.com/FelineStateMachine/puzzletea/shikaku"
 	"github.com/FelineStateMachine/puzzletea/sudoku"
+	"github.com/FelineStateMachine/puzzletea/sudokurgb"
 	"github.com/FelineStateMachine/puzzletea/takuzu"
+	"github.com/FelineStateMachine/puzzletea/takuzuplus"
 	"github.com/FelineStateMachine/puzzletea/wordsearch"
 )
 
@@ -29,7 +31,9 @@ var All = []game.Definition{
 	rippleeffect.Definition,
 	shikaku.Definition,
 	sudoku.Definition,
+	sudokurgb.Definition,
 	takuzu.Definition,
+	takuzuplus.Definition,
 	wordsearch.Definition,
 }
 

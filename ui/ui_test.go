@@ -5,6 +5,7 @@ import (
 	"testing"
 	"unicode"
 
+	"charm.land/bubbles/v2/table"
 	"github.com/FelineStateMachine/puzzletea/store"
 	"github.com/FelineStateMachine/puzzletea/theme"
 
@@ -58,6 +59,22 @@ func TestFormatStatus(t *testing.T) {
 	}
 }
 
+func TestInitWeeklyTableKeepsFixedHeight(t *testing.T) {
+	short := InitWeeklyTable([]table.Row{{"#01", "Sudoku", "Easy", "+0", "New"}}, 40)
+	longRows := make([]table.Row, MaxTableRows)
+	for i := range longRows {
+		longRows[i] = table.Row{"#01", "Sudoku", "Easy", "+0", "New"}
+	}
+	long := InitWeeklyTable(longRows, 40)
+
+	if got, want := short.Height(), long.Height(); got != want {
+		t.Fatalf("short Height() = %d, want %d", got, want)
+	}
+	if short.Height() <= 1 {
+		t.Fatalf("Height() = %d, want > 1", short.Height())
+	}
+}
+
 // --- InitList (P1) ---
 
 func TestInitList(t *testing.T) {
@@ -97,15 +114,23 @@ func TestInitListDisablesQuitAndFilter(t *testing.T) {
 	}
 }
 
-func TestInitCategoryListDisablesQuitAndFilter(t *testing.T) {
-	l := InitCategoryList(nil, "Categories")
+func TestInitCategoryListEnablesFilterAndHidesDescriptions(t *testing.T) {
+	items := []list.Item{
+		MenuItem{ItemTitle: "Sudoku", Desc: "number puzzle"},
+	}
+	l := InitCategoryList(items, "Categories")
 
-	if l.FilteringEnabled() {
-		t.Error("expected filtering to be disabled")
+	if !l.FilteringEnabled() {
+		t.Error("expected filtering to be enabled")
 	}
 
 	if l.ShowHelp() {
 		t.Error("expected help to be disabled")
+	}
+
+	rendered := ansi.Strip(l.View())
+	if strings.Contains(rendered, "number puzzle") {
+		t.Fatalf("expected category list to hide item descriptions\nview:\n%s", rendered)
 	}
 }
 

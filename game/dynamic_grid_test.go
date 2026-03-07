@@ -79,6 +79,82 @@ func TestRenderDynamicGridUsesUniformRows(t *testing.T) {
 	}
 }
 
+func TestRenderDynamicGridSupportsCustomCellWidth(t *testing.T) {
+	view := RenderDynamicGrid(DynamicGridSpec{
+		Width:     2,
+		Height:    1,
+		CellWidth: 5,
+		Cell: func(_, _ int) string {
+			return "     "
+		},
+		ZoneAt: func(_, _ int) int {
+			return 0
+		},
+		VerticalBridgeText: func(x, y int) string {
+			if x == 1 && y == 0 {
+				return "x"
+			}
+			return ""
+		},
+	})
+
+	lines := strings.Split(ansi.Strip(view), "\n")
+	if got := len([]rune(lines[0])); got != 13 {
+		t.Fatalf("top row width = %d, want %d", got, 13)
+	}
+	if !strings.Contains(lines[1], "x") {
+		t.Fatalf("content row = %q, want custom-width bridge text", lines[1])
+	}
+}
+
+func TestRenderDynamicGridEdgeOverridesSuppressInteriorBorders(t *testing.T) {
+	view := RenderDynamicGrid(DynamicGridSpec{
+		Width:  2,
+		Height: 2,
+		Cell: func(_, _ int) string {
+			return "   "
+		},
+		ZoneAt: func(x, y int) int {
+			return y*10 + x
+		},
+		HasVerticalEdge: func(x, _ int) bool {
+			return x <= 0 || x >= 2
+		},
+		HasHorizontalEdge: func(_, y int) bool {
+			return y <= 0 || y >= 2
+		},
+	})
+
+	lines := strings.Split(ansi.Strip(view), "\n")
+	if got := []rune(lines[1])[4]; got != ' ' {
+		t.Fatalf("interior vertical bridge rune = %q, want %q", got, ' ')
+	}
+	if got := []rune(lines[2])[4]; got != ' ' {
+		t.Fatalf("interior junction rune = %q, want %q", got, ' ')
+	}
+}
+
+func TestRenderDynamicGridDefaultsToZoneEdgesWithoutOverrides(t *testing.T) {
+	view := RenderDynamicGrid(DynamicGridSpec{
+		Width:  2,
+		Height: 2,
+		Cell: func(_, _ int) string {
+			return "   "
+		},
+		ZoneAt: func(x, y int) int {
+			return y*10 + x
+		},
+	})
+
+	lines := strings.Split(ansi.Strip(view), "\n")
+	if got := []rune(lines[1])[4]; got != '│' {
+		t.Fatalf("interior vertical bridge rune = %q, want %q", got, '│')
+	}
+	if got := []rune(lines[2])[4]; got != '┼' {
+		t.Fatalf("interior junction rune = %q, want %q", got, '┼')
+	}
+}
+
 func TestDynamicGridRenderBorderCharSolvedDefaults(t *testing.T) {
 	got := dynamicGridRenderBorderChar('│', DefaultBorderColors(), true, nil)
 	want := lipgloss.NewStyle().
@@ -87,6 +163,30 @@ func TestDynamicGridRenderBorderCharSolvedDefaults(t *testing.T) {
 		Render("│")
 	if got != want {
 		t.Fatal("expected solved border char to use solved colors")
+	}
+}
+
+func TestDynamicGridRenderBorderCharUsesTextOnTintedBackground(t *testing.T) {
+	bg := theme.Current().Surface
+	got := dynamicGridRenderBorderChar('│', DefaultBorderColors(), false, bg)
+	want := lipgloss.NewStyle().
+		Foreground(theme.TextOnBG(bg)).
+		Background(bg).
+		Render("│")
+	if got != want {
+		t.Fatal("expected tinted border char to use contrast-aware foreground")
+	}
+}
+
+func TestBorderCharHighlightUsesTextOnCrosshairBackground(t *testing.T) {
+	colors := DefaultBorderColors()
+	got := BorderChar("│", colors, false, true)
+	want := lipgloss.NewStyle().
+		Foreground(theme.TextOnBG(colors.CrosshairBG)).
+		Background(colors.CrosshairBG).
+		Render("│")
+	if got != want {
+		t.Fatal("expected highlighted border char to use contrast-aware foreground")
 	}
 }
 
@@ -149,5 +249,53 @@ func TestDynamicGridOriginStableAcrossSecondaryRows(t *testing.T) {
 	longX, longY := DynamicGridOrigin(120, 40, longView, title, grid)
 	if shortX != longX || shortY != longY {
 		t.Fatalf("origin changed from (%d,%d) to (%d,%d)", shortX, shortY, longX, longY)
+	}
+}
+
+func TestRenderDynamicGridVerticalBridgeText(t *testing.T) {
+	view := RenderDynamicGrid(DynamicGridSpec{
+		Width:  2,
+		Height: 1,
+		Cell: func(_, _ int) string {
+			return "   "
+		},
+		ZoneAt: func(_, _ int) int {
+			return 0
+		},
+		VerticalBridgeText: func(x, y int) string {
+			if x == 1 && y == 0 {
+				return "x"
+			}
+			return ""
+		},
+	})
+
+	lines := strings.Split(ansi.Strip(view), "\n")
+	if got := []rune(lines[1])[4]; got != 'x' {
+		t.Fatalf("vertical bridge rune = %q, want %q", got, 'x')
+	}
+}
+
+func TestRenderDynamicGridHorizontalBridgeText(t *testing.T) {
+	view := RenderDynamicGrid(DynamicGridSpec{
+		Width:  1,
+		Height: 2,
+		Cell: func(_, _ int) string {
+			return "   "
+		},
+		ZoneAt: func(_, _ int) int {
+			return 0
+		},
+		HorizontalBridgeText: func(x, y int) string {
+			if x == 0 && y == 1 {
+				return "="
+			}
+			return ""
+		},
+	})
+
+	lines := strings.Split(ansi.Strip(view), "\n")
+	if got := []rune(lines[2])[2]; got != '=' {
+		t.Fatalf("horizontal bridge rune = %q, want %q", got, '=')
 	}
 }

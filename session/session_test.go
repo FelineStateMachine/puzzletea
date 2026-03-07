@@ -15,6 +15,7 @@ func TestNormalizeSeed(t *testing.T) {
 	}{
 		{input: "daily-challenge", want: "daily-challenge"},
 		{input: "DailyChallenge", want: "dailyChallenge"},
+		{input: "Week 01-2026 - #01", want: "week 01-2026 - #01"},
 		{input: "seed-123", want: "seed-123"},
 	}
 
@@ -29,6 +30,20 @@ func TestSeededNameDeterministic(t *testing.T) {
 	seed := "zebra-seed"
 	if got, want := SeededName(seed), SeededName(seed); got != want {
 		t.Fatalf("SeededName(%q) = %q then %q", seed, got, want)
+	}
+}
+
+func TestSeededNameForGameDeterministicAndDistinct(t *testing.T) {
+	seed := "zebra-seed"
+	got := SeededNameForGame(seed, "Sudoku")
+	if want := SeededNameForGame(seed, "Sudoku"); got != want {
+		t.Fatalf("SeededNameForGame returned %q then %q", got, want)
+	}
+	if got == SeededName(seed) {
+		t.Fatalf("SeededNameForGame(%q) should differ from SeededName(%q)", seed, seed)
+	}
+	if got == SeededNameForGame(seed, "Nonogram") {
+		t.Fatal("different selected games should produce different seeded names")
 	}
 }
 

@@ -16,12 +16,13 @@ solved when every cell is filled and all three rules are satisfied.
 | Key | Action |
 |-----|--------|
 | `Arrows` / `wasd` / `hjkl` | Move cursor |
+| `Mouse left-click` | Move to a cell, or cycle the current editable cell |
 | `z` / `0` | Place ● (filled) |
 | `x` / `1` | Place ○ (open) |
 | `Backspace` | Clear cell |
 | `Ctrl+H` | Toggle help bar |
 | `Ctrl+R` | Reset puzzle |
-| `Ctrl+N` | Return to main menu |
+| `Escape` | Return to main menu |
 
 ## Tips
 

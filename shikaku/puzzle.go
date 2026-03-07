@@ -207,6 +207,29 @@ func (p *Puzzle) encasedRectangleForClue(clueID int) (Rectangle, bool) {
 	return rect, true
 }
 
+func (p *Puzzle) forcedRectangleForClue(clueID int) (Rectangle, bool) {
+	clue := p.FindClueByID(clueID)
+	if clue == nil || p.FindRectangleForClue(clueID) != nil {
+		return Rectangle{}, false
+	}
+
+	if clue.Value == 1 {
+		rect := Rectangle{
+			ClueID: clueID,
+			X:      clue.X,
+			Y:      clue.Y,
+			W:      1,
+			H:      1,
+		}
+		if p.ValidRectangleForClue(rect, clueID) {
+			return rect, true
+		}
+		return Rectangle{}, false
+	}
+
+	return p.encasedRectangleForClue(clueID)
+}
+
 func (p *Puzzle) unownedRegionFrom(x, y int) [][2]int {
 	if x < 0 || x >= p.Width || y < 0 || y >= p.Height || p.CellOwner(x, y) != unownedRegionID {
 		return nil
@@ -287,7 +310,7 @@ func (p *Puzzle) autoPlaceForcedRectangles() bool {
 	for {
 		changed := false
 		for _, c := range p.Clues {
-			rect, ok := p.encasedRectangleForClue(c.ID)
+			rect, ok := p.forcedRectangleForClue(c.ID)
 			if !ok {
 				continue
 			}

@@ -2,9 +2,16 @@ package hashiwokakero
 
 import (
 	"encoding/json"
+	"image"
+	"image/color"
+	"strings"
 	"testing"
 
+	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/FelineStateMachine/puzzletea/game"
+	"github.com/FelineStateMachine/puzzletea/theme"
+	"github.com/charmbracelet/x/ansi"
 )
 
 // --- helpers ---
@@ -164,6 +171,27 @@ func TestSetBridge(t *testing.T) {
 			t.Error("bridgeIndex should remain available after SetBridge")
 		}
 	})
+}
+
+func TestSelectTogglesBridgeMode(t *testing.T) {
+	p := linePuzzle()
+	m := Model{
+		puzzle:       *p,
+		cursorIsland: 0,
+		keys:         DefaultKeyMap,
+	}
+
+	next, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	selected := next.(Model)
+	if selected.selectedIsland == nil || *selected.selectedIsland != 0 {
+		t.Fatal("expected enter to select the current island")
+	}
+
+	next, _ = selected.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	deselected := next.(Model)
+	if deselected.selectedIsland != nil {
+		t.Fatal("expected enter to deselect the current island")
+	}
 }
 
 // --- BridgeCount (P0) ---
@@ -357,6 +385,280 @@ func TestViewHeightStableAcrossStatusModes(t *testing.T) {
 			t.Fatalf("view %d height = %d, want %d", i+1, got, wantHeight)
 		}
 	}
+}
+
+func TestScreenToGridUsesHashiCellWidth(t *testing.T) {
+	m := Model{puzzle: *fourCornerPuzzle(), cursorIsland: 0, keys: DefaultKeyMap, modeTitle: "Test"}
+
+	next, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+	got := next.(Model)
+	x, y := got.cachedGridOrigin()
+
+	if col, row, ok := got.screenToGrid(x, y); !ok || col != 0 || row != 0 {
+		t.Fatalf("screenToGrid(origin) = (%d,%d,%v), want (0,0,true)", col, row, ok)
+	}
+	if _, _, ok := got.screenToGrid(x+cellWidth, y); ok {
+		t.Fatal("screenToGrid(separator) = ok, want false")
+	}
+}
+
+func TestMouseClickMovesCursorToClickedIsland(t *testing.T) {
+	m := Model{puzzle: *fourCornerPuzzle(), cursorIsland: 0, keys: DefaultKeyMap, modeTitle: "Test"}
+
+	next, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+	got := next.(Model)
+	ox, oy := got.cachedGridOrigin()
+
+	clickX := ox + (cellWidth+1)*3
+	clickY := oy
+	next, _ = got.Update(tea.MouseClickMsg{X: clickX, Y: clickY, Button: tea.MouseLeft})
+	clicked := next.(Model)
+
+	if clicked.cursorIsland != 1 {
+		t.Fatalf("cursorIsland = %d, want %d", clicked.cursorIsland, 1)
+	}
+}
+
+func TestMouseClickIgnoresEmptyCells(t *testing.T) {
+	m := Model{puzzle: *fourCornerPuzzle(), cursorIsland: 0, keys: DefaultKeyMap, modeTitle: "Test"}
+
+	next, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+	got := next.(Model)
+	ox, oy := got.cachedGridOrigin()
+
+	clickX := ox + (cellWidth + 1)
+	clickY := oy
+	next, _ = got.Update(tea.MouseClickMsg{X: clickX, Y: clickY, Button: tea.MouseLeft})
+	clicked := next.(Model)
+
+	if clicked.cursorIsland != 0 {
+		t.Fatalf("cursorIsland = %d, want unchanged 0", clicked.cursorIsland)
+	}
+}
+
+func TestGridViewUsesOnlyOuterBorders(t *testing.T) {
+	m := Model{puzzle: *fourCornerPuzzle(), cursorIsland: 0, keys: DefaultKeyMap}
+
+	lines := strings.Split(ansi.Strip(gridView(m, false)), "\n")
+	if got, want := len(lines), 9; got != want {
+		t.Fatalf("line count = %d, want %d", got, want)
+	}
+
+	if !strings.HasPrefix(lines[0], "┌") || !strings.HasSuffix(lines[0], "┐") {
+		t.Fatalf("top border = %q, want outer corners", lines[0])
+	}
+	if !strings.HasPrefix(lines[len(lines)-1], "└") || !strings.HasSuffix(lines[len(lines)-1], "┘") {
+		t.Fatalf("bottom border = %q, want outer corners", lines[len(lines)-1])
+	}
+
+	for _, idx := range []int{1, 3, 5, 7} {
+		if got := strings.Count(lines[idx], "│"); got != 2 {
+			t.Fatalf("content row %d = %q, want only outer vertical borders", idx, lines[idx])
+		}
+	}
+	for _, idx := range []int{2, 4, 6} {
+		if strings.Contains(lines[idx], "─") {
+			t.Fatalf("separator row %d = %q, want no interior horizontal border glyphs", idx, lines[idx])
+		}
+	}
+}
+
+func TestGridViewRendersSingleAndDoubleHorizontalBridgesAcrossSeparators(t *testing.T) {
+	makePuzzle := func(count int) Puzzle {
+		p := Puzzle{
+			Width:  3,
+			Height: 1,
+			Islands: []Island{
+				{ID: 0, X: 0, Y: 0, Required: count},
+				{ID: 1, X: 2, Y: 0, Required: count},
+			},
+		}
+		p.SetBridge(0, 1, count)
+		return p
+	}
+
+	single := Model{puzzle: makePuzzle(1), cursorIsland: 0, keys: DefaultKeyMap}
+	singleRow := strings.Split(ansi.Strip(gridView(single, false)), "\n")[1]
+	if got := strings.Count(singleRow, "━"); got != 7 {
+		t.Fatalf("single bridge row = %q, want 7 heavy horizontal bridge glyphs including separators", singleRow)
+	}
+
+	double := Model{puzzle: makePuzzle(2), cursorIsland: 0, keys: DefaultKeyMap}
+	doubleRow := strings.Split(ansi.Strip(gridView(double, false)), "\n")[1]
+	if got := strings.Count(doubleRow, "═"); got != 7 {
+		t.Fatalf("double bridge row = %q, want 7 double-bridge glyphs including separators", doubleRow)
+	}
+}
+
+func TestGridViewRendersVerticalBridgeInSeparatorRows(t *testing.T) {
+	p := Puzzle{
+		Width:  1,
+		Height: 3,
+		Islands: []Island{
+			{ID: 0, X: 0, Y: 0, Required: 1},
+			{ID: 1, X: 0, Y: 2, Required: 1},
+		},
+	}
+	p.SetBridge(0, 1, 1)
+
+	m := Model{puzzle: p, cursorIsland: 0, keys: DefaultKeyMap}
+	lines := strings.Split(ansi.Strip(gridView(m, false)), "\n")
+
+	if !strings.Contains(lines[2], "  ┃  ") {
+		t.Fatalf("upper separator row = %q, want vertical bridge glyph", lines[2])
+	}
+	if !strings.Contains(lines[3], "  ┃  ") {
+		t.Fatalf("bridge cell row = %q, want vertical bridge glyph", lines[3])
+	}
+	if !strings.Contains(lines[4], "  ┃  ") {
+		t.Fatalf("lower separator row = %q, want vertical bridge glyph", lines[4])
+	}
+}
+
+func TestResolveCellVisualCursorIsland(t *testing.T) {
+	m := Model{puzzle: *fourCornerPuzzle(), cursorIsland: 0, keys: DefaultKeyMap}
+
+	got := renderCellVisual(resolveCellVisual(m, 0, 0, false))
+	want := renderExpectedIslandCell(game.CursorLeft+"2"+game.CursorRight, game.CursorFG(), game.CursorBG(), true)
+	if got != want {
+		t.Fatalf("cursor island render = %q, want %q", got, want)
+	}
+}
+
+func TestResolveCellVisualSelectedIsland(t *testing.T) {
+	selected := 0
+	m := Model{puzzle: *fourCornerPuzzle(), cursorIsland: 1, selectedIsland: &selected, keys: DefaultKeyMap}
+
+	got := renderCellVisual(resolveCellVisual(m, 0, 0, false))
+	want := renderExpectedIslandCell(" 2 ", theme.TextOnBG(theme.Current().SelectionBG), theme.Current().SelectionBG, true)
+	if got != want {
+		t.Fatalf("selected island render = %q, want %q", got, want)
+	}
+}
+
+func TestResolveCellVisualSatisfiedAndOverfilledIslands(t *testing.T) {
+	satisfied := Puzzle{
+		Width:  3,
+		Height: 1,
+		Islands: []Island{
+			{ID: 0, X: 0, Y: 0, Required: 1},
+			{ID: 1, X: 2, Y: 0, Required: 1},
+		},
+	}
+	satisfied.SetBridge(0, 1, 1)
+	satisfiedModel := Model{puzzle: satisfied, cursorIsland: 1, keys: DefaultKeyMap}
+
+	gotSatisfied := renderCellVisual(resolveCellVisual(satisfiedModel, 0, 0, false))
+	wantSatisfied := renderExpectedIslandCell(" 1 ", theme.TextOnBG(theme.Current().SuccessBG), theme.Current().SuccessBG, true)
+	if gotSatisfied != wantSatisfied {
+		t.Fatalf("satisfied island render = %q, want %q", gotSatisfied, wantSatisfied)
+	}
+
+	overfilled := Puzzle{
+		Width:  5,
+		Height: 3,
+		Islands: []Island{
+			{ID: 0, X: 0, Y: 1, Required: 2},
+			{ID: 1, X: 2, Y: 1, Required: 2},
+			{ID: 2, X: 4, Y: 1, Required: 2},
+			{ID: 3, X: 2, Y: 0, Required: 1},
+		},
+	}
+	overfilled.SetBridge(0, 1, 1)
+	overfilled.SetBridge(1, 2, 1)
+	overfilled.SetBridge(1, 3, 1)
+	overfilledModel := Model{puzzle: overfilled, cursorIsland: 0, keys: DefaultKeyMap}
+
+	gotOverfilled := renderCellVisual(resolveCellVisual(overfilledModel, 2, 1, false))
+	wantOverfilled := renderExpectedIslandCell(" 2 ", theme.TextOnBG(theme.Current().ErrorBG), theme.Current().ErrorBG, true)
+	if gotOverfilled != wantOverfilled {
+		t.Fatalf("overfilled island render = %q, want %q", gotOverfilled, wantOverfilled)
+	}
+}
+
+func TestSolvedBridgeVisualStaysLegibleOverBlueBoard(t *testing.T) {
+	p := Puzzle{
+		Width:  3,
+		Height: 1,
+		Islands: []Island{
+			{ID: 0, X: 0, Y: 0, Required: 1},
+			{ID: 1, X: 2, Y: 0, Required: 1},
+		},
+	}
+	p.SetBridge(0, 1, 1)
+	m := Model{puzzle: p, cursorIsland: 0, keys: DefaultKeyMap}
+
+	empty := resolveCellVisual(m, 0, 0, true)
+	if !sameColor(empty.outerBG, boardBackground()) {
+		t.Fatal("expected solved island outer background to stay on the board color")
+	}
+
+	bridge := resolveCellVisual(m, 1, 0, true)
+	if !sameColor(bridge.bg, boardBackground()) {
+		t.Fatal("expected solved bridge cell to keep the blue board background")
+	}
+	if !sameColor(bridge.fg, bridgeColor(0)) {
+		t.Fatal("expected solved bridge cell to use the bridge palette color")
+	}
+}
+
+func TestBridgeForegroundUsesThemePalettePerBridge(t *testing.T) {
+	p := Puzzle{
+		Width:  5,
+		Height: 1,
+		Islands: []Island{
+			{ID: 0, X: 0, Y: 0, Required: 1},
+			{ID: 1, X: 2, Y: 0, Required: 2},
+			{ID: 2, X: 4, Y: 0, Required: 1},
+		},
+	}
+	p.SetBridge(0, 1, 1)
+	p.SetBridge(1, 2, 1)
+	m := Model{puzzle: p, cursorIsland: 0, keys: DefaultKeyMap}
+
+	leftBridge := game.DynamicGridBridge{
+		Kind:  game.DynamicGridBridgeVertical,
+		X:     1,
+		Y:     0,
+		Count: 2,
+		Cells: [4]image.Point{{X: 0, Y: 0}, {X: 1, Y: 0}},
+	}
+	rightBridge := game.DynamicGridBridge{
+		Kind:  game.DynamicGridBridgeVertical,
+		X:     3,
+		Y:     0,
+		Count: 2,
+		Cells: [4]image.Point{{X: 2, Y: 0}, {X: 3, Y: 0}},
+	}
+
+	if !sameColor(bridgeForeground(m, leftBridge), bridgeColor(0)) {
+		t.Fatal("expected first bridge to use the first palette color")
+	}
+	if !sameColor(bridgeForeground(m, rightBridge), bridgeColor(1)) {
+		t.Fatal("expected second bridge to use the second palette color")
+	}
+}
+
+func sameColor(left, right color.Color) bool {
+	if left == nil || right == nil {
+		return left == nil && right == nil
+	}
+	lr, lg, lb, la := left.RGBA()
+	rr, rg, rb, ra := right.RGBA()
+	return lr == rr && lg == rg && lb == rb && la == ra
+}
+
+func renderExpectedIslandCell(text string, fg, bg color.Color, bold bool) string {
+	side := lipgloss.NewStyle().Width((cellWidth - islandPillWidth) / 2).Background(boardBackground()).Render("")
+	center := lipgloss.NewStyle().
+		Width(islandPillWidth).
+		AlignHorizontal(lipgloss.Center).
+		Foreground(fg).
+		Background(bg)
+	if bold {
+		center = center.Bold(true)
+	}
+	return side + center.Render(text) + side
 }
 
 // --- IsConnected (P0) ---

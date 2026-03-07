@@ -22,7 +22,7 @@ The puzzle is solved when all cells are decided and all rules hold.
 | `Backspace` | Clear to unknown |
 | `Ctrl+H` | Toggle help bar |
 | `Ctrl+R` | Reset puzzle |
-| `Ctrl+N` | Return to main menu |
+| `Escape` | Return to main menu |
 
 ## Mouse
 

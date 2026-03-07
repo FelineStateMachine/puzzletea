@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/FelineStateMachine/puzzletea/weekly"
 	_ "modernc.org/sqlite"
 )
 
@@ -218,6 +219,12 @@ func (s *Store) ListGames() ([]GameRecord, error) {
 // Daily puzzles should always be resumable regardless of status.
 // Returns nil, nil if no matching game is found.
 func (s *Store) GetDailyGame(name string) (*GameRecord, error) {
+	return s.GetDeterministicGame(name)
+}
+
+// GetDeterministicGame looks up an exact deterministic game name, including
+// abandoned rows.
+func (s *Store) GetDeterministicGame(name string) (*GameRecord, error) {
 	g, err := s.getGameByQuery(
 		fmt.Sprintf(`SELECT %s
 		 FROM games
@@ -225,9 +232,39 @@ func (s *Store) GetDailyGame(name string) (*GameRecord, error) {
 		name,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("querying daily game: %w", err)
+		return nil, fmt.Errorf("querying deterministic game: %w", err)
 	}
 	return g, nil
+}
+
+// GetWeeklyGame looks up a weekly game by canonical week and index.
+func (s *Store) GetWeeklyGame(year, weekNumber, index int) (*GameRecord, error) {
+	return s.GetDeterministicGame(weekly.Name(year, weekNumber, index))
+}
+
+// ListWeeklyGames returns all records matching the canonical weekly prefix for
+// the provided ISO week-year, including abandoned rows.
+func (s *Store) ListWeeklyGames(year, weekNumber int) ([]GameRecord, error) {
+	games, err := s.listGamesByQuery(
+		fmt.Sprintf(`SELECT %s
+		 FROM games
+		 WHERE name LIKE ?
+		 ORDER BY name DESC`, gameSelectColumns),
+		weekly.Prefix(year, weekNumber)+"%",
+	)
+	if err != nil {
+		return nil, fmt.Errorf("listing weekly games: %w", err)
+	}
+
+	filtered := make([]GameRecord, 0, len(games))
+	for _, g := range games {
+		info, ok := weekly.ParseName(g.Name)
+		if !ok || info.Year != year || info.Week != weekNumber {
+			continue
+		}
+		filtered = append(filtered, g)
+	}
+	return filtered, nil
 }
 
 // GetGameByName looks up a single non-abandoned game by its unique name.

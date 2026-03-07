@@ -21,13 +21,14 @@ every cell is filled and all three rules are satisfied.
 | Key | Action |
 |-----|--------|
 | Arrow keys / WASD / hjkl | Move cursor |
+| Mouse left-click | Move to a cell, or cycle the current editable cell |
 | `z` / `0` | Place ● |
 | `x` / `1` | Place ○ |
 | `Backspace` | Clear cell |
 | `Ctrl+R` | Reset puzzle |
 | `Ctrl+H` | Toggle full help |
 | `Ctrl+E` | Toggle debug overlay |
-| `Ctrl+N` | Return to main menu |
+| `Escape` | Return to main menu |
 
 ## Modes
 

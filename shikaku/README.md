@@ -14,7 +14,7 @@ clue and the clue's value equals the rectangle's area.
 2. Press arrow keys to expand the rectangle in each direction.
 3. Press `Shift+Arrow` to shrink a side if you overshot.
 4. Press `Enter` or `Space` to confirm when the preview is green.
-5. Press `Escape` to cancel, or `Backspace` to delete.
+5. Press `Backspace` to cancel a draft or delete a placed rectangle.
 
 ## Controls
 
@@ -24,11 +24,11 @@ clue and the clue's value equals the rectangle's area.
 |-----|--------|
 | Arrow keys / WASD / hjkl | Move cursor |
 | `Enter` / `Space` | Select clue for expansion |
-| `Backspace` | Delete rectangle at cursor |
+| `Backspace` | Cancel preview or delete rectangle at cursor |
 | `Ctrl+R` | Reset puzzle |
 | `Ctrl+H` | Toggle full help |
 | `Ctrl+E` | Toggle debug overlay |
-| `Ctrl+N` | Return to main menu |
+| `Escape` | Return to main menu |
 
 ### Expansion Mode (after selecting a clue)
 
@@ -37,8 +37,7 @@ clue and the clue's value equals the rectangle's area.
 | Arrow keys / WASD / hjkl | Expand rectangle in that direction |
 | Shift+Arrow / WASD / HJKL | Shrink rectangle from that side |
 | `Enter` / `Space` | Confirm placement (green preview only) |
-| `Escape` | Cancel, discard preview |
-| `Backspace` | Delete existing rectangle, return to nav |
+| `Backspace` | Cancel, discard preview |
 
 ## Modes
 

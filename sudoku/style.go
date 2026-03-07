@@ -1,15 +1,15 @@
 package sudoku
 
 import (
-	"fmt"
-	"strings"
+	"image/color"
+	"strconv"
 
 	"charm.land/lipgloss/v2"
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/theme"
 )
 
-var sudokuCellWidth = 2
+const cellWidth = game.DynamicGridCellWidth
 
 func emptyCellStyle() lipgloss.Style {
 	p := theme.Current()
@@ -18,18 +18,18 @@ func emptyCellStyle() lipgloss.Style {
 		Background(p.BG)
 }
 
-func providedCellStyle() lipgloss.Style {
+func providedCellStyle(v int) lipgloss.Style {
 	p := theme.Current()
 	return lipgloss.NewStyle().
 		Bold(true).
-		Foreground(p.Given).
+		Foreground(digitColor(v)).
 		Background(p.BG)
 }
 
-func userCellStyle() lipgloss.Style {
+func userCellStyle(v int) lipgloss.Style {
 	p := theme.Current()
 	return lipgloss.NewStyle().
-		Foreground(p.AccentSoft).
+		Foreground(digitColor(v)).
 		Background(p.BG)
 }
 
@@ -40,150 +40,176 @@ func conflictCellStyle() lipgloss.Style {
 		Background(p.ErrorBG)
 }
 
-func sameNumberStyle() lipgloss.Style {
-	p := theme.Current()
+func sameNumberStyle(v int) lipgloss.Style {
 	return lipgloss.NewStyle().
 		Bold(true).
-		Foreground(p.Accent)
+		Foreground(digitColor(v))
 }
 
-func gridBorderStyle() lipgloss.Style {
-	p := theme.Current()
+func digitCursorStyle(value int) lipgloss.Style {
+	bg := digitColor(value)
 	return lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(p.Border).
-		BorderBackground(p.BG)
+		Bold(true).
+		Foreground(theme.TextOnBG(bg)).
+		Background(bg)
 }
 
-func gridBorderSolvedStyle() lipgloss.Style {
-	p := theme.Current()
-	return lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(p.SuccessBorder).
-		BorderBackground(p.SuccessBG)
+func renderGrid(m Model, solved bool) string {
+	return game.RenderDynamicGrid(game.DynamicGridSpec{
+		Width:  gridSize,
+		Height: gridSize,
+		Solved: solved,
+		Cell: func(x, y int) string {
+			return cellView(m, x, y, solved)
+		},
+		ZoneAt: func(x, y int) int {
+			return sudokuBoxIndex(x, y)
+		},
+		ZoneFill: func(zone int) color.Color {
+			return activeBoxZoneFill(m.cursor, solved, zone)
+		},
+		BridgeFill: func(bridge game.DynamicGridBridge) color.Color {
+			return bridgeFill(m, solved, bridge)
+		},
+	})
 }
 
-func renderGrid(m Model, solved bool, conflicts [gridSize][gridSize]bool) string {
-	p := theme.Current()
+func cellView(m Model, x, y int, solved bool) string {
+	c := m.grid[y][x]
+	style := cellStyle(m, c, x, y, m.conflicts[y][x], solved)
+	text := cellContent(c)
 
-	var rows []string
-
-	for y := range gridSize {
-		var cells []string
-		for x := range gridSize {
-			c := m.grid[y][x]
-			style := getCellStyle(m, c, x, y, conflicts[y][x], solved)
-			content := cellContent(c)
-			rendered := style.Width(sudokuCellWidth).Align(lipgloss.Center).Render(content)
-			cells = append(cells, rendered)
-
-			if x == 2 || x == 5 {
-				bg := p.BG
-				if m.cursor.Y == y {
-					bg = p.Surface
-				}
-				sep := lipgloss.NewStyle().Foreground(p.Border).Background(bg).Render("\u2502")
-				cells = append(cells, sep)
-			}
-		}
-		row := lipgloss.JoinHorizontal(lipgloss.Top, cells...)
-		rows = append(rows, row)
-
-		if y == 2 || y == 5 {
-			sepLine := strings.Repeat("\u2500", sudokuCellWidth)
-			var renderedParts []string
-			for x := range gridSize {
-				bg := p.BG
-				fg := p.Border
-				if solved {
-					bg = p.SuccessBG
-					fg = p.SuccessBorder
-				} else if m.cursor.X == x {
-					bg = p.Surface
-				}
-				renderedParts = append(renderedParts, lipgloss.NewStyle().Foreground(fg).Background(bg).Render(sepLine))
-				if x == 2 || x == 5 {
-					crossBG := p.BG
-					crossFG := p.Border
-					if solved {
-						crossBG = p.SuccessBG
-						crossFG = p.SuccessBorder
-					}
-					renderedParts = append(renderedParts, lipgloss.NewStyle().Foreground(crossFG).Background(crossBG).Render("\u253c"))
-				}
-			}
-			rows = append(rows, lipgloss.JoinHorizontal(lipgloss.Top, renderedParts...))
+	if x == m.cursor.X && y == m.cursor.Y {
+		if c.v == 0 {
+			text = game.CursorLeft + "·" + game.CursorRight
+		} else {
+			text = game.CursorLeft + strconv.Itoa(c.v) + game.CursorRight
 		}
 	}
 
-	grid := lipgloss.JoinVertical(lipgloss.Left, rows...)
-
-	if solved {
-		return gridBorderSolvedStyle().Render(grid)
-	}
-	return gridBorderStyle().Render(grid)
+	return style.Width(cellWidth).AlignHorizontal(lipgloss.Center).Render(text)
 }
 
-func getCellStyle(m Model, c cell, x, y int, conflict, solved bool) lipgloss.Style {
+func cellStyle(m Model, c cell, x, y int, conflict, solved bool) lipgloss.Style {
 	p := theme.Current()
 	isCursor := m.cursor.X == x && m.cursor.Y == y
 	cursorVal := m.grid[m.cursor.Y][m.cursor.X].v
 
-	// Priority: cursor+solved > cursor > conflict > same number > provided > user > empty
-	if isCursor && solved {
+	switch {
+	case isCursor && solved:
+		if c.v != 0 {
+			return digitCursorStyle(c.v)
+		}
 		return game.CursorSolvedStyle()
-	}
-
-	if isCursor {
+	case isCursor:
+		if c.v != 0 {
+			return digitCursorStyle(c.v)
+		}
 		return game.CursorStyle()
-	}
-
-	if solved {
-		return lipgloss.NewStyle().Foreground(p.SolvedFG).Background(p.SuccessBG)
-	}
-
-	if conflict {
+	case solved:
+		return lipgloss.NewStyle().
+			Foreground(p.SolvedFG).
+			Background(p.SuccessBG)
+	case conflict:
 		return conflictCellStyle()
-	}
-
-	if cursorVal != 0 && c.v == cursorVal {
-		return sameNumberStyle()
+	case cursorVal != 0 && c.v == cursorVal:
+		return sameNumberStyle(c.v)
 	}
 
 	isProvided := m.providedGrid[y][x]
-	inCursorRow := m.cursor.Y == y
-	inCursorCol := m.cursor.X == x
-	inCursorBox := (x/3 == m.cursor.X/3) && (y/3 == m.cursor.Y/3)
-	inCrosshair := inCursorRow || inCursorCol || inCursorBox
-
 	if isProvided {
-		s := providedCellStyle()
-		if inCrosshair {
-			s = s.Background(p.Surface)
+		style := providedCellStyle(c.v)
+		if inCursorContext(m.cursor, x, y) {
+			style = style.Background(p.Surface)
 		}
-		return s
+		return style
 	}
 
 	if c.v != 0 {
-		s := userCellStyle()
-		if inCrosshair {
-			s = s.Background(p.Surface)
+		style := userCellStyle(c.v)
+		if inCursorContext(m.cursor, x, y) {
+			style = style.Background(p.Surface)
 		}
-		return s
+		return style
 	}
 
-	s := emptyCellStyle()
-	if inCrosshair {
-		s = s.Background(p.Surface)
+	style := emptyCellStyle()
+	if inCursorContext(m.cursor, x, y) {
+		style = style.Background(p.Surface)
 	}
-	return s
+	return style
+}
+
+func bridgeFill(m Model, solved bool, bridge game.DynamicGridBridge) color.Color {
+	if solved {
+		return nil
+	}
+
+	if bridgeOnCrosshairAxis(m.cursor, bridge) {
+		return theme.Current().Surface
+	}
+	return nil
+}
+
+func activeBoxZoneFill(cursor game.Cursor, solved bool, zone int) color.Color {
+	if solved || zone != sudokuBoxIndex(cursor.X, cursor.Y) {
+		return nil
+	}
+	return theme.Current().Surface
+}
+
+func bridgeOnCrosshairAxis(cursor game.Cursor, bridge game.DynamicGridBridge) bool {
+	switch bridge.Kind {
+	case game.DynamicGridBridgeVertical:
+		if bridge.Count == 0 {
+			return bridge.Y == cursor.Y
+		}
+		for i := 0; i < bridge.Count; i++ {
+			if bridge.Cells[i].Y == cursor.Y {
+				return true
+			}
+		}
+	case game.DynamicGridBridgeHorizontal:
+		if bridge.Count == 0 {
+			return bridge.X == cursor.X
+		}
+		for i := 0; i < bridge.Count; i++ {
+			if bridge.Cells[i].X == cursor.X {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func inCursorContext(cursor game.Cursor, x, y int) bool {
+	return cursor.X == x ||
+		cursor.Y == y ||
+		sudokuBoxIndex(cursor.X, cursor.Y) == sudokuBoxIndex(x, y)
+}
+
+func sudokuBoxIndex(x, y int) int {
+	return (y / 3 * 3) + (x / 3)
+}
+
+func digitColor(value int) color.Color {
+	if value <= 0 {
+		return theme.Current().TextDim
+	}
+
+	colors := theme.Current().ThemeColors()
+	if len(colors) == 0 {
+		return theme.Current().FG
+	}
+
+	return colors[(value-1)%len(colors)]
 }
 
 func cellContent(c cell) string {
 	if c.v == 0 {
-		return "\u00b7"
+		return "·"
 	}
-	return fmt.Sprintf("%d", c.v)
+	return strconv.Itoa(c.v)
 }
 
 // computeConflicts returns a grid of booleans indicating which cells have conflicts.
@@ -253,7 +279,7 @@ func computeConflicts(g grid) [gridSize][gridSize]bool {
 
 func statusBarView(showFullHelp bool) string {
 	if showFullHelp {
-		return game.StatusBarStyle().Render("arrows/wasd: move  1-9: fill  bkspc: clear  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
+		return game.StatusBarStyle().Render("mouse: click focus  arrows/wasd: move  1-9: fill  bkspc: clear  esc: menu  ctrl+r: reset  ctrl+h: help")
 	}
-	return game.StatusBarStyle().Render("1-9: fill  bkspc: clear")
+	return game.StatusBarStyle().Render("mouse: click focus  1-9: fill  bkspc: clear")
 }

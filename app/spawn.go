@@ -113,7 +113,10 @@ func (m model) handleSpawnComplete(jobID int64, msg game.SpawnCompleteMsg) (tea.
 		log.Printf("missing spawn request metadata")
 		return m, nil
 	}
-	m = m.activateGame(msg.Game.SetTitle(request.name), 0, false)
+	m = m.activateGame(msg.Game.SetTitle(request.name), 0, false, gameOpenOptions{
+		returnState: request.exitState,
+		weeklyInfo:  request.weeklyInfo,
+	})
 
 	// Capture initial state and create DB record.
 	rec, err := sessionflow.CreateRecord(
@@ -133,8 +136,11 @@ func (m model) handleSpawnComplete(jobID int64, msg game.SpawnCompleteMsg) (tea.
 
 // saveCurrentGame saves the current game state to the DB if a game is active.
 func saveCurrentGame(m model, status store.GameStatus) model {
-	if m.session.game == nil || m.session.activeGameID == 0 {
+	if m.session.game == nil {
 		return m
+	}
+	if m.session.activeGameID == 0 {
+		return clearActiveGame(m)
 	}
 	saveData, err := m.session.game.GetSave()
 	if err != nil {
@@ -150,7 +156,14 @@ func saveCurrentGame(m model, status store.GameStatus) model {
 			log.Printf("failed to update game status: %v", err)
 		}
 	}
+	return clearActiveGame(m)
+}
+
+func clearActiveGame(m model) model {
 	m.session.activeGameID = 0
 	m.session.game = nil
+	m.session.completionSaved = false
+	m.session.returnState = mainMenuView
+	m.session.weeklyAdvance = nil
 	return m
 }

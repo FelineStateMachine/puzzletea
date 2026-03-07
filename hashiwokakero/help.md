@@ -25,7 +25,7 @@ After selecting an island, you enter Bridge Mode.
 | Key | Action |
 |-----|--------|
 | `Arrows` / `wasd` / `hjkl` | Build or cycle bridge in direction |
-| `Enter` / `Space` / `Escape` | Deselect island |
+| `Enter` / `Space` | Deselect island |
 
 Pressing a direction once builds a single bridge, twice upgrades to a
 double bridge, and a third time removes it.
@@ -36,7 +36,7 @@ double bridge, and a third time removes it.
 |-----|--------|
 | `Ctrl+R` | Reset puzzle |
 | `Ctrl+H` | Toggle help bar |
-| `Ctrl+N` | Return to main menu |
+| `Escape` | Return to main menu |
 
 ## Tips
 

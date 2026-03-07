@@ -15,8 +15,10 @@ import (
 // NormalizeSeed keeps seeded names distinct from real dailies.
 func NormalizeSeed(seed string) string {
 	seed = strings.TrimSpace(seed)
-	if strings.HasPrefix(strings.ToLower(seed), "daily") {
-		return strings.ToLower(seed[:len("daily")]) + seed[len("daily"):]
+	for _, reserved := range []string{"daily", "week"} {
+		if strings.HasPrefix(strings.ToLower(seed), reserved) {
+			return strings.ToLower(seed[:len(reserved)]) + seed[len(reserved):]
+		}
 	}
 	return seed
 }
@@ -25,6 +27,22 @@ func NormalizeSeed(seed string) string {
 func SeededName(seed string) string {
 	nameRNG := resolve.RNGFromString("name:" + seed)
 	return seed + " - " + namegen.GenerateSeeded(nameRNG)
+}
+
+// SeededNameForGame derives the deterministic display name for a seeded
+// puzzle locked to a specific game.
+func SeededNameForGame(seed, gameType string) string {
+	if strings.TrimSpace(gameType) == "" {
+		return SeededName(seed)
+	}
+
+	scope := game.NormalizeName(gameType)
+	nameRNG := resolve.RNGFromString("name:" + seed + ":" + scope)
+	return fmt.Sprintf("%s [%s] - %s",
+		seed,
+		gameType,
+		namegen.GenerateSeeded(nameRNG),
+	)
 }
 
 // ImportRecord reconstructs a saved game and reapplies the record title.
