@@ -11,6 +11,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/theme"
+	"github.com/charmbracelet/x/ansi"
 )
 
 func sampleCages() []Cage {
@@ -405,57 +406,7 @@ func TestSolvedBridgeBackgroundsUseSolvedColor(t *testing.T) {
 	}
 }
 
-func TestCompletedGapBackgrounds(t *testing.T) {
-	geo, err := buildGeometry(3, 3, sampleCages())
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	bg := color.NRGBA{R: 10, G: 20, B: 30, A: 255}
-	completed := map[int]color.Color{0: bg}
-
-	if got := verticalGapBackground(geo, completed, 1, 0); !sameColor(got, bg) {
-		t.Fatal("expected vertical interior gap to inherit completed cage background")
-	}
-	if got := horizontalGapBackground(geo, completed, 1, 1); got != nil {
-		t.Fatal("expected cage boundary row to keep nil background")
-	}
-
-	squareGeo, err := buildGeometry(2, 2, []Cage{
-		{ID: 0, Size: 4, Cells: []Cell{{0, 0}, {1, 0}, {0, 1}, {1, 1}}},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	completed = map[int]color.Color{0: bg}
-	if got := junctionGapBackground(squareGeo, completed, 1, 1); !sameColor(got, bg) {
-		t.Fatal("expected empty junction inside completed cage to inherit background")
-	}
-}
-
-func TestConflictBridgeBackgrounds(t *testing.T) {
-	geo, err := buildGeometry(3, 3, sampleCages())
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	m := Model{
-		width:     3,
-		height:    3,
-		grid:      sampleSolution(),
-		givens:    grid{{0, 0, 0}, {0, 0, 0}, {0, 0, 0}},
-		conflicts: newConflictGrid(3, 3),
-		geo:       geo,
-	}
-	m.conflicts[0][0] = true
-
-	bridge := bridgeBackgrounds(m, nil)
-	if got := verticalGapBackground(geo, bridge, 1, 0); !sameColor(got, game.ConflictBG()) {
-		t.Fatal("expected conflict color to bridge vertical gap")
-	}
-}
-
-func TestActiveCageBridgeBackgrounds(t *testing.T) {
+func TestGridViewUsesCageBoundaries(t *testing.T) {
 	geo, err := buildGeometry(3, 3, sampleCages())
 	if err != nil {
 		t.Fatal(err)
@@ -467,17 +418,36 @@ func TestActiveCageBridgeBackgrounds(t *testing.T) {
 		grid:      newGrid(3, 3),
 		givens:    newGrid(3, 3),
 		conflicts: newConflictGrid(3, 3),
-		cursor:    pointCursor(1, 0),
+		cursor:    pointCursor(0, 0),
 		geo:       geo,
 	}
 
-	bridge := bridgeBackgrounds(m, nil)
-	want := theme.Current().SelectionBG
-	if got := verticalGapBackground(geo, bridge, 1, 0); !sameColor(got, want) {
-		t.Fatal("expected active cage highlight to bridge vertical gap")
+	lines := strings.Split(ansi.Strip(gridView(m)), "\n")
+	content := []rune(lines[1])
+	if got := content[4]; got != ' ' {
+		t.Fatalf("interior separator inside cage = %q, want space", got)
 	}
-	if got := horizontalGapBackground(geo, bridge, 1, 1); got != nil {
-		t.Fatal("expected cage boundary row to keep nil background for hover highlight")
+	boundary := []rune(lines[2])
+	if got := boundary[1]; got != '─' {
+		t.Fatalf("separator between cages = %q, want horizontal wall", got)
+	}
+}
+
+func TestBridgeFillDefersToUniformZoneBackground(t *testing.T) {
+	m := Model{}
+	bridgeBG := map[int]color.Color{7: theme.Current().SelectionBG}
+
+	if got := bridgeFill(m, bridgeBG, game.DynamicGridBridge{
+		Kind:    game.DynamicGridBridgeVertical,
+		Zone:    7,
+		Uniform: true,
+		Count:   2,
+		Cells: [4]image.Point{
+			{X: 0, Y: 0},
+			{X: 1, Y: 0},
+		},
+	}); got != nil {
+		t.Fatal("expected uniform bridge to defer to zone background")
 	}
 }
 

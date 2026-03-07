@@ -296,8 +296,8 @@ func TestGenerateRandomState(t *testing.T) {
 	t.Run("density clamping low", func(t *testing.T) {
 		// Use a larger grid and multiple runs to avoid flakiness from per-row jitter.
 		totalFilled := 0
-		for range 10 {
-			s := generateRandomState(10, 10, 0.0)
+		for i := range 10 {
+			s := generateRandomStateSeeded(10, 10, 0.0, rand.New(rand.NewPCG(uint64(i+1), uint64(i+101))))
 			g := newGrid(s)
 			for _, row := range g {
 				for _, r := range row {
@@ -314,8 +314,8 @@ func TestGenerateRandomState(t *testing.T) {
 
 	t.Run("density clamping high", func(t *testing.T) {
 		totalEmpty := 0
-		for range 10 {
-			s := generateRandomState(10, 10, 1.0)
+		for i := range 10 {
+			s := generateRandomStateSeeded(10, 10, 1.0, rand.New(rand.NewPCG(uint64(i+21), uint64(i+121))))
 			g := newGrid(s)
 			for _, row := range g {
 				for _, r := range row {
@@ -331,7 +331,7 @@ func TestGenerateRandomState(t *testing.T) {
 	})
 
 	t.Run("correct dimensions", func(t *testing.T) {
-		s := generateRandomState(5, 10, 0.5)
+		s := generateRandomStateSeeded(5, 10, 0.5, rand.New(rand.NewPCG(41, 141)))
 		g := newGrid(s)
 		if len(g) != 5 {
 			t.Fatalf("expected 5 rows, got %d", len(g))
@@ -344,10 +344,10 @@ func TestGenerateRandomState(t *testing.T) {
 	})
 
 	t.Run("0 dimensions", func(t *testing.T) {
-		if s := generateRandomState(0, 5, 0.5); s != "" {
+		if s := generateRandomStateSeeded(0, 5, 0.5, rand.New(rand.NewPCG(51, 151))); s != "" {
 			t.Errorf("expected empty string for h=0, got %q", s)
 		}
-		if s := generateRandomState(5, 0, 0.5); s != "" {
+		if s := generateRandomStateSeeded(5, 0, 0.5, rand.New(rand.NewPCG(52, 152))); s != "" {
 			t.Errorf("expected empty string for w=0, got %q", s)
 		}
 	})
@@ -356,8 +356,8 @@ func TestGenerateRandomState(t *testing.T) {
 		totalFilled := 0
 		totalCells := 0
 		runs := 20
-		for range runs {
-			s := generateRandomState(10, 10, 0.5)
+		for i := range runs {
+			s := generateRandomStateSeeded(10, 10, 0.5, rand.New(rand.NewPCG(uint64(i+61), uint64(i+161))))
 			g := newGrid(s)
 			for _, row := range g {
 				for _, r := range row {

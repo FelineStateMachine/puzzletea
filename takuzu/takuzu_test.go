@@ -314,7 +314,7 @@ func TestColEqualWith(t *testing.T) {
 	})
 }
 
-// --- rowFilled / colFilled / rowFilledExcept / colFilledExcept (P1) ---
+// --- rowFilled / colFilled (P1) ---
 
 func TestRowFilled(t *testing.T) {
 	g := makeGrid6(
@@ -365,58 +365,6 @@ func TestColFilled(t *testing.T) {
 	t.Run("has empty", func(t *testing.T) {
 		if colFilled(g, 1, 6) {
 			t.Error("colFilled should return false for empty column")
-		}
-	})
-}
-
-func TestRowFilledExcept(t *testing.T) {
-	g := makeGrid6(
-		"00101.",
-		"0.1...",
-		"......",
-		"......",
-		"......",
-		"......",
-	)
-
-	t.Run("skip is only empty", func(t *testing.T) {
-		if !rowFilledExcept(g, 0, 5, 6) {
-			t.Error("rowFilledExcept should return true when skip is only empty cell")
-		}
-	})
-
-	t.Run("another empty exists", func(t *testing.T) {
-		if rowFilledExcept(g, 1, 1, 6) {
-			t.Error("rowFilledExcept should return false when other empties exist")
-		}
-	})
-
-	t.Run("all empty except skip", func(t *testing.T) {
-		if rowFilledExcept(g, 2, 0, 6) {
-			t.Error("rowFilledExcept should return false for all-empty row")
-		}
-	})
-}
-
-func TestColFilledExcept(t *testing.T) {
-	g := makeGrid6(
-		"0.....",
-		"0.....",
-		"......",
-		"1.....",
-		"0.....",
-		"1.....",
-	)
-
-	t.Run("skip is only empty", func(t *testing.T) {
-		if !colFilledExcept(g, 0, 2, 6) {
-			t.Error("colFilledExcept should return true when skip is only empty")
-		}
-	})
-
-	t.Run("another empty exists", func(t *testing.T) {
-		if colFilledExcept(g, 1, 0, 6) {
-			t.Error("colFilledExcept should return false when column has other empties")
 		}
 	})
 }

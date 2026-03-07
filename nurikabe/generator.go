@@ -1121,7 +1121,3 @@ func modeGenerationBudget(mode NurikabeMode) generationBudget {
 		return generationBudget{attempts: 400, solvabilityNodes: 45000, uniquenessNodes: 100000, uniquenessProbeLimit: 8}
 	}
 }
-
-func generationNodeLimit(mode NurikabeMode) int {
-	return modeGenerationBudget(mode).solvabilityNodes
-}

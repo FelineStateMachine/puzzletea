@@ -2,7 +2,6 @@ package shikaku
 
 import (
 	"encoding/json"
-	"image/color"
 	"math/rand/v2"
 	"strings"
 	"testing"
@@ -10,6 +9,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/FelineStateMachine/puzzletea/game"
+	"github.com/charmbracelet/x/ansi"
 )
 
 // --- helpers ---
@@ -863,7 +863,7 @@ func TestMouseRightClickDeletesRectangle(t *testing.T) {
 	}
 }
 
-func TestDynamicGridEdges(t *testing.T) {
+func TestGridViewRendersCommittedRectangleBoundaries(t *testing.T) {
 	m := Model{
 		puzzle: Puzzle{
 			Width:  4,
@@ -876,18 +876,22 @@ func TestDynamicGridEdges(t *testing.T) {
 		},
 	}
 
-	if hasVerticalEdge(m, nil, 1, 0) {
-		t.Fatal("expected open interior edge inside committed rectangle")
+	lines := strings.Split(ansi.Strip(gridView(m, false)), "\n")
+	content := []rune(lines[1])
+	if got := content[4]; got != ' ' {
+		t.Fatalf("interior separator inside rectangle = %q, want space", got)
 	}
-	if !hasVerticalEdge(m, nil, 2, 0) {
-		t.Fatal("expected wall between committed rectangles")
+	if got := content[8]; got != '│' {
+		t.Fatalf("separator between rectangles = %q, want vertical wall", got)
 	}
-	if horizontalEdge(m, nil, 0, 1) {
-		t.Fatal("expected open horizontal edge inside committed rectangle")
+
+	boundary := []rune(lines[2])
+	if got := boundary[1]; got != ' ' {
+		t.Fatalf("row separator inside rectangle = %q, want space", got)
 	}
 }
 
-func TestPreviewOverridesCommittedWalls(t *testing.T) {
+func TestGridViewPreviewRemovesCommittedWall(t *testing.T) {
 	preview := &Rectangle{X: 0, Y: 0, W: 2, H: 1}
 	m := Model{
 		puzzle: Puzzle{
@@ -902,35 +906,15 @@ func TestPreviewOverridesCommittedWalls(t *testing.T) {
 		mousePreview: preview,
 	}
 
-	if !hasVerticalEdge(m, nil, 1, 0) {
-		t.Fatal("expected committed wall before preview overlay")
+	withPreview := []rune(strings.Split(ansi.Strip(gridView(m, false)), "\n")[1])
+	if got := withPreview[4]; got != ' ' {
+		t.Fatalf("preview separator = %q, want space", got)
 	}
-	if hasVerticalEdge(m, preview, 1, 0) {
-		t.Fatal("expected preview to remove interior committed wall")
-	}
-}
 
-func TestDynamicGridGapBackgrounds(t *testing.T) {
-	m := Model{
-		puzzle: Puzzle{
-			Width:  2,
-			Height: 2,
-			Clues:  []Clue{{ID: 0, X: 0, Y: 0, Value: 4}},
-			Rectangles: []Rectangle{
-				{ClueID: 0, X: 0, Y: 0, W: 2, H: 2},
-			},
-		},
-	}
-	bg := rectColors()[0]
-
-	if got := verticalGapBackground(m, nil, nil, false, 1, 0); !sameColor(got, bg) {
-		t.Fatal("expected committed rectangle to color vertical interior gap")
-	}
-	if got := horizontalGapBackground(m, nil, nil, false, 0, 1); !sameColor(got, bg) {
-		t.Fatal("expected committed rectangle to color horizontal interior gap")
-	}
-	if got := junctionGapBackground(m, nil, nil, false, 1, 1); !sameColor(got, bg) {
-		t.Fatal("expected committed rectangle to color interior junction")
+	m.mousePreview = nil
+	withoutPreview := []rune(strings.Split(ansi.Strip(gridView(m, false)), "\n")[1])
+	if got := withoutPreview[4]; got != '│' {
+		t.Fatalf("committed separator = %q, want vertical wall", got)
 	}
 }
 
@@ -1151,15 +1135,6 @@ func TestModeSpawn(t *testing.T) {
 			t.Fatal("expected non-nil game")
 		}
 	})
-}
-
-func sameColor(a, b color.Color) bool {
-	if a == nil || b == nil {
-		return a == b
-	}
-	ar, ag, ab, aa := a.RGBA()
-	br, bg, bb, ba := b.RGBA()
-	return ar == br && ag == bg && ab == bb && aa == ba
 }
 
 func cellScreenCoords(m *Model, col, row int) (int, int) {

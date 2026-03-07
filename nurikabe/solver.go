@@ -427,14 +427,6 @@ func seaCanRemainConnectedWithScratch(g grid, scratch *solverScratch) bool {
 	return true
 }
 
-func isSeaConnected(g grid) bool {
-	if len(g) == 0 || len(g[0]) == 0 {
-		return false
-	}
-	scratch := newSolverScratch(len(g[0]), len(g))
-	return isSeaConnectedWithScratch(g, scratch)
-}
-
 func isSeaConnectedWithScratch(g grid, scratch *solverScratch) bool {
 	height := len(g)
 	if height == 0 {

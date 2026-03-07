@@ -135,11 +135,6 @@ func generateWordSearchSeededWithStats(
 	return g, placedWords, stats
 }
 
-func selectWords(count, minLen, maxLen int) []string {
-	rng := rand.New(rand.NewPCG(rand.Uint64(), rand.Uint64()))
-	return selectWordsSeeded(count, minLen, maxLen, rng)
-}
-
 func selectWordsSeeded(count, minLen, maxLen int, rng *rand.Rand) []string {
 	if count <= 0 || minLen > maxLen {
 		return nil
@@ -196,11 +191,6 @@ func orderWordsForPlacement(words []string) {
 	sort.SliceStable(words, func(i, j int) bool {
 		return len(words[i]) > len(words[j])
 	})
-}
-
-func tryPlaceWord(g grid, text string, allowedDirs []Direction, maxAttempts int) *Word {
-	rng := rand.New(rand.NewPCG(rand.Uint64(), rand.Uint64()))
-	return tryPlaceWordSeeded(g, text, allowedDirs, maxAttempts, rng)
 }
 
 func tryPlaceWordSeeded(g grid, text string, allowedDirs []Direction, maxAttempts int, rng *rand.Rand) *Word {
@@ -338,11 +328,6 @@ func newWord(text string, x, y, dx, dy int, dir Direction) *Word {
 		Direction: dir,
 		Found:     false,
 	}
-}
-
-func fillEmptyCells(g grid) {
-	rng := rand.New(rand.NewPCG(rand.Uint64(), rand.Uint64()))
-	fillEmptyCellsSeeded(g, rng)
 }
 
 func fillEmptyCellsSeeded(g grid, rng *rand.Rand) {

@@ -433,11 +433,6 @@ func newCoverArtDirection(seed uint64, base RGB) coverArtDirection {
 	return direction
 }
 
-func coverArchetypeForSeed(seed uint64) coverArchetype {
-	primary, _ := coverCompositionForSeed(seed)
-	return primary
-}
-
 func coverCompositionForSeed(seed uint64) (coverArchetype, []coverModifier) {
 	structureRNG := coverStreamRNG(seed, "structure")
 	return pickCoverComposition(structureRNG)

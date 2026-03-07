@@ -566,7 +566,7 @@ func TestReverseString(t *testing.T) {
 func TestTryPlaceWord(t *testing.T) {
 	t.Run("places word in empty grid", func(t *testing.T) {
 		g := createEmptyGrid(10, 10)
-		w := tryPlaceWord(g, "HELLO", []Direction{Right, Down, DownRight}, 1000)
+		w := tryPlaceWordSeeded(g, "HELLO", []Direction{Right, Down, DownRight}, 1000, testRNG(1))
 		if w == nil {
 			t.Fatal("expected word to be placed")
 		}
@@ -583,7 +583,7 @@ func TestTryPlaceWord(t *testing.T) {
 
 	t.Run("respects allowed directions", func(t *testing.T) {
 		g := createEmptyGrid(10, 10)
-		w := tryPlaceWord(g, "HELLO", []Direction{Right}, 1000)
+		w := tryPlaceWordSeeded(g, "HELLO", []Direction{Right}, 1000, testRNG(2))
 		if w == nil {
 			t.Fatal("expected word to be placed")
 		}
@@ -595,7 +595,7 @@ func TestTryPlaceWord(t *testing.T) {
 	t.Run("allows letter overlap", func(t *testing.T) {
 		g := createEmptyGrid(1, 5)
 		g.Set(0, 0, 'H')
-		w := tryPlaceWord(g, "HELLO", []Direction{Right}, 1000)
+		w := tryPlaceWordSeeded(g, "HELLO", []Direction{Right}, 1000, testRNG(3))
 		if w == nil {
 			t.Fatal("expected word to be placed with matching overlap")
 		}
@@ -606,7 +606,7 @@ func TestTryPlaceWord(t *testing.T) {
 		for x := range 5 {
 			g.Set(x, 0, 'X')
 		}
-		w := tryPlaceWord(g, "HELLO", []Direction{Right}, 100)
+		w := tryPlaceWordSeeded(g, "HELLO", []Direction{Right}, 100, testRNG(4))
 		if w != nil {
 			t.Error("expected nil for conflicting overlap")
 		}
@@ -614,7 +614,7 @@ func TestTryPlaceWord(t *testing.T) {
 
 	t.Run("returns nil when impossible", func(t *testing.T) {
 		g := createEmptyGrid(3, 3)
-		w := tryPlaceWord(g, "TOOLONGWORD", []Direction{Right, Down}, 100)
+		w := tryPlaceWordSeeded(g, "TOOLONGWORD", []Direction{Right, Down}, 100, testRNG(5))
 		if w != nil {
 			t.Error("expected nil for word that cannot fit")
 		}
@@ -622,7 +622,7 @@ func TestTryPlaceWord(t *testing.T) {
 
 	t.Run("uppercases text", func(t *testing.T) {
 		g := createEmptyGrid(10, 10)
-		w := tryPlaceWord(g, "hello", []Direction{Right}, 1000)
+		w := tryPlaceWordSeeded(g, "hello", []Direction{Right}, 1000, testRNG(6))
 		if w == nil {
 			t.Fatal("expected word to be placed")
 		}
@@ -658,14 +658,14 @@ func TestTryPlaceWordSeededWithFallback(t *testing.T) {
 
 func TestSelectWords(t *testing.T) {
 	t.Run("respects count", func(t *testing.T) {
-		words := selectWords(5, 4, 6)
+		words := selectWordsSeeded(5, 4, 6, testRNG(7))
 		if len(words) > 5 {
 			t.Errorf("len(selectWords) = %d, want <= 5", len(words))
 		}
 	})
 
 	t.Run("respects length filter", func(t *testing.T) {
-		words := selectWords(20, 4, 6)
+		words := selectWordsSeeded(20, 4, 6, testRNG(8))
 		for _, w := range words {
 			if len(w) < 4 || len(w) > 6 {
 				t.Errorf("word %q has length %d, want 4-6", w, len(w))
@@ -674,7 +674,7 @@ func TestSelectWords(t *testing.T) {
 	})
 
 	t.Run("clamps when too few", func(t *testing.T) {
-		words := selectWords(99999, 4, 4)
+		words := selectWordsSeeded(99999, 4, 4, testRNG(9))
 		// Should return all 4-letter words, not 99999.
 		if len(words) > 99999 {
 			t.Error("returned more than requested")
@@ -715,7 +715,7 @@ func TestOrderWordsForPlacement(t *testing.T) {
 func TestFillEmptyCells(t *testing.T) {
 	t.Run("fills all spaces", func(t *testing.T) {
 		g := createEmptyGrid(5, 5)
-		fillEmptyCells(g)
+		fillEmptyCellsSeeded(g, testRNG(10))
 		for y := range g {
 			for x := range g[y] {
 				if g[y][x] == ' ' {
@@ -728,7 +728,7 @@ func TestFillEmptyCells(t *testing.T) {
 	t.Run("preserves existing letters", func(t *testing.T) {
 		g := createEmptyGrid(5, 5)
 		g.Set(0, 0, 'Z')
-		fillEmptyCells(g)
+		fillEmptyCellsSeeded(g, testRNG(11))
 		if got := g.Get(0, 0); got != 'Z' {
 			t.Errorf("cell (0,0) = %c, want Z", got)
 		}
@@ -736,7 +736,7 @@ func TestFillEmptyCells(t *testing.T) {
 
 	t.Run("only uppercase letters", func(t *testing.T) {
 		g := createEmptyGrid(5, 5)
-		fillEmptyCells(g)
+		fillEmptyCellsSeeded(g, testRNG(12))
 		for y := range g {
 			for x := range g[y] {
 				c := g[y][x]

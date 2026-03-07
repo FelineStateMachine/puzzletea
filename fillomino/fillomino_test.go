@@ -193,67 +193,30 @@ func TestCellViewConflictedCursorIsDistinct(t *testing.T) {
 	}
 }
 
-func TestDynamicGridEdges(t *testing.T) {
-	g := grid{
-		{2, 2, 1},
-		{3, 3, 1},
-	}
-	h := grid{
-		{4, 1},
-		{4, 2},
-	}
-
-	if hasVerticalEdge(g, 1, 0) {
-		t.Fatal("expected open interior edge inside a region")
-	}
-	if !hasVerticalEdge(g, 2, 0) {
-		t.Fatal("expected border between different regions")
-	}
-	if horizontalEdge(h, 0, 1) {
-		t.Fatal("expected open horizontal edge inside a region")
-	}
-	if !horizontalEdge(g, 0, 0) {
-		t.Fatal("expected top outer border")
-	}
-}
-
-func TestCompletedRegionGapBackgrounds(t *testing.T) {
-	conflicts := validateGridState(grid{{4, 4}, {4, 4}}).conflicts
+func TestGridViewRendersRegionBoundaries(t *testing.T) {
 	m := Model{
-		width:     2,
+		width:     3,
 		height:    2,
-		grid:      grid{{4, 4}, {4, 4}},
-		conflicts: conflicts,
+		grid:      grid{{2, 2, 1}, {2, 3, 1}},
+		provided:  newProvidedMask(grid{{2, 2, 1}, {2, 3, 1}}),
+		conflicts: validateGridState(grid{{2, 2, 1}, {2, 3, 1}}).conflicts,
 	}
-	completed := completedRegionBackgrounds(m.grid, m.conflicts)
-	regionSet := map[point]struct{}{}
 
-	if got := verticalGapBackground(m, regionSet, completed, 1, 0); got == nil {
-		t.Fatal("expected completed region to color vertical interior gap")
+	lines := strings.Split(ansi.Strip(gridView(m)), "\n")
+	content := []rune(lines[1])
+	if got := content[4]; got != ' ' {
+		t.Fatalf("interior separator inside region = %q, want space", got)
 	}
-	if got := horizontalGapBackground(m, regionSet, completed, 0, 1); got == nil {
-		t.Fatal("expected completed region to color horizontal interior gap")
+	if got := content[8]; got != '│' {
+		t.Fatalf("separator between regions = %q, want vertical wall", got)
 	}
-	if got := junctionGapBackground(m, regionSet, completed, 1, 1); got == nil {
-		t.Fatal("expected completed region to color interior junction")
-	}
-}
 
-func TestConflictGapBackgroundUsesConflictColor(t *testing.T) {
-	conflicts := validateGridState(grid{{4, 4}, {4, 4}}).conflicts
-	m := Model{
-		width:     2,
-		height:    2,
-		grid:      grid{{4, 4}, {4, 4}},
-		conflicts: conflicts,
+	boundary := []rune(lines[2])
+	if got := boundary[1]; got != ' ' {
+		t.Fatalf("row separator inside region = %q, want space", got)
 	}
-	m.conflicts[0][0] = true
-
-	if got := verticalGapBackground(m, nil, nil, 1, 0); !sameColor(got, game.ConflictBG()) {
-		t.Fatal("expected conflict color to bridge vertical interior gap")
-	}
-	if got := junctionGapBackground(m, nil, nil, 1, 1); !sameColor(got, game.ConflictBG()) {
-		t.Fatal("expected conflict color to bridge interior junction")
+	if got := boundary[5]; got != '─' {
+		t.Fatalf("row separator between regions = %q, want horizontal wall", got)
 	}
 }
 
@@ -528,24 +491,6 @@ func TestViewKeepsStableHeightAcrossCursorRegionInfoChanges(t *testing.T) {
 
 	if got, want := lipgloss.Height(empty.View()), lipgloss.Height(numbered.View()); got != want {
 		t.Fatalf("height(empty) = %d, want %d", got, want)
-	}
-}
-
-func TestSolvedGapBackgroundUsesSolvedColor(t *testing.T) {
-	conflicts := validateGridState(grid{{2, 2}}).conflicts
-	m := Model{
-		width:     2,
-		height:    1,
-		grid:      grid{{2, 2}},
-		conflicts: conflicts,
-		solved:    true,
-	}
-	got := verticalGapBackground(m, nil, nil, 1, 0)
-	if got == nil {
-		t.Fatal("expected solved gap background")
-	}
-	if !sameColor(got, theme.Current().SuccessBG) {
-		t.Fatal("expected solved gap background to use solved color")
 	}
 }
 

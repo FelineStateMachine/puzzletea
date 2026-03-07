@@ -332,42 +332,6 @@ func completedCageColor(cage Cage, colors []color.Color, base color.Color) color
 	return theme.Blend(base, colors[index], 0.52)
 }
 
-func verticalGapBackground(geo *geometry, backgrounds map[int]color.Color, x, y int) color.Color {
-	if geo == nil || x <= 0 || x >= geo.width || y < 0 || y >= geo.height {
-		return nil
-	}
-	left := geo.cageGrid[y][x-1]
-	right := geo.cageGrid[y][x]
-	if left != right {
-		return nil
-	}
-	return backgrounds[left]
-}
-
-func horizontalGapBackground(geo *geometry, backgrounds map[int]color.Color, x, y int) color.Color {
-	if geo == nil || y <= 0 || y >= geo.height || x < 0 || x >= geo.width {
-		return nil
-	}
-	top := geo.cageGrid[y-1][x]
-	bottom := geo.cageGrid[y][x]
-	if top != bottom {
-		return nil
-	}
-	return backgrounds[top]
-}
-
-func junctionGapBackground(geo *geometry, backgrounds map[int]color.Color, x, y int) color.Color {
-	if geo == nil || x <= 0 || x >= geo.width || y <= 0 || y >= geo.height {
-		return nil
-	}
-
-	cageID := geo.cageGrid[y-1][x-1]
-	if geo.cageGrid[y-1][x] != cageID || geo.cageGrid[y][x-1] != cageID || geo.cageGrid[y][x] != cageID {
-		return nil
-	}
-	return backgrounds[cageID]
-}
-
 func statusBarView(showFullHelp bool) string {
 	if showFullHelp {
 		return game.StatusBarStyle().Render("1-9: place  bkspc: clear  arrows/wasd: move  esc: menu  ctrl+r: reset  ctrl+h: help")

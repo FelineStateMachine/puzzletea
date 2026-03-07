@@ -463,24 +463,6 @@ func canPlaceWithStats(g grid, size, x, y int, val rune, stats *lineStats) bool 
 	return true
 }
 
-func rowFilledExcept(g grid, y, skip, size int) bool {
-	for x := range size {
-		if x != skip && g[y][x] == emptyCell {
-			return false
-		}
-	}
-	return true
-}
-
-func colFilledExcept(g grid, x, skip, size int) bool {
-	for y := range size {
-		if y != skip && g[y][x] == emptyCell {
-			return false
-		}
-	}
-	return true
-}
-
 func rowEqualWith(a, b []rune, overrideIdx int, overrideVal rune) bool {
 	if len(a) != len(b) {
 		return false

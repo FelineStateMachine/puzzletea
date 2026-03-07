@@ -149,7 +149,7 @@ func TestSeaConnectivity(t *testing.T) {
 		[]cellState{islandCell, seaCell, islandCell},
 		[]cellState{islandCell, seaCell, seaCell},
 	}
-	if !isSeaConnected(connected) {
+	if !isSeaConnectedWithScratch(connected, newSolverScratch(len(connected[0]), len(connected))) {
 		t.Fatal("expected connected sea")
 	}
 
@@ -158,7 +158,7 @@ func TestSeaConnectivity(t *testing.T) {
 		[]cellState{islandCell, islandCell, islandCell},
 		[]cellState{seaCell, islandCell, seaCell},
 	}
-	if isSeaConnected(disconnected) {
+	if isSeaConnectedWithScratch(disconnected, newSolverScratch(len(disconnected[0]), len(disconnected))) {
 		t.Fatal("expected disconnected sea")
 	}
 }
@@ -895,7 +895,7 @@ func TestGenerateSeededReturnsSolvable(t *testing.T) {
 				t.Fatalf("invalid generated puzzle clues: %v", err)
 			}
 
-			nodeLimit := max(300000, generationNodeLimit(mode)*8)
+			nodeLimit := max(300000, modeGenerationBudget(mode).solvabilityNodes*8)
 			count, _, err := CountSolutionsContext(context.Background(), p, 1, nodeLimit)
 			if err != nil {
 				if errors.Is(err, errNodeLimit) {
@@ -966,7 +966,7 @@ func TestUniqueFirstFallbackPolicy(t *testing.T) {
 		t.Fatalf("GenerateSeeded error: %v", err)
 	}
 
-	count, _, err := CountSolutionsContext(context.Background(), p, 2, generationNodeLimit(mode))
+	count, _, err := CountSolutionsContext(context.Background(), p, 2, modeGenerationBudget(mode).solvabilityNodes)
 	if err != nil {
 		t.Fatalf("CountSolutionsContext error: %v", err)
 	}
@@ -1105,7 +1105,7 @@ func BenchmarkCountSolutions(b *testing.B) {
 		{
 			name:      "GeneratedEasy",
 			puzzle:    easyPuzzle,
-			nodeLimit: generationNodeLimit(easyMode) * 4,
+			nodeLimit: modeGenerationBudget(easyMode).solvabilityNodes * 4,
 		},
 	}
 
