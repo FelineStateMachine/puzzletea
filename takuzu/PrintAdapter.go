@@ -10,6 +10,11 @@ import (
 
 type printAdapter struct{}
 
+var defaultTakuzuRules = []string{
+	"No three equal adjacent in any row or column.",
+	"Each row/column has equal 0 and 1 counts, and rows/columns are unique.",
+}
+
 func (printAdapter) CanonicalGameType() string { return "Takuzu" }
 func (printAdapter) Aliases() []string         { return []string{"takuzu"} }
 
@@ -26,14 +31,21 @@ func (printAdapter) RenderPDFBody(pdf *fpdf.Fpdf, payload any) error {
 }
 
 func RenderTakuzuPDFBody(pdf *fpdf.Fpdf, data *pdfexport.TakuzuData) {
+	RenderTakuzuPDFBodyWithRules(pdf, data, defaultTakuzuRules)
+}
+
+func RenderTakuzuPDFBodyWithRules(pdf *fpdf.Fpdf, data *pdfexport.TakuzuData, rules []string) {
 	if data == nil || data.Size <= 0 {
 		return
+	}
+	if len(rules) == 0 {
+		rules = defaultTakuzuRules
 	}
 
 	size := data.Size
 	pageW, pageH := pdf.GetPageSize()
 	pageNo := pdf.PageNo()
-	area := pdfexport.PuzzleBoardRect(pageW, pageH, pageNo, 2)
+	area := pdfexport.PuzzleBoardRect(pageW, pageH, pageNo, len(rules))
 	cellSize := pdfexport.FitCompactCellSize(size, size, area)
 	if cellSize <= 0 {
 		return
@@ -86,32 +98,22 @@ func RenderTakuzuPDFBody(pdf *fpdf.Fpdf, data *pdfexport.TakuzuData) {
 	pdf.SetLineWidth(pdfexport.OuterBorderLineMM)
 	pdf.Rect(startX, startY, blockW, blockH, "D")
 
-	ruleY := pdfexport.InstructionY(startY+blockH, pageH, 2)
+	ruleY := pdfexport.InstructionY(startY+blockH, pageH, len(rules))
 	pdfexport.SetInstructionStyle(pdf)
-	pdf.SetXY(area.X, ruleY)
-	pdf.CellFormat(
-		area.W,
-		pdfexport.InstructionLineHMM,
-		"No three equal adjacent in any row or column.",
-		"",
-		0,
-		"C",
-		false,
-		0,
-		"",
-	)
-	pdf.SetXY(area.X, ruleY+pdfexport.InstructionLineHMM)
-	pdf.CellFormat(
-		area.W,
-		pdfexport.InstructionLineHMM,
-		"Each row/column has equal 0 and 1 counts, and rows/columns are unique.",
-		"",
-		0,
-		"C",
-		false,
-		0,
-		"",
-	)
+	for i, rule := range rules {
+		pdf.SetXY(area.X, ruleY+float64(i)*pdfexport.InstructionLineHMM)
+		pdf.CellFormat(
+			area.W,
+			pdfexport.InstructionLineHMM,
+			rule,
+			"",
+			0,
+			"C",
+			false,
+			0,
+			"",
+		)
+	}
 }
 
 func drawTakuzuRelations(pdf *fpdf.Fpdf, data *pdfexport.TakuzuData, startX, startY, cellSize float64) {
