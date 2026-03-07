@@ -2,7 +2,7 @@
 
 A terminal-based puzzle game collection built with [Bubble Tea](https://github.com/charmbracelet/bubbletea).
 
-Twelve puzzle types, multiple difficulty modes, daily challenges, XP progression, 365 color themes, and an explicit game catalog for adding new games.
+Twelve puzzle types, multiple difficulty modes, daily and weekly deterministic challenges, XP progression, 365 color themes, and an explicit game catalog for adding new games.
 
 ![PuzzleTea menu](vhs/menu.gif)
 
@@ -10,8 +10,9 @@ Twelve puzzle types, multiple difficulty modes, daily challenges, XP progression
 
 - **12 puzzle games** -- Fillomino, Nonogram, Nurikabe, Ripple Effect, Sudoku, Shikaku, Word Search, Hashiwokakero, Hitori, Lights Out, Takuzu, Takuzu+
 - **Daily puzzles** -- A unique puzzle generated each day using deterministic seeding. Same date, same puzzle for everyone. Streak tracking rewards consecutive daily completions.
-- **XP and leveling** -- Per-category levels based on victories. Harder modes yield more XP. Daily puzzles grant 2x XP.
-- **Stats dashboard** -- Profile level, daily streak, victory counts, and XP progress bars per category.
+- **Weekly gauntlet** -- Each ISO calendar week has a shared 99-puzzle ladder. The current week unlocks sequentially from `#01` to `#99`; past weeks can be reviewed from completed saves only.
+- **XP and leveling** -- Per-category levels based on victories. Harder modes yield more XP. Daily puzzles grant 2x XP, and weekly puzzles add slot-based bonus XP.
+- **Stats dashboard** -- Profile level, daily streak status, weekly completion progress, victory counts, and XP progress bars per category.
 - **365 color themes** -- Live-preview theme picker with WCAG-compliant contrast enforcement. Dark and light themes included.
 - **Mouse support** -- Click and drag in Nonogram, Nurikabe, Shikaku, and Word Search. Lights Out supports click-to-toggle.
 - **Seeded puzzles** -- Share a seed string to generate identical puzzles across sessions and machines.
@@ -81,6 +82,18 @@ Launch the interactive menu:
 ```
 puzzletea
 ```
+
+The Play menu includes:
+
+- `Create` for a new puzzle by category and mode
+- `Continue` for saved games
+- `Daily` for the shared deterministic daily puzzle
+- `Weekly` for the current or historical weekly gauntlet
+- `Seeded` for a custom deterministic seed
+
+Weekly gauntlets use the ISO week-year format shown in the menu, for example
+`Week 10-2026 # 7`. The `#` value is the currently active weekly challenge for
+that week. Current-week puzzles unlock one at a time; older weeks are review-only.
 
 Start a new game directly:
 
@@ -184,6 +197,8 @@ Nonogram, Nurikabe, Shikaku, and Word Search support click and drag. Lights Out 
 ## Game Persistence
 
 Games are automatically saved to `~/.puzzletea/history.db` (SQLite). Navigating away saves progress; quitting with `Ctrl+C` marks the game as abandoned. Completed games are preserved and can be revisited.
+
+Daily and current-week weekly puzzles keep a single deterministic save per seed/week slot. Completed weekly puzzles from prior weeks reopen in review mode and are not modified when viewed again.
 
 ## Previews
 
