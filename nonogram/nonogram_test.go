@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/FelineStateMachine/puzzletea/game"
 )
 
@@ -1051,6 +1052,261 @@ func TestReset(t *testing.T) {
 
 	if reset.solved {
 		t.Error("solved should be false after reset")
+	}
+}
+
+func buildMouseTestModel(t *testing.T, width, height int) Model {
+	t.Helper()
+
+	mode := NonogramMode{
+		BaseMode: game.NewBaseMode("Test", "grid"),
+		Width:    width,
+		Height:   height,
+	}
+	hints := Hints{
+		rows: repeatedHints(height, []int{1}),
+		cols: repeatedHints(width, []int{1}),
+	}
+	g, err := New(mode, hints)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := g.(Model)
+	m.termWidth = 120
+	m.termHeight = 40
+	return m
+}
+
+func nonogramCellScreenCoords(t *testing.T, m *Model, wantCol, wantRow int) (int, int) {
+	t.Helper()
+
+	ox, oy := m.gridOrigin()
+	maxX := ox + m.width*(cellWidth+1) + 4
+	maxY := oy + m.height*2 + 4
+	for y := oy; y < maxY; y++ {
+		for x := ox; x < maxX; x++ {
+			col, row, ok := m.screenToGrid(x, y, false)
+			if ok && col == wantCol && row == wantRow {
+				return x, y
+			}
+		}
+	}
+
+	t.Fatalf("screen coordinates not found for cell (%d,%d)", wantCol, wantRow)
+	return 0, 0
+}
+
+func updateNonogramModel(t *testing.T, m Model, msg tea.Msg) Model {
+	t.Helper()
+
+	next, _ := m.Update(msg)
+	got, ok := next.(Model)
+	if !ok {
+		t.Fatal("expected nonogram model update to return Model")
+	}
+	return got
+}
+
+func TestMouseDragAxisLockHorizontal(t *testing.T) {
+	m := buildMouseTestModel(t, 5, 5)
+	startX, startY := nonogramCellScreenCoords(t, &m, 1, 1)
+	nextX, nextY := nonogramCellScreenCoords(t, &m, 2, 1)
+	jitterX, jitterY := nonogramCellScreenCoords(t, &m, 3, 2)
+
+	m = updateNonogramModel(t, m, tea.MouseClickMsg{X: startX, Y: startY, Button: tea.MouseLeft})
+	m = updateNonogramModel(t, m, tea.MouseMotionMsg{X: nextX, Y: nextY, Button: tea.MouseLeft})
+	m = updateNonogramModel(t, m, tea.MouseMotionMsg{X: jitterX, Y: jitterY, Button: tea.MouseLeft})
+
+	if m.dragAxis != dragAxisHorizontal {
+		t.Fatalf("dragAxis = %v, want horizontal", m.dragAxis)
+	}
+	if m.cursor != (game.Cursor{X: 3, Y: 1}) {
+		t.Fatalf("cursor = %v, want (3,1)", m.cursor)
+	}
+	if got := m.grid[1][1]; got != filledTile {
+		t.Fatalf("start cell = %q, want filled", got)
+	}
+	if got := m.grid[1][2]; got != filledTile {
+		t.Fatalf("locked row cell = %q, want filled", got)
+	}
+	if got := m.grid[1][3]; got != filledTile {
+		t.Fatalf("jitter target cell = %q, want filled", got)
+	}
+	if got := m.grid[2][3]; got != emptyTile {
+		t.Fatalf("off-axis cell = %q, want empty", got)
+	}
+}
+
+func TestMouseDragAxisLockVertical(t *testing.T) {
+	m := buildMouseTestModel(t, 5, 5)
+	startX, startY := nonogramCellScreenCoords(t, &m, 1, 1)
+	nextX, nextY := nonogramCellScreenCoords(t, &m, 1, 2)
+	jitterX, jitterY := nonogramCellScreenCoords(t, &m, 2, 3)
+
+	m = updateNonogramModel(t, m, tea.MouseClickMsg{X: startX, Y: startY, Button: tea.MouseLeft})
+	m = updateNonogramModel(t, m, tea.MouseMotionMsg{X: nextX, Y: nextY, Button: tea.MouseLeft})
+	m = updateNonogramModel(t, m, tea.MouseMotionMsg{X: jitterX, Y: jitterY, Button: tea.MouseLeft})
+
+	if m.dragAxis != dragAxisVertical {
+		t.Fatalf("dragAxis = %v, want vertical", m.dragAxis)
+	}
+	if m.cursor != (game.Cursor{X: 1, Y: 3}) {
+		t.Fatalf("cursor = %v, want (1,3)", m.cursor)
+	}
+	if got := m.grid[1][1]; got != filledTile {
+		t.Fatalf("start cell = %q, want filled", got)
+	}
+	if got := m.grid[2][1]; got != filledTile {
+		t.Fatalf("locked column cell = %q, want filled", got)
+	}
+	if got := m.grid[3][1]; got != filledTile {
+		t.Fatalf("jitter target cell = %q, want filled", got)
+	}
+	if got := m.grid[3][2]; got != emptyTile {
+		t.Fatalf("off-axis cell = %q, want empty", got)
+	}
+}
+
+func TestMouseDragAxisLockLargestDelta(t *testing.T) {
+	m := buildMouseTestModel(t, 5, 5)
+	startX, startY := nonogramCellScreenCoords(t, &m, 1, 1)
+	diagX, diagY := nonogramCellScreenCoords(t, &m, 3, 2)
+
+	m = updateNonogramModel(t, m, tea.MouseClickMsg{X: startX, Y: startY, Button: tea.MouseLeft})
+	m = updateNonogramModel(t, m, tea.MouseMotionMsg{X: diagX, Y: diagY, Button: tea.MouseLeft})
+
+	if m.dragAxis != dragAxisHorizontal {
+		t.Fatalf("dragAxis = %v, want horizontal", m.dragAxis)
+	}
+	if m.cursor != (game.Cursor{X: 3, Y: 1}) {
+		t.Fatalf("cursor = %v, want (3,1)", m.cursor)
+	}
+	if got := m.grid[2][3]; got != emptyTile {
+		t.Fatalf("off-axis diagonal cell = %q, want empty", got)
+	}
+}
+
+func TestMouseDragAxisLockTieBreaksLater(t *testing.T) {
+	m := buildMouseTestModel(t, 5, 5)
+	startX, startY := nonogramCellScreenCoords(t, &m, 1, 1)
+	tieX, tieY := nonogramCellScreenCoords(t, &m, 2, 2)
+	breakX, breakY := nonogramCellScreenCoords(t, &m, 3, 2)
+
+	m = updateNonogramModel(t, m, tea.MouseClickMsg{X: startX, Y: startY, Button: tea.MouseLeft})
+	m = updateNonogramModel(t, m, tea.MouseMotionMsg{X: tieX, Y: tieY, Button: tea.MouseLeft})
+
+	if m.dragAxis != dragAxisNone {
+		t.Fatalf("dragAxis after tie = %v, want none", m.dragAxis)
+	}
+	if m.cursor != (game.Cursor{X: 1, Y: 1}) {
+		t.Fatalf("cursor after tie = %v, want anchor", m.cursor)
+	}
+	if got := m.grid[2][2]; got != emptyTile {
+		t.Fatalf("tie cell = %q, want empty", got)
+	}
+
+	m = updateNonogramModel(t, m, tea.MouseMotionMsg{X: breakX, Y: breakY, Button: tea.MouseLeft})
+
+	if m.dragAxis != dragAxisHorizontal {
+		t.Fatalf("dragAxis after tie-break = %v, want horizontal", m.dragAxis)
+	}
+	if m.cursor != (game.Cursor{X: 3, Y: 1}) {
+		t.Fatalf("cursor after tie-break = %v, want (3,1)", m.cursor)
+	}
+	if got := m.grid[1][3]; got != filledTile {
+		t.Fatalf("tie-break cell = %q, want filled", got)
+	}
+}
+
+func TestMouseDragSeparatorSnapAfterLock(t *testing.T) {
+	m := buildMouseTestModel(t, 10, 10)
+	startX, startY := nonogramCellScreenCoords(t, &m, 4, 0)
+	ox, oy := m.gridOrigin()
+	separatorX := ox + cellWidth*5
+	jitterX, jitterY := nonogramCellScreenCoords(t, &m, 6, 1)
+
+	m = updateNonogramModel(t, m, tea.MouseClickMsg{X: startX, Y: startY, Button: tea.MouseLeft})
+	m = updateNonogramModel(t, m, tea.MouseMotionMsg{X: separatorX, Y: oy, Button: tea.MouseLeft})
+
+	if m.dragAxis != dragAxisHorizontal {
+		t.Fatalf("dragAxis at separator = %v, want horizontal", m.dragAxis)
+	}
+	if m.cursor != (game.Cursor{X: 5, Y: 0}) {
+		t.Fatalf("cursor at separator = %v, want (5,0)", m.cursor)
+	}
+
+	m = updateNonogramModel(t, m, tea.MouseMotionMsg{X: jitterX, Y: jitterY, Button: tea.MouseLeft})
+
+	if m.cursor != (game.Cursor{X: 6, Y: 0}) {
+		t.Fatalf("cursor after separator jitter = %v, want (6,0)", m.cursor)
+	}
+	if got := m.grid[0][6]; got != filledTile {
+		t.Fatalf("separator clamped cell = %q, want filled", got)
+	}
+	if got := m.grid[1][6]; got != emptyTile {
+		t.Fatalf("off-axis separator cell = %q, want empty", got)
+	}
+}
+
+func TestMouseClickWithoutMotionTogglesOnlyStartCell(t *testing.T) {
+	m := buildMouseTestModel(t, 5, 5)
+	startX, startY := nonogramCellScreenCoords(t, &m, 2, 2)
+
+	m = updateNonogramModel(t, m, tea.MouseClickMsg{X: startX, Y: startY, Button: tea.MouseLeft})
+	m = updateNonogramModel(t, m, tea.MouseReleaseMsg{X: startX, Y: startY, Button: tea.MouseLeft})
+
+	if got := m.grid[2][2]; got != filledTile {
+		t.Fatalf("start cell = %q, want filled", got)
+	}
+	for y := range m.height {
+		for x := range m.width {
+			if x == 2 && y == 2 {
+				continue
+			}
+			if got := m.grid[y][x]; got != emptyTile {
+				t.Fatalf("grid[%d][%d] = %q, want empty", y, x, got)
+			}
+		}
+	}
+}
+
+func TestMouseReleaseClearsAxisLockState(t *testing.T) {
+	m := buildMouseTestModel(t, 5, 5)
+	startX, startY := nonogramCellScreenCoords(t, &m, 1, 1)
+	nextX, nextY := nonogramCellScreenCoords(t, &m, 2, 1)
+
+	m = updateNonogramModel(t, m, tea.MouseClickMsg{X: startX, Y: startY, Button: tea.MouseLeft})
+	m = updateNonogramModel(t, m, tea.MouseMotionMsg{X: nextX, Y: nextY, Button: tea.MouseLeft})
+	m = updateNonogramModel(t, m, tea.MouseReleaseMsg{X: nextX, Y: nextY, Button: tea.MouseLeft})
+
+	if m.dragging != 0 {
+		t.Fatalf("dragging = %d, want 0", m.dragging)
+	}
+	if m.dragAxis != dragAxisNone {
+		t.Fatalf("dragAxis = %v, want none", m.dragAxis)
+	}
+	if m.dragStartCol != 0 || m.dragStartRow != 0 {
+		t.Fatalf("drag start = (%d,%d), want cleared", m.dragStartCol, m.dragStartRow)
+	}
+}
+
+func TestResetClearsAxisLockState(t *testing.T) {
+	m := buildMouseTestModel(t, 5, 5)
+	m.dragging = filledTile
+	m.dragStartCol = 2
+	m.dragStartRow = 3
+	m.dragAxis = dragAxisVertical
+
+	reset := m.Reset().(Model)
+
+	if reset.dragging != 0 {
+		t.Fatalf("dragging = %d, want 0", reset.dragging)
+	}
+	if reset.dragAxis != dragAxisNone {
+		t.Fatalf("dragAxis = %v, want none", reset.dragAxis)
+	}
+	if reset.dragStartCol != 0 || reset.dragStartRow != 0 {
+		t.Fatalf("drag start = (%d,%d), want cleared", reset.dragStartCol, reset.dragStartRow)
 	}
 }
 

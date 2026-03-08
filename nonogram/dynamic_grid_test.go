@@ -110,6 +110,39 @@ func TestSeparatorBridgeFillHighlightsOnlySpacerEdgesOnAxis(t *testing.T) {
 	}
 }
 
+func TestTileViewUsesSharedCrosshairSurfaceTint(t *testing.T) {
+	p := theme.Current()
+
+	gotFilled := tileView(filledTile, false, true, false, false)
+	wantFilled := filledStyle().
+		Background(p.Surface).
+		Width(cellWidth).
+		AlignHorizontal(lipgloss.Center).
+		Render(renderRuneMap[filledTile])
+	if gotFilled != wantFilled {
+		t.Fatalf("filled crosshair tileView() = %q, want %q", gotFilled, wantFilled)
+	}
+
+	gotEmpty := tileView(emptyTile, false, false, true, false)
+	wantEmpty := emptyStyle().
+		Background(p.Surface).
+		Width(cellWidth).
+		AlignHorizontal(lipgloss.Center).
+		Render(renderRuneMap[emptyTile])
+	if gotEmpty != wantEmpty {
+		t.Fatalf("empty crosshair tileView() = %q, want %q", gotEmpty, wantEmpty)
+	}
+
+	gotCursor := tileView(filledTile, true, true, true, false)
+	wantCursor := game.CursorStyle().
+		Width(cellWidth).
+		AlignHorizontal(lipgloss.Center).
+		Render(game.CursorLeft + string([]rune(renderRuneMap[filledTile])[1]) + game.CursorRight)
+	if gotCursor != wantCursor {
+		t.Fatalf("cursor tileView() = %q, want %q", gotCursor, wantCursor)
+	}
+}
+
 func TestBuildBoardBlockPreservesHintBandLayout(t *testing.T) {
 	m := Model{
 		width:    5,
@@ -133,6 +166,12 @@ func TestBuildBoardBlockPreservesHintBandLayout(t *testing.T) {
 	}
 	if got := []rune(lines[layout.HintHeight])[layout.HintWidth]; got != '┌' {
 		t.Fatalf("grid top border should start after hint band, got %q", got)
+	}
+	if strings.TrimSpace(lines[layout.HintHeight][:layout.HintWidth]) != "" {
+		t.Fatalf("row hints should not occupy the grid border row, got %q", lines[layout.HintHeight][:layout.HintWidth])
+	}
+	if strings.TrimSpace(lines[layout.HintHeight+1][:layout.HintWidth]) == "" {
+		t.Fatalf("row hints should begin on the first grid content row, got %q", lines[layout.HintHeight+1][:layout.HintWidth])
 	}
 	if got := []rune(lines[layout.HintHeight+1])[layout.HintWidth]; got != '│' {
 		t.Fatalf("grid content should remain offset after hint band, got %q", got)

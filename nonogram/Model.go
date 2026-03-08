@@ -18,6 +18,14 @@ const (
 	emptyTile  = ' '
 )
 
+type dragAxis uint8
+
+const (
+	dragAxisNone dragAxis = iota
+	dragAxisHorizontal
+	dragAxisVertical
+)
+
 var _ game.Gamer = Model{}
 
 type Model struct {
@@ -37,7 +45,10 @@ type Model struct {
 	supportsKeyRelease bool // set from tea.KeyboardEnhancementsMsg
 
 	// Mouse drag support.
-	dragging rune // 0 = not dragging, filledTile or markedTile while mouse held
+	dragging     rune // 0 = not dragging, filledTile or markedTile while mouse held
+	dragStartCol int
+	dragStartRow int
+	dragAxis     dragAxis
 
 	// Screen geometry for mouse hit-testing.
 	termWidth, termHeight int
@@ -148,10 +159,10 @@ func (m Model) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 		switch msg.Button {
 		case tea.MouseLeft:
 			m.toggleTile(filledTile)
-			m.dragging = filledTile
+			m.startDrag(filledTile, col, row)
 		case tea.MouseRight:
 			m.toggleTile(markedTile)
-			m.dragging = markedTile
+			m.startDrag(markedTile, col, row)
 		}
 
 	case tea.MouseMotionMsg:
@@ -159,6 +170,10 @@ func (m Model) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 			break
 		}
 		col, row, ok := m.screenToGrid(msg.X, msg.Y, true)
+		if !ok {
+			break
+		}
+		col, row, ok = m.lockedDragTarget(col, row)
 		if !ok {
 			break
 		}
@@ -170,7 +185,7 @@ func (m Model) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 		m.updateTile(m.dragging)
 
 	case tea.MouseReleaseMsg:
-		m.dragging = 0
+		m.clearDrag()
 	}
 
 	m.updateKeyBindings()
@@ -211,7 +226,7 @@ func (m Model) GetDebugInfo() string {
 		{"Term Size", fmt.Sprintf("%d x %d", m.termWidth, m.termHeight)},
 		{"Grid Origin", fmt.Sprintf("(%d, %d)", ox, oy)},
 		{"Last Mouse", fmt.Sprintf("screen=(%d, %d) btn=%s grid=%s", m.lastMouseX, m.lastMouseY, m.lastMouseBtn, hitStr)},
-		{"Paint/Drag", fmt.Sprintf("brush=%d drag=%d keyrel=%v", m.paintBrush, m.dragging, m.supportsKeyRelease)},
+		{"Paint/Drag", fmt.Sprintf("brush=%d drag=%d axis=%d start=(%d, %d) keyrel=%v", m.paintBrush, m.dragging, m.dragAxis, m.dragStartCol, m.dragStartRow, m.supportsKeyRelease)},
 	})
 
 	s += tomoDebugTable("Row Tomography", "Row", m.rowHints, m.currentHints.rows)
@@ -269,7 +284,7 @@ func (m Model) Reset() game.Gamer {
 	m.solved = false
 	m.cursor = game.Cursor{}
 	m.paintBrush = 0
-	m.dragging = 0
+	m.clearDrag()
 	m.originValid = false
 	return m
 }
@@ -293,4 +308,18 @@ func (m *Model) toggleTile(target rune) {
 	} else {
 		m.updateTile(target)
 	}
+}
+
+func (m *Model) startDrag(brush rune, col, row int) {
+	m.dragging = brush
+	m.dragStartCol = col
+	m.dragStartRow = row
+	m.dragAxis = dragAxisNone
+}
+
+func (m *Model) clearDrag() {
+	m.dragging = 0
+	m.dragStartCol = 0
+	m.dragStartRow = 0
+	m.dragAxis = dragAxisNone
 }

@@ -47,6 +47,13 @@ func helpViewportSize(width, height int) (int, int) {
 	return contentWidth, contentHeight
 }
 
+func helpSelectListSize(width, height int, l list.Model) (int, int) {
+	contentWidth, contentHeight := helpViewportSize(width, height)
+	listWidth := min(contentWidth, 64)
+	listHeight := min(contentHeight, ui.ListHeight(l))
+	return listWidth, listHeight
+}
+
 func statsViewportSize(width, height int, cards []stats.Card) (int, int) {
 	contentWidth, _ := helpViewportSize(width, height)
 	panelHeight := max(height-(helpPanelInsetY*2), 1)
@@ -280,7 +287,8 @@ func (m model) handleWindowSize(msg tea.WindowSizeMsg) model {
 		m = m.refreshWeeklyBrowser()
 	}
 	if m.state == helpSelectView {
-		m.nav.helpSelectList.SetSize(menuW, min(m.height, ui.ListHeight(m.nav.helpSelectList)))
+		listWidth, listHeight := helpSelectListSize(m.width, m.height, m.nav.helpSelectList)
+		m.nav.helpSelectList.SetSize(listWidth, listHeight)
 	}
 	if m.state == helpDetailView {
 		m = m.updateHelpDetailViewport()
@@ -508,7 +516,8 @@ func (m model) handleOptionsMenuEnter() (tea.Model, tea.Cmd) {
 		return m.handleThemeEnter()
 	case "Guides":
 		m.nav.helpSelectList = ui.InitList(gameCategoryItems, "How to Play")
-		m.nav.helpSelectList.SetSize(min(m.width, 64), min(m.height, ui.ListHeight(m.nav.helpSelectList)))
+		listWidth, listHeight := helpSelectListSize(m.width, m.height, m.nav.helpSelectList)
+		m.nav.helpSelectList.SetSize(listWidth, listHeight)
 		m.state = helpSelectView
 	}
 	return m, nil

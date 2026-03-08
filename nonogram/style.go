@@ -210,7 +210,7 @@ func buildBoardBlock(m Model) boardBlockLayout {
 	block := lipgloss.JoinVertical(
 		lipgloss.Center,
 		topBand,
-		lipgloss.JoinHorizontal(lipgloss.Top, rowHints, grid),
+		lipgloss.JoinHorizontal(lipgloss.Center, rowHints, grid),
 	)
 
 	return boardBlockLayout{
@@ -301,12 +301,7 @@ func tileView(val rune, isCursor, inCursorRow, inCursorCol, solved bool) string 
 	} else if solved {
 		s = s.Foreground(p.SolvedFG).Background(p.SuccessBG)
 	} else if inCursorRow || inCursorCol {
-		// Apply crosshair background tint — filled cells get a more active color
-		if val == filledTile {
-			s = s.Background(theme.MidTone(p.Surface, p.AccentBG))
-		} else {
-			s = s.Background(p.Surface)
-		}
+		s = s.Background(p.Surface)
 	}
 
 	return s.Width(cellWidth).AlignHorizontal(lipgloss.Center).Render(r)
