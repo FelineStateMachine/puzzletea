@@ -5,6 +5,7 @@ import (
 	"math/rand/v2"
 	"testing"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/FelineStateMachine/puzzletea/game"
 )
 
@@ -126,6 +127,79 @@ func TestWordPositions(t *testing.T) {
 			t.Errorf("len(Positions()) = %d, want %d", got, len(w.Text))
 		}
 	})
+}
+
+func TestBackspaceCancelsSelection(t *testing.T) {
+	m := Model{
+		width:      3,
+		height:     3,
+		grid:       createEmptyGrid(3, 3),
+		selection:  startSelected,
+		keys:       DefaultKeyMap,
+		foundCells: buildFoundCells(3, 3, nil),
+	}
+
+	next, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyBackspace})
+	got := next.(Model)
+	if got.selection != noSelection {
+		t.Fatal("expected backspace to clear the current selection")
+	}
+}
+
+func TestSelectionMoveSnapsToNearestRay(t *testing.T) {
+	m := Model{
+		width:      5,
+		height:     5,
+		grid:       createEmptyGrid(5, 5),
+		cursor:     game.Cursor{X: 1, Y: 1},
+		keys:       DefaultKeyMap,
+		foundCells: buildFoundCells(5, 5, nil),
+	}
+
+	m.handleSelect()
+
+	next, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyRight})
+	got := next.(Model)
+	if got.cursor != (game.Cursor{X: 2, Y: 1}) {
+		t.Fatalf("after right, cursor = (%d,%d), want (2,1)", got.cursor.X, got.cursor.Y)
+	}
+
+	next, _ = got.Update(tea.KeyPressMsg{Code: tea.KeyDown})
+	got = next.(Model)
+	if got.cursor != (game.Cursor{X: 2, Y: 2}) {
+		t.Fatalf("after down, cursor = (%d,%d), want (2,2)", got.cursor.X, got.cursor.Y)
+	}
+}
+
+func TestSelectionMoveShrinksDiagonalWithArrowKeys(t *testing.T) {
+	m := Model{
+		width:          5,
+		height:         5,
+		grid:           createEmptyGrid(5, 5),
+		cursor:         game.Cursor{X: 3, Y: 3},
+		selection:      startSelected,
+		selectionStart: game.Cursor{X: 1, Y: 1},
+		keys:           DefaultKeyMap,
+		foundCells:     buildFoundCells(5, 5, nil),
+	}
+
+	next, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyLeft})
+	got := next.(Model)
+	if got.cursor != (game.Cursor{X: 2, Y: 2}) {
+		t.Fatalf("after left, cursor = (%d,%d), want (2,2)", got.cursor.X, got.cursor.Y)
+	}
+
+	next, _ = got.Update(tea.KeyPressMsg{Code: tea.KeyUp})
+	got = next.(Model)
+	if got.cursor != (game.Cursor{X: 1, Y: 1}) {
+		t.Fatalf("after up, cursor = (%d,%d), want (1,1)", got.cursor.X, got.cursor.Y)
+	}
+
+	next, _ = got.Update(tea.KeyPressMsg{Code: tea.KeyDown})
+	got = next.(Model)
+	if got.cursor != (game.Cursor{X: 1, Y: 2}) {
+		t.Fatalf("after down from collapsed selection, cursor = (%d,%d), want (1,2)", got.cursor.X, got.cursor.Y)
+	}
 }
 
 // --- Grid operations (P1) ---
@@ -372,6 +446,97 @@ func TestWalkLine(t *testing.T) {
 	}
 }
 
+func TestSnapSelectionCursor(t *testing.T) {
+	tests := []struct {
+		name   string
+		start  game.Cursor
+		target game.Cursor
+		maxX   int
+		maxY   int
+		want   game.Cursor
+	}{
+		{
+			name:   "keeps exact horizontal target",
+			start:  game.Cursor{X: 2, Y: 2},
+			target: game.Cursor{X: 4, Y: 2},
+			maxX:   4,
+			maxY:   4,
+			want:   game.Cursor{X: 4, Y: 2},
+		},
+		{
+			name:   "snaps off-axis target to diagonal",
+			start:  game.Cursor{X: 2, Y: 2},
+			target: game.Cursor{X: 3, Y: 4},
+			maxX:   4,
+			maxY:   4,
+			want:   game.Cursor{X: 4, Y: 4},
+		},
+		{
+			name:   "snaps closer to vertical than diagonal",
+			start:  game.Cursor{X: 2, Y: 2},
+			target: game.Cursor{X: 2, Y: 4},
+			maxX:   4,
+			maxY:   4,
+			want:   game.Cursor{X: 2, Y: 4},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := snapSelectionCursor(tt.start, tt.target, tt.maxX, tt.maxY)
+			if got != tt.want {
+				t.Fatalf("snapSelectionCursor(%v, %v) = %v, want %v", tt.start, tt.target, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestCurrentSelectionPreview(t *testing.T) {
+	m := Model{
+		width:  5,
+		height: 5,
+		grid: newGrid(state(
+			"HELLO\n" +
+				"AAAAA\n" +
+				"BBBBB\n" +
+				"CCCCC\n" +
+				"DDDDD",
+		)),
+		words: []Word{
+			{Text: "HELLO", Start: Position{0, 0}, End: Position{4, 0}, Direction: Right},
+			{Text: "HELL", Start: Position{0, 1}, End: Position{3, 1}, Direction: Right, Found: true},
+		},
+		cursor:         game.Cursor{X: 2, Y: 0},
+		selection:      startSelected,
+		selectionStart: game.Cursor{X: 0, Y: 0},
+		keys:           DefaultKeyMap,
+		foundCells:     buildFoundCells(5, 5, nil),
+	}
+
+	preview := m.currentSelectionPreview()
+	if !preview.Valid {
+		t.Fatal("expected preview to be valid")
+	}
+	if preview.Letters != "HEL" {
+		t.Fatalf("Letters = %q, want HEL", preview.Letters)
+	}
+	if preview.Direction != "right" {
+		t.Fatalf("Direction = %q, want right", preview.Direction)
+	}
+	if preview.NearWord != "HELLO" {
+		t.Fatalf("NearWord = %q, want HELLO", preview.NearWord)
+	}
+	if preview.ExactWord != "" {
+		t.Fatalf("ExactWord = %q, want empty", preview.ExactWord)
+	}
+
+	m.cursor = game.Cursor{X: 4, Y: 0}
+	preview = m.currentSelectionPreview()
+	if preview.ExactWord != "HELLO" {
+		t.Fatalf("ExactWord = %q, want HELLO", preview.ExactWord)
+	}
+}
+
 // --- reverseString (P1) ---
 
 func TestReverseString(t *testing.T) {
@@ -401,7 +566,7 @@ func TestReverseString(t *testing.T) {
 func TestTryPlaceWord(t *testing.T) {
 	t.Run("places word in empty grid", func(t *testing.T) {
 		g := createEmptyGrid(10, 10)
-		w := tryPlaceWord(g, "HELLO", []Direction{Right, Down, DownRight}, 1000)
+		w := tryPlaceWordSeeded(g, "HELLO", []Direction{Right, Down, DownRight}, 1000, testRNG(1))
 		if w == nil {
 			t.Fatal("expected word to be placed")
 		}
@@ -418,7 +583,7 @@ func TestTryPlaceWord(t *testing.T) {
 
 	t.Run("respects allowed directions", func(t *testing.T) {
 		g := createEmptyGrid(10, 10)
-		w := tryPlaceWord(g, "HELLO", []Direction{Right}, 1000)
+		w := tryPlaceWordSeeded(g, "HELLO", []Direction{Right}, 1000, testRNG(2))
 		if w == nil {
 			t.Fatal("expected word to be placed")
 		}
@@ -430,7 +595,7 @@ func TestTryPlaceWord(t *testing.T) {
 	t.Run("allows letter overlap", func(t *testing.T) {
 		g := createEmptyGrid(1, 5)
 		g.Set(0, 0, 'H')
-		w := tryPlaceWord(g, "HELLO", []Direction{Right}, 1000)
+		w := tryPlaceWordSeeded(g, "HELLO", []Direction{Right}, 1000, testRNG(3))
 		if w == nil {
 			t.Fatal("expected word to be placed with matching overlap")
 		}
@@ -441,7 +606,7 @@ func TestTryPlaceWord(t *testing.T) {
 		for x := range 5 {
 			g.Set(x, 0, 'X')
 		}
-		w := tryPlaceWord(g, "HELLO", []Direction{Right}, 100)
+		w := tryPlaceWordSeeded(g, "HELLO", []Direction{Right}, 100, testRNG(4))
 		if w != nil {
 			t.Error("expected nil for conflicting overlap")
 		}
@@ -449,7 +614,7 @@ func TestTryPlaceWord(t *testing.T) {
 
 	t.Run("returns nil when impossible", func(t *testing.T) {
 		g := createEmptyGrid(3, 3)
-		w := tryPlaceWord(g, "TOOLONGWORD", []Direction{Right, Down}, 100)
+		w := tryPlaceWordSeeded(g, "TOOLONGWORD", []Direction{Right, Down}, 100, testRNG(5))
 		if w != nil {
 			t.Error("expected nil for word that cannot fit")
 		}
@@ -457,7 +622,7 @@ func TestTryPlaceWord(t *testing.T) {
 
 	t.Run("uppercases text", func(t *testing.T) {
 		g := createEmptyGrid(10, 10)
-		w := tryPlaceWord(g, "hello", []Direction{Right}, 1000)
+		w := tryPlaceWordSeeded(g, "hello", []Direction{Right}, 1000, testRNG(6))
 		if w == nil {
 			t.Fatal("expected word to be placed")
 		}
@@ -493,14 +658,14 @@ func TestTryPlaceWordSeededWithFallback(t *testing.T) {
 
 func TestSelectWords(t *testing.T) {
 	t.Run("respects count", func(t *testing.T) {
-		words := selectWords(5, 4, 6)
+		words := selectWordsSeeded(5, 4, 6, testRNG(7))
 		if len(words) > 5 {
 			t.Errorf("len(selectWords) = %d, want <= 5", len(words))
 		}
 	})
 
 	t.Run("respects length filter", func(t *testing.T) {
-		words := selectWords(20, 4, 6)
+		words := selectWordsSeeded(20, 4, 6, testRNG(8))
 		for _, w := range words {
 			if len(w) < 4 || len(w) > 6 {
 				t.Errorf("word %q has length %d, want 4-6", w, len(w))
@@ -509,7 +674,7 @@ func TestSelectWords(t *testing.T) {
 	})
 
 	t.Run("clamps when too few", func(t *testing.T) {
-		words := selectWords(99999, 4, 4)
+		words := selectWordsSeeded(99999, 4, 4, testRNG(9))
 		// Should return all 4-letter words, not 99999.
 		if len(words) > 99999 {
 			t.Error("returned more than requested")
@@ -550,7 +715,7 @@ func TestOrderWordsForPlacement(t *testing.T) {
 func TestFillEmptyCells(t *testing.T) {
 	t.Run("fills all spaces", func(t *testing.T) {
 		g := createEmptyGrid(5, 5)
-		fillEmptyCells(g)
+		fillEmptyCellsSeeded(g, testRNG(10))
 		for y := range g {
 			for x := range g[y] {
 				if g[y][x] == ' ' {
@@ -563,7 +728,7 @@ func TestFillEmptyCells(t *testing.T) {
 	t.Run("preserves existing letters", func(t *testing.T) {
 		g := createEmptyGrid(5, 5)
 		g.Set(0, 0, 'Z')
-		fillEmptyCells(g)
+		fillEmptyCellsSeeded(g, testRNG(11))
 		if got := g.Get(0, 0); got != 'Z' {
 			t.Errorf("cell (0,0) = %c, want Z", got)
 		}
@@ -571,7 +736,7 @@ func TestFillEmptyCells(t *testing.T) {
 
 	t.Run("only uppercase letters", func(t *testing.T) {
 		g := createEmptyGrid(5, 5)
-		fillEmptyCells(g)
+		fillEmptyCellsSeeded(g, testRNG(12))
 		for y := range g {
 			for x := range g[y] {
 				c := g[y][x]

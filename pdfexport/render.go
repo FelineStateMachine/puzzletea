@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"codeberg.org/go-pdf/fpdf"
-	"github.com/FelineStateMachine/puzzletea/game"
 )
 
 func WritePDF(outputPath string, docs []PackDocument, puzzles []Puzzle, cfg RenderConfig) error {
@@ -122,10 +121,10 @@ func saddleStitchPadCount(totalPages int) int {
 func filterPrintablePuzzles(puzzles []Puzzle) []Puzzle {
 	printable := make([]Puzzle, 0, len(puzzles))
 	for _, puzzle := range puzzles {
-		if game.IsNilPrintPayload(puzzle.PrintPayload) {
+		if IsNilPrintPayload(puzzle.PrintPayload) {
 			continue
 		}
-		if _, ok := game.LookupPrintAdapter(puzzle.Category); !ok {
+		if _, ok := LookupPrintAdapter(puzzle.Category); !ok {
 			continue
 		}
 		printable = append(printable, puzzle)
@@ -138,10 +137,10 @@ func renderPadPage(pdf *fpdf.Fpdf) {
 }
 
 func renderPuzzlePage(pdf *fpdf.Fpdf, puzzle Puzzle) error {
-	if game.IsNilPrintPayload(puzzle.PrintPayload) {
+	if IsNilPrintPayload(puzzle.PrintPayload) {
 		return nil
 	}
-	adapter, ok := game.LookupPrintAdapter(puzzle.Category)
+	adapter, ok := LookupPrintAdapter(puzzle.Category)
 	if !ok {
 		return nil
 	}

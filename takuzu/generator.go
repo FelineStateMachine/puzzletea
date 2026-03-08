@@ -77,7 +77,7 @@ func generateCompleteSeeded(size int, rng *rand.Rand) grid {
 	g := newGrid(createEmptyState(size))
 
 	const maxRetries = 10
-	for attempt := 0; attempt < maxRetries; attempt++ {
+	for range maxRetries {
 		for y := range size {
 			for x := range size {
 				g[y][x] = emptyCell
@@ -434,11 +434,12 @@ func canPlaceWithStats(g grid, size, x, y int, val rune, stats *lineStats) bool 
 	}
 
 	half := size / 2
-	if val == zeroCell {
+	switch val {
+	case zeroCell:
 		if stats.rowZero[y] >= half || stats.colZero[x] >= half {
 			return false
 		}
-	} else if val == oneCell {
+	case oneCell:
 		if stats.rowOne[y] >= half || stats.colOne[x] >= half {
 			return false
 		}
@@ -460,24 +461,6 @@ func canPlaceWithStats(g grid, size, x, y int, val rune, stats *lineStats) bool 
 		}
 	}
 
-	return true
-}
-
-func rowFilledExcept(g grid, y, skip, size int) bool {
-	for x := range size {
-		if x != skip && g[y][x] == emptyCell {
-			return false
-		}
-	}
-	return true
-}
-
-func colFilledExcept(g grid, x, skip, size int) bool {
-	for y := range size {
-		if y != skip && g[y][x] == emptyCell {
-			return false
-		}
-	}
 	return true
 }
 
@@ -517,6 +500,40 @@ func rowFilled(g grid, y, size int) bool {
 		}
 	}
 	return true
+}
+
+func GenerateCompleteGrid(size int) [][]rune {
+	return generateComplete(size).clone()
+}
+
+func GenerateCompleteGridSeeded(size int, rng *rand.Rand) [][]rune {
+	return generateCompleteSeeded(size, rng).clone()
+}
+
+func GeneratePuzzleFromComplete(complete [][]rune, size int, prefilled float64) ([][]rune, [][]bool) {
+	puzzle, provided := generatePuzzle(grid(complete).clone(), size, prefilled)
+	return puzzle.clone(), provided
+}
+
+func GeneratePuzzleFromCompleteSeeded(complete [][]rune, size int, prefilled float64, rng *rand.Rand) ([][]rune, [][]bool) {
+	puzzle, provided := generatePuzzleSeeded(grid(complete).clone(), size, prefilled, rng)
+	return puzzle.clone(), provided
+}
+
+func CountSolutionsGrid(g [][]rune, size, limit int) int {
+	return countSolutions(grid(g).clone(), size, limit)
+}
+
+func CheckConstraintsGrid(g [][]rune, size int) bool {
+	return checkConstraints(grid(g), size)
+}
+
+func HasUniqueLinesGrid(g [][]rune, size int) bool {
+	return hasUniqueLines(grid(g), size)
+}
+
+func CanPlaceInGrid(g [][]rune, size, x, y int, val rune) bool {
+	return canPlace(grid(g), size, x, y, val)
 }
 
 func colFilled(g grid, x, size int) bool {

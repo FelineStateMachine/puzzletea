@@ -47,7 +47,7 @@ func validateGridState(g grid) validationResult {
 			}
 
 			comp := buildComponent(g, point{x: x, y: y}, visited)
-			markComponentConflicts(g, comp, complete, conflicts)
+			markComponentConflicts(comp, complete, conflicts)
 		}
 	}
 
@@ -97,7 +97,7 @@ func buildComponent(g grid, start point, visited [][]bool) component {
 	return comp
 }
 
-func markComponentConflicts(g grid, comp component, assumeComplete bool, conflicts [][]bool) {
+func markComponentConflicts(comp component, assumeComplete bool, conflicts [][]bool) {
 	size := len(comp.cells)
 	value := comp.value
 	if value <= 0 {

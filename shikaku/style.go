@@ -30,7 +30,7 @@ func gridView(m Model, solved bool) string {
 			return regionTokenAt(m, preview, x, y)
 		},
 		ZoneFill: func(zone int) color.Color {
-			return regionBackground(m, zone, previewClue, previewValid)
+			return regionBackground(zone, previewClue, previewValid)
 		},
 	})
 }
@@ -61,7 +61,7 @@ func cellView(m Model, x, y int, preview *Rectangle, previewClue *Clue, previewV
 		style = style.Bold(true)
 	}
 
-	if regionBG := regionBackground(m, token, previewClue, previewValid); regionBG != nil {
+	if regionBG := regionBackground(token, previewClue, previewValid); regionBG != nil {
 		bg = regionBG
 		fg = theme.TextOnBG(regionBG)
 	}
@@ -128,104 +128,7 @@ func regionTokenAt(m Model, preview *Rectangle, x, y int) int {
 	return unownedRegionID
 }
 
-func horizontalEdge(m Model, preview *Rectangle, x, y int) bool {
-	switch {
-	case y <= 0, y >= m.puzzle.Height:
-		return true
-	default:
-		return regionTokenAt(m, preview, x, y-1) != regionTokenAt(m, preview, x, y)
-	}
-}
-
-func hasVerticalEdge(m Model, preview *Rectangle, x, y int) bool {
-	switch {
-	case x <= 0, x >= m.puzzle.Width:
-		return true
-	default:
-		return regionTokenAt(m, preview, x-1, y) != regionTokenAt(m, preview, x, y)
-	}
-}
-
-func junctionRune(m Model, preview *Rectangle, x, y int) rune {
-	north := y > 0 && hasVerticalEdge(m, preview, x, y-1)
-	south := y < m.puzzle.Height && hasVerticalEdge(m, preview, x, y)
-	west := x > 0 && horizontalEdge(m, preview, x-1, y)
-	east := x < m.puzzle.Width && horizontalEdge(m, preview, x, y)
-
-	switch {
-	case north && south && west && east:
-		return '┼'
-	case north && south && west:
-		return '┤'
-	case north && south && east:
-		return '├'
-	case west && east && north:
-		return '┴'
-	case west && east && south:
-		return '┬'
-	case south && east:
-		return '┌'
-	case south && west:
-		return '┐'
-	case north && east:
-		return '└'
-	case north && west:
-		return '┘'
-	case north || south:
-		return '│'
-	case west || east:
-		return '─'
-	default:
-		return ' '
-	}
-}
-
-func verticalGapBackground(m Model, preview *Rectangle, previewClue *Clue, previewValid bool, x, y int) color.Color {
-	if hasVerticalEdge(m, preview, x, y) || x <= 0 || x >= m.puzzle.Width {
-		return nil
-	}
-	token := regionTokenAt(m, preview, x-1, y)
-	return regionBackground(m, token, previewClue, previewValid)
-}
-
-func horizontalGapBackground(m Model, preview *Rectangle, previewClue *Clue, previewValid bool, x, y int) color.Color {
-	if horizontalEdge(m, preview, x, y) || y <= 0 || y >= m.puzzle.Height {
-		return nil
-	}
-	token := regionTokenAt(m, preview, x, y-1)
-	return regionBackground(m, token, previewClue, previewValid)
-}
-
-func junctionGapBackground(m Model, preview *Rectangle, previewClue *Clue, previewValid bool, x, y int) color.Color {
-	if junctionRune(m, preview, x, y) != ' ' {
-		return nil
-	}
-
-	tokens := make([]int, 0, 4)
-	if x > 0 && y > 0 {
-		tokens = append(tokens, regionTokenAt(m, preview, x-1, y-1))
-	}
-	if x < m.puzzle.Width && y > 0 {
-		tokens = append(tokens, regionTokenAt(m, preview, x, y-1))
-	}
-	if x > 0 && y < m.puzzle.Height {
-		tokens = append(tokens, regionTokenAt(m, preview, x-1, y))
-	}
-	if x < m.puzzle.Width && y < m.puzzle.Height {
-		tokens = append(tokens, regionTokenAt(m, preview, x, y))
-	}
-	if len(tokens) != 4 {
-		return nil
-	}
-	for _, token := range tokens[1:] {
-		if token != tokens[0] {
-			return nil
-		}
-	}
-	return regionBackground(m, tokens[0], previewClue, previewValid)
-}
-
-func regionBackground(m Model, token int, previewClue *Clue, previewValid bool) color.Color {
+func regionBackground(token int, previewClue *Clue, previewValid bool) color.Color {
 	p := theme.Current()
 	switch token {
 	case previewRegionID:
@@ -273,14 +176,14 @@ func infoView(puzzle *Puzzle) string {
 func statusBarView(selected, showFullHelp bool) string {
 	if selected {
 		if showFullHelp {
-			return game.StatusBarStyle().Render("arrows: expand  shift+arrows: shrink  enter: confirm  esc: cancel  bkspc: delete  mouse: drag rect  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
+			return game.StatusBarStyle().Render("arrows: expand  shift+arrows: shrink  enter: confirm  bkspc: cancel  mouse: drag rect  esc: menu  ctrl+r: reset  ctrl+h: help")
 		}
-		return game.StatusBarStyle().Render("arrows: expand  shift+arrows: shrink  enter: confirm  esc: cancel  mouse: drag")
+		return game.StatusBarStyle().Render("arrows: expand  shift+arrows: shrink  enter: confirm  bkspc: cancel  mouse: drag")
 	}
 	if showFullHelp {
-		return game.StatusBarStyle().Render("arrows/wasd: move  enter/space: select clue  bkspc: delete  mouse: click clue & drag  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
+		return game.StatusBarStyle().Render("arrows/wasd: move  enter/space: select clue  bkspc: cancel/delete  mouse: click clue & drag  esc: menu  ctrl+r: reset  ctrl+h: help")
 	}
-	return game.StatusBarStyle().Render("enter/space: select clue  bkspc: delete  mouse: click & drag")
+	return game.StatusBarStyle().Render("enter/space: select clue  bkspc: cancel/delete  mouse: click & drag")
 }
 
 func statusBarVariants() []string {

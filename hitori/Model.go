@@ -23,6 +23,11 @@ type Model struct {
 	keys             KeyMap
 	modeTitle        string
 	showFullHelp     bool
+	termWidth        int
+	termHeight       int
+	originX          int
+	originY          int
+	originValid      bool
 }
 
 var _ game.Gamer = Model{}
@@ -63,6 +68,18 @@ func (m Model) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 	switch msg := msg.(type) {
 	case game.HelpToggleMsg:
 		m.showFullHelp = msg.Show
+		m.originValid = false
+	case tea.WindowSizeMsg:
+		m.termWidth = msg.Width
+		m.termHeight = msg.Height
+		m.originValid = false
+	case tea.MouseClickMsg:
+		if msg.Button == tea.MouseLeft {
+			if col, row, ok := m.screenToGrid(msg.X, msg.Y); ok {
+				m.cursor.X = col
+				m.cursor.Y = row
+			}
+		}
 	case tea.KeyPressMsg:
 		switch {
 		case key.Matches(msg, m.keys.ShadeCell):
@@ -98,9 +115,13 @@ func (m *Model) toggleMark(mark cellMark) {
 }
 
 func (m *Model) recomputeState() {
+	wasSolved := m.solved
 	m.marks = propagateRequiredMarks(m.numbers, m.userMarks, m.size)
 	m.solved = m.checkSolved()
 	m.conflicts = computeConflicts(m.numbers, m.marks, m.size)
+	if m.solved != wasSolved {
+		m.originValid = false
+	}
 }
 
 func (m Model) View() string {
@@ -116,6 +137,7 @@ func (m Model) View() string {
 
 func (m Model) SetTitle(t string) game.Gamer {
 	m.modeTitle = t
+	m.originValid = false
 	return m
 }
 
@@ -127,6 +149,7 @@ func (m Model) Reset() game.Gamer {
 	m.userMarks = cloneMarks(m.initialUserMarks)
 	m.recomputeState()
 	m.cursor = game.Cursor{}
+	m.originValid = false
 	return m
 }
 

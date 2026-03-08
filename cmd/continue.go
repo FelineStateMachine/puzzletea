@@ -3,10 +3,8 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/FelineStateMachine/puzzletea/catalog"
 	"github.com/FelineStateMachine/puzzletea/config"
 	sessionflow "github.com/FelineStateMachine/puzzletea/session"
-	"github.com/FelineStateMachine/puzzletea/stats"
 	"github.com/FelineStateMachine/puzzletea/store"
 
 	"github.com/spf13/cobra"
@@ -29,8 +27,6 @@ func continueGame(name string, cfg *config.Config) error {
 		return err
 	}
 	defer s.Close()
-
-	stats.InitModeXP(catalog.Categories())
 
 	rec, err := s.GetGameByName(name)
 	if err != nil {

@@ -2,92 +2,285 @@ package nurikabe
 
 import (
 	"fmt"
+	"image/color"
 
 	"charm.land/lipgloss/v2"
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/theme"
 )
 
-const cellWidth = 3
+const (
+	cellWidth   = game.DynamicGridCellWidth
+	neutralZone = -1
+)
 
-func gridBorderStyle() lipgloss.Style {
-	p := theme.Current()
-	return lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(p.Border).
-		BorderBackground(p.BG)
+type renderGridState struct {
+	zones      [][]int
+	zoneColors map[int]color.Color
 }
 
-func gridBorderSolvedStyle() lipgloss.Style {
-	p := theme.Current()
-	return lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(p.SuccessBorder).
-		BorderBackground(p.SuccessBG)
+type cellVisual struct {
+	text     string
+	fg       color.Color
+	bg       color.Color
+	bridgeBG color.Color
+	bold     bool
+	kind     cellVisualKind
 }
 
-func cellStyle(c cellState, clue int, isCursor, solved, conflict, inSeaSquare bool) (lipgloss.Style, string) {
+type cellVisualKind int
+
+const (
+	cellVisualNeutral cellVisualKind = iota
+	cellVisualSea
+	cellVisualCursor
+	cellVisualSolved
+	cellVisualConflict
+)
+
+func buildRenderGridState(m Model) renderGridState {
+	zones := make([][]int, m.height)
+	for y := range m.height {
+		zones[y] = make([]int, m.width)
+		for x := range m.width {
+			zones[y][x] = neutralZone
+		}
+	}
+
+	_, idx := islandComponents(m.marks, m.clues)
+	if idx == nil {
+		return renderGridState{zones: zones}
+	}
+
+	themeColors := theme.Current().ThemeColors()
+	zoneColors := make(map[int]color.Color)
+	for y := range m.height {
+		for x := range m.width {
+			zone := idx[y][x]
+			if zone < 0 {
+				continue
+			}
+			zones[y][x] = zone
+			if len(themeColors) == 0 {
+				continue
+			}
+			if _, ok := zoneColors[zone]; !ok {
+				zoneColors[zone] = themeColors[zone%len(themeColors)]
+			}
+		}
+	}
+
+	return renderGridState{
+		zones:      zones,
+		zoneColors: zoneColors,
+	}
+}
+
+func zoneBackground(renderState renderGridState, zone int) color.Color {
+	if zone < 0 {
+		return nil
+	}
+	return renderState.zoneColors[zone]
+}
+
+func resolveCellVisual(m Model, x, y int) cellVisual {
+	return resolveCellVisualWithState(m, buildRenderGridState(m), x, y)
+}
+
+func resolveCellVisualWithState(m Model, renderState renderGridState, x, y int) cellVisual {
 	p := theme.Current()
-	display := "   "
-	landBg := theme.Blend(p.BG, p.Success, 0.45)
-	style := lipgloss.NewStyle().Background(landBg).Foreground(theme.TextOnBG(landBg))
+	seaBg := theme.Blend(p.BG, p.Secondary, 0.24)
+	c := m.marks[y][x]
+	clue := m.clues[y][x]
+	isCursor := x == m.cursor.X && y == m.cursor.Y
+	conflict := m.conflicts[y][x]
+	inSeaSquare := isSeaSquareCell(m.marks, x, y)
+	islandBg := zoneBackground(renderState, renderState.zones[y][x])
+	visual := cellVisual{
+		text:     "   ",
+		fg:       p.FG,
+		bg:       p.BG,
+		bridgeBG: p.BG,
+		kind:     cellVisualNeutral,
+	}
 
 	switch {
 	case clue > 0:
-		display = fmt.Sprintf("%2d ", clue)
+		visual.text = fmt.Sprintf("%2d ", clue)
 		if clue < 10 {
-			display = fmt.Sprintf(" %d ", clue)
+			visual.text = fmt.Sprintf(" %d ", clue)
 		}
-
-		style = lipgloss.NewStyle().
-			Foreground(p.Info).
-			Background(landBg).
-			Bold(true)
+		if islandBg != nil {
+			visual.bg = islandBg
+			visual.bridgeBG = islandBg
+			visual.fg = theme.TextOnBG(islandBg)
+		} else {
+			visual.fg = p.Info
+		}
+		visual.bold = true
 	case c == seaCell:
-		display = " ~ "
+		visual.text = " ~ "
 		if inSeaSquare {
-			display = " @ "
+			visual.text = " @ "
 		}
-		seaBg := theme.Blend(p.BG, p.Secondary, 0.24)
-		style = style.Background(seaBg).Foreground(theme.TextOnBG(seaBg))
+		visual.bg = seaBg
+		visual.bridgeBG = seaBg
+		visual.fg = theme.TextOnBG(seaBg)
+		visual.kind = cellVisualSea
 	case c == islandCell:
-		display = " \u00b7 "
-		style = style.Background(landBg).Foreground(theme.TextOnBG(landBg))
+		visual.text = " \u00b7 "
+		if islandBg != nil {
+			visual.bg = islandBg
+			visual.bridgeBG = islandBg
+			visual.fg = theme.TextOnBG(islandBg)
+		}
+	case m.solved && c == unknownCell:
+		visual.text = " \u00b7 "
 	}
 
-	if solved {
-		style = style.Background(p.SuccessBG).Foreground(theme.TextOnBG(p.SuccessBG))
+	switch {
+	case conflict:
+		visual.bg = game.ConflictBG()
+		visual.bridgeBG = game.ConflictBG()
+		visual.fg = game.ConflictFG()
+		visual.kind = cellVisualConflict
+	case m.solved:
+		visual.bg = p.SuccessBG
+		visual.bridgeBG = p.SuccessBG
+		visual.fg = theme.TextOnBG(p.SuccessBG)
+		visual.kind = cellVisualSolved
+	case isCursor:
+		visual.bg = game.CursorBG()
+		visual.fg = game.CursorFG()
+		visual.kind = cellVisualCursor
 	}
-	if conflict {
-		style = style.Foreground(game.ConflictFG()).Background(game.ConflictBG())
-	}
-	if isCursor && solved {
-		style = game.CursorSolvedStyle()
-	} else if isCursor {
-		style = game.CursorStyle()
+	if isCursor {
+		visual.text = cursorWrappedText(visual.text)
 	}
 
-	return style.Width(cellWidth).AlignHorizontal(lipgloss.Center), display
+	return visual
+}
+
+func cursorWrappedText(text string) string {
+	runes := []rune(text)
+	if len(runes) != cellWidth {
+		return text
+	}
+	if runes[0] != ' ' || runes[cellWidth-1] != ' ' {
+		return text
+	}
+	return game.CursorLeft + string(runes[1]) + game.CursorRight
+}
+
+func renderCellVisual(visual cellVisual) string {
+	style := lipgloss.NewStyle().
+		Width(cellWidth).
+		AlignHorizontal(lipgloss.Center).
+		Foreground(visual.fg).
+		Background(visual.bg)
+	if visual.bold {
+		style = style.Bold(true)
+	}
+	return style.Render(visual.text)
+}
+
+func dominantBridgeBackground(visuals []cellVisual) color.Color {
+	for _, kind := range []cellVisualKind{
+		cellVisualConflict,
+		cellVisualSolved,
+	} {
+		for _, visual := range visuals {
+			if visual.kind == kind {
+				return visual.bridgeBG
+			}
+		}
+	}
+	return nil
+}
+
+func blendBridgeBackgrounds(visuals []cellVisual) color.Color {
+	if len(visuals) == 0 {
+		return nil
+	}
+
+	var rSum, gSum, bSum, aSum uint32
+	for _, visual := range visuals {
+		r, g, b, a := visual.bridgeBG.RGBA()
+		rSum += uint32(r >> 8)
+		gSum += uint32(g >> 8)
+		bSum += uint32(b >> 8)
+		aSum += uint32(a >> 8)
+	}
+
+	count := uint32(len(visuals))
+	return color.NRGBA{
+		R: uint8(rSum / count),
+		G: uint8(gSum / count),
+		B: uint8(bSum / count),
+		A: uint8(aSum / count),
+	}
+}
+
+func bridgeFill(m Model, bridge game.DynamicGridBridge) color.Color {
+	return bridgeFillWithState(m, buildRenderGridState(m), bridge)
+}
+
+func bridgeFillWithState(m Model, renderState renderGridState, bridge game.DynamicGridBridge) color.Color {
+	if bridge.Count == 0 {
+		return nil
+	}
+
+	visuals := make([]cellVisual, 0, bridge.Count)
+	for i := 0; i < bridge.Count; i++ {
+		cell := bridge.Cells[i]
+		visuals = append(visuals, resolveCellVisualWithState(m, renderState, cell.X, cell.Y))
+	}
+
+	bg := visuals[0].bridgeBG
+	allMatch := true
+	for _, visual := range visuals[1:] {
+		if !game.SameColor(bg, visual.bridgeBG) {
+			allMatch = false
+			break
+		}
+	}
+	if allMatch {
+		if dominant := dominantBridgeBackground(visuals); dominant != nil {
+			return dominant
+		}
+		if bridge.Uniform && bridge.Zone >= 0 {
+			return nil
+		}
+		return bg
+	}
+
+	if dominant := dominantBridgeBackground(visuals); dominant != nil {
+		return dominant
+	}
+
+	return blendBridgeBackgrounds(visuals)
 }
 
 func gridView(m Model) string {
-	rows := make([]string, m.height)
-	for y := range m.height {
-		cells := make([]string, m.width)
-		for x := range m.width {
-			isCursor := x == m.cursor.X && y == m.cursor.Y
-			inSeaSquare := isSeaSquareCell(m.marks, x, y)
-			style, display := cellStyle(m.marks[y][x], m.clues[y][x], isCursor, m.solved, m.conflicts[y][x], inSeaSquare)
-			cells[x] = style.Render(display)
-		}
-		rows[y] = lipgloss.JoinHorizontal(lipgloss.Top, cells...)
-	}
+	renderState := buildRenderGridState(m)
 
-	content := lipgloss.JoinVertical(lipgloss.Left, rows...)
-	if m.solved {
-		return gridBorderSolvedStyle().Render(content)
-	}
-	return gridBorderStyle().Render(content)
+	return game.RenderDynamicGrid(game.DynamicGridSpec{
+		Width:  m.width,
+		Height: m.height,
+		Solved: m.solved,
+		Cell: func(x, y int) string {
+			return renderCellVisual(resolveCellVisualWithState(m, renderState, x, y))
+		},
+		ZoneAt: func(x, y int) int {
+			return renderState.zones[y][x]
+		},
+		ZoneFill: func(zone int) color.Color {
+			return zoneBackground(renderState, zone)
+		},
+		BridgeFill: func(bridge game.DynamicGridBridge) color.Color {
+			return bridgeFillWithState(m, renderState, bridge)
+		},
+	})
 }
 
 // isSeaSquareCell reports whether (x,y) is part of any 2x2 sea block.
@@ -123,7 +316,7 @@ func isSeaSquareCell(marks grid, x, y int) bool {
 
 func statusBarView(showFullHelp bool) string {
 	if showFullHelp {
-		return game.StatusBarStyle().Render("arrows/wasd: move x/LMB: sea  z/RMB: island  bkspc: clear  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
+		return game.StatusBarStyle().Render("arrows/wasd: move x/LMB: sea  z/RMB: island  bkspc: clear  esc: menu  ctrl+r: reset  ctrl+h: help")
 	}
 	return game.StatusBarStyle().Render("x/LMB: sea  z/RMB: island  bkspc: clear")
 }

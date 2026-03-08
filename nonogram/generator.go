@@ -87,11 +87,6 @@ func lerp(a, b, t float64) float64 {
 	return a + (b-a)*t
 }
 
-func generateRandomState(h, w int, density float64) state {
-	rng := rand.New(rand.NewPCG(rand.Uint64(), rand.Uint64()))
-	return generateRandomStateSeeded(h, w, density, rng)
-}
-
 func generateRandomStateSeeded(h, w int, density float64, rng *rand.Rand) state {
 	if h <= 0 || w <= 0 {
 		return ""
@@ -520,7 +515,7 @@ func generateLinePossibilitiesRecursive(length int, hint []int, hintIdx, pos int
 			newCurrent = append(newCurrent, cellEmpty)
 		}
 
-		for i := 0; i < blockLen; i++ {
+		for range blockLen {
 			newCurrent = append(newCurrent, cellFilled)
 		}
 

@@ -5,9 +5,9 @@ import (
 	"math/rand/v2"
 	"time"
 
-	"github.com/FelineStateMachine/puzzletea/catalog"
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/namegen"
+	"github.com/FelineStateMachine/puzzletea/registry"
 )
 
 // Entry pairs a SeededSpawner with metadata for the eligible daily pool.
@@ -21,9 +21,9 @@ type Entry struct {
 var eligibleModes = buildEligibleModes()
 
 func buildEligibleModes() []Entry {
-	catalogEntries := catalog.DailyEntries()
-	entries := make([]Entry, 0, len(catalogEntries))
-	for _, entry := range catalogEntries {
+	registryEntries := registry.DailyEntries()
+	entries := make([]Entry, 0, len(registryEntries))
+	for _, entry := range registryEntries {
 		entries = append(entries, Entry{
 			Spawner:  entry.Spawner,
 			GameType: entry.GameType,

@@ -100,7 +100,8 @@ func TestCoverArtworkArchetypeCoverage(t *testing.T) {
 	seen := make(map[coverArchetype]bool, int(coverArchetypeCount))
 	for i := 1; i <= 120; i++ {
 		seed := fmt.Sprintf("coverage-%03d|front", i)
-		seen[coverArchetypeForSeed(coverSeedHash(seed))] = true
+		archetype, _ := coverCompositionForSeed(coverSeedHash(seed))
+		seen[archetype] = true
 	}
 
 	if len(seen) != int(coverArchetypeCount) {

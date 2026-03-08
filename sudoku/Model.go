@@ -23,6 +23,11 @@ type Model struct {
 	keys         KeyMap
 	modeTitle    string
 	showFullHelp bool
+	termWidth    int
+	termHeight   int
+	originX      int
+	originY      int
+	originValid  bool
 }
 
 func buildProvidedGrid(provided []cell) [gridSize][gridSize]bool {
@@ -54,6 +59,18 @@ func (m Model) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 	switch msg := msg.(type) {
 	case game.HelpToggleMsg:
 		m.showFullHelp = msg.Show
+		m.originValid = false
+	case tea.WindowSizeMsg:
+		m.termWidth = msg.Width
+		m.termHeight = msg.Height
+		m.originValid = false
+	case tea.MouseClickMsg:
+		if msg.Button == tea.MouseLeft {
+			if col, row, ok := m.screenToGrid(msg.X, msg.Y); ok {
+				m.cursor.X = col
+				m.cursor.Y = row
+			}
+		}
 	case tea.KeyPressMsg:
 		switch {
 		case key.Matches(msg, m.keys.FillValue):
@@ -81,6 +98,7 @@ func (m Model) IsSolved() bool {
 func (m Model) Reset() game.Gamer {
 	m.grid = newGrid(m.provided)
 	m.conflicts = computeConflicts(m.grid)
+	m.originValid = false
 	return m
 }
 
@@ -88,14 +106,19 @@ func (m *Model) updateCell(v int) {
 	if m.providedGrid[m.cursor.Y][m.cursor.X] {
 		return
 	}
+
+	wasSolved := m.isSolved()
 	m.grid[m.cursor.Y][m.cursor.X].v = v
 	m.conflicts = computeConflicts(m.grid)
+	if m.isSolved() != wasSolved {
+		m.originValid = false
+	}
 }
 
 func (m Model) View() string {
 	solved := isSolvedWith(m.grid, m.conflicts)
 	title := game.TitleBarView("Sudoku", m.modeTitle, solved)
-	grid := renderGrid(m, solved, m.conflicts)
+	grid := renderGrid(m, solved)
 	if solved {
 		return game.ComposeGameView(title, grid)
 	}

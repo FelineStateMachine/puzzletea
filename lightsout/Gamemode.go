@@ -52,7 +52,7 @@ var DailyModes = []list.Item{
 
 var Definition = game.Definition{
 	Name:        "Lights Out",
-	Description: "Turn off all the lights.",
+	Description: "Turn the lights off.",
 	Aliases:     []string{"lights"},
 	Modes:       Modes,
 	DailyModes:  DailyModes,

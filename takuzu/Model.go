@@ -20,6 +20,11 @@ type Model struct {
 	keys         KeyMap
 	modeTitle    string
 	showFullHelp bool
+	termWidth    int
+	termHeight   int
+	originX      int
+	originY      int
+	originValid  bool
 }
 
 var _ game.Gamer = Model{}
@@ -47,23 +52,23 @@ func (m Model) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 	switch msg := msg.(type) {
 	case game.HelpToggleMsg:
 		m.showFullHelp = msg.Show
+		m.originValid = false
+	case tea.WindowSizeMsg:
+		m.termWidth = msg.Width
+		m.termHeight = msg.Height
+		m.originValid = false
+	case tea.MouseClickMsg:
+		if msg.Button == tea.MouseLeft {
+			m = m.handleMouseClick(msg)
+		}
 	case tea.KeyPressMsg:
 		switch {
 		case key.Matches(msg, m.keys.PlaceZero):
-			if !m.provided[m.cursor.Y][m.cursor.X] && !m.solved {
-				m.grid[m.cursor.Y][m.cursor.X] = zeroCell
-				m.solved = m.checkSolved()
-			}
+			m.setCurrentCell(zeroCell)
 		case key.Matches(msg, m.keys.PlaceOne):
-			if !m.provided[m.cursor.Y][m.cursor.X] && !m.solved {
-				m.grid[m.cursor.Y][m.cursor.X] = oneCell
-				m.solved = m.checkSolved()
-			}
+			m.setCurrentCell(oneCell)
 		case key.Matches(msg, m.keys.Clear):
-			if !m.provided[m.cursor.Y][m.cursor.X] && !m.solved {
-				m.grid[m.cursor.Y][m.cursor.X] = emptyCell
-				m.solved = m.checkSolved()
-			}
+			m.setCurrentCell(emptyCell)
 		default:
 			m.cursor.Move(m.keys.CursorKeyMap, msg, m.size-1, m.size-1)
 		}
@@ -74,7 +79,7 @@ func (m Model) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 
 func (m Model) View() string {
 	title := game.TitleBarView("Takuzu", m.modeTitle, m.solved)
-	grid := gridView(m.grid, m.provided, m.cursor, m.solved)
+	grid := gridView(m)
 	if m.solved {
 		return game.ComposeGameView(title, grid)
 	}
@@ -95,6 +100,7 @@ func (m Model) Reset() game.Gamer {
 	m.grid = m.initialGrid.clone()
 	m.solved = m.checkSolved()
 	m.cursor = game.Cursor{}
+	m.originValid = false
 	return m
 }
 
@@ -131,4 +137,47 @@ func (m Model) GetDebugInfo() string {
 		{"Grid Size", fmt.Sprintf("%d×%d", m.size, m.size)},
 		{"Cells Filled", fmt.Sprintf("%d / %d", filled, m.size*m.size)},
 	})
+}
+
+func (m *Model) setCurrentCell(val rune) {
+	if m.solved || m.provided[m.cursor.Y][m.cursor.X] {
+		return
+	}
+
+	wasSolved := m.solved
+	m.grid[m.cursor.Y][m.cursor.X] = val
+	m.solved = m.checkSolved()
+	if m.solved != wasSolved {
+		m.originValid = false
+	}
+}
+
+func (m *Model) cycleCurrentCell() {
+	if m.solved || m.provided[m.cursor.Y][m.cursor.X] {
+		return
+	}
+
+	switch m.grid[m.cursor.Y][m.cursor.X] {
+	case zeroCell:
+		m.setCurrentCell(oneCell)
+	case oneCell:
+		m.setCurrentCell(emptyCell)
+	default:
+		m.setCurrentCell(zeroCell)
+	}
+}
+
+func (m Model) handleMouseClick(msg tea.MouseClickMsg) Model {
+	col, row, ok := m.screenToGrid(msg.X, msg.Y)
+	if !ok {
+		return m
+	}
+
+	sameCell := col == m.cursor.X && row == m.cursor.Y
+	m.cursor.X = col
+	m.cursor.Y = row
+	if sameCell {
+		m.cycleCurrentCell()
+	}
+	return m
 }

@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"codeberg.org/go-pdf/fpdf"
-	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/pdfexport"
 )
 
@@ -243,7 +242,7 @@ func normalizeNonogramHintsForRender(hints [][]int, size int) [][]int {
 	}
 
 	normalized := make([][]int, size)
-	for i := 0; i < size; i++ {
+	for i := range size {
 		if i >= len(hints) || len(hints[i]) == 0 {
 			normalized[i] = []int{0}
 			continue
@@ -280,5 +279,5 @@ func drawNonogramMajorLines(
 }
 
 func init() {
-	game.RegisterPrintAdapter(printAdapter{})
+	pdfexport.RegisterPrintAdapter(printAdapter{})
 }

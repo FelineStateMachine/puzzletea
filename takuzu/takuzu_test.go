@@ -2,10 +2,14 @@ package takuzu
 
 import (
 	"encoding/json"
+	"image"
+	"image/color"
 	"math/rand/v2"
 	"testing"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/FelineStateMachine/puzzletea/game"
+	"github.com/FelineStateMachine/puzzletea/theme"
 )
 
 // --- Helpers ---
@@ -31,6 +35,15 @@ func validGrid6() grid {
 		"100110",
 		"011001",
 	)
+}
+
+func sameColor(left, right color.Color) bool {
+	if left == nil || right == nil {
+		return left == nil && right == nil
+	}
+	lr, lg, lb, la := left.RGBA()
+	rr, rg, rb, ra := right.RGBA()
+	return lr == rr && lg == rg && lb == rb && la == ra
 }
 
 // --- canPlace (P0) ---
@@ -313,7 +326,7 @@ func TestColEqualWith(t *testing.T) {
 	})
 }
 
-// --- rowFilled / colFilled / rowFilledExcept / colFilledExcept (P1) ---
+// --- rowFilled / colFilled (P1) ---
 
 func TestRowFilled(t *testing.T) {
 	g := makeGrid6(
@@ -364,58 +377,6 @@ func TestColFilled(t *testing.T) {
 	t.Run("has empty", func(t *testing.T) {
 		if colFilled(g, 1, 6) {
 			t.Error("colFilled should return false for empty column")
-		}
-	})
-}
-
-func TestRowFilledExcept(t *testing.T) {
-	g := makeGrid6(
-		"00101.",
-		"0.1...",
-		"......",
-		"......",
-		"......",
-		"......",
-	)
-
-	t.Run("skip is only empty", func(t *testing.T) {
-		if !rowFilledExcept(g, 0, 5, 6) {
-			t.Error("rowFilledExcept should return true when skip is only empty cell")
-		}
-	})
-
-	t.Run("another empty exists", func(t *testing.T) {
-		if rowFilledExcept(g, 1, 1, 6) {
-			t.Error("rowFilledExcept should return false when other empties exist")
-		}
-	})
-
-	t.Run("all empty except skip", func(t *testing.T) {
-		if rowFilledExcept(g, 2, 0, 6) {
-			t.Error("rowFilledExcept should return false for all-empty row")
-		}
-	})
-}
-
-func TestColFilledExcept(t *testing.T) {
-	g := makeGrid6(
-		"0.....",
-		"0.....",
-		"......",
-		"1.....",
-		"0.....",
-		"1.....",
-	)
-
-	t.Run("skip is only empty", func(t *testing.T) {
-		if !colFilledExcept(g, 0, 2, 6) {
-			t.Error("colFilledExcept should return true when skip is only empty")
-		}
-	})
-
-	t.Run("another empty exists", func(t *testing.T) {
-		if colFilledExcept(g, 1, 0, 6) {
-			t.Error("colFilledExcept should return false when column has other empties")
 		}
 	})
 }
@@ -994,4 +955,152 @@ func TestGeneratePuzzle_AllModes_SeededRegression(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestMouseClickMovesCursor(t *testing.T) {
+	m := testMouseModel()
+
+	x, y := takuzuCellScreenCoords(&m, 2, 1)
+	next, _ := m.Update(tea.MouseClickMsg{X: x, Y: y, Button: tea.MouseLeft})
+	got := next.(Model)
+
+	if got.cursor.X != 2 || got.cursor.Y != 1 {
+		t.Fatalf("cursor = (%d,%d), want (2,1)", got.cursor.X, got.cursor.Y)
+	}
+	if got.grid[1][2] != emptyCell {
+		t.Fatalf("clicked destination cell changed to %q, want unchanged empty", got.grid[1][2])
+	}
+}
+
+func TestMouseClickSameCellCyclesEditableCell(t *testing.T) {
+	m := testMouseModel()
+	m.cursor.X, m.cursor.Y = 1, 1
+
+	x, y := takuzuCellScreenCoords(&m, 1, 1)
+
+	next, _ := m.Update(tea.MouseClickMsg{X: x, Y: y, Button: tea.MouseLeft})
+	got := next.(Model)
+	if got.grid[1][1] != zeroCell {
+		t.Fatalf("first click = %q, want %q", got.grid[1][1], zeroCell)
+	}
+
+	next, _ = got.Update(tea.MouseClickMsg{X: x, Y: y, Button: tea.MouseLeft})
+	got = next.(Model)
+	if got.grid[1][1] != oneCell {
+		t.Fatalf("second click = %q, want %q", got.grid[1][1], oneCell)
+	}
+
+	next, _ = got.Update(tea.MouseClickMsg{X: x, Y: y, Button: tea.MouseLeft})
+	got = next.(Model)
+	if got.grid[1][1] != emptyCell {
+		t.Fatalf("third click = %q, want %q", got.grid[1][1], emptyCell)
+	}
+}
+
+func TestMouseClickSameCellDoesNotCycleProvidedCell(t *testing.T) {
+	m := testMouseModel()
+	m.cursor.X, m.cursor.Y = 0, 0
+
+	x, y := takuzuCellScreenCoords(&m, 0, 0)
+	next, _ := m.Update(tea.MouseClickMsg{X: x, Y: y, Button: tea.MouseLeft})
+	got := next.(Model)
+
+	if got.grid[0][0] != zeroCell {
+		t.Fatalf("provided cell changed to %q, want %q", got.grid[0][0], zeroCell)
+	}
+}
+
+func TestBridgeFillUsesVerticalCrosshairAcrossOpenInterior(t *testing.T) {
+	m := testMouseModel()
+	m.cursor = game.Cursor{X: 0, Y: 1}
+
+	got := bridgeFill(m, game.DynamicGridBridge{
+		Kind:    game.DynamicGridBridgeVertical,
+		X:       1,
+		Y:       1,
+		Count:   2,
+		Uniform: true,
+		Cells: [4]image.Point{
+			{X: 0, Y: 1},
+			{X: 1, Y: 1},
+		},
+	})
+	if !sameColor(got, theme.Current().Surface) {
+		t.Fatal("expected open vertical bridge on cursor row to use crosshair background")
+	}
+}
+
+func TestBridgeFillUsesHorizontalCrosshairAcrossOpenInterior(t *testing.T) {
+	m := testMouseModel()
+	m.cursor = game.Cursor{X: 0, Y: 1}
+
+	got := bridgeFill(m, game.DynamicGridBridge{
+		Kind:    game.DynamicGridBridgeHorizontal,
+		X:       0,
+		Y:       1,
+		Count:   2,
+		Uniform: true,
+		Cells: [4]image.Point{
+			{X: 0, Y: 0},
+			{X: 0, Y: 1},
+		},
+	})
+	if !sameColor(got, theme.Current().Surface) {
+		t.Fatal("expected open horizontal bridge on cursor column to use crosshair background")
+	}
+}
+
+func TestBridgeFillLeavesInteriorJunctionOpen(t *testing.T) {
+	m := testMouseModel()
+	m.cursor = game.Cursor{X: 0, Y: 1}
+
+	got := bridgeFill(m, game.DynamicGridBridge{
+		Kind:    game.DynamicGridBridgeJunction,
+		X:       1,
+		Y:       1,
+		Count:   4,
+		Uniform: true,
+		Cells: [4]image.Point{
+			{X: 0, Y: 0},
+			{X: 1, Y: 0},
+			{X: 0, Y: 1},
+			{X: 1, Y: 1},
+		},
+	})
+	if got != nil {
+		t.Fatal("expected open interior junction to remain unfilled")
+	}
+}
+
+func testMouseModel() Model {
+	return Model{
+		size: 4,
+		grid: grid{
+			[]rune("0..1"),
+			[]rune("...."),
+			[]rune("...."),
+			[]rune("1..0"),
+		},
+		initialGrid: grid{
+			[]rune("0..1"),
+			[]rune("...."),
+			[]rune("...."),
+			[]rune("1..0"),
+		},
+		provided: [][]bool{
+			{true, false, false, true},
+			{false, false, false, false},
+			{false, false, false, false},
+			{true, false, false, true},
+		},
+		keys:       DefaultKeyMap,
+		modeTitle:  "Test",
+		termWidth:  120,
+		termHeight: 40,
+	}
+}
+
+func takuzuCellScreenCoords(m *Model, col, row int) (int, int) {
+	ox, oy := m.gridOrigin()
+	return ox + col*(cellWidth+1), oy + row*2
 }

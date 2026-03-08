@@ -5,9 +5,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/FelineStateMachine/puzzletea/catalog"
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/namegen"
+	"github.com/FelineStateMachine/puzzletea/puzzle"
+	"github.com/FelineStateMachine/puzzletea/registry"
 	"github.com/FelineStateMachine/puzzletea/resolve"
 	"github.com/FelineStateMachine/puzzletea/store"
 )
@@ -15,8 +16,10 @@ import (
 // NormalizeSeed keeps seeded names distinct from real dailies.
 func NormalizeSeed(seed string) string {
 	seed = strings.TrimSpace(seed)
-	if strings.HasPrefix(strings.ToLower(seed), "daily") {
-		return strings.ToLower(seed[:len("daily")]) + seed[len("daily"):]
+	for _, reserved := range []string{"daily", "week"} {
+		if strings.HasPrefix(strings.ToLower(seed), reserved) {
+			return strings.ToLower(seed[:len(reserved)]) + seed[len(reserved):]
+		}
 	}
 	return seed
 }
@@ -27,13 +30,29 @@ func SeededName(seed string) string {
 	return seed + " - " + namegen.GenerateSeeded(nameRNG)
 }
 
+// SeededNameForGame derives the deterministic display name for a seeded
+// puzzle locked to a specific game.
+func SeededNameForGame(seed, gameType string) string {
+	if strings.TrimSpace(gameType) == "" {
+		return SeededName(seed)
+	}
+
+	scope := game.NormalizeName(gameType)
+	nameRNG := resolve.RNGFromString("name:" + seed + ":" + scope)
+	return fmt.Sprintf("%s [%s] - %s",
+		seed,
+		gameType,
+		namegen.GenerateSeeded(nameRNG),
+	)
+}
+
 // ImportRecord reconstructs a saved game and reapplies the record title.
 func ImportRecord(rec *store.GameRecord) (game.Gamer, error) {
 	if rec == nil {
 		return nil, fmt.Errorf("nil game record")
 	}
 
-	g, err := catalog.Import(rec.GameType, []byte(rec.SaveState))
+	g, err := registry.Import(rec.GameType, []byte(rec.SaveState))
 	if err != nil {
 		return nil, err
 	}
@@ -55,11 +74,21 @@ func CreateRecord(
 
 	rec := &store.GameRecord{
 		Name:         name,
+		GameID:       string(puzzle.CanonicalGameID(gameType)),
 		GameType:     gameType,
+		ModeID:       string(puzzle.CanonicalModeID(modeTitle)),
 		Mode:         modeTitle,
 		InitialState: string(initialState),
 		SaveState:    string(initialState),
 		Status:       store.StatusNew,
+		RunKind:      store.RunKindForName(name),
+		RunDate:      store.RunDateForName(name),
+		SeedText:     store.SeedTextForName(name),
+	}
+	if year, week, index, ok := store.WeeklyIdentityForName(name); ok {
+		rec.WeekYear = year
+		rec.WeekNumber = week
+		rec.WeekIndex = index
 	}
 	if err := s.CreateGame(rec); err != nil {
 		return nil, fmt.Errorf("failed to create game record: %w", err)

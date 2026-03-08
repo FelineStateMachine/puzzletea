@@ -433,9 +433,7 @@ func pickNextOrderIndex(
 	const lookaheadWindow = 2
 
 	end := pos + lookaheadWindow
-	if end > len(order) {
-		end = len(order)
-	}
+	end = min(end, len(order))
 
 	for i := pos; i < end; i++ {
 		x, y := order[i].x, order[i].y

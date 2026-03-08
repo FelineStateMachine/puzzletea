@@ -7,12 +7,11 @@ import (
 	"testing"
 
 	"codeberg.org/go-pdf/fpdf"
-	"github.com/FelineStateMachine/puzzletea/game"
 )
 
 func TestWritePDFReturnsAdapterRenderError(t *testing.T) {
 	const category = "Render Error Test"
-	game.RegisterPrintAdapter(renderErrorTestAdapter{category: category})
+	RegisterPrintAdapter(renderErrorTestAdapter{category: category})
 
 	output := filepath.Join(t.TempDir(), "error.pdf")
 	puzzles := []Puzzle{

@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/FelineStateMachine/puzzletea/game"
 )
 
@@ -296,8 +297,8 @@ func TestGenerateRandomState(t *testing.T) {
 	t.Run("density clamping low", func(t *testing.T) {
 		// Use a larger grid and multiple runs to avoid flakiness from per-row jitter.
 		totalFilled := 0
-		for range 10 {
-			s := generateRandomState(10, 10, 0.0)
+		for i := range 10 {
+			s := generateRandomStateSeeded(10, 10, 0.0, rand.New(rand.NewPCG(uint64(i+1), uint64(i+101))))
 			g := newGrid(s)
 			for _, row := range g {
 				for _, r := range row {
@@ -314,8 +315,8 @@ func TestGenerateRandomState(t *testing.T) {
 
 	t.Run("density clamping high", func(t *testing.T) {
 		totalEmpty := 0
-		for range 10 {
-			s := generateRandomState(10, 10, 1.0)
+		for i := range 10 {
+			s := generateRandomStateSeeded(10, 10, 1.0, rand.New(rand.NewPCG(uint64(i+21), uint64(i+121))))
 			g := newGrid(s)
 			for _, row := range g {
 				for _, r := range row {
@@ -331,7 +332,7 @@ func TestGenerateRandomState(t *testing.T) {
 	})
 
 	t.Run("correct dimensions", func(t *testing.T) {
-		s := generateRandomState(5, 10, 0.5)
+		s := generateRandomStateSeeded(5, 10, 0.5, rand.New(rand.NewPCG(41, 141)))
 		g := newGrid(s)
 		if len(g) != 5 {
 			t.Fatalf("expected 5 rows, got %d", len(g))
@@ -344,10 +345,10 @@ func TestGenerateRandomState(t *testing.T) {
 	})
 
 	t.Run("0 dimensions", func(t *testing.T) {
-		if s := generateRandomState(0, 5, 0.5); s != "" {
+		if s := generateRandomStateSeeded(0, 5, 0.5, rand.New(rand.NewPCG(51, 151))); s != "" {
 			t.Errorf("expected empty string for h=0, got %q", s)
 		}
-		if s := generateRandomState(5, 0, 0.5); s != "" {
+		if s := generateRandomStateSeeded(5, 0, 0.5, rand.New(rand.NewPCG(52, 152))); s != "" {
 			t.Errorf("expected empty string for w=0, got %q", s)
 		}
 	})
@@ -356,8 +357,8 @@ func TestGenerateRandomState(t *testing.T) {
 		totalFilled := 0
 		totalCells := 0
 		runs := 20
-		for range runs {
-			s := generateRandomState(10, 10, 0.5)
+		for i := range runs {
+			s := generateRandomStateSeeded(10, 10, 0.5, rand.New(rand.NewPCG(uint64(i+61), uint64(i+161))))
 			g := newGrid(s)
 			for _, row := range g {
 				for _, r := range row {
@@ -911,7 +912,6 @@ func TestGenerateRandomTomography_LargeModes_Unique(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			rng := rand.New(rand.NewPCG(tc.seedA, tc.seedB))
 			hints := GenerateRandomTomographySeeded(tc.mode, rng)
@@ -952,7 +952,6 @@ func TestGenerateRandomTomography_LargeModes_PerfBudget(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			start := time.Now()
 			rng := rand.New(rand.NewPCG(tc.seedA, tc.seedB))
@@ -997,14 +996,13 @@ func TestSpawnPerformance(t *testing.T) {
 
 	t.Run("average spawn time across all modes", func(t *testing.T) {
 		for _, cfg := range modeConfigs {
-			cfg := cfg
 			t.Run(cfg.name, func(t *testing.T) {
 				if cfg.mode.Width >= 15 && testing.Short() {
 					t.Skip("skipping large grids in short mode")
 				}
 
 				var totalDuration time.Duration
-				for i := 0; i < numRuns; i++ {
+				for range numRuns {
 					start := time.Now()
 					_, err := cfg.mode.Spawn()
 					if err != nil {
@@ -1057,171 +1055,351 @@ func TestReset(t *testing.T) {
 	}
 }
 
-// --- localToCell (P0) ---
+func buildMouseTestModel(t *testing.T, width, height int) Model {
+	t.Helper()
 
-func TestLocalToCellX(t *testing.T) {
-	t.Run("small grid no spacers", func(t *testing.T) {
-		// 5 cells, cellWidth=3, no separators.
-		tests := []struct {
-			pos  int
-			want int
-		}{
-			{0, 0}, {1, 0}, {2, 0}, // cell 0
-			{3, 1}, {4, 1}, {5, 1}, // cell 1
-			{6, 2}, {7, 2}, {8, 2}, // cell 2
-			{9, 3}, {10, 3}, {11, 3}, // cell 3
-			{12, 4}, {13, 4}, {14, 4}, // cell 4
-			{15, -1}, // out of bounds
-		}
-		for _, tt := range tests {
-			got := localToCellX(tt.pos, 5)
-			if got != tt.want {
-				t.Errorf("localToCellX(%d, 5) = %d, want %d", tt.pos, got, tt.want)
-			}
-		}
-	})
-
-	t.Run("10 cells with one spacer", func(t *testing.T) {
-		// Cells 0-4, separator, cells 5-9.
-		// Block width = 5*3+1 = 16.
-		tests := []struct {
-			pos  int
-			want int
-		}{
-			{0, 0},   // cell 0 start
-			{2, 0},   // cell 0 end
-			{3, 1},   // cell 1 start
-			{12, 4},  // cell 4 start
-			{14, 4},  // cell 4 end
-			{15, -1}, // separator
-			{16, 5},  // cell 5 start
-			{18, 5},  // cell 5 end
-			{19, 6},  // cell 6 start
-			{28, 9},  // cell 9 start
-			{30, 9},  // cell 9 end
-			{31, -1}, // out of bounds
-		}
-		for _, tt := range tests {
-			got := localToCellX(tt.pos, 10)
-			if got != tt.want {
-				t.Errorf("localToCellX(%d, 10) = %d, want %d", tt.pos, got, tt.want)
-			}
-		}
-	})
-
-	t.Run("15 cells with two spacers", func(t *testing.T) {
-		// Cells 0-4, sep, 5-9, sep, 10-14.
-		// Total = 15*3 + 2 separators = 47 characters.
-		tests := []struct {
-			pos  int
-			want int
-		}{
-			{0, 0},
-			{15, -1}, // first separator
-			{16, 5},  // cell 5
-			{31, -1}, // second separator
-			{32, 10}, // cell 10
-			{44, 14}, // cell 14
-			{46, 14}, // still cell 14 (chars 44-46)
-		}
-		for _, tt := range tests {
-			got := localToCellX(tt.pos, 15)
-			if got != tt.want {
-				t.Errorf("localToCellX(%d, 15) = %d, want %d", tt.pos, got, tt.want)
-			}
-		}
-	})
-}
-
-func TestLocalToCellY(t *testing.T) {
-	t.Run("small grid no spacers", func(t *testing.T) {
-		for i := range 5 {
-			got := localToCellY(i, 5)
-			if got != i {
-				t.Errorf("localToCellY(%d, 5) = %d, want %d", i, got, i)
-			}
-		}
-		if got := localToCellY(5, 5); got != -1 {
-			t.Errorf("localToCellY(5, 5) = %d, want -1", got)
-		}
-	})
-
-	t.Run("10 rows with one spacer", func(t *testing.T) {
-		// Rows 0-4, separator at 5, rows 5-9 at positions 6-10.
-		tests := []struct {
-			pos  int
-			want int
-		}{
-			{0, 0},
-			{4, 4},
-			{5, -1}, // separator
-			{6, 5},
-			{10, 9},
-			{11, -1}, // out of bounds
-		}
-		for _, tt := range tests {
-			got := localToCellY(tt.pos, 10)
-			if got != tt.want {
-				t.Errorf("localToCellY(%d, 10) = %d, want %d", tt.pos, got, tt.want)
-			}
-		}
-	})
-}
-
-// --- screenToGrid (P0) ---
-
-func TestScreenToGrid(t *testing.T) {
-	// Build a 5x5 model with known hint sizes and terminal dimensions.
 	mode := NonogramMode{
-		BaseMode: game.NewBaseMode("Test", "5x5"),
-		Width:    5,
-		Height:   5,
+		BaseMode: game.NewBaseMode("Test", "grid"),
+		Width:    width,
+		Height:   height,
 	}
 	hints := Hints{
-		rows: TomographyDefinition{{1}, {1}, {1}, {1}, {1}},
-		cols: TomographyDefinition{{1}, {1}, {1}, {1}, {1}},
+		rows: repeatedHints(height, []int{1}),
+		cols: repeatedHints(width, []int{1}),
 	}
 	g, err := New(mode, hints)
 	if err != nil {
 		t.Fatal(err)
 	}
 	m := g.(Model)
-	m.termWidth = 80
+	m.termWidth = 120
 	m.termHeight = 40
+	return m
+}
+
+func nonogramCellScreenCoords(t *testing.T, m *Model, wantCol, wantRow int) (int, int) {
+	t.Helper()
 
 	ox, oy := m.gridOrigin()
+	maxX := ox + m.width*(cellWidth+1) + 4
+	maxY := oy + m.height*2 + 4
+	for y := oy; y < maxY; y++ {
+		for x := ox; x < maxX; x++ {
+			col, row, ok := m.screenToGrid(x, y, false)
+			if ok && col == wantCol && row == wantRow {
+				return x, y
+			}
+		}
+	}
 
-	t.Run("first cell", func(t *testing.T) {
-		col, row, ok := m.screenToGrid(ox, oy)
+	t.Fatalf("screen coordinates not found for cell (%d,%d)", wantCol, wantRow)
+	return 0, 0
+}
+
+func updateNonogramModel(t *testing.T, m Model, msg tea.Msg) Model {
+	t.Helper()
+
+	next, _ := m.Update(msg)
+	got, ok := next.(Model)
+	if !ok {
+		t.Fatal("expected nonogram model update to return Model")
+	}
+	return got
+}
+
+func TestMouseDragAxisLockHorizontal(t *testing.T) {
+	m := buildMouseTestModel(t, 5, 5)
+	startX, startY := nonogramCellScreenCoords(t, &m, 1, 1)
+	nextX, nextY := nonogramCellScreenCoords(t, &m, 2, 1)
+	jitterX, jitterY := nonogramCellScreenCoords(t, &m, 3, 2)
+
+	m = updateNonogramModel(t, m, tea.MouseClickMsg{X: startX, Y: startY, Button: tea.MouseLeft})
+	m = updateNonogramModel(t, m, tea.MouseMotionMsg{X: nextX, Y: nextY, Button: tea.MouseLeft})
+	m = updateNonogramModel(t, m, tea.MouseMotionMsg{X: jitterX, Y: jitterY, Button: tea.MouseLeft})
+
+	if m.dragAxis != dragAxisHorizontal {
+		t.Fatalf("dragAxis = %v, want horizontal", m.dragAxis)
+	}
+	if m.cursor != (game.Cursor{X: 3, Y: 1}) {
+		t.Fatalf("cursor = %v, want (3,1)", m.cursor)
+	}
+	if got := m.grid[1][1]; got != filledTile {
+		t.Fatalf("start cell = %q, want filled", got)
+	}
+	if got := m.grid[1][2]; got != filledTile {
+		t.Fatalf("locked row cell = %q, want filled", got)
+	}
+	if got := m.grid[1][3]; got != filledTile {
+		t.Fatalf("jitter target cell = %q, want filled", got)
+	}
+	if got := m.grid[2][3]; got != emptyTile {
+		t.Fatalf("off-axis cell = %q, want empty", got)
+	}
+}
+
+func TestMouseDragAxisLockVertical(t *testing.T) {
+	m := buildMouseTestModel(t, 5, 5)
+	startX, startY := nonogramCellScreenCoords(t, &m, 1, 1)
+	nextX, nextY := nonogramCellScreenCoords(t, &m, 1, 2)
+	jitterX, jitterY := nonogramCellScreenCoords(t, &m, 2, 3)
+
+	m = updateNonogramModel(t, m, tea.MouseClickMsg{X: startX, Y: startY, Button: tea.MouseLeft})
+	m = updateNonogramModel(t, m, tea.MouseMotionMsg{X: nextX, Y: nextY, Button: tea.MouseLeft})
+	m = updateNonogramModel(t, m, tea.MouseMotionMsg{X: jitterX, Y: jitterY, Button: tea.MouseLeft})
+
+	if m.dragAxis != dragAxisVertical {
+		t.Fatalf("dragAxis = %v, want vertical", m.dragAxis)
+	}
+	if m.cursor != (game.Cursor{X: 1, Y: 3}) {
+		t.Fatalf("cursor = %v, want (1,3)", m.cursor)
+	}
+	if got := m.grid[1][1]; got != filledTile {
+		t.Fatalf("start cell = %q, want filled", got)
+	}
+	if got := m.grid[2][1]; got != filledTile {
+		t.Fatalf("locked column cell = %q, want filled", got)
+	}
+	if got := m.grid[3][1]; got != filledTile {
+		t.Fatalf("jitter target cell = %q, want filled", got)
+	}
+	if got := m.grid[3][2]; got != emptyTile {
+		t.Fatalf("off-axis cell = %q, want empty", got)
+	}
+}
+
+func TestMouseDragAxisLockLargestDelta(t *testing.T) {
+	m := buildMouseTestModel(t, 5, 5)
+	startX, startY := nonogramCellScreenCoords(t, &m, 1, 1)
+	diagX, diagY := nonogramCellScreenCoords(t, &m, 3, 2)
+
+	m = updateNonogramModel(t, m, tea.MouseClickMsg{X: startX, Y: startY, Button: tea.MouseLeft})
+	m = updateNonogramModel(t, m, tea.MouseMotionMsg{X: diagX, Y: diagY, Button: tea.MouseLeft})
+
+	if m.dragAxis != dragAxisHorizontal {
+		t.Fatalf("dragAxis = %v, want horizontal", m.dragAxis)
+	}
+	if m.cursor != (game.Cursor{X: 3, Y: 1}) {
+		t.Fatalf("cursor = %v, want (3,1)", m.cursor)
+	}
+	if got := m.grid[2][3]; got != emptyTile {
+		t.Fatalf("off-axis diagonal cell = %q, want empty", got)
+	}
+}
+
+func TestMouseDragAxisLockTieBreaksLater(t *testing.T) {
+	m := buildMouseTestModel(t, 5, 5)
+	startX, startY := nonogramCellScreenCoords(t, &m, 1, 1)
+	tieX, tieY := nonogramCellScreenCoords(t, &m, 2, 2)
+	breakX, breakY := nonogramCellScreenCoords(t, &m, 3, 2)
+
+	m = updateNonogramModel(t, m, tea.MouseClickMsg{X: startX, Y: startY, Button: tea.MouseLeft})
+	m = updateNonogramModel(t, m, tea.MouseMotionMsg{X: tieX, Y: tieY, Button: tea.MouseLeft})
+
+	if m.dragAxis != dragAxisNone {
+		t.Fatalf("dragAxis after tie = %v, want none", m.dragAxis)
+	}
+	if m.cursor != (game.Cursor{X: 1, Y: 1}) {
+		t.Fatalf("cursor after tie = %v, want anchor", m.cursor)
+	}
+	if got := m.grid[2][2]; got != emptyTile {
+		t.Fatalf("tie cell = %q, want empty", got)
+	}
+
+	m = updateNonogramModel(t, m, tea.MouseMotionMsg{X: breakX, Y: breakY, Button: tea.MouseLeft})
+
+	if m.dragAxis != dragAxisHorizontal {
+		t.Fatalf("dragAxis after tie-break = %v, want horizontal", m.dragAxis)
+	}
+	if m.cursor != (game.Cursor{X: 3, Y: 1}) {
+		t.Fatalf("cursor after tie-break = %v, want (3,1)", m.cursor)
+	}
+	if got := m.grid[1][3]; got != filledTile {
+		t.Fatalf("tie-break cell = %q, want filled", got)
+	}
+}
+
+func TestMouseDragSeparatorSnapAfterLock(t *testing.T) {
+	m := buildMouseTestModel(t, 10, 10)
+	startX, startY := nonogramCellScreenCoords(t, &m, 4, 0)
+	ox, oy := m.gridOrigin()
+	separatorX := ox + cellWidth*5
+	jitterX, jitterY := nonogramCellScreenCoords(t, &m, 6, 1)
+
+	m = updateNonogramModel(t, m, tea.MouseClickMsg{X: startX, Y: startY, Button: tea.MouseLeft})
+	m = updateNonogramModel(t, m, tea.MouseMotionMsg{X: separatorX, Y: oy, Button: tea.MouseLeft})
+
+	if m.dragAxis != dragAxisHorizontal {
+		t.Fatalf("dragAxis at separator = %v, want horizontal", m.dragAxis)
+	}
+	if m.cursor != (game.Cursor{X: 5, Y: 0}) {
+		t.Fatalf("cursor at separator = %v, want (5,0)", m.cursor)
+	}
+
+	m = updateNonogramModel(t, m, tea.MouseMotionMsg{X: jitterX, Y: jitterY, Button: tea.MouseLeft})
+
+	if m.cursor != (game.Cursor{X: 6, Y: 0}) {
+		t.Fatalf("cursor after separator jitter = %v, want (6,0)", m.cursor)
+	}
+	if got := m.grid[0][6]; got != filledTile {
+		t.Fatalf("separator clamped cell = %q, want filled", got)
+	}
+	if got := m.grid[1][6]; got != emptyTile {
+		t.Fatalf("off-axis separator cell = %q, want empty", got)
+	}
+}
+
+func TestMouseClickWithoutMotionTogglesOnlyStartCell(t *testing.T) {
+	m := buildMouseTestModel(t, 5, 5)
+	startX, startY := nonogramCellScreenCoords(t, &m, 2, 2)
+
+	m = updateNonogramModel(t, m, tea.MouseClickMsg{X: startX, Y: startY, Button: tea.MouseLeft})
+	m = updateNonogramModel(t, m, tea.MouseReleaseMsg{X: startX, Y: startY, Button: tea.MouseLeft})
+
+	if got := m.grid[2][2]; got != filledTile {
+		t.Fatalf("start cell = %q, want filled", got)
+	}
+	for y := range m.height {
+		for x := range m.width {
+			if x == 2 && y == 2 {
+				continue
+			}
+			if got := m.grid[y][x]; got != emptyTile {
+				t.Fatalf("grid[%d][%d] = %q, want empty", y, x, got)
+			}
+		}
+	}
+}
+
+func TestMouseReleaseClearsAxisLockState(t *testing.T) {
+	m := buildMouseTestModel(t, 5, 5)
+	startX, startY := nonogramCellScreenCoords(t, &m, 1, 1)
+	nextX, nextY := nonogramCellScreenCoords(t, &m, 2, 1)
+
+	m = updateNonogramModel(t, m, tea.MouseClickMsg{X: startX, Y: startY, Button: tea.MouseLeft})
+	m = updateNonogramModel(t, m, tea.MouseMotionMsg{X: nextX, Y: nextY, Button: tea.MouseLeft})
+	m = updateNonogramModel(t, m, tea.MouseReleaseMsg{X: nextX, Y: nextY, Button: tea.MouseLeft})
+
+	if m.dragging != 0 {
+		t.Fatalf("dragging = %d, want 0", m.dragging)
+	}
+	if m.dragAxis != dragAxisNone {
+		t.Fatalf("dragAxis = %v, want none", m.dragAxis)
+	}
+	if m.dragStartCol != 0 || m.dragStartRow != 0 {
+		t.Fatalf("drag start = (%d,%d), want cleared", m.dragStartCol, m.dragStartRow)
+	}
+}
+
+func TestResetClearsAxisLockState(t *testing.T) {
+	m := buildMouseTestModel(t, 5, 5)
+	m.dragging = filledTile
+	m.dragStartCol = 2
+	m.dragStartRow = 3
+	m.dragAxis = dragAxisVertical
+
+	reset := m.Reset().(Model)
+
+	if reset.dragging != 0 {
+		t.Fatalf("dragging = %d, want 0", reset.dragging)
+	}
+	if reset.dragAxis != dragAxisNone {
+		t.Fatalf("dragAxis = %v, want none", reset.dragAxis)
+	}
+	if reset.dragStartCol != 0 || reset.dragStartRow != 0 {
+		t.Fatalf("drag start = (%d,%d), want cleared", reset.dragStartCol, reset.dragStartRow)
+	}
+}
+
+// --- screenToGrid (P0) ---
+
+func TestScreenToGrid(t *testing.T) {
+	buildModel := func(width, height int) Model {
+		mode := NonogramMode{
+			BaseMode: game.NewBaseMode("Test", "grid"),
+			Width:    width,
+			Height:   height,
+		}
+		hints := Hints{
+			rows: repeatedHints(height, []int{1}),
+			cols: repeatedHints(width, []int{1}),
+		}
+		g, err := New(mode, hints)
+		if err != nil {
+			t.Fatal(err)
+		}
+		m := g.(Model)
+		m.termWidth = 80
+		m.termHeight = 40
+		return m
+	}
+
+	t.Run("basic 5x5 hit-testing", func(t *testing.T) {
+		m := buildModel(5, 5)
+		ox, oy := m.gridOrigin()
+
+		col, row, ok := m.screenToGrid(ox, oy, false)
 		if !ok {
 			t.Fatal("expected ok for first cell")
 		}
 		if col != 0 || row != 0 {
 			t.Errorf("got (%d,%d), want (0,0)", col, row)
 		}
-	})
 
-	t.Run("last cell", func(t *testing.T) {
-		col, row, ok := m.screenToGrid(ox+4*cellWidth, oy+4)
+		col, row, ok = m.screenToGrid(ox+4*cellWidth, oy+4, false)
 		if !ok {
 			t.Fatal("expected ok for last cell")
 		}
 		if col != 4 || row != 4 {
 			t.Errorf("got (%d,%d), want (4,4)", col, row)
 		}
-	})
 
-	t.Run("outside grid left", func(t *testing.T) {
-		_, _, ok := m.screenToGrid(ox-1, oy)
+		_, _, ok = m.screenToGrid(ox-1, oy, false)
 		if ok {
 			t.Error("expected not ok for click left of grid")
 		}
-	})
 
-	t.Run("outside grid above", func(t *testing.T) {
-		_, _, ok := m.screenToGrid(ox, oy-1)
+		_, _, ok = m.screenToGrid(ox, oy-1, false)
 		if ok {
 			t.Error("expected not ok for click above grid")
+		}
+	})
+
+	t.Run("10x10 separators and hint bands", func(t *testing.T) {
+		m := buildModel(10, 10)
+		ox, oy := m.gridOrigin()
+
+		separatorX := ox + cellWidth*5
+		separatorY := oy + 5
+
+		_, _, ok := m.screenToGrid(separatorX, oy, false)
+		if ok {
+			t.Error("expected separator click to miss")
+		}
+
+		col, row, ok := m.screenToGrid(separatorX, oy, true)
+		if !ok {
+			t.Fatal("expected separator drag to snap")
+		}
+		if col != 5 || row != 0 {
+			t.Errorf("got (%d,%d), want (5,0)", col, row)
+		}
+
+		_, _, ok = m.screenToGrid(ox, separatorY, false)
+		if ok {
+			t.Error("expected row separator click to miss")
+		}
+
+		col, row, ok = m.screenToGrid(ox, separatorY, true)
+		if !ok {
+			t.Fatal("expected row separator drag to snap")
+		}
+		if col != 0 || row != 5 {
+			t.Errorf("got (%d,%d), want (0,5)", col, row)
+		}
+
+		_, _, ok = m.screenToGrid(ox-cellWidth, oy, false)
+		if ok {
+			t.Error("expected hint band click to miss")
 		}
 	})
 }
@@ -1281,7 +1459,6 @@ func BenchmarkGenerateRandomTomographyModes(b *testing.B) {
 	}
 
 	for _, cfg := range modeConfigs {
-		cfg := cfg
 		b.Run(cfg.name, func(b *testing.B) {
 			b.ReportAllocs()
 			for n := 0; n < b.N; n++ {
@@ -1317,7 +1494,6 @@ func BenchmarkCountSolutionsLarge(b *testing.B) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		b.Run(tc.name, func(b *testing.B) {
 			rng := rand.New(rand.NewPCG(tc.seedA, tc.seedB))
 			hints := GenerateRandomTomographySeeded(tc.mode, rng)

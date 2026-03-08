@@ -2,7 +2,6 @@ package shikaku
 
 import (
 	"encoding/json"
-	"image/color"
 	"math/rand/v2"
 	"strings"
 	"testing"
@@ -10,6 +9,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/FelineStateMachine/puzzletea/game"
+	"github.com/charmbracelet/x/ansi"
 )
 
 // --- helpers ---
@@ -248,6 +248,26 @@ func TestCandidateRectanglesForClue(t *testing.T) {
 }
 
 func TestAutoPlaceForcedRectangles(t *testing.T) {
+	t.Run("places single-cell clues", func(t *testing.T) {
+		p := &Puzzle{
+			Width:  3,
+			Height: 2,
+			Clues: []Clue{
+				{ID: 0, X: 0, Y: 0, Value: 1},
+				{ID: 1, X: 2, Y: 1, Value: 2},
+			},
+		}
+
+		p.autoPlaceForcedRectangles()
+
+		if len(p.Rectangles) != 1 {
+			t.Fatalf("rectangle count = %d, want 1", len(p.Rectangles))
+		}
+		if r := p.FindRectangleForClue(0); r == nil || *r != (Rectangle{ClueID: 0, X: 0, Y: 0, W: 1, H: 1}) {
+			t.Fatalf("clue 0 rectangle = %+v, want forced 1x1", r)
+		}
+	})
+
 	t.Run("does not place from global uniqueness alone", func(t *testing.T) {
 		p := forcedCascadePuzzle()
 		p.autoPlaceForcedRectangles()
@@ -507,6 +527,30 @@ func TestDeleteReplacesForcedRectangle(t *testing.T) {
 	}
 	if r := m.puzzle.FindRectangleForClue(0); r == nil || *r != (Rectangle{ClueID: 0, X: 0, Y: 0, W: 2, H: 2}) {
 		t.Fatalf("clue 0 rectangle = %+v, want forced replacement", r)
+	}
+}
+
+func TestDeleteReplacesSingleCellForcedRectangle(t *testing.T) {
+	m := New(NewMode("Test", "test", 2, 1, 2), Puzzle{
+		Width:  2,
+		Height: 1,
+		Clues: []Clue{
+			{ID: 0, X: 0, Y: 0, Value: 1},
+			{ID: 1, X: 1, Y: 0, Value: 1},
+		},
+	}).(Model)
+
+	if len(m.puzzle.Rectangles) != 2 {
+		t.Fatalf("rectangle count = %d, want 2", len(m.puzzle.Rectangles))
+	}
+
+	m.deleteRectangle(0)
+
+	if len(m.puzzle.Rectangles) != 2 {
+		t.Fatalf("rectangle count after delete = %d, want 2", len(m.puzzle.Rectangles))
+	}
+	if r := m.puzzle.FindRectangleForClue(0); r == nil || *r != (Rectangle{ClueID: 0, X: 0, Y: 0, W: 1, H: 1}) {
+		t.Fatalf("clue 0 rectangle = %+v, want forced 1x1 replacement", r)
 	}
 }
 
@@ -819,7 +863,7 @@ func TestMouseRightClickDeletesRectangle(t *testing.T) {
 	}
 }
 
-func TestDynamicGridEdges(t *testing.T) {
+func TestGridViewRendersCommittedRectangleBoundaries(t *testing.T) {
 	m := Model{
 		puzzle: Puzzle{
 			Width:  4,
@@ -832,18 +876,22 @@ func TestDynamicGridEdges(t *testing.T) {
 		},
 	}
 
-	if hasVerticalEdge(m, nil, 1, 0) {
-		t.Fatal("expected open interior edge inside committed rectangle")
+	lines := strings.Split(ansi.Strip(gridView(m, false)), "\n")
+	content := []rune(lines[1])
+	if got := content[4]; got != ' ' {
+		t.Fatalf("interior separator inside rectangle = %q, want space", got)
 	}
-	if !hasVerticalEdge(m, nil, 2, 0) {
-		t.Fatal("expected wall between committed rectangles")
+	if got := content[8]; got != '│' {
+		t.Fatalf("separator between rectangles = %q, want vertical wall", got)
 	}
-	if horizontalEdge(m, nil, 0, 1) {
-		t.Fatal("expected open horizontal edge inside committed rectangle")
+
+	boundary := []rune(lines[2])
+	if got := boundary[1]; got != ' ' {
+		t.Fatalf("row separator inside rectangle = %q, want space", got)
 	}
 }
 
-func TestPreviewOverridesCommittedWalls(t *testing.T) {
+func TestGridViewPreviewRemovesCommittedWall(t *testing.T) {
 	preview := &Rectangle{X: 0, Y: 0, W: 2, H: 1}
 	m := Model{
 		puzzle: Puzzle{
@@ -858,35 +906,15 @@ func TestPreviewOverridesCommittedWalls(t *testing.T) {
 		mousePreview: preview,
 	}
 
-	if !hasVerticalEdge(m, nil, 1, 0) {
-		t.Fatal("expected committed wall before preview overlay")
+	withPreview := []rune(strings.Split(ansi.Strip(gridView(m, false)), "\n")[1])
+	if got := withPreview[4]; got != ' ' {
+		t.Fatalf("preview separator = %q, want space", got)
 	}
-	if hasVerticalEdge(m, preview, 1, 0) {
-		t.Fatal("expected preview to remove interior committed wall")
-	}
-}
 
-func TestDynamicGridGapBackgrounds(t *testing.T) {
-	m := Model{
-		puzzle: Puzzle{
-			Width:  2,
-			Height: 2,
-			Clues:  []Clue{{ID: 0, X: 0, Y: 0, Value: 4}},
-			Rectangles: []Rectangle{
-				{ClueID: 0, X: 0, Y: 0, W: 2, H: 2},
-			},
-		},
-	}
-	bg := rectColors()[0]
-
-	if got := verticalGapBackground(m, nil, nil, false, 1, 0); !sameColor(got, bg) {
-		t.Fatal("expected committed rectangle to color vertical interior gap")
-	}
-	if got := horizontalGapBackground(m, nil, nil, false, 0, 1); !sameColor(got, bg) {
-		t.Fatal("expected committed rectangle to color horizontal interior gap")
-	}
-	if got := junctionGapBackground(m, nil, nil, false, 1, 1); !sameColor(got, bg) {
-		t.Fatal("expected committed rectangle to color interior junction")
+	m.mousePreview = nil
+	withoutPreview := []rune(strings.Split(ansi.Strip(gridView(m, false)), "\n")[1])
+	if got := withoutPreview[4]; got != '│' {
+		t.Fatalf("committed separator = %q, want vertical wall", got)
 	}
 }
 
@@ -1002,9 +1030,9 @@ func TestRectFromCorners(t *testing.T) {
 	}
 }
 
-// --- Escape cancel behavior (P1) ---
+// --- Backspace cancel behavior (P1) ---
 
-func TestEscapeCancelsPendingExpansion(t *testing.T) {
+func TestBackspaceCancelsPendingExpansion(t *testing.T) {
 	p := simplePuzzle()
 	selected := 0
 	m := Model{
@@ -1017,15 +1045,15 @@ func TestEscapeCancelsPendingExpansion(t *testing.T) {
 		keys: DefaultKeyMap,
 	}
 
-	next, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	next, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyBackspace})
 	got := next.(Model)
 
 	if got.selectedClue != nil {
-		t.Fatal("expected selected clue to be cleared on escape")
+		t.Fatal("expected selected clue to be cleared on backspace")
 	}
 }
 
-func TestEscapeCancelsPendingMousePreviewInNavMode(t *testing.T) {
+func TestBackspaceCancelsPendingMousePreviewInNavMode(t *testing.T) {
 	p := simplePuzzle()
 	anchor := [2]int{0, 0}
 	preview := Rectangle{X: 0, Y: 0, W: 2, H: 2}
@@ -1036,14 +1064,14 @@ func TestEscapeCancelsPendingMousePreviewInNavMode(t *testing.T) {
 		mousePreview:    &preview,
 	}
 
-	next, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	next, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyBackspace})
 	got := next.(Model)
 
 	if got.mouseDragAnchor != nil {
-		t.Fatal("expected mouse drag anchor to be cleared on escape")
+		t.Fatal("expected mouse drag anchor to be cleared on backspace")
 	}
 	if got.mousePreview != nil {
-		t.Fatal("expected mouse preview to be cleared on escape")
+		t.Fatal("expected mouse preview to be cleared on backspace")
 	}
 }
 
@@ -1107,15 +1135,6 @@ func TestModeSpawn(t *testing.T) {
 			t.Fatal("expected non-nil game")
 		}
 	})
-}
-
-func sameColor(a, b color.Color) bool {
-	if a == nil || b == nil {
-		return a == b
-	}
-	ar, ag, ab, aa := a.RGBA()
-	br, bg, bb, ba := b.RGBA()
-	return ar == br && ag == bg && ab == bb && aa == ba
 }
 
 func cellScreenCoords(m *Model, col, row int) (int, int) {

@@ -66,7 +66,7 @@ var DailyModes = []list.Item{
 
 var Definition = game.Definition{
 	Name:        "Nonogram",
-	Description: "Fill cells to match row and column hints.",
+	Description: "Fill the cells to match tomographic hints.",
 	Modes:       Modes,
 	DailyModes:  DailyModes,
 	Help:        HelpContent,

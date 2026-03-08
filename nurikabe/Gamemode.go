@@ -81,7 +81,7 @@ var DailyModes = []list.Item{
 
 var Definition = game.Definition{
 	Name:        "Nurikabe",
-	Description: "Build islands while keeping one connected sea.",
+	Description: "Split the land while keeping one connected sea.",
 	Aliases:     []string{"islands", "sea"},
 	Modes:       Modes,
 	DailyModes:  DailyModes,

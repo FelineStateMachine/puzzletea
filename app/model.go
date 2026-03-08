@@ -4,15 +4,17 @@ package app
 
 import (
 	"context"
+	"strconv"
 	"time"
 
-	"github.com/FelineStateMachine/puzzletea/catalog"
 	"github.com/FelineStateMachine/puzzletea/config"
 	"github.com/FelineStateMachine/puzzletea/game"
+	"github.com/FelineStateMachine/puzzletea/registry"
 	"github.com/FelineStateMachine/puzzletea/stats"
 	"github.com/FelineStateMachine/puzzletea/store"
 	"github.com/FelineStateMachine/puzzletea/theme"
 	"github.com/FelineStateMachine/puzzletea/ui"
+	"github.com/FelineStateMachine/puzzletea/weekly"
 
 	"charm.land/bubbles/v2/list"
 	"charm.land/bubbles/v2/spinner"
@@ -24,11 +26,10 @@ import (
 	"github.com/charmbracelet/glamour"
 )
 
-// Categories is the typed catalog view used by stats and print-export helpers.
-var Categories = catalog.Categories()
-
-// GameCategories is the list.Item view of Categories for Bubble Tea lists.
-var GameCategories = catalog.CategoryItems()
+var (
+	gameCategoryItems = buildCategoryItems()
+	GameCategories    = gameCategoryItems
+)
 
 type viewState int
 
@@ -37,13 +38,6 @@ var mainMenuItems = []ui.MenuItem{
 	{ItemTitle: "Stats", Desc: "your progress"},
 	{ItemTitle: "Options", Desc: "configure and learn"},
 	{ItemTitle: "Quit", Desc: "exit puzzletea"},
-}
-
-var playMenuItems = []ui.MenuItem{
-	{ItemTitle: "Daily Puzzle", Desc: time.Now().Format("Jan _2 06")},
-	{ItemTitle: "Generate", Desc: "a new puzzle"},
-	{ItemTitle: "Continue", Desc: "a previously played puzzle"},
-	{ItemTitle: "Enter Seed", Desc: "for a set puzzle"},
 }
 
 var optionsMenuItems = []ui.MenuItem{
@@ -61,6 +55,7 @@ const (
 	generatingView
 	gameView
 	continueView
+	weeklyView
 	helpSelectView
 	helpDetailView
 	statsView
@@ -72,12 +67,20 @@ type navigationState struct {
 	playMenu          ui.MainMenu
 	optionsMenu       ui.MainMenu
 	gameSelectList    list.Model
+	categoryDetail    viewport.Model
 	modeSelectList    list.Model
-	selectedCategory  game.Category
+	selectedCategory  registry.Entry
 	selectedModeTitle string
 	continueTable     table.Model
 	continueGames     []store.GameRecord
+	weeklyTable       table.Model
+	weeklyRows        []weeklyRow
+	weeklyCursor      time.Time
 	seedInput         textinput.Model
+	seedModeOptions   []seedModeOption
+	seedModeIndex     int
+	seedFocus         seedInputFocus
+	lastSeedModeKey   string
 	helpSelectList    list.Model
 }
 
@@ -85,6 +88,8 @@ type sessionState struct {
 	game            game.Gamer
 	activeGameID    int64
 	completionSaved bool
+	returnState     viewState
+	weeklyAdvance   *weekly.Info
 	generating      bool
 	spawnJobID      int64
 	spawnCancel     context.CancelFunc
@@ -92,10 +97,11 @@ type sessionState struct {
 }
 
 type helpState struct {
-	category      game.Category
+	category      registry.Entry
 	viewport      viewport.Model
 	renderer      *glamour.TermRenderer
 	rendererWidth int
+	rendererTheme string
 	showFull      bool
 }
 
@@ -122,6 +128,7 @@ const (
 	spawnSourceNormal spawnSource = "normal"
 	spawnSourceDaily  spawnSource = "daily"
 	spawnSourceSeed   spawnSource = "seed"
+	spawnSourceWeekly spawnSource = "weekly"
 )
 
 type spawnRequest struct {
@@ -130,6 +137,21 @@ type spawnRequest struct {
 	gameType    string
 	modeTitle   string
 	returnState viewState
+	exitState   viewState
+	weeklyInfo  *weekly.Info
+}
+
+type seedInputFocus int
+
+const (
+	seedFocusText seedInputFocus = iota
+	seedFocusMode
+)
+
+type seedModeOption struct {
+	key      string
+	label    string
+	gameType string
 }
 
 type model struct {
@@ -164,7 +186,7 @@ func newSpinner() spinner.Model {
 // InitialModel creates the root TUI model for the main menu.
 func InitialModel(s *store.Store, cfg *config.Config) model {
 	r := initDebugRenderer()
-	l := ui.InitCategoryList(GameCategories, "Select Category")
+	l := ui.InitCategoryList(gameCategoryItems, "Select Category")
 	mm := ui.NewMainMenu(mainMenuItems)
 	return model{
 		state:   mainMenuView,
@@ -180,7 +202,7 @@ func InitialModel(s *store.Store, cfg *config.Config) model {
 // bypassing the menu. Used by CLI flags (--new, --continue).
 func InitialModelWithGame(s *store.Store, cfg *config.Config, g game.Gamer, activeGameID int64, completionSaved bool) model {
 	r := initDebugRenderer()
-	l := ui.InitCategoryList(GameCategories, "Select Category")
+	l := ui.InitCategoryList(gameCategoryItems, "Select Category")
 	mm := ui.NewMainMenu(mainMenuItems)
 	return model{
 		state:   gameView,
@@ -193,10 +215,22 @@ func InitialModelWithGame(s *store.Store, cfg *config.Config, g game.Gamer, acti
 			game:            g,
 			activeGameID:    activeGameID,
 			completionSaved: completionSaved,
+			returnState:     mainMenuView,
 		},
 	}
 }
 
 func (m model) Init() tea.Cmd {
 	return nil
+}
+
+func buildPlayMenuItems(now time.Time, currentWeeklyIndex int) []ui.MenuItem {
+	year, week := now.ISOWeek()
+	return []ui.MenuItem{
+		{ItemTitle: "Create", Desc: "a new puzzle"},
+		{ItemTitle: "Continue", Desc: "a previously played puzzle"},
+		{ItemTitle: "Daily", Desc: now.Format("Jan _2 06")},
+		{ItemTitle: "Weekly", Desc: "Week " + formatTwoDigits(week) + "-" + strconv.Itoa(year) + " #" + formatWeeklyMenuIndex(currentWeeklyIndex)},
+		{ItemTitle: "Seeded", Desc: "enter a specific seed"},
+	}
 }

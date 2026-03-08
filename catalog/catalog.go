@@ -3,98 +3,65 @@ package catalog
 import (
 	"fmt"
 
-	"charm.land/bubbles/v2/list"
-	"github.com/FelineStateMachine/puzzletea/fillomino"
-	"github.com/FelineStateMachine/puzzletea/game"
-	"github.com/FelineStateMachine/puzzletea/hashiwokakero"
-	"github.com/FelineStateMachine/puzzletea/hitori"
-	"github.com/FelineStateMachine/puzzletea/lightsout"
-	"github.com/FelineStateMachine/puzzletea/nonogram"
-	"github.com/FelineStateMachine/puzzletea/nurikabe"
-	"github.com/FelineStateMachine/puzzletea/rippleeffect"
-	"github.com/FelineStateMachine/puzzletea/shikaku"
-	"github.com/FelineStateMachine/puzzletea/sudoku"
-	"github.com/FelineStateMachine/puzzletea/takuzu"
-	"github.com/FelineStateMachine/puzzletea/wordsearch"
+	"github.com/FelineStateMachine/puzzletea/puzzle"
 )
 
-// All is the explicit ordered catalog of every puzzle game.
-var All = []game.Definition{
-	fillomino.Definition,
-	hashiwokakero.Definition,
-	hitori.Definition,
-	lightsout.Definition,
-	nonogram.Definition,
-	nurikabe.Definition,
-	rippleeffect.Definition,
-	shikaku.Definition,
-	sudoku.Definition,
-	takuzu.Definition,
-	wordsearch.Definition,
-}
-
-// DailyEntry is a flattened seeded daily candidate with metadata.
 type DailyEntry struct {
-	Spawner  game.SeededSpawner
-	GameType string
+	GameID   puzzle.GameID
+	GameName string
+	ModeID   puzzle.ModeID
 	Mode     string
 }
 
-type index struct {
-	categories []game.Category
-	items      []list.Item
-	names      []string
-	dailies    []DailyEntry
-	byName     map[string]game.Definition
-	byAlias    map[string]string
+type Index struct {
+	definitions []puzzle.Definition
+	names       []string
+	dailies     []DailyEntry
+	byName      map[string]puzzle.Definition
+	byAlias     map[string]string
 }
 
-var built = mustBuildIndex(All)
-
-func mustBuildIndex(definitions []game.Definition) index {
-	idx, err := buildIndex(definitions)
+func MustBuild(definitions []puzzle.Definition) Index {
+	idx, err := Build(definitions)
 	if err != nil {
 		panic(err)
 	}
 	return idx
 }
 
-func buildIndex(definitions []game.Definition) (index, error) {
+func Build(definitions []puzzle.Definition) (Index, error) {
 	if err := Validate(definitions); err != nil {
-		return index{}, err
+		return Index{}, err
 	}
 
-	idx := index{
-		categories: make([]game.Category, 0, len(definitions)),
-		items:      make([]list.Item, 0, len(definitions)),
-		names:      make([]string, 0, len(definitions)),
-		dailies:    make([]DailyEntry, 0, len(definitions)*2),
-		byName:     make(map[string]game.Definition, len(definitions)),
-		byAlias:    make(map[string]string),
+	idx := Index{
+		definitions: append([]puzzle.Definition(nil), definitions...),
+		names:       make([]string, 0, len(definitions)),
+		dailies:     make([]DailyEntry, 0, len(definitions)*2),
+		byName:      make(map[string]puzzle.Definition, len(definitions)),
+		byAlias:     make(map[string]string),
 	}
 
 	for _, def := range definitions {
-		category := def.Category()
-		idx.categories = append(idx.categories, category)
-		idx.items = append(idx.items, category)
 		idx.names = append(idx.names, def.Name)
-		idx.byName[game.NormalizeName(def.Name)] = def
+		idx.byName[puzzle.NormalizeName(def.Name)] = def
 		for _, alias := range def.Aliases {
-			idx.byAlias[game.NormalizeName(alias)] = def.Name
+			idx.byAlias[puzzle.NormalizeName(alias)] = def.Name
 		}
-		for _, item := range def.DailyModes {
-			mode, ok := item.(game.Mode)
-			if !ok {
-				continue
-			}
-			spawner, ok := item.(game.SeededSpawner)
+		byModeID := make(map[puzzle.ModeID]puzzle.ModeDef, len(def.Modes))
+		for _, mode := range def.Modes {
+			byModeID[mode.ID] = mode
+		}
+		for _, dailyID := range def.DailyModeIDs {
+			mode, ok := byModeID[dailyID]
 			if !ok {
 				continue
 			}
 			idx.dailies = append(idx.dailies, DailyEntry{
-				Spawner:  spawner,
-				GameType: def.Name,
-				Mode:     mode.Title(),
+				GameID:   def.ID,
+				GameName: def.Name,
+				ModeID:   mode.ID,
+				Mode:     mode.Title,
 			})
 		}
 	}
@@ -102,49 +69,39 @@ func buildIndex(definitions []game.Definition) (index, error) {
 	return idx, nil
 }
 
-// Validate checks that the catalog is internally consistent.
-func Validate(definitions []game.Definition) error {
+func Validate(definitions []puzzle.Definition) error {
 	names := make(map[string]string, len(definitions))
 	aliases := make(map[string]string)
 
 	for _, def := range definitions {
-		if def.Import == nil {
-			return fmt.Errorf("game %q has nil importer", def.Name)
-		}
-
-		normName := game.NormalizeName(def.Name)
+		normName := puzzle.NormalizeName(def.Name)
 		if normName == "" {
 			return fmt.Errorf("game %q has empty canonical name", def.Name)
+		}
+		if def.ID == "" {
+			return fmt.Errorf("game %q has empty id", def.Name)
 		}
 		if prior, exists := names[normName]; exists {
 			return fmt.Errorf("duplicate game name %q conflicts with %q", def.Name, prior)
 		}
 		names[normName] = def.Name
 
-		modeTitles := make(map[string]struct{}, len(def.Modes))
-		for _, item := range def.Modes {
-			mode, ok := item.(game.Mode)
-			if !ok {
-				continue
+		modeTitles := make(map[puzzle.ModeID]struct{}, len(def.Modes))
+		for _, mode := range def.Modes {
+			if mode.ID == "" {
+				return fmt.Errorf("game %q has mode %q with empty id", def.Name, mode.Title)
 			}
-			modeTitles[mode.Title()] = struct{}{}
+			modeTitles[mode.ID] = struct{}{}
 		}
 
-		for _, item := range def.DailyModes {
-			mode, ok := item.(game.Mode)
-			if !ok {
-				return fmt.Errorf("game %q has daily mode without game.Mode implementation", def.Name)
-			}
-			if _, ok := item.(game.SeededSpawner); !ok {
-				return fmt.Errorf("game %q daily mode %q is not seeded", def.Name, mode.Title())
-			}
-			if _, ok := modeTitles[mode.Title()]; !ok {
-				return fmt.Errorf("game %q daily mode %q is not present in Modes", def.Name, mode.Title())
+		for _, dailyID := range def.DailyModeIDs {
+			if _, ok := modeTitles[dailyID]; !ok {
+				return fmt.Errorf("game %q daily mode %q is not present in Modes", def.Name, dailyID)
 			}
 		}
 
 		for _, alias := range def.Aliases {
-			normAlias := game.NormalizeName(alias)
+			normAlias := puzzle.NormalizeName(alias)
 			if normAlias == "" {
 				return fmt.Errorf("game %q has empty alias", def.Name)
 			}
@@ -164,76 +121,31 @@ func Validate(definitions []game.Definition) error {
 	return nil
 }
 
-// Names returns the canonical game names in catalog order.
-func Names() []string {
-	return append([]string(nil), built.names...)
+func (i Index) Names() []string {
+	return append([]string(nil), i.names...)
 }
 
-// Categories returns the category view of the catalog in menu order.
-func Categories() []game.Category {
-	return append([]game.Category(nil), built.categories...)
+func (i Index) Definitions() []puzzle.Definition {
+	return append([]puzzle.Definition(nil), i.definitions...)
 }
 
-// CategoryItems returns the category view as list items for Bubble Tea lists.
-func CategoryItems() []list.Item {
-	return append([]list.Item(nil), built.items...)
+func (i Index) DailyEntries() []DailyEntry {
+	return append([]DailyEntry(nil), i.dailies...)
 }
 
-// DailyEntries returns the flattened daily-eligible seeded modes.
-func DailyEntries() []DailyEntry {
-	return append([]DailyEntry(nil), built.dailies...)
-}
-
-// Lookup returns a definition by canonical name.
-func Lookup(name string) (game.Definition, bool) {
-	def, ok := built.byName[game.NormalizeName(name)]
+func (i Index) Lookup(name string) (puzzle.Definition, bool) {
+	def, ok := i.byName[puzzle.NormalizeName(name)]
 	return def, ok
 }
 
-// Resolve returns a definition by canonical name or alias.
-func Resolve(name string) (game.Definition, bool) {
-	norm := game.NormalizeName(name)
-	if def, ok := built.byName[norm]; ok {
+func (i Index) Resolve(name string) (puzzle.Definition, bool) {
+	norm := puzzle.NormalizeName(name)
+	if def, ok := i.byName[norm]; ok {
 		return def, true
 	}
-	canonical, ok := built.byAlias[norm]
+	canonical, ok := i.byAlias[norm]
 	if !ok {
-		return game.Definition{}, false
+		return puzzle.Definition{}, false
 	}
-	return Lookup(canonical)
-}
-
-// Category resolves a canonical game name or alias to the menu-facing category.
-func Category(name string) (game.Category, error) {
-	def, ok := Resolve(name)
-	if !ok {
-		return game.Category{}, fmt.Errorf("unknown game %q\n\nAvailable games:\n  %s",
-			name, joinLines(Names()))
-	}
-	return def.Category(), nil
-}
-
-// Import reconstructs a saved game for the given canonical game type.
-func Import(gameType string, data []byte) (game.Gamer, error) {
-	def, ok := Lookup(gameType)
-	if !ok {
-		return nil, fmt.Errorf("unknown game type %q in save data", gameType)
-	}
-	g, err := def.Import(data)
-	if err != nil {
-		return nil, fmt.Errorf("failed to import game: %w", err)
-	}
-	return g, nil
-}
-
-func joinLines(values []string) string {
-	if len(values) == 0 {
-		return ""
-	}
-
-	result := values[0]
-	for i := 1; i < len(values); i++ {
-		result += "\n  " + values[i]
-	}
-	return result
+	return i.Lookup(canonical)
 }

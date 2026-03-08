@@ -7,8 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/FelineStateMachine/puzzletea/game"
 )
 
 const ExportSchemaV1 = "puzzletea.export.v1"
@@ -104,7 +102,7 @@ func ParseJSONLFile(path string) (PackDocument, error) {
 			SaveData:       append([]byte(nil), record.Puzzle.Save...),
 		}
 
-		adapter, ok := game.LookupPrintAdapter(category)
+		adapter, ok := LookupPrintAdapter(category)
 		if !ok {
 			continue
 		}
@@ -112,7 +110,7 @@ func ParseJSONLFile(path string) (PackDocument, error) {
 		if err != nil {
 			return PackDocument{}, fmt.Errorf("%s:%d: build print payload: %w", path, lineNo, err)
 		}
-		if game.IsNilPrintPayload(payload) {
+		if IsNilPrintPayload(payload) {
 			continue
 		}
 		p.PrintPayload = payload

@@ -7,9 +7,6 @@ import (
 
 func TestPartitionGridCoverageBySize(t *testing.T) {
 	for modeIndex, mode := range benchmarkShikakuModes() {
-		mode := mode
-		modeIndex := modeIndex
-
 		t.Run(mode.Title(), func(t *testing.T) {
 			grid := makeUncoveredGenerationGrid(mode.Width, mode.Height)
 			partitions := make([]genRect, 0, mode.Width*mode.Height/2)
@@ -78,9 +75,6 @@ func TestPartitionGridCoverageBySize(t *testing.T) {
 
 func TestGeneratePuzzleClueInvariantsBySize(t *testing.T) {
 	for modeIndex, mode := range benchmarkShikakuModes() {
-		mode := mode
-		modeIndex := modeIndex
-
 		t.Run(mode.Title(), func(t *testing.T) {
 			puzzle, err := GeneratePuzzleSeeded(
 				mode.Width,

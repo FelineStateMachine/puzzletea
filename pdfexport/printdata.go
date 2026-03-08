@@ -58,6 +58,14 @@ type takuzuSave struct {
 	Provided string `json:"provided"`
 }
 
+type takuzuPlusSave struct {
+	Size                int    `json:"size"`
+	State               string `json:"state"`
+	Provided            string `json:"provided"`
+	HorizontalRelations string `json:"horizontal_relations"`
+	VerticalRelations   string `json:"vertical_relations"`
+}
+
 type sudokuSave struct {
 	Provided []sudokuCell `json:"provided"`
 }
@@ -316,9 +324,90 @@ func ParseTakuzuPrintData(saveData []byte) (*TakuzuData, error) {
 	}
 
 	return &TakuzuData{
-		Size:          size,
-		Givens:        givens,
-		GroupEveryTwo: true,
+		Size:                size,
+		Givens:              givens,
+		HorizontalRelations: make([][]string, size),
+		VerticalRelations:   make([][]string, max(size-1, 0)),
+		GroupEveryTwo:       true,
+	}, nil
+}
+
+func ParseTakuzuPlusPrintData(saveData []byte) (*TakuzuData, error) {
+	if len(strings.TrimSpace(string(saveData))) == 0 {
+		return nil, nil
+	}
+
+	var save takuzuPlusSave
+	if err := json.Unmarshal(saveData, &save); err != nil {
+		return nil, fmt.Errorf("decode takuzu+ save: %w", err)
+	}
+
+	stateRows := splitNormalizedLines(save.State)
+	providedRows := splitNormalizedLines(save.Provided)
+	horizontalRows := splitNormalizedLines(save.HorizontalRelations)
+	verticalRows := splitNormalizedLines(save.VerticalRelations)
+
+	size := save.Size
+	if size <= 0 {
+		size = max(max(len(stateRows), len(providedRows)), max(len(horizontalRows), len(verticalRows)+1))
+	}
+	if size <= 0 {
+		return nil, nil
+	}
+
+	givens := make([][]string, size)
+	horizontal := make([][]string, size)
+	vertical := make([][]string, max(size-1, 0))
+	for y := 0; y < size; y++ {
+		givens[y] = make([]string, size)
+		horizontal[y] = make([]string, max(size-1, 0))
+
+		var stateRunes []rune
+		if y < len(stateRows) {
+			stateRunes = []rune(stateRows[y])
+		}
+		var providedRunes []rune
+		if y < len(providedRows) {
+			providedRunes = []rune(providedRows[y])
+		}
+		var relationRunes []rune
+		if y < len(horizontalRows) {
+			relationRunes = []rune(horizontalRows[y])
+		}
+
+		for x := 0; x < size; x++ {
+			if x < size-1 && x < len(relationRunes) && (relationRunes[x] == '=' || relationRunes[x] == 'x') {
+				horizontal[y][x] = string(relationRunes[x])
+			}
+			if x >= len(providedRunes) || providedRunes[x] != '#' || x >= len(stateRunes) {
+				continue
+			}
+			if stateRunes[x] != '0' && stateRunes[x] != '1' {
+				continue
+			}
+			givens[y][x] = string(stateRunes[x])
+		}
+	}
+
+	for y := 0; y < size-1; y++ {
+		vertical[y] = make([]string, size)
+		if y >= len(verticalRows) {
+			continue
+		}
+		relationRunes := []rune(verticalRows[y])
+		for x := 0; x < size && x < len(relationRunes); x++ {
+			if relationRunes[x] == '=' || relationRunes[x] == 'x' {
+				vertical[y][x] = string(relationRunes[x])
+			}
+		}
+	}
+
+	return &TakuzuData{
+		Size:                size,
+		Givens:              givens,
+		HorizontalRelations: horizontal,
+		VerticalRelations:   vertical,
+		GroupEveryTwo:       true,
 	}, nil
 }
 
@@ -338,6 +427,30 @@ func ParseSudokuPrintData(saveData []byte) (*SudokuData, error) {
 			continue
 		}
 		if cell.V < 1 || cell.V > 9 {
+			continue
+		}
+		givens[cell.Y][cell.X] = cell.V
+	}
+
+	return &SudokuData{Givens: givens}, nil
+}
+
+func ParseSudokuRGBPrintData(saveData []byte) (*SudokuData, error) {
+	if len(strings.TrimSpace(string(saveData))) == 0 {
+		return nil, nil
+	}
+
+	var save sudokuSave
+	if err := json.Unmarshal(saveData, &save); err != nil {
+		return nil, fmt.Errorf("decode sudoku rgb save: %w", err)
+	}
+
+	var givens [9][9]int
+	for _, cell := range save.Provided {
+		if !isSudokuCellInBounds(cell.X, cell.Y) {
+			continue
+		}
+		if cell.V < 1 || cell.V > 3 {
 			continue
 		}
 		givens[cell.Y][cell.X] = cell.V
@@ -431,9 +544,7 @@ func ParseWordSearchPrintData(saveData []byte) (*WordSearchData, error) {
 	}
 
 	height := save.Height
-	if len(rows) > height {
-		height = len(rows)
-	}
+	height = max(height, len(rows))
 	if width <= 0 || height <= 0 {
 		return nil, nil
 	}
@@ -478,7 +589,7 @@ func ParseWordSearchPrintData(saveData []byte) (*WordSearchData, error) {
 func parseNumberGrid(encoded string, width, height int) ([][]int, error) {
 	rows := strings.Split(strings.TrimSpace(encoded), "\n")
 	grid := make([][]int, height)
-	for y := 0; y < height; y++ {
+	for y := range height {
 		grid[y] = make([]int, width)
 		if y >= len(rows) {
 			continue
@@ -491,7 +602,7 @@ func parseNumberGrid(encoded string, width, height int) ([][]int, error) {
 		if len(fields) != width {
 			return nil, fmt.Errorf("decode number grid: invalid row width")
 		}
-		for x := 0; x < width; x++ {
+		for x := range width {
 			if fields[x] == "." {
 				continue
 			}
@@ -508,7 +619,7 @@ func parseNumberGrid(encoded string, width, height int) ([][]int, error) {
 func parseProvidedMask(encoded string, width, height int) [][]bool {
 	rows := strings.Split(encoded, "\n")
 	mask := make([][]bool, height)
-	for y := 0; y < height; y++ {
+	for y := range height {
 		mask[y] = make([]bool, width)
 		if y >= len(rows) {
 			continue
@@ -598,7 +709,7 @@ func parseNurikabeClues(raw string, width, height int) ([][]int, error) {
 	}
 
 	clues := make([][]int, height)
-	for y := 0; y < height; y++ {
+	for y := range height {
 		clues[y] = make([]int, width)
 	}
 
@@ -648,7 +759,7 @@ func normalizeNonogramHintRows(src [][]int, size int) [][]int {
 	}
 
 	normalized := make([][]int, size)
-	for i := 0; i < size; i++ {
+	for i := range size {
 		if i >= len(src) {
 			normalized[i] = []int{0}
 			continue
@@ -675,9 +786,9 @@ func normalizeNonogramStateGrid(rows []string, width, height int) [][]string {
 	}
 
 	grid := make([][]string, height)
-	for y := 0; y < height; y++ {
+	for y := range height {
 		grid[y] = make([]string, width)
-		for x := 0; x < width; x++ {
+		for x := range width {
 			grid[y][x] = " "
 		}
 

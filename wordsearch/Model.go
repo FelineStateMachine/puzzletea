@@ -3,6 +3,7 @@ package wordsearch
 
 import (
 	"fmt"
+	"math"
 	"strings"
 
 	"charm.land/bubbles/v2/key"
@@ -16,6 +17,17 @@ const (
 	noSelection selectionState = iota
 	startSelected
 )
+
+var selectionDirections = []Direction{
+	Right,
+	Down,
+	DownRight,
+	DownLeft,
+	Left,
+	Up,
+	UpRight,
+	UpLeft,
+}
 
 var _ game.Gamer = Model{}
 
@@ -48,6 +60,15 @@ type Model struct {
 	lastMouseGridCol       int
 	lastMouseGridRow       int
 	lastMouseHit           bool
+}
+
+type selectionPreview struct {
+	Letters   string
+	Direction string
+	Length    int
+	Valid     bool
+	ExactWord string
+	NearWord  string
 }
 
 func buildFoundCells(width, height int, words []Word) [][]bool {
@@ -146,9 +167,7 @@ func (m *Model) handleMouseMotion(msg tea.MouseMotionMsg) {
 		return
 	}
 
-	// Move cursor to track the drag endpoint; the existing selection
-	// rendering uses selectionStart → cursor.
-	m.cursor.X, m.cursor.Y = col, row
+	m.setSelectionCursor(game.Cursor{X: col, Y: row})
 }
 
 func (m *Model) handleMouseRelease() {
@@ -179,10 +198,67 @@ func (m Model) handleKeyPress(msg tea.KeyPressMsg) (game.Gamer, tea.Cmd) {
 	case key.Matches(msg, m.keys.Cancel):
 		m.selection = noSelection
 	default:
-		m.cursor.Move(m.keys.CursorKeyMap, msg, m.width-1, m.height-1)
+		m.handleCursorMove(msg)
 	}
 
 	return m, nil
+}
+
+func (m *Model) handleCursorMove(msg tea.KeyPressMsg) {
+	if m.selection == startSelected {
+		if m.moveSelectionCursor(msg) {
+			return
+		}
+	}
+
+	target := m.cursor
+	if !target.Move(m.keys.CursorKeyMap, msg, m.width-1, m.height-1) {
+		return
+	}
+
+	if m.selection == startSelected {
+		m.setSelectionCursor(target)
+		return
+	}
+
+	m.cursor = target
+}
+
+func (m *Model) moveSelectionCursor(msg tea.KeyPressMsg) bool {
+	dx, dy, valid := lineDirection(m.selectionStart, m.cursor)
+	if !valid {
+		return false
+	}
+
+	moveX, moveY, ok := m.moveDelta(msg)
+	if !ok {
+		return false
+	}
+
+	step := 0
+	switch {
+	case moveX != 0 && dx != 0 && moveX == dx:
+		step = 1
+	case moveY != 0 && dy != 0 && moveY == dy:
+		step = 1
+	case moveX != 0 && dx != 0 && moveX == -dx:
+		step = -1
+	case moveY != 0 && dy != 0 && moveY == -dy:
+		step = -1
+	default:
+		return false
+	}
+
+	next := game.Cursor{
+		X: m.cursor.X + step*dx,
+		Y: m.cursor.Y + step*dy,
+	}
+	if !cursorInBounds(next, m.width-1, m.height-1) {
+		return true
+	}
+
+	m.cursor = next
+	return true
 }
 
 func (m *Model) handleSelect() {
@@ -224,6 +300,10 @@ func (m *Model) validateSelection() {
 	}
 }
 
+func (m *Model) setSelectionCursor(target game.Cursor) {
+	m.cursor = snapSelectionCursor(m.selectionStart, target, m.width-1, m.height-1)
+}
+
 func (m *Model) checkWin() {
 	allFound := true
 	for _, word := range m.words {
@@ -256,6 +336,13 @@ func (m Model) GetDebugInfo() string {
 	}
 	if m.selection == startSelected {
 		rows = append(rows, [2]string{"Selection Start", fmt.Sprintf("(%d, %d)", m.selectionStart.X, m.selectionStart.Y)})
+		preview := m.currentSelectionPreview()
+		if preview.Valid {
+			rows = append(rows, [2]string{
+				"Selection Preview",
+				fmt.Sprintf("%s (%s, len %d)", preview.Letters, preview.Direction, preview.Length),
+			})
+		}
 	}
 	rows = append(rows,
 		[2]string{"Words Found", fmt.Sprintf("%d/%d", m.countFoundWords(), len(m.words))},
@@ -388,4 +475,150 @@ func reverseString(s string) string {
 		runes[i], runes[j] = runes[j], runes[i]
 	}
 	return string(runes)
+}
+
+func (m Model) currentSelectionPreview() selectionPreview {
+	if m.selection != startSelected || m.cursor == m.selectionStart {
+		return selectionPreview{}
+	}
+
+	var letters strings.Builder
+	if !walkLine(m.selectionStart, m.cursor, func(x, y int) {
+		letters.WriteRune(m.grid.Get(x, y))
+	}) {
+		return selectionPreview{}
+	}
+
+	word := letters.String()
+	preview := selectionPreview{
+		Letters:   word,
+		Direction: directionName(m.selectionStart, m.cursor),
+		Length:    len(word),
+		Valid:     true,
+	}
+
+	reversed := reverseString(word)
+	bestNearDelta := -1
+	for _, candidate := range m.words {
+		if candidate.Found {
+			continue
+		}
+		switch {
+		case candidate.Text == word || candidate.Text == reversed:
+			preview.ExactWord = candidate.Text
+			return preview
+		case strings.HasPrefix(candidate.Text, word) || strings.HasPrefix(candidate.Text, reversed):
+			delta := len(candidate.Text) - len(word)
+			if bestNearDelta == -1 || delta < bestNearDelta {
+				bestNearDelta = delta
+				preview.NearWord = candidate.Text
+			}
+		}
+	}
+
+	return preview
+}
+
+func directionName(start, end game.Cursor) string {
+	dx, dy, valid := lineDirection(start, end)
+	if !valid {
+		return "pending"
+	}
+
+	switch {
+	case dx == 1 && dy == 0:
+		return "right"
+	case dx == 0 && dy == 1:
+		return "down"
+	case dx == 1 && dy == 1:
+		return "down-right"
+	case dx == -1 && dy == 1:
+		return "down-left"
+	case dx == -1 && dy == 0:
+		return "left"
+	case dx == 0 && dy == -1:
+		return "up"
+	case dx == 1 && dy == -1:
+		return "up-right"
+	case dx == -1 && dy == -1:
+		return "up-left"
+	default:
+		return "pending"
+	}
+}
+
+func (m Model) moveDelta(msg tea.KeyPressMsg) (dx, dy int, ok bool) {
+	switch {
+	case key.Matches(msg, m.keys.Left):
+		return -1, 0, true
+	case key.Matches(msg, m.keys.Right):
+		return 1, 0, true
+	case key.Matches(msg, m.keys.Up):
+		return 0, -1, true
+	case key.Matches(msg, m.keys.Down):
+		return 0, 1, true
+	default:
+		return 0, 0, false
+	}
+}
+
+func snapSelectionCursor(start, target game.Cursor, maxX, maxY int) game.Cursor {
+	if start == target {
+		return start
+	}
+
+	best := start
+	bestDistance := -1
+	bestAlignment := math.Inf(-1)
+	bestSteps := -1
+	targetDX := target.X - start.X
+	targetDY := target.Y - start.Y
+
+	for _, dir := range selectionDirections {
+		dx, dy := dir.Vector()
+		alignment := float64(targetDX*dx+targetDY*dy) / math.Sqrt(float64(dx*dx+dy*dy))
+		for step := 1; step <= maxStepsToEdge(start, dx, dy, maxX, maxY); step++ {
+			candidate := game.Cursor{
+				X: start.X + step*dx,
+				Y: start.Y + step*dy,
+			}
+			distance := squaredDistance(candidate, target)
+			if bestDistance == -1 ||
+				distance < bestDistance ||
+				(distance == bestDistance && alignment > bestAlignment) ||
+				(distance == bestDistance && alignment == bestAlignment && step > bestSteps) {
+				best = candidate
+				bestDistance = distance
+				bestAlignment = alignment
+				bestSteps = step
+			}
+		}
+	}
+
+	return best
+}
+
+func maxStepsToEdge(start game.Cursor, dx, dy, maxX, maxY int) int {
+	steps := maxX + maxY + 2
+	if dx > 0 {
+		steps = min(steps, maxX-start.X)
+	} else if dx < 0 {
+		steps = min(steps, start.X)
+	}
+	if dy > 0 {
+		steps = min(steps, maxY-start.Y)
+	} else if dy < 0 {
+		steps = min(steps, start.Y)
+	}
+	return steps
+}
+
+func squaredDistance(a, b game.Cursor) int {
+	dx := a.X - b.X
+	dy := a.Y - b.Y
+	return dx*dx + dy*dy
+}
+
+func cursorInBounds(cursor game.Cursor, maxX, maxY int) bool {
+	return cursor.X >= 0 && cursor.X <= maxX && cursor.Y >= 0 && cursor.Y <= maxY
 }

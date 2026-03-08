@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/FelineStateMachine/puzzletea/catalog"
-	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/pdfexport"
+	"github.com/FelineStateMachine/puzzletea/puzzle"
+	"github.com/FelineStateMachine/puzzletea/registry"
 
 	"github.com/spf13/cobra"
 )
@@ -53,7 +53,7 @@ func runExportPDF(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	lookup := buildModeDifficultyLookup(catalog.Categories())
+	lookup := buildModeDifficultyLookup(registry.Definitions())
 	annotateDifficulty(puzzles, lookup)
 
 	shuffleSeed := strings.TrimSpace(flagPDFShuffleSeed)
@@ -135,17 +135,13 @@ func buildRenderConfigForPDF(docs []pdfexport.PackDocument, shuffleSeed string, 
 	return cfg, nil
 }
 
-func buildModeDifficultyLookup(categories []game.Category) map[string]map[string]float64 {
-	lookup := make(map[string]map[string]float64, len(categories))
+func buildModeDifficultyLookup(definitions []puzzle.Definition) map[string]map[string]float64 {
+	lookup := make(map[string]map[string]float64, len(definitions))
 
-	for _, cat := range categories {
+	for _, def := range definitions {
 		titles := []string{}
-		for _, item := range cat.Modes {
-			mode, ok := item.(game.Mode)
-			if !ok {
-				continue
-			}
-			title := strings.TrimSpace(mode.Title())
+		for _, mode := range def.Modes {
+			title := strings.TrimSpace(mode.Title)
 			if title == "" {
 				continue
 			}
@@ -165,7 +161,7 @@ func buildModeDifficultyLookup(categories []game.Category) map[string]map[string
 			}
 		}
 
-		lookup[normalizeDifficultyToken(cat.Name)] = scores
+		lookup[normalizeDifficultyToken(def.Name)] = scores
 	}
 
 	return lookup

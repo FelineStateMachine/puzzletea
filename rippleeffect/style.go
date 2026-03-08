@@ -2,6 +2,7 @@ package rippleeffect
 
 import (
 	"image/color"
+	"maps"
 	"strconv"
 
 	"charm.land/lipgloss/v2"
@@ -61,6 +62,9 @@ func gridView(m Model) string {
 		},
 		ZoneFill: func(zone int) color.Color {
 			return bridgeBG[zone]
+		},
+		BridgeFill: func(bridge game.DynamicGridBridge) color.Color {
+			return bridgeFill(m, bridgeBG, bridge)
 		},
 	})
 }
@@ -172,13 +176,94 @@ func bridgeBackgrounds(m Model, completed map[int]color.Color) map[int]color.Col
 	}
 
 	backgrounds := activeCageBridgeBackgrounds(m)
-	for cageIdx, bg := range completed {
-		backgrounds[cageIdx] = bg
-	}
-	for cageIdx, bg := range conflictBridgeBackgrounds(m) {
-		backgrounds[cageIdx] = bg
-	}
+	maps.Copy(backgrounds, completed)
+	maps.Copy(backgrounds, conflictBridgeBackgrounds(m))
 	return backgrounds
+}
+
+func bridgeFill(m Model, bridgeBG map[int]color.Color, bridge game.DynamicGridBridge) color.Color {
+	if m.solved {
+		return nil
+	}
+	if bridge.Uniform && bridgeBG[bridge.Zone] != nil {
+		return nil
+	}
+	if bridge.Count > 0 && !bridgeTouchesBorder(m.geo, bridge) {
+		return nil
+	}
+	if game.DynamicGridBridgeOnCrosshairAxis(m.cursor, bridge) {
+		return theme.Current().Surface
+	}
+	return nil
+}
+
+func bridgeTouchesBorder(geo *geometry, bridge game.DynamicGridBridge) bool {
+	if geo == nil {
+		return false
+	}
+
+	switch bridge.Kind {
+	case game.DynamicGridBridgeVertical:
+		return cageJunctionRune(geo.cageGrid, geo.width, geo.height, bridge.X, bridge.Y) != ' ' ||
+			cageJunctionRune(geo.cageGrid, geo.width, geo.height, bridge.X, bridge.Y+1) != ' '
+	case game.DynamicGridBridgeHorizontal:
+		return cageJunctionRune(geo.cageGrid, geo.width, geo.height, bridge.X, bridge.Y) != ' ' ||
+			cageJunctionRune(geo.cageGrid, geo.width, geo.height, bridge.X+1, bridge.Y) != ' '
+	default:
+		return false
+	}
+}
+
+func cageHorizontalEdge(cageGrid [][]int, height, x, y int) bool {
+	switch {
+	case y <= 0, y >= height:
+		return true
+	default:
+		return cageGrid[y-1][x] != cageGrid[y][x]
+	}
+}
+
+func cageVerticalEdge(cageGrid [][]int, width, x, y int) bool {
+	switch {
+	case x <= 0, x >= width:
+		return true
+	default:
+		return cageGrid[y][x-1] != cageGrid[y][x]
+	}
+}
+
+func cageJunctionRune(cageGrid [][]int, width, height, x, y int) rune {
+	north := y > 0 && cageVerticalEdge(cageGrid, width, x, y-1)
+	south := y < height && cageVerticalEdge(cageGrid, width, x, y)
+	west := x > 0 && cageHorizontalEdge(cageGrid, height, x-1, y)
+	east := x < width && cageHorizontalEdge(cageGrid, height, x, y)
+
+	switch {
+	case north && south && west && east:
+		return '┼'
+	case north && south && west:
+		return '┤'
+	case north && south && east:
+		return '├'
+	case west && east && north:
+		return '┴'
+	case west && east && south:
+		return '┬'
+	case south && east:
+		return '┌'
+	case south && west:
+		return '┐'
+	case north && east:
+		return '└'
+	case north && west:
+		return '┘'
+	case north || south:
+		return '│'
+	case west || east:
+		return '─'
+	default:
+		return ' '
+	}
 }
 
 func activeCageBridgeBackgrounds(m Model) map[int]color.Color {
@@ -220,45 +305,9 @@ func completedCageColor(cage Cage, colors []color.Color, base color.Color) color
 	return theme.Blend(base, colors[index], 0.52)
 }
 
-func verticalGapBackground(geo *geometry, backgrounds map[int]color.Color, x, y int) color.Color {
-	if geo == nil || x <= 0 || x >= geo.width || y < 0 || y >= geo.height {
-		return nil
-	}
-	left := geo.cageGrid[y][x-1]
-	right := geo.cageGrid[y][x]
-	if left != right {
-		return nil
-	}
-	return backgrounds[left]
-}
-
-func horizontalGapBackground(geo *geometry, backgrounds map[int]color.Color, x, y int) color.Color {
-	if geo == nil || y <= 0 || y >= geo.height || x < 0 || x >= geo.width {
-		return nil
-	}
-	top := geo.cageGrid[y-1][x]
-	bottom := geo.cageGrid[y][x]
-	if top != bottom {
-		return nil
-	}
-	return backgrounds[top]
-}
-
-func junctionGapBackground(geo *geometry, backgrounds map[int]color.Color, x, y int) color.Color {
-	if geo == nil || x <= 0 || x >= geo.width || y <= 0 || y >= geo.height {
-		return nil
-	}
-
-	cageID := geo.cageGrid[y-1][x-1]
-	if geo.cageGrid[y-1][x] != cageID || geo.cageGrid[y][x-1] != cageID || geo.cageGrid[y][x] != cageID {
-		return nil
-	}
-	return backgrounds[cageID]
-}
-
 func statusBarView(showFullHelp bool) string {
 	if showFullHelp {
-		return game.StatusBarStyle().Render("1-9: place  bkspc: clear  arrows/wasd: move  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
+		return game.StatusBarStyle().Render("1-9: place  bkspc: clear  arrows/wasd: move  esc: menu  ctrl+r: reset  ctrl+h: help")
 	}
 	return game.StatusBarStyle().Render("1-9: place  bkspc: clear")
 }

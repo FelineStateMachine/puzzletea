@@ -1,6 +1,7 @@
 package fillomino
 
 import (
+	"image"
 	"image/color"
 	"math/rand/v2"
 	"strings"
@@ -192,67 +193,201 @@ func TestCellViewConflictedCursorIsDistinct(t *testing.T) {
 	}
 }
 
-func TestDynamicGridEdges(t *testing.T) {
-	g := grid{
-		{2, 2, 1},
-		{3, 3, 1},
-	}
-	h := grid{
-		{4, 1},
-		{4, 2},
+func TestGridViewRendersRegionBoundaries(t *testing.T) {
+	m := Model{
+		width:     3,
+		height:    2,
+		grid:      grid{{2, 2, 1}, {2, 3, 1}},
+		provided:  newProvidedMask(grid{{2, 2, 1}, {2, 3, 1}}),
+		conflicts: validateGridState(grid{{2, 2, 1}, {2, 3, 1}}).conflicts,
 	}
 
-	if hasVerticalEdge(g, 1, 0) {
-		t.Fatal("expected open interior edge inside a region")
+	lines := strings.Split(ansi.Strip(gridView(m)), "\n")
+	content := []rune(lines[1])
+	if got := content[4]; got != ' ' {
+		t.Fatalf("interior separator inside region = %q, want space", got)
 	}
-	if !hasVerticalEdge(g, 2, 0) {
-		t.Fatal("expected border between different regions")
+	if got := content[8]; got != '│' {
+		t.Fatalf("separator between regions = %q, want vertical wall", got)
 	}
-	if horizontalEdge(h, 0, 1) {
-		t.Fatal("expected open horizontal edge inside a region")
+
+	boundary := []rune(lines[2])
+	if got := boundary[1]; got != ' ' {
+		t.Fatalf("row separator inside region = %q, want space", got)
 	}
-	if !horizontalEdge(g, 0, 0) {
-		t.Fatal("expected top outer border")
+	if got := boundary[5]; got != '─' {
+		t.Fatalf("row separator between regions = %q, want horizontal wall", got)
 	}
 }
 
-func TestCompletedRegionGapBackgrounds(t *testing.T) {
-	conflicts := validateGridState(grid{{4, 4}, {4, 4}}).conflicts
+func TestBridgeFillUsesCrosshairColorAcrossEmptyBoundary(t *testing.T) {
 	m := Model{
 		width:     2,
-		height:    2,
-		grid:      grid{{4, 4}, {4, 4}},
-		conflicts: conflicts,
+		height:    1,
+		grid:      grid{{0, 0}},
+		conflicts: validateGridState(grid{{0, 0}}).conflicts,
+		cursor:    pointCursor(0, 0),
 	}
-	completed := completedRegionBackgrounds(m.grid, m.conflicts)
-	regionSet := map[point]struct{}{}
+	renderState := buildRenderGridState(m)
 
-	if got := verticalGapBackground(m, regionSet, completed, 1, 0); got == nil {
-		t.Fatal("expected completed region to color vertical interior gap")
-	}
-	if got := horizontalGapBackground(m, regionSet, completed, 0, 1); got == nil {
-		t.Fatal("expected completed region to color horizontal interior gap")
-	}
-	if got := junctionGapBackground(m, regionSet, completed, 1, 1); got == nil {
-		t.Fatal("expected completed region to color interior junction")
+	got := bridgeFill(m, renderState, game.DynamicGridBridge{
+		Kind:    game.DynamicGridBridgeVertical,
+		X:       1,
+		Y:       0,
+		Count:   2,
+		Zone:    renderState.zones[0][0],
+		Uniform: true,
+		Cells: [4]image.Point{
+			{X: 0, Y: 0},
+			{X: 1, Y: 0},
+		},
+	})
+	if !sameColor(got, theme.Current().Surface) {
+		t.Fatal("expected empty bridge on cursor crosshair to use surface background")
 	}
 }
 
-func TestConflictGapBackgroundUsesConflictColor(t *testing.T) {
-	conflicts := validateGridState(grid{{4, 4}, {4, 4}}).conflicts
+func TestBridgeFillDoesNotExpandIntoOpenInterior(t *testing.T) {
+	m := Model{
+		width:     3,
+		height:    3,
+		grid:      grid{{0, 0, 0}, {0, 0, 0}, {0, 0, 0}},
+		conflicts: validateGridState(grid{{0, 0, 0}, {0, 0, 0}, {0, 0, 0}}).conflicts,
+		cursor:    pointCursor(1, 1),
+	}
+	renderState := buildRenderGridState(m)
+
+	if got := bridgeFill(m, renderState, game.DynamicGridBridge{
+		Kind:    game.DynamicGridBridgeVertical,
+		X:       1,
+		Y:       1,
+		Count:   2,
+		Zone:    renderState.zones[1][0],
+		Uniform: true,
+		Cells: [4]image.Point{
+			{X: 0, Y: 1},
+			{X: 1, Y: 1},
+		},
+	}); got != nil {
+		t.Fatal("expected fully open interior bridge to remain unfilled")
+	}
+}
+
+func TestBridgeFillVerticalUsesRowCrosshairOnly(t *testing.T) {
 	m := Model{
 		width:     2,
 		height:    2,
-		grid:      grid{{4, 4}, {4, 4}},
-		conflicts: conflicts,
+		grid:      grid{{0, 0}, {0, 0}},
+		conflicts: validateGridState(grid{{0, 0}, {0, 0}}).conflicts,
+		cursor:    pointCursor(0, 1),
 	}
-	m.conflicts[0][0] = true
+	renderState := buildRenderGridState(m)
 
-	if got := verticalGapBackground(m, nil, nil, 1, 0); !sameColor(got, game.ConflictBG()) {
-		t.Fatal("expected conflict color to bridge vertical interior gap")
+	if got := bridgeFill(m, renderState, game.DynamicGridBridge{
+		Kind:    game.DynamicGridBridgeVertical,
+		X:       1,
+		Y:       0,
+		Count:   2,
+		Zone:    renderState.zones[0][0],
+		Uniform: true,
+		Cells: [4]image.Point{
+			{X: 0, Y: 0},
+			{X: 1, Y: 0},
+		},
+	}); got != nil {
+		t.Fatal("expected vertical bridge to ignore column-only crosshair match")
 	}
-	if got := junctionGapBackground(m, nil, nil, 1, 1); !sameColor(got, game.ConflictBG()) {
-		t.Fatal("expected conflict color to bridge interior junction")
+}
+
+func TestBridgeFillHorizontalUsesColumnCrosshairOnly(t *testing.T) {
+	m := Model{
+		width:     2,
+		height:    2,
+		grid:      grid{{0, 0}, {0, 0}},
+		conflicts: validateGridState(grid{{0, 0}, {0, 0}}).conflicts,
+		cursor:    pointCursor(1, 0),
+	}
+	renderState := buildRenderGridState(m)
+
+	if got := bridgeFill(m, renderState, game.DynamicGridBridge{
+		Kind:    game.DynamicGridBridgeHorizontal,
+		X:       0,
+		Y:       1,
+		Count:   2,
+		Zone:    renderState.zones[0][0],
+		Uniform: true,
+		Cells: [4]image.Point{
+			{X: 0, Y: 0},
+			{X: 0, Y: 1},
+		},
+	}); got != nil {
+		t.Fatal("expected horizontal bridge to ignore row-only crosshair match")
+	}
+}
+
+func TestBridgeFillExtendsThroughClosedVerticalSeparator(t *testing.T) {
+	m := Model{
+		width:     2,
+		height:    1,
+		grid:      grid{{1, 2}},
+		conflicts: validateGridState(grid{{1, 2}}).conflicts,
+		cursor:    pointCursor(0, 0),
+	}
+	renderState := buildRenderGridState(m)
+
+	got := bridgeFill(m, renderState, game.DynamicGridBridge{
+		Kind: game.DynamicGridBridgeVertical,
+		X:    1,
+		Y:    0,
+	})
+	if !sameColor(got, theme.Current().Surface) {
+		t.Fatal("expected closed vertical separator on cursor row to use surface background")
+	}
+}
+
+func TestBridgeFillExtendsThroughClosedHorizontalSeparator(t *testing.T) {
+	m := Model{
+		width:     1,
+		height:    2,
+		grid:      grid{{1}, {2}},
+		conflicts: validateGridState(grid{{1}, {2}}).conflicts,
+		cursor:    pointCursor(0, 0),
+	}
+	renderState := buildRenderGridState(m)
+
+	got := bridgeFill(m, renderState, game.DynamicGridBridge{
+		Kind: game.DynamicGridBridgeHorizontal,
+		X:    0,
+		Y:    1,
+	})
+	if !sameColor(got, theme.Current().Surface) {
+		t.Fatal("expected closed horizontal separator on cursor column to use surface background")
+	}
+}
+
+func TestBridgeFillPreservesActiveRegionBackground(t *testing.T) {
+	m := Model{
+		width:     2,
+		height:    1,
+		grid:      grid{{2, 2}},
+		conflicts: validateGridState(grid{{2, 2}}).conflicts,
+		cursor:    pointCursor(0, 0),
+	}
+	renderState := buildRenderGridState(m)
+
+	if got := bridgeFill(m, renderState, game.DynamicGridBridge{
+		Kind:    game.DynamicGridBridgeVertical,
+		X:       1,
+		Y:       0,
+		Count:   2,
+		Zone:    renderState.zones[0][0],
+		Uniform: true,
+		Cells: [4]image.Point{
+			{X: 0, Y: 0},
+			{X: 1, Y: 0},
+		},
+	}); got != nil {
+		t.Fatal("expected active region bridge to defer to region background")
 	}
 }
 
@@ -302,21 +437,60 @@ func TestGridViewOmitsBorderBetweenAdjacentEmptyCells(t *testing.T) {
 	}
 }
 
-func TestSolvedGapBackgroundUsesSolvedColor(t *testing.T) {
-	conflicts := validateGridState(grid{{2, 2}}).conflicts
+func TestCursorRegionInfoViewNumberedCell(t *testing.T) {
 	m := Model{
-		width:     2,
-		height:    1,
-		grid:      grid{{2, 2}},
-		conflicts: conflicts,
-		solved:    true,
+		width:     3,
+		height:    3,
+		grid:      grid{{2, 2, 1}, {3, 0, 0}, {0, 0, 1}},
+		provided:  newProvidedMask(grid{{2, 2, 1}, {3, 0, 0}, {0, 0, 1}}),
+		conflicts: validateGridState(grid{{2, 2, 1}, {3, 0, 0}, {0, 0, 1}}).conflicts,
+		cursor:    pointCursor(0, 0),
 	}
-	got := verticalGapBackground(m, nil, nil, 1, 0)
-	if got == nil {
-		t.Fatal("expected solved gap background")
+
+	if got, want := ansi.Strip(cursorRegionInfoView(m)), "region size: 2/2"; got != want {
+		t.Fatalf("cursorRegionInfoView() = %q, want %q", got, want)
 	}
-	if !sameColor(got, theme.Current().SuccessBG) {
-		t.Fatal("expected solved gap background to use solved color")
+}
+
+func TestCursorRegionInfoViewEmptyRegion(t *testing.T) {
+	m := Model{
+		width:     3,
+		height:    3,
+		grid:      grid{{2, 2, 0}, {3, 0, 0}, {0, 0, 1}},
+		provided:  newProvidedMask(grid{{2, 2, 0}, {3, 0, 0}, {0, 0, 1}}),
+		conflicts: validateGridState(grid{{2, 2, 0}, {3, 0, 0}, {0, 0, 1}}).conflicts,
+		cursor:    pointCursor(2, 1),
+	}
+
+	if got, want := ansi.Strip(cursorRegionInfoView(m)), "region size: 5/-"; got != want {
+		t.Fatalf("cursorRegionInfoView() = %q, want %q", got, want)
+	}
+}
+
+func TestViewKeepsStableHeightAcrossCursorRegionInfoChanges(t *testing.T) {
+	baseGrid := grid{
+		{2, 2, 1},
+		{3, 0, 0},
+		{0, 0, 1},
+	}
+	m := Model{
+		width:        3,
+		height:       3,
+		grid:         baseGrid,
+		provided:     newProvidedMask(baseGrid),
+		conflicts:    validateGridState(baseGrid).conflicts,
+		modeTitle:    "Test",
+		maxCellValue: 3,
+	}
+
+	numbered := m
+	numbered.cursor = pointCursor(0, 0)
+
+	empty := m
+	empty.cursor = pointCursor(2, 1)
+
+	if got, want := lipgloss.Height(empty.View()), lipgloss.Height(numbered.View()); got != want {
+		t.Fatalf("height(empty) = %d, want %d", got, want)
 	}
 }
 

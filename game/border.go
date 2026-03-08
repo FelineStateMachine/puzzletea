@@ -2,6 +2,7 @@ package game
 
 import (
 	"image/color"
+	"strings"
 
 	"charm.land/lipgloss/v2"
 	"github.com/FelineStateMachine/puzzletea/theme"
@@ -15,6 +16,26 @@ type GridBorderColors struct {
 	CrosshairBG    color.Color
 	SolvedBorderFG color.Color
 	SolvedBG       color.Color
+}
+
+func borderColors(colors GridBorderColors, solved bool, bg color.Color) (color.Color, color.Color) {
+	fg := colors.BorderFG
+	background := bg
+
+	if solved {
+		fg = colors.SolvedBorderFG
+	}
+
+	if background == nil {
+		background = colors.BackgroundBG
+		if solved {
+			background = colors.SolvedBG
+		}
+		return fg, background
+	}
+
+	// Tinted bridge/crosshair backgrounds need a contrast-aware foreground.
+	return theme.TextOnBG(background), background
 }
 
 // DefaultBorderColors returns border colors from the active theme.
@@ -31,13 +52,12 @@ func DefaultBorderColors() GridBorderColors {
 
 // BorderChar renders a single border character with optional crosshair highlighting.
 func BorderChar(ch string, colors GridBorderColors, solved, highlight bool) string {
-	s := lipgloss.NewStyle().Foreground(colors.BorderFG).Background(colors.BackgroundBG)
-	if solved {
-		s = lipgloss.NewStyle().Foreground(colors.SolvedBorderFG).Background(colors.SolvedBG)
-	} else if highlight {
-		s = s.Background(colors.CrosshairBG)
+	bg := color.Color(nil)
+	if highlight && !solved {
+		bg = colors.CrosshairBG
 	}
-	return s.Render(ch)
+	fg, bg := borderColors(colors, solved, bg)
+	return lipgloss.NewStyle().Foreground(fg).Background(bg).Render(ch)
 }
 
 // HBorderRow builds a horizontal border row (top or bottom) with per-column
@@ -45,18 +65,15 @@ func BorderChar(ch string, colors GridBorderColors, solved, highlight bool) stri
 func HBorderRow(w, cursorX, cellWidth int, left, right string, colors GridBorderColors, solved bool) string {
 	var parts []string
 	parts = append(parts, BorderChar(left, colors, solved, false))
-	segment := ""
-	for range cellWidth {
-		segment += "─"
-	}
+	segment := strings.Repeat("─", cellWidth)
 	for x := range w {
 		highlight := !solved && x == cursorX
-		s := lipgloss.NewStyle().Foreground(colors.BorderFG).Background(colors.BackgroundBG)
-		if solved {
-			s = lipgloss.NewStyle().Foreground(colors.SolvedBorderFG).Background(colors.SolvedBG)
-		} else if highlight {
-			s = s.Background(colors.CrosshairBG)
+		bg := color.Color(nil)
+		if highlight {
+			bg = colors.CrosshairBG
 		}
+		fg, bg := borderColors(colors, solved, bg)
+		s := lipgloss.NewStyle().Foreground(fg).Background(bg)
 		parts = append(parts, s.Render(segment))
 	}
 	parts = append(parts, BorderChar(right, colors, solved, false))

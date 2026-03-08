@@ -4,10 +4,11 @@ package nonogram
 import (
 	"errors"
 	"fmt"
+	"strconv"
+	"strings"
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 	"github.com/FelineStateMachine/puzzletea/game"
 )
 
@@ -15,6 +16,14 @@ const (
 	filledTile = '.'
 	markedTile = '-'
 	emptyTile  = ' '
+)
+
+type dragAxis uint8
+
+const (
+	dragAxisNone dragAxis = iota
+	dragAxisHorizontal
+	dragAxisVertical
 )
 
 var _ game.Gamer = Model{}
@@ -36,7 +45,10 @@ type Model struct {
 	supportsKeyRelease bool // set from tea.KeyboardEnhancementsMsg
 
 	// Mouse drag support.
-	dragging rune // 0 = not dragging, filledTile or markedTile while mouse held
+	dragging     rune // 0 = not dragging, filledTile or markedTile while mouse held
+	dragStartCol int
+	dragStartRow int
+	dragAxis     dragAxis
 
 	// Screen geometry for mouse hit-testing.
 	termWidth, termHeight int
@@ -137,7 +149,7 @@ func (m Model) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 	case tea.MouseClickMsg:
 		m.lastMouseX, m.lastMouseY = msg.X, msg.Y
 		m.lastMouseBtn = msg.String()
-		col, row, ok := m.screenToGrid(msg.X, msg.Y)
+		col, row, ok := m.screenToGrid(msg.X, msg.Y, false)
 		m.lastMouseGridCol, m.lastMouseGridRow = col, row
 		m.lastMouseHit = ok
 		if m.solved || !ok {
@@ -147,17 +159,21 @@ func (m Model) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 		switch msg.Button {
 		case tea.MouseLeft:
 			m.toggleTile(filledTile)
-			m.dragging = filledTile
+			m.startDrag(filledTile, col, row)
 		case tea.MouseRight:
 			m.toggleTile(markedTile)
-			m.dragging = markedTile
+			m.startDrag(markedTile, col, row)
 		}
 
 	case tea.MouseMotionMsg:
 		if m.solved || m.dragging == 0 {
 			break
 		}
-		col, row, ok := m.screenToGrid(msg.X, msg.Y)
+		col, row, ok := m.screenToGrid(msg.X, msg.Y, true)
+		if !ok {
+			break
+		}
+		col, row, ok = m.lockedDragTarget(col, row)
 		if !ok {
 			break
 		}
@@ -169,7 +185,7 @@ func (m Model) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 		m.updateTile(m.dragging)
 
 	case tea.MouseReleaseMsg:
-		m.dragging = 0
+		m.clearDrag()
 	}
 
 	m.updateKeyBindings()
@@ -177,24 +193,18 @@ func (m Model) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 }
 
 func (m Model) View() string {
-	maxWidth, maxHeight := m.rowHints.RequiredLen()*cellWidth, m.colHints.RequiredLen()
-
 	title := game.TitleBarView("Nonogram", m.modeTitle, m.solved)
-	g := gridView(m.grid, m.cursor, m.solved)
-	r := rowHintView(m.rowHints, maxWidth, m.currentHints.rows)
-	c := colHintView(m.colHints, maxHeight, m.currentHints.cols)
-	spacer := lipgloss.NewStyle().Width(maxWidth).Height(maxHeight).Render("")
+	board := buildBoardBlock(m)
 	status := statusBarView(m.showFullHelp)
-
-	s1 := lipgloss.JoinHorizontal(lipgloss.Bottom, spacer, c)
-	s2 := lipgloss.JoinHorizontal(lipgloss.Top, r, g)
-
-	grid := lipgloss.JoinVertical(lipgloss.Center, s1, s2)
 	if m.solved {
-		return game.ComposeGameView(title, grid)
+		return game.ComposeGameView(title, board.Block)
 	}
 
-	return game.ComposeGameViewRows(title, grid, game.StableRow(status, statusBarView(false), statusBarView(true)))
+	return game.ComposeGameViewRows(
+		title,
+		board.Block,
+		game.StableRow(status, statusBarView(false), statusBarView(true)),
+	)
 }
 
 func (m Model) GetDebugInfo() string {
@@ -216,7 +226,7 @@ func (m Model) GetDebugInfo() string {
 		{"Term Size", fmt.Sprintf("%d x %d", m.termWidth, m.termHeight)},
 		{"Grid Origin", fmt.Sprintf("(%d, %d)", ox, oy)},
 		{"Last Mouse", fmt.Sprintf("screen=(%d, %d) btn=%s grid=%s", m.lastMouseX, m.lastMouseY, m.lastMouseBtn, hitStr)},
-		{"Paint/Drag", fmt.Sprintf("brush=%d drag=%d keyrel=%v", m.paintBrush, m.dragging, m.supportsKeyRelease)},
+		{"Paint/Drag", fmt.Sprintf("brush=%d drag=%d axis=%d start=(%d, %d) keyrel=%v", m.paintBrush, m.dragging, m.dragAxis, m.dragStartCol, m.dragStartRow, m.supportsKeyRelease)},
 	})
 
 	s += tomoDebugTable("Row Tomography", "Row", m.rowHints, m.currentHints.rows)
@@ -247,14 +257,14 @@ func intSliceStr(s []int) string {
 	if len(s) == 0 {
 		return "[]"
 	}
-	result := ""
+	var b strings.Builder
 	for i, v := range s {
 		if i > 0 {
-			result += ", "
+			b.WriteString(", ")
 		}
-		result += fmt.Sprintf("%d", v)
+		b.WriteString(strconv.Itoa(v))
 	}
-	return result
+	return b.String()
 }
 
 func (m Model) SetTitle(t string) game.Gamer {
@@ -274,7 +284,7 @@ func (m Model) Reset() game.Gamer {
 	m.solved = false
 	m.cursor = game.Cursor{}
 	m.paintBrush = 0
-	m.dragging = 0
+	m.clearDrag()
 	m.originValid = false
 	return m
 }
@@ -298,4 +308,18 @@ func (m *Model) toggleTile(target rune) {
 	} else {
 		m.updateTile(target)
 	}
+}
+
+func (m *Model) startDrag(brush rune, col, row int) {
+	m.dragging = brush
+	m.dragStartCol = col
+	m.dragStartRow = row
+	m.dragAxis = dragAxisNone
+}
+
+func (m *Model) clearDrag() {
+	m.dragging = 0
+	m.dragStartCol = 0
+	m.dragStartRow = 0
+	m.dragAxis = dragAxisNone
 }

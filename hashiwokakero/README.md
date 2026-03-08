@@ -16,7 +16,7 @@ bridges and all islands are connected.
 2. Press an arrow key toward an adjacent island to build a bridge.
 3. Press the same direction again to upgrade to a double bridge, or a
    third time to remove the bridge.
-4. Press `Enter`, `Space`, or `Escape` to deselect.
+4. Press `Enter` or `Space` again to deselect.
 
 ## Controls
 
@@ -29,14 +29,14 @@ bridges and all islands are connected.
 | `Ctrl+R` | Reset puzzle |
 | `Ctrl+H` | Toggle full help |
 | `Ctrl+E` | Toggle debug overlay |
-| `Ctrl+N` | Return to main menu |
+| `Escape` | Return to main menu |
 
 ### Bridge Mode (after selecting an island)
 
 | Key | Action |
 |-----|--------|
 | Arrow keys / WASD / hjkl | Build or cycle bridge in direction |
-| `Enter` / `Space` / `Escape` | Deselect island |
+| `Enter` / `Space` | Deselect island |
 
 ## Modes
 

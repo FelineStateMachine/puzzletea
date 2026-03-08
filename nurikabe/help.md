@@ -10,7 +10,8 @@ Shade cells as sea so every numbered island has the correct size.
 - Sea cells must form one orthogonally connected region.
 - A 2x2 block of sea cells is not allowed.
 
-The puzzle is solved when all cells are decided and all rules hold.
+The puzzle is solved when every sea cell is marked and all rules hold. Any
+remaining undecided non-sea cells count as island.
 
 ## Controls
 
@@ -22,13 +23,14 @@ The puzzle is solved when all cells are decided and all rules hold.
 | `Backspace` | Clear to unknown |
 | `Ctrl+H` | Toggle help bar |
 | `Ctrl+R` | Reset puzzle |
-| `Ctrl+N` | Return to main menu |
+| `Escape` | Return to main menu |
 
 ## Mouse
 
 | Action | Effect |
 |--------|--------|
-| Left click / drag | Toggle sea/unknown from click target, then paint that target while dragging |
+| Left click | Move cursor, or set sea on the current cell |
+| Left drag | Paint sea from the current cell |
 | Right click / drag | Set island cells |
 
 ## Tips

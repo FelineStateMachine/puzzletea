@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 )
 
 var errNodeLimit = errors.New("solver node limit exceeded")
@@ -279,6 +280,23 @@ func isSolvedGrid(g grid, clues clueGrid) bool {
 }
 
 func isSolvedGridWithScratch(g grid, clues clueGrid, scratch *solverScratch) bool {
+	normalized := normalizeSolvedGrid(g, clues)
+	return isNormalizedSolvedGridWithScratch(normalized, clues, scratch)
+}
+
+func normalizeSolvedGrid(g grid, clues clueGrid) grid {
+	normalized := g.clone()
+	for y := range normalized {
+		for x := range normalized[y] {
+			if clues[y][x] > 0 || normalized[y][x] != seaCell {
+				normalized[y][x] = islandCell
+			}
+		}
+	}
+	return normalized
+}
+
+func isNormalizedSolvedGridWithScratch(g grid, clues clueGrid, scratch *solverScratch) bool {
 	if len(g) == 0 || len(g[0]) == 0 {
 		return false
 	}
@@ -425,14 +443,6 @@ func seaCanRemainConnectedWithScratch(g grid, scratch *solverScratch) bool {
 		}
 	}
 	return true
-}
-
-func isSeaConnected(g grid) bool {
-	if len(g) == 0 || len(g[0]) == 0 {
-		return false
-	}
-	scratch := newSolverScratch(len(g[0]), len(g))
-	return isSeaConnectedWithScratch(g, scratch)
 }
 
 func isSeaConnectedWithScratch(g grid, scratch *solverScratch) bool {
@@ -649,10 +659,8 @@ func maxReachableForComponentWithScratch(
 
 func hasAnyUnknown(g grid) bool {
 	for _, row := range g {
-		for _, c := range row {
-			if c == unknownCell {
-				return true
-			}
+		if slices.Contains(row, unknownCell) {
+			return true
 		}
 	}
 	return false

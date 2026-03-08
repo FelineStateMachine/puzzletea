@@ -11,7 +11,7 @@ Find hidden words in a letter grid.
 
 To select a word, move to its first letter and press `Enter` or `Space`,
 navigate to the last letter, then press `Enter` or `Space` to confirm.
-Press `Escape` to cancel a selection.
+Press `Backspace` to cancel a selection.
 
 ## Controls
 
@@ -21,10 +21,10 @@ Press `Escape` to cancel a selection.
 |-----|--------|
 | `Arrows` / `wasd` / `hjkl` | Move cursor |
 | `Enter` / `Space` | Select start or confirm end |
-| `Escape` | Cancel current selection |
+| `Backspace` | Cancel current selection |
 | `Ctrl+H` | Toggle help bar |
 | `Ctrl+R` | Reset puzzle |
-| `Ctrl+N` | Return to main menu |
+| `Escape` | Return to main menu |
 
 ### Mouse
 

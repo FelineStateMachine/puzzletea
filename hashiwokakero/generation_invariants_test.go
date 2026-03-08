@@ -92,9 +92,6 @@ func assertNoBridgeCrossings(t *testing.T, p *Puzzle) {
 
 func TestGeneratePuzzleRequiredCountsByBoardSize(t *testing.T) {
 	for modeIndex, mode := range benchmarkHashiModesByBoardSize() {
-		mode := mode
-		modeIndex := modeIndex
-
 		t.Run(mode.Title(), func(t *testing.T) {
 			puzzle, err := GeneratePuzzleSeeded(mode, rand.New(rand.NewPCG(uint64(modeIndex+900), uint64(modeIndex+901))))
 			if err != nil {
@@ -117,7 +114,6 @@ func TestGeneratePuzzleRequiredCountsByBoardSize(t *testing.T) {
 
 func TestBridgeLayoutConstraintInvariantsByBoardSize(t *testing.T) {
 	for _, mode := range benchmarkHashiModesByBoardSize() {
-		mode := mode
 		t.Run(mode.Title(), func(t *testing.T) {
 			p := testBridgeLayoutByMode(t, mode)
 

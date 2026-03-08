@@ -13,7 +13,7 @@ The puzzle is solved when all words are found.
 
 1. Move the cursor to the start of a word and press `Enter` or `Space`.
 2. Navigate to the end of the word.
-3. Press `Enter` or `Space` to confirm, or `Escape` to cancel.
+3. Press `Enter` or `Space` to confirm, or `Backspace` to cancel.
 
 ## Controls
 
@@ -21,11 +21,11 @@ The puzzle is solved when all words are found.
 |-----|--------|
 | Arrow keys / WASD / hjkl | Move cursor |
 | `Enter` / `Space` | Select start or confirm end |
-| `Escape` | Cancel current selection |
+| `Backspace` | Cancel current selection |
 | `Ctrl+R` | Reset puzzle |
 | `Ctrl+H` | Toggle full help |
 | `Ctrl+E` | Toggle debug overlay |
-| `Ctrl+N` | Return to main menu |
+| `Escape` | Return to main menu |
 
 ## Modes
 

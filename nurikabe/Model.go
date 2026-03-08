@@ -108,12 +108,19 @@ func (m Model) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 		col, row, ok := m.screenToGrid(msg.X, msg.Y)
 		m.lastMouseGridCol, m.lastMouseGridRow = col, row
 		m.lastMouseHit = ok
-		if m.solved || !ok {
+		if !ok {
 			break
 		}
+		sameCell := col == m.cursor.X && row == m.cursor.Y
 		m.cursor.X, m.cursor.Y = col, row
+		if m.solved {
+			break
+		}
 		switch msg.Button {
 		case tea.MouseLeft:
+			if !sameCell {
+				break
+			}
 			target := m.leftClickTarget()
 			m.dragging = true
 			m.dragTarget = target
@@ -126,18 +133,20 @@ func (m Model) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 		}
 
 	case tea.MouseMotionMsg:
-		if m.solved || !m.dragging {
-			break
+		if m.dragging {
+			if m.solved {
+				break
+			}
+			col, row, ok := m.screenToGridDrag(msg.X, msg.Y)
+			if !ok {
+				break
+			}
+			if col == m.cursor.X && row == m.cursor.Y {
+				break
+			}
+			m.cursor.X, m.cursor.Y = col, row
+			m.setCellAtCursor(m.dragTarget)
 		}
-		col, row, ok := m.screenToGrid(msg.X, msg.Y)
-		if !ok {
-			break
-		}
-		if col == m.cursor.X && row == m.cursor.Y {
-			break
-		}
-		m.cursor.X, m.cursor.Y = col, row
-		m.setCellAtCursor(m.dragTarget)
 
 	case tea.MouseReleaseMsg:
 		m.dragging = false

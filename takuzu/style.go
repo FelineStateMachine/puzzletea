@@ -1,38 +1,34 @@
 package takuzu
 
 import (
+	"image/color"
+
 	"charm.land/lipgloss/v2"
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/theme"
 )
 
-const cellWidth = 3
+const cellWidth = game.DynamicGridCellWidth
 
 var renderRuneMap = map[rune]string{
-	zeroCell:  " \u25cf ",
-	oneCell:   " \u25cb ",
-	emptyCell: " \u00b7 ",
+	zeroCell:  " ● ",
+	oneCell:   " ○ ",
+	emptyCell: " · ",
 }
 
 func zeroStyle() lipgloss.Style {
 	p := theme.Current()
-	return lipgloss.NewStyle().
-		Foreground(p.Accent).
-		Background(p.BG)
+	return lipgloss.NewStyle().Foreground(p.Accent).Background(p.BG)
 }
 
 func oneStyle() lipgloss.Style {
 	p := theme.Current()
-	return lipgloss.NewStyle().
-		Foreground(p.Secondary).
-		Background(p.BG)
+	return lipgloss.NewStyle().Foreground(p.Secondary).Background(p.BG)
 }
 
 func emptyStyle() lipgloss.Style {
 	p := theme.Current()
-	return lipgloss.NewStyle().
-		Foreground(p.TextDim).
-		Background(p.BG)
+	return lipgloss.NewStyle().Foreground(p.TextDim).Background(p.BG)
 }
 
 func renderStyleMap() map[rune]lipgloss.Style {
@@ -46,74 +42,73 @@ func renderStyleMap() map[rune]lipgloss.Style {
 func cellView(val rune, isProvided, isCursor, inCursorRow, inCursorCol, solved bool) string {
 	p := theme.Current()
 	styles := renderStyleMap()
-	s, ok := styles[val]
+	style, ok := styles[val]
 	if !ok {
-		s = emptyStyle()
+		style = emptyStyle()
 	}
 
 	if isProvided && val != emptyCell {
-		s = s.Bold(true)
+		style = style.Bold(true)
 	}
 
-	r, ok := renderRuneMap[val]
+	text, ok := renderRuneMap[val]
 	if !ok {
-		r = renderRuneMap[emptyCell]
+		text = renderRuneMap[emptyCell]
 	}
 
-	if isCursor && solved {
-		s = game.CursorSolvedStyle()
-		r = game.CursorLeft + string([]rune(r)[1]) + game.CursorRight
-	} else if isCursor {
-		s = game.CursorStyle()
-		r = game.CursorLeft + string([]rune(r)[1]) + game.CursorRight
-	} else if solved {
-		s = s.Foreground(p.SolvedFG).Background(p.SuccessBG)
-	} else if inCursorRow || inCursorCol {
-		s = s.Background(p.Surface)
+	switch {
+	case isCursor && solved:
+		style = game.CursorSolvedStyle()
+		text = game.CursorLeft + string([]rune(text)[1]) + game.CursorRight
+	case isCursor:
+		style = game.CursorStyle()
+		text = game.CursorLeft + string([]rune(text)[1]) + game.CursorRight
+	case solved:
+		style = style.Foreground(p.SolvedFG).Background(p.SuccessBG)
+	case inCursorRow || inCursorCol:
+		style = style.Background(p.Surface)
 	}
 
-	return s.Width(cellWidth).AlignHorizontal(lipgloss.Center).Render(r)
+	return style.Width(cellWidth).AlignHorizontal(lipgloss.Center).Render(text)
 }
 
-func gridView(g grid, provided [][]bool, c game.Cursor, solved bool) string {
-	colors := game.DefaultBorderColors()
+func gridView(m Model) string {
+	return game.RenderDynamicGrid(game.DynamicGridSpec{
+		Width:  m.size,
+		Height: m.size,
+		Solved: m.solved,
+		Cell: func(x, y int) string {
+			return cellView(
+				m.grid[y][x],
+				m.provided[y][x],
+				x == m.cursor.X && y == m.cursor.Y,
+				y == m.cursor.Y,
+				x == m.cursor.X,
+				m.solved,
+			)
+		},
+		ZoneAt: func(_, _ int) int {
+			return 0
+		},
+		BridgeFill: func(bridge game.DynamicGridBridge) color.Color {
+			return bridgeFill(m, bridge)
+		},
+	})
+}
 
-	w := 0
-	if len(g) > 0 {
-		w = len(g[0])
+func bridgeFill(m Model, bridge game.DynamicGridBridge) color.Color {
+	if m.solved {
+		return nil
 	}
-
-	var rows []string
-	for y, row := range g {
-		var rowCells []string
-		inCursorRow := y == c.Y
-
-		// Left border segment for this row.
-		rowCells = append(rowCells, game.BorderChar("\u2502", colors, solved, !solved && inCursorRow))
-
-		for x, val := range row {
-			isCursor := x == c.X && y == c.Y
-			inCursorCol := x == c.X
-			cell := cellView(val, provided[y][x], isCursor, inCursorRow, inCursorCol, solved)
-			rowCells = append(rowCells, cell)
-		}
-
-		// Right border segment for this row.
-		rowCells = append(rowCells, game.BorderChar("\u2502", colors, solved, !solved && inCursorRow))
-
-		rows = append(rows, lipgloss.JoinHorizontal(lipgloss.Top, rowCells...))
+	if game.DynamicGridBridgeOnCrosshairAxis(m.cursor, bridge) {
+		return theme.Current().Surface
 	}
-
-	// Build top and bottom border rows with per-column crosshair highlighting.
-	topRow := game.HBorderRow(w, c.X, cellWidth, "\u256d", "\u256e", colors, solved)
-	botRow := game.HBorderRow(w, c.X, cellWidth, "\u2570", "\u256f", colors, solved)
-
-	return lipgloss.JoinVertical(lipgloss.Left, topRow, lipgloss.JoinVertical(lipgloss.Left, rows...), botRow)
+	return nil
 }
 
 func statusBarView(showFullHelp bool) string {
 	if showFullHelp {
-		return game.StatusBarStyle().Render("arrows/wasd: move  z: \u25cf  x: \u25cb  bkspc: clear  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
+		return game.StatusBarStyle().Render("arrows/wasd: move  mouse: click/cycle  z: ●  x: ○  bkspc: clear  esc: menu  ctrl+r: reset  ctrl+h: help")
 	}
-	return game.StatusBarStyle().Render("z: \u25cf  x: \u25cb  bkspc: clear")
+	return game.StatusBarStyle().Render("mouse: click/cycle  z: ●  x: ○")
 }

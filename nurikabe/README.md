@@ -12,6 +12,8 @@ Each number is an island clue. Mark cells as island or sea until all rules are t
 4. No 2x2 sea block is allowed.
 
 Clue cells are fixed and always island cells.
+Once every sea cell is marked, any remaining undecided non-sea cells count as
+island for completion.
 
 ## Controls
 
@@ -24,13 +26,14 @@ Clue cells are fixed and always island cells.
 | `Ctrl+R` | Reset puzzle |
 | `Ctrl+H` | Toggle full help |
 | `Ctrl+E` | Toggle debug overlay |
-| `Ctrl+N` | Return to main menu |
+| `Escape` | Return to main menu |
 
 ## Mouse
 
 | Action | Effect |
 |--------|--------|
-| Left click / drag | Toggle sea/unknown from click target, then paint that target while dragging |
+| Left click | Move cursor, or set sea on the current cell |
+| Left drag | Paint sea from the current cell |
 | Right click / drag | Set island cells |
 
 ## Modes

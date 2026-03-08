@@ -6,7 +6,6 @@ import (
 	"unicode/utf8"
 
 	"codeberg.org/go-pdf/fpdf"
-	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/pdfexport"
 )
 
@@ -73,8 +72,8 @@ func renderHashiPage(pdf *fpdf.Fpdf, data *pdfexport.HashiData) {
 func drawHashiGuideDots(pdf *fpdf.Fpdf, originX, originY float64, width, height int, step float64) {
 	pdf.SetFillColor(230, 230, 230)
 	r := math.Max(0.20, math.Min(0.55, step*0.035))
-	for y := 0; y < height; y++ {
-		for x := 0; x < width; x++ {
+	for y := range height {
+		for x := range width {
 			cx := originX + float64(x)*step
 			cy := originY + float64(y)*step
 			pdf.Circle(cx, cy, r, "F")
@@ -136,5 +135,5 @@ func drawHashiIslandNumber(pdf *fpdf.Fpdf, cx, cy, radius float64, required int)
 }
 
 func init() {
-	game.RegisterPrintAdapter(printAdapter{})
+	pdfexport.RegisterPrintAdapter(printAdapter{})
 }

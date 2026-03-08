@@ -4,7 +4,6 @@ import "charm.land/bubbles/v2/key"
 
 type rootKeyMap struct {
 	Quit      key.Binding
-	MainMenu  key.Binding
 	Enter     key.Binding
 	Escape    key.Binding
 	Debug     key.Binding
@@ -15,9 +14,6 @@ type rootKeyMap struct {
 var rootKeys = rootKeyMap{
 	Quit: key.NewBinding(
 		key.WithKeys("ctrl+c"),
-	),
-	MainMenu: key.NewBinding(
-		key.WithKeys("ctrl+n"),
 	),
 	Enter: key.NewBinding(
 		key.WithKeys("enter"),

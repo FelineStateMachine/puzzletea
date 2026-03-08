@@ -10,10 +10,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/FelineStateMachine/puzzletea/catalog"
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/namegen"
 	"github.com/FelineStateMachine/puzzletea/pdfexport"
+	"github.com/FelineStateMachine/puzzletea/registry"
 	"github.com/FelineStateMachine/puzzletea/resolve"
 
 	"github.com/spf13/cobra"
@@ -31,11 +31,11 @@ func runNewExport(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	cat, err := catalog.Category(args[0])
-	if err != nil {
-		return err
+	entry, ok := registry.Resolve(args[0])
+	if !ok {
+		return fmt.Errorf("unknown game %q", args[0])
 	}
-	if !game.HasPrintAdapter(cat.Name) {
+	if !pdfexport.HasPrintAdapter(entry.Definition.Name) {
 		return nil
 	}
 
@@ -44,13 +44,13 @@ func runNewExport(cmd *cobra.Command, args []string) error {
 		modeArg = args[1]
 	}
 
-	entries, modeSelection, err := collectExportModes(cat, modeArg)
+	entries, modeSelection, err := collectExportModes(entry, modeArg)
 	if err != nil {
 		return err
 	}
 
 	generatedAt := exportNow()
-	records, err := buildExportRecords(cat.Name, modeSelection, entries, flagExport, flagWithSeed, generatedAt)
+	records, err := buildExportRecords(entry.Definition.Name, modeSelection, entries, flagExport, flagWithSeed, generatedAt)
 	if err != nil {
 		return err
 	}
@@ -62,7 +62,7 @@ func runNewExport(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func validateNewExportFlags(cmd *cobra.Command, args []string) error {
+func validateNewExportFlags(_ *cobra.Command, args []string) error {
 	if flagExport < 1 {
 		return fmt.Errorf("--export must be at least 1")
 	}
@@ -81,32 +81,24 @@ func validateNewExportFlags(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func collectExportModes(cat game.Category, modeArg string) ([]exportModeEntry, string, error) {
+func collectExportModes(entry registry.Entry, modeArg string) ([]exportModeEntry, string, error) {
 	if modeArg != "" {
-		spawner, modeTitle, err := resolve.Mode(cat, modeArg)
+		spawner, modeTitle, err := resolve.Mode(entry, modeArg)
 		if err != nil {
 			return nil, "", err
 		}
 		return []exportModeEntry{{spawner: spawner, mode: modeTitle}}, modeTitle, nil
 	}
 
-	entries := make([]exportModeEntry, 0, len(cat.Modes))
-	for _, item := range cat.Modes {
-		mode, ok := item.(game.Mode)
-		if !ok {
-			continue
-		}
-		spawner, ok := item.(game.Spawner)
-		if !ok {
-			continue
-		}
+	entries := make([]exportModeEntry, 0, len(entry.Modes))
+	for _, mode := range entry.Modes {
 		entries = append(entries, exportModeEntry{
-			spawner: spawner,
-			mode:    mode.Title(),
+			spawner: mode.Spawner,
+			mode:    mode.Definition.Title,
 		})
 	}
 	if len(entries) == 0 {
-		return nil, "", fmt.Errorf("game %q has no exportable modes", cat.Name)
+		return nil, "", fmt.Errorf("game %q has no exportable modes", entry.Definition.Name)
 	}
 
 	return entries, "mixed modes", nil
@@ -131,7 +123,7 @@ func buildExportRecords(
 	nameRNG := resolve.RNGFromString("export-names:" + nameSeed)
 
 	records := make([]pdfexport.JSONLRecord, 0, count)
-	for i := 0; i < count; i++ {
+	for i := range count {
 		entry := entries[0]
 		if len(entries) > 1 {
 			var modeIndex int

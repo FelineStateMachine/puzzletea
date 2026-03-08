@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	cellWidth   = 3
+	cellWidth   = game.DynamicGridCellWidth
 	spacerEvery = 5
 )
 
@@ -64,29 +64,6 @@ func renderStyleMap() map[rune]lipgloss.Style {
 // in a dimension of size n (i.e. after every spacerEvery cells, except the last).
 func needsSpacer(i, n int) bool {
 	return n > spacerEvery && (i+1)%spacerEvery == 0 && i < n-1
-}
-
-// hSeparator builds a horizontal separator row using box-drawing characters.
-// w is the number of grid columns. cursorX is the cursor column (-1 to disable crosshair).
-// bg is the default background, crossBG is the crosshair-highlighted background.
-func hSeparator(w, cursorX int, bg, crossBG color.Color) string {
-	p := theme.Current()
-	defStyle := lipgloss.NewStyle().Foreground(p.Border).Background(bg)
-	highStyle := lipgloss.NewStyle().Foreground(p.Border).Background(crossBG)
-	segment := strings.Repeat("\u2500", cellWidth)
-
-	var parts []string
-	for x := range w {
-		style := defStyle
-		if x == cursorX {
-			style = highStyle
-		}
-		parts = append(parts, style.Render(segment))
-		if needsSpacer(x, w) {
-			parts = append(parts, defStyle.Render("\u253c"))
-		}
-	}
-	return lipgloss.JoinHorizontal(lipgloss.Top, parts...)
 }
 
 func colHintView(c TomographyDefinition, height int, current ...TomographyDefinition) string {
@@ -176,56 +153,130 @@ func rowHintView(r TomographyDefinition, width int, current ...TomographyDefinit
 	return s
 }
 
+type boardBlockLayout struct {
+	Block      string
+	Grid       string
+	HintWidth  int
+	HintHeight int
+	Metrics    game.DynamicGridMetrics
+}
+
+func nonogramMetrics(width, height int) game.DynamicGridMetrics {
+	return game.DynamicGridMetrics{
+		Width:     width,
+		Height:    height,
+		CellWidth: cellWidth,
+		VerticalBridgeWidth: func(x int) int {
+			return nonogramVerticalBridgeWidth(width, x)
+		},
+		HorizontalBridgeHeight: func(y int) int {
+			return nonogramHorizontalBridgeHeight(height, y)
+		},
+	}
+}
+
+func nonogramVerticalBridgeWidth(width, x int) int {
+	switch {
+	case x <= 0, x >= width:
+		return 1
+	case needsSpacer(x-1, width):
+		return 1
+	default:
+		return 0
+	}
+}
+
+func nonogramHorizontalBridgeHeight(height, y int) int {
+	switch {
+	case y <= 0, y >= height:
+		return 1
+	case needsSpacer(y-1, height):
+		return 1
+	default:
+		return 0
+	}
+}
+
+func buildBoardBlock(m Model) boardBlockLayout {
+	maxWidth := m.rowHints.RequiredLen() * cellWidth
+	maxHeight := m.colHints.RequiredLen()
+	metrics := nonogramMetrics(m.width, m.height)
+
+	grid := gridView(m.grid, m.cursor, m.solved)
+	rowHints := rowHintView(m.rowHints, maxWidth, m.currentHints.rows)
+	colHints := colHintView(m.colHints, maxHeight, m.currentHints.cols)
+	spacer := lipgloss.NewStyle().Width(maxWidth).Height(maxHeight).Render("")
+	topBand := lipgloss.JoinHorizontal(lipgloss.Bottom, spacer, colHints)
+	block := lipgloss.JoinVertical(
+		lipgloss.Center,
+		topBand,
+		lipgloss.JoinHorizontal(lipgloss.Center, rowHints, grid),
+	)
+
+	return boardBlockLayout{
+		Block:      block,
+		Grid:       grid,
+		HintWidth:  lipgloss.Width(rowHints),
+		HintHeight: lipgloss.Height(topBand),
+		Metrics:    metrics,
+	}
+}
+
 func gridView(g grid, c game.Cursor, solved bool) string {
-	p := theme.Current()
-
-	h := len(g)
-	w := 0
-	if h > 0 {
-		w = len(g[0])
+	height := len(g)
+	width := 0
+	if height > 0 {
+		width = len(g[0])
 	}
+	metrics := nonogramMetrics(width, height)
 
-	sepStyle := lipgloss.NewStyle().Foreground(p.Border)
+	return game.RenderDynamicGrid(game.DynamicGridSpec{
+		Width:                  width,
+		Height:                 height,
+		CellWidth:              cellWidth,
+		Solved:                 solved,
+		VerticalBridgeWidth:    metrics.VerticalBridgeWidth,
+		HorizontalBridgeHeight: metrics.HorizontalBridgeHeight,
+		Cell: func(x, y int) string {
+			return tileView(g[y][x], x == c.X && y == c.Y, y == c.Y, x == c.X, solved)
+		},
+		ZoneAt: func(_, _ int) int {
+			return 0
+		},
+		HasVerticalEdge: func(x, _ int) bool {
+			return x <= 0 || x >= width || needsSpacer(x-1, width)
+		},
+		HasHorizontalEdge: func(_, y int) bool {
+			return y <= 0 || y >= height || needsSpacer(y-1, height)
+		},
+		BridgeFill: func(bridge game.DynamicGridBridge) color.Color {
+			return separatorBridgeFill(c, solved, width, height, bridge)
+		},
+	})
+}
 
-	// Determine background for horizontal separators (matches grid background).
-	gridBG := p.BG
-	crosshairBG := p.Surface
+func separatorBridgeFill(cursor game.Cursor, solved bool, width, height int, bridge game.DynamicGridBridge) color.Color {
 	if solved {
-		gridBG = p.SuccessBG
+		return nil
 	}
 
-	var rows []string
-	for y, row := range g {
-		inCursorRow := y == c.Y
-
-		var rowBuilder []string
-		for x, cell := range row {
-			isCursor := x == c.X && y == c.Y
-			inCursorCol := x == c.X
-			cell := tileView(cell, isCursor, inCursorRow, inCursorCol, solved)
-			rowBuilder = append(rowBuilder, cell)
-
-			if needsSpacer(x, w) {
-				bg := gridBG
-				if !solved && inCursorRow {
-					bg = crosshairBG
-				}
-				rowBuilder = append(rowBuilder, sepStyle.Background(bg).Render("\u2502"))
-			}
+	switch bridge.Kind {
+	case game.DynamicGridBridgeVertical:
+		if bridge.X <= 0 || bridge.X >= width || !needsSpacer(bridge.X-1, width) {
+			return nil
 		}
-		row := lipgloss.JoinHorizontal(lipgloss.Top, rowBuilder...)
-		rows = append(rows, row)
-
-		if needsSpacer(y, h) {
-			cursorX := -1
-			if !solved {
-				cursorX = c.X
-			}
-			rows = append(rows, hSeparator(w, cursorX, gridBG, crosshairBG))
+	case game.DynamicGridBridgeHorizontal:
+		if bridge.Y <= 0 || bridge.Y >= height || !needsSpacer(bridge.Y-1, height) {
+			return nil
 		}
+	default:
+		return nil
 	}
-	grid := lipgloss.JoinVertical(lipgloss.Left, rows...)
-	return grid
+
+	if game.DynamicGridBridgeOnCrosshairAxis(cursor, bridge) {
+		return theme.Current().Surface
+	}
+	return nil
 }
 
 func tileView(val rune, isCursor, inCursorRow, inCursorCol, solved bool) string {
@@ -250,12 +301,7 @@ func tileView(val rune, isCursor, inCursorRow, inCursorCol, solved bool) string 
 	} else if solved {
 		s = s.Foreground(p.SolvedFG).Background(p.SuccessBG)
 	} else if inCursorRow || inCursorCol {
-		// Apply crosshair background tint — filled cells get a more active color
-		if val == filledTile {
-			s = s.Background(theme.MidTone(p.Surface, p.AccentBG))
-		} else {
-			s = s.Background(p.Surface)
-		}
+		s = s.Background(p.Surface)
 	}
 
 	return s.Width(cellWidth).AlignHorizontal(lipgloss.Center).Render(r)
@@ -263,7 +309,7 @@ func tileView(val rune, isCursor, inCursorRow, inCursorCol, solved bool) string 
 
 func statusBarView(showFullHelp bool) string {
 	if showFullHelp {
-		return game.StatusBarStyle().Render("arrows/wasd: move  z: fill (hold+move)  x: mark (hold+move)  bkspc: clear  LMB: fill  RMB: mark  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
+		return game.StatusBarStyle().Render("arrows/wasd: move  z: fill (hold+move)  x: mark (hold+move)  bkspc: clear  LMB: fill  RMB: mark  esc: menu  ctrl+r: reset  ctrl+h: help")
 	}
 	return game.StatusBarStyle().Render("z: fill  x: mark  bkspc: clear  mouse: click/drag")
 }

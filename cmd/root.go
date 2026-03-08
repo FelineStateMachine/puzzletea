@@ -7,9 +7,7 @@ import (
 	"strings"
 
 	"github.com/FelineStateMachine/puzzletea/app"
-	"github.com/FelineStateMachine/puzzletea/catalog"
 	"github.com/FelineStateMachine/puzzletea/config"
-	"github.com/FelineStateMachine/puzzletea/stats"
 	"github.com/FelineStateMachine/puzzletea/store"
 	"github.com/FelineStateMachine/puzzletea/theme"
 
@@ -70,7 +68,6 @@ var RootCmd = &cobra.Command{
 			return err
 		}
 		defer s.Close()
-		stats.InitModeXP(catalog.Categories())
 		p := tea.NewProgram(app.InitialModel(s, cfg))
 		_, err = p.Run()
 		return err

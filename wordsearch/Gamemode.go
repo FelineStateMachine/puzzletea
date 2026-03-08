@@ -61,7 +61,7 @@ var DailyModes = []list.Item{
 
 var Definition = game.Definition{
 	Name:        "Word Search",
-	Description: "Find hidden words in a letter grid.",
+	Description: "Find the hidden words in a letter grid.",
 	Aliases:     []string{"words", "wordsearch", "ws"},
 	Modes:       Modes,
 	DailyModes:  DailyModes,

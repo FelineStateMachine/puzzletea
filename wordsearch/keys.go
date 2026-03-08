@@ -18,8 +18,8 @@ var DefaultKeyMap = KeyMap{
 		key.WithHelp("enter/space", "Select"),
 	),
 	Cancel: key.NewBinding(
-		key.WithKeys("esc"),
-		key.WithHelp("esc", "Cancel"),
+		key.WithKeys("backspace"),
+		key.WithHelp("bkspc", "Cancel"),
 	),
 }
 

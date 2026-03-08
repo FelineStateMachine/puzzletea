@@ -80,9 +80,11 @@ type HitoriData struct {
 }
 
 type TakuzuData struct {
-	Size          int
-	Givens        [][]string
-	GroupEveryTwo bool
+	Size                int
+	Givens              [][]string
+	HorizontalRelations [][]string
+	VerticalRelations   [][]string
+	GroupEveryTwo       bool
 }
 
 type SudokuData struct {

@@ -41,6 +41,18 @@ func unfoundWordStyle() lipgloss.Style {
 		Foreground(theme.Current().Info)
 }
 
+func previewIdleStyle() lipgloss.Style {
+	return game.StatusBarStyle().Foreground(theme.Current().TextDim)
+}
+
+func previewInfoStyle() lipgloss.Style {
+	return game.StatusBarStyle().Foreground(theme.Current().Info)
+}
+
+func previewSuccessStyle() lipgloss.Style {
+	return game.StatusBarStyle().Foreground(theme.Current().SuccessBorder)
+}
+
 func gridBorderStyle() lipgloss.Style {
 	p := theme.Current()
 	return lipgloss.NewStyle().
@@ -104,16 +116,55 @@ func renderView(m Model) string {
 		return game.ComposeGameView(title, mainView)
 	}
 
+	preview := selectionPreviewView(m)
 	status := statusBarView(m.showFullHelp)
 
-	return game.ComposeGameViewRows(title, mainView, game.StableRow(status, statusBarView(false), statusBarView(true)))
+	return game.ComposeGameViewRows(
+		title,
+		mainView,
+		game.StableRow(preview, selectionPreviewView(Model{}), selectionPreviewSolvedView()),
+		game.StableRow(status, statusBarView(false), statusBarView(true)),
+	)
 }
 
 func statusBarView(showFullHelp bool) string {
 	if showFullHelp {
-		return game.StatusBarStyle().Render("arrows/wasd: move  enter/space: select  esc: cancel  mouse: click & drag  ctrl+n: menu  ctrl+r: reset  ctrl+h: help")
+		return game.StatusBarStyle().Render("arrows/wasd: move  enter/space: select  bkspc: cancel  mouse: click & drag  esc: menu  ctrl+r: reset  ctrl+h: help")
 	}
-	return game.StatusBarStyle().Render("enter/space: select  esc: cancel  mouse: click & drag")
+	return game.StatusBarStyle().Render("enter/space: select  bkspc: cancel  mouse: click & drag")
+}
+
+func selectionPreviewView(m Model) string {
+	preview := m.currentSelectionPreview()
+
+	switch {
+	case m.selection != startSelected:
+		return previewIdleStyle().Render("selection: choose a start cell")
+	case !preview.Valid:
+		return previewIdleStyle().Render("selection: start locked, move to choose an endpoint")
+	default:
+		parts := []string{
+			fmt.Sprintf("trace: %s", preview.Letters),
+			fmt.Sprintf("dir: %s", preview.Direction),
+			fmt.Sprintf("len: %d", preview.Length),
+		}
+
+		switch {
+		case preview.ExactWord != "":
+			parts = append(parts, fmt.Sprintf("match: %s", preview.ExactWord))
+			return previewSuccessStyle().Render(strings.Join(parts, "  "))
+		case preview.NearWord != "":
+			parts = append(parts, fmt.Sprintf("near: %s", preview.NearWord))
+			return previewInfoStyle().Render(strings.Join(parts, "  "))
+		default:
+			parts = append(parts, "line: ready")
+			return previewIdleStyle().Render(strings.Join(parts, "  "))
+		}
+	}
+}
+
+func selectionPreviewSolvedView() string {
+	return previewSuccessStyle().Render("trace: PUZZLETEA  dir: down-right  len: 10  match: PUZZLETEA")
 }
 
 func renderGrid(m Model) string {

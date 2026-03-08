@@ -18,7 +18,7 @@ Fill the board so that each orthogonally connected region contains exactly as ma
 | `Backspace` / `Delete` | Clear cell |
 | `Ctrl+H` | Toggle help bar |
 | `Ctrl+R` | Reset puzzle |
-| `Ctrl+N` | Return to main menu |
+| `Escape` | Return to main menu |
 
 ## Tips
 
