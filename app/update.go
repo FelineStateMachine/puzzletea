@@ -4,10 +4,10 @@ import (
 	"log"
 	"time"
 
-	"github.com/FelineStateMachine/puzzletea/catalog"
 	"github.com/FelineStateMachine/puzzletea/config"
 	"github.com/FelineStateMachine/puzzletea/daily"
 	"github.com/FelineStateMachine/puzzletea/game"
+	"github.com/FelineStateMachine/puzzletea/registry"
 	"github.com/FelineStateMachine/puzzletea/resolve"
 	sessionflow "github.com/FelineStateMachine/puzzletea/session"
 	"github.com/FelineStateMachine/puzzletea/stats"
@@ -98,11 +98,11 @@ func categoryPickerSize(width, height int) categoryPickerMetrics {
 }
 
 func selectedCategoryName(item list.Item) string {
-	cat, ok := item.(game.Category)
+	entry, ok := selectedCategoryEntry(item)
 	if !ok {
 		return ""
 	}
-	return cat.Name
+	return entry.Definition.Name
 }
 
 func activeFilterList(m model) *list.Model {
@@ -131,13 +131,13 @@ func (m model) updateCategoryDetailViewport() model {
 	m.nav.categoryDetail.SetHeight(contentHeight)
 	m.nav.categoryDetail.FillHeight = true
 
-	cat, ok := m.nav.gameSelectList.SelectedItem().(game.Category)
+	entry, ok := selectedCategoryEntry(m.nav.gameSelectList.SelectedItem())
 	if !ok {
 		m.nav.categoryDetail.SetContent("")
 		return m
 	}
 
-	m.nav.categoryDetail.SetContent(renderCategoryDetailContent(cat, contentWidth))
+	m.nav.categoryDetail.SetContent(renderCategoryDetailContent(entry, contentWidth))
 	m.nav.categoryDetail.GotoTop()
 	return m
 }
@@ -186,7 +186,7 @@ func (m model) updateStatsViewport() model {
 	statsWidth, statsHeight := statsViewportSize(m.width, m.height, m.stats.cards)
 	m.stats.viewport.SetWidth(statsWidth)
 	m.stats.viewport.SetHeight(statsHeight)
-	m.stats.viewport.SetContent(stats.RenderCardGrid(m.stats.cards, statsWidth))
+	m.stats.viewport.SetContent(ui.RenderStatsCardGrid(m.stats.cards, statsWidth))
 	return m
 }
 
@@ -507,7 +507,7 @@ func (m model) handleOptionsMenuEnter() (tea.Model, tea.Cmd) {
 	case "Theme":
 		return m.handleThemeEnter()
 	case "Guides":
-		m.nav.helpSelectList = ui.InitList(GameCategories, "How to Play")
+		m.nav.helpSelectList = ui.InitList(gameCategoryItems, "How to Play")
 		m.nav.helpSelectList.SetSize(min(m.width, 64), min(m.height, ui.ListHeight(m.nav.helpSelectList)))
 		m.state = helpSelectView
 	}
@@ -546,13 +546,13 @@ func (m model) handleSeedConfirm() (tea.Model, tea.Cmd) {
 	var gameType string
 	modeTitle := ""
 	if selectedMode.key == "" {
-		spawner, gameType, modeTitle, err = resolve.SeededMode(seed, catalog.All)
+		spawner, gameType, modeTitle, err = resolve.SeededMode(seed, registry.Entries())
 		if err != nil {
 			log.Printf("failed to select seeded mode: %v", err)
 			return m, nil
 		}
 	} else {
-		spawner, gameType, modeTitle, err = resolve.SeededModeForGame(seed, selectedMode.gameType, catalog.All)
+		spawner, gameType, modeTitle, err = resolve.SeededModeForGame(seed, selectedMode.gameType, registry.Entries())
 		if err != nil {
 			log.Printf("failed to select seeded mode for %s: %v", selectedMode.gameType, err)
 			return m, nil
@@ -614,12 +614,12 @@ func (m model) handleDailyPuzzle() (tea.Model, tea.Cmd) {
 }
 
 func (m model) handleGameSelectEnter() (tea.Model, tea.Cmd) {
-	cat, ok := m.nav.gameSelectList.SelectedItem().(game.Category)
+	entry, ok := selectedCategoryEntry(m.nav.gameSelectList.SelectedItem())
 	if !ok {
 		return m, nil
 	}
-	m.nav.selectedCategory = cat
-	m.nav.modeSelectList = ui.InitList(buildModeDisplayItems(cat), cat.Name+" - Select Mode")
+	m.nav.selectedCategory = entry
+	m.nav.modeSelectList = ui.InitList(buildModeDisplayItems(entry), entry.Definition.Name+" - Select Mode")
 	m.nav.modeSelectList.SetSize(min(m.width, 64), min(m.height, ui.ListHeight(m.nav.modeSelectList)))
 	m.state = modeSelectView
 	return m, nil
@@ -627,26 +627,22 @@ func (m model) handleGameSelectEnter() (tea.Model, tea.Cmd) {
 
 func (m model) handleModeSelectEnter() (tea.Model, tea.Cmd) {
 	item := unwrapModeDisplayItem(m.nav.modeSelectList.SelectedItem())
-	mode, ok := item.(game.Mode)
+	mode, ok := item.(registry.ModeEntry)
 	if !ok {
 		return m, nil
 	}
-	spawner, ok := item.(game.Spawner)
-	if !ok {
-		return m, nil
-	}
-	m.nav.selectedModeTitle = mode.Title()
+	m.nav.selectedModeTitle = mode.Definition.Title
 	ctx, jobID := m.beginSpawnContext()
 	m.session.spawn = &spawnRequest{
 		source:      spawnSourceNormal,
 		name:        sessionflow.GenerateUniqueName(m.store),
-		gameType:    m.nav.selectedCategory.Name,
+		gameType:    m.nav.selectedCategory.Definition.Name,
 		modeTitle:   m.nav.selectedModeTitle,
 		returnState: modeSelectView,
 		exitState:   mainMenuView,
 	}
 	m.state = generatingView
-	return m, tea.Batch(m.spinner.Tick, spawnCmd(spawner, ctx, jobID))
+	return m, tea.Batch(m.spinner.Tick, spawnCmd(mode.Spawner, ctx, jobID))
 }
 
 func (m model) handleContinueEnter() (tea.Model, tea.Cmd) {
@@ -660,11 +656,11 @@ func (m model) handleContinueEnter() (tea.Model, tea.Cmd) {
 }
 
 func (m model) handleHelpSelectEnter() (tea.Model, tea.Cmd) {
-	cat, ok := m.nav.helpSelectList.SelectedItem().(game.Category)
+	entry, ok := selectedCategoryEntry(m.nav.helpSelectList.SelectedItem())
 	if !ok {
 		return m, nil
 	}
-	m.help.category = cat
+	m.help.category = entry
 	m = m.updateHelpDetailViewport()
 	m.state = helpDetailView
 	return m, nil
@@ -785,10 +781,12 @@ func (m model) handleStatsEnter() (tea.Model, tea.Cmd) {
 		currentDaily = rec != nil
 	}
 
-	m.stats.cards = stats.BuildCards(catStats, modeStats)
+	weights := stats.WeightsFromDefinitions(registry.Definitions())
+	m.stats.cards = stats.BuildCards(weights, catStats, modeStats)
 	m.stats.profile = stats.BuildProfileBanner(
 		catStats,
 		modeStats,
+		weights,
 		streakDates,
 		currentDaily,
 		weekliesCompleted,
@@ -800,7 +798,7 @@ func (m model) handleStatsEnter() (tea.Model, tea.Cmd) {
 		viewport.WithWidth(statsWidth),
 		viewport.WithHeight(statsHeight),
 	)
-	m.stats.viewport.SetContent(stats.RenderCardGrid(m.stats.cards, statsWidth))
+	m.stats.viewport.SetContent(ui.RenderStatsCardGrid(m.stats.cards, statsWidth))
 	m.state = statsView
 	return m, nil
 }

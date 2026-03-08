@@ -145,7 +145,7 @@ func bridgeFill(m Model, solved bool, bridge game.DynamicGridBridge) color.Color
 		return nil
 	}
 
-	if bridgeOnCrosshairAxis(m.cursor, bridge) {
+	if game.DynamicGridBridgeOnCrosshairAxis(m.cursor, bridge) {
 		return theme.Current().Surface
 	}
 	return nil
@@ -156,30 +156,6 @@ func activeBoxZoneFill(cursor game.Cursor, solved bool, zone int) color.Color {
 		return nil
 	}
 	return theme.Current().Surface
-}
-
-func bridgeOnCrosshairAxis(cursor game.Cursor, bridge game.DynamicGridBridge) bool {
-	switch bridge.Kind {
-	case game.DynamicGridBridgeVertical:
-		if bridge.Count == 0 {
-			return bridge.Y == cursor.Y
-		}
-		for i := 0; i < bridge.Count; i++ {
-			if bridge.Cells[i].Y == cursor.Y {
-				return true
-			}
-		}
-	case game.DynamicGridBridgeHorizontal:
-		if bridge.Count == 0 {
-			return bridge.X == cursor.X
-		}
-		for i := 0; i < bridge.Count; i++ {
-			if bridge.Cells[i].X == cursor.X {
-				return true
-			}
-		}
-	}
-	return false
 }
 
 func inCursorContext(cursor game.Cursor, x, y int) bool {

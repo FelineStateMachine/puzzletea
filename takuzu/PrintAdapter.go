@@ -4,7 +4,6 @@ import (
 	"strings"
 
 	"codeberg.org/go-pdf/fpdf"
-	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/pdfexport"
 )
 
@@ -199,5 +198,5 @@ func takuzuRelationBackdropSize(cellSize, fontSize float64) float64 {
 }
 
 func init() {
-	game.RegisterPrintAdapter(printAdapter{})
+	pdfexport.RegisterPrintAdapter(printAdapter{})
 }

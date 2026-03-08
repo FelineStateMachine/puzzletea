@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"codeberg.org/go-pdf/fpdf"
-	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/pdfexport"
 )
 
@@ -280,5 +279,5 @@ func drawNonogramMajorLines(
 }
 
 func init() {
-	game.RegisterPrintAdapter(printAdapter{})
+	pdfexport.RegisterPrintAdapter(printAdapter{})
 }

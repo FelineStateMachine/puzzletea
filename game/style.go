@@ -18,6 +18,17 @@ func ConflictFG() color.Color { return theme.Current().Error }
 func ConflictBG() color.Color { return theme.Current().ErrorBG }
 func SolvedFG() color.Color   { return theme.Current().SolvedFG }
 
+// SameColor reports whether two colors resolve to identical RGBA values.
+func SameColor(left, right color.Color) bool {
+	if left == nil || right == nil {
+		return left == nil && right == nil
+	}
+
+	lr, lg, lb, la := left.RGBA()
+	rr, rg, rb, ra := right.RGBA()
+	return lr == rr && lg == rg && lb == rb && la == ra
+}
+
 // CursorStyle highlights the cursor position with an accent background.
 func CursorStyle() lipgloss.Style {
 	return lipgloss.NewStyle().

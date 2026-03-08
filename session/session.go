@@ -5,9 +5,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/FelineStateMachine/puzzletea/catalog"
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/namegen"
+	"github.com/FelineStateMachine/puzzletea/puzzle"
+	"github.com/FelineStateMachine/puzzletea/registry"
 	"github.com/FelineStateMachine/puzzletea/resolve"
 	"github.com/FelineStateMachine/puzzletea/store"
 )
@@ -51,7 +52,7 @@ func ImportRecord(rec *store.GameRecord) (game.Gamer, error) {
 		return nil, fmt.Errorf("nil game record")
 	}
 
-	g, err := catalog.Import(rec.GameType, []byte(rec.SaveState))
+	g, err := registry.Import(rec.GameType, []byte(rec.SaveState))
 	if err != nil {
 		return nil, err
 	}
@@ -73,11 +74,21 @@ func CreateRecord(
 
 	rec := &store.GameRecord{
 		Name:         name,
+		GameID:       string(puzzle.CanonicalGameID(gameType)),
 		GameType:     gameType,
+		ModeID:       string(puzzle.CanonicalModeID(modeTitle)),
 		Mode:         modeTitle,
 		InitialState: string(initialState),
 		SaveState:    string(initialState),
 		Status:       store.StatusNew,
+		RunKind:      store.RunKindForName(name),
+		RunDate:      store.RunDateForName(name),
+		SeedText:     store.SeedTextForName(name),
+	}
+	if year, week, index, ok := store.WeeklyIdentityForName(name); ok {
+		rec.WeekYear = year
+		rec.WeekNumber = week
+		rec.WeekIndex = index
 	}
 	if err := s.CreateGame(rec); err != nil {
 		return nil, fmt.Errorf("failed to create game record: %w", err)

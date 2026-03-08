@@ -576,7 +576,37 @@ func TestResolveCellVisualSatisfiedAndOverfilledIslands(t *testing.T) {
 	}
 }
 
-func TestSolvedBridgeVisualStaysLegibleOverBlueBoard(t *testing.T) {
+func TestResolveCellVisualSolvedIsland(t *testing.T) {
+	p := Puzzle{
+		Width:  1,
+		Height: 1,
+		Islands: []Island{
+			{ID: 0, X: 0, Y: 0, Required: 1},
+		},
+	}
+	m := Model{puzzle: p, cursorIsland: 0, keys: DefaultKeyMap}
+
+	unsolved := resolveCellVisual(m, 0, 0, false)
+	solved := resolveCellVisual(m, 0, 0, true)
+
+	if sameColor(unsolved.bg, solved.bg) {
+		t.Fatal("expected solved island background to differ from unsolved island background")
+	}
+
+	got := renderCellVisual(solved)
+	want := renderExpectedIslandCellWithOuterBG(
+		" 1 ",
+		theme.Current().SolvedFG,
+		solvedIslandBackground(),
+		solvedBoardBackground(),
+		true,
+	)
+	if got != want {
+		t.Fatalf("solved island render = %q, want %q", got, want)
+	}
+}
+
+func TestSolvedBridgeVisualStaysLegibleOnBoardBackground(t *testing.T) {
 	p := Puzzle{
 		Width:  3,
 		Height: 1,
@@ -588,17 +618,26 @@ func TestSolvedBridgeVisualStaysLegibleOverBlueBoard(t *testing.T) {
 	p.SetBridge(0, 1, 1)
 	m := Model{puzzle: p, cursorIsland: 0, keys: DefaultKeyMap}
 
-	empty := resolveCellVisual(m, 0, 0, true)
-	if !sameColor(empty.outerBG, boardBackground()) {
-		t.Fatal("expected solved island outer background to stay on the board color")
+	island := resolveCellVisual(m, 0, 0, true)
+	if !sameColor(island.outerBG, solvedBoardBackground()) {
+		t.Fatal("expected solved island outer background to use the solved board color")
 	}
 
 	bridge := resolveCellVisual(m, 1, 0, true)
-	if !sameColor(bridge.bg, boardBackground()) {
-		t.Fatal("expected solved bridge cell to keep the blue board background")
+	if !sameColor(bridge.bg, solvedBoardBackground()) {
+		t.Fatal("expected solved bridge cell to use the solved board color")
 	}
 	if !sameColor(bridge.fg, bridgeColor(0)) {
 		t.Fatal("expected solved bridge cell to use the bridge palette color")
+	}
+}
+
+func TestResolveCellVisualSolvedEmptyCellUsesSolvedBoardBackground(t *testing.T) {
+	m := Model{puzzle: *linePuzzle(), cursorIsland: 0, keys: DefaultKeyMap}
+
+	empty := resolveCellVisual(m, 1, 0, true)
+	if !sameColor(empty.bg, solvedBoardBackground()) {
+		t.Fatal("expected solved empty cell to use the solved board color")
 	}
 }
 
@@ -649,7 +688,11 @@ func sameColor(left, right color.Color) bool {
 }
 
 func renderExpectedIslandCell(text string, fg, bg color.Color, bold bool) string {
-	side := lipgloss.NewStyle().Width((cellWidth - islandPillWidth) / 2).Background(boardBackground()).Render("")
+	return renderExpectedIslandCellWithOuterBG(text, fg, bg, boardBackground(), bold)
+}
+
+func renderExpectedIslandCellWithOuterBG(text string, fg, bg, outerBG color.Color, bold bool) string {
+	side := lipgloss.NewStyle().Width((cellWidth - islandPillWidth) / 2).Background(outerBG).Render("")
 	center := lipgloss.NewStyle().
 		Width(islandPillWidth).
 		AlignHorizontal(lipgloss.Center).

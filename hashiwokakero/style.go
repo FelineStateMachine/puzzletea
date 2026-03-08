@@ -37,7 +37,12 @@ func adjacentIslandBackground() color.Color {
 }
 
 func solvedIslandBackground() color.Color {
-	return theme.Blend(baseIslandBackground(), theme.Current().Success, 0.18)
+	p := theme.Current()
+	return theme.Blend(p.BG, p.SuccessBorder, 0.55)
+}
+
+func solvedBoardBackground() color.Color {
+	return theme.Current().SuccessBG
 }
 
 func baseCellStyle(fg, bg color.Color, bold bool) lipgloss.Style {
@@ -85,11 +90,15 @@ func isHighlightedNeighbor(m Model, islandID int) bool {
 
 func resolveCellVisual(m Model, x, y int, solved bool) cellVisual {
 	boardBG := boardBackground()
+	cellBG := boardBG
+	if solved {
+		cellBG = solvedBoardBackground()
+	}
 	visual := cellVisual{
 		text:    "   ",
-		fg:      theme.TextOnBG(boardBG),
-		bg:      boardBG,
-		outerBG: boardBG,
+		fg:      theme.TextOnBG(cellBG),
+		bg:      cellBG,
+		outerBG: cellBG,
 	}
 
 	ci := m.puzzle.CellContent(x, y)
@@ -105,16 +114,12 @@ func resolveCellVisual(m Model, x, y int, solved bool) cellVisual {
 		current := m.puzzle.BridgeCount(ci.IslandID)
 		islandBG := baseIslandBackground()
 		visual.pill = true
-		visual.outerBG = boardBG
+		visual.outerBG = cellBG
 
 		switch {
-		case solved && isCursor:
-			visual.fg = game.CursorFG()
-			visual.bg = theme.Current().SuccessBG
-			visual.bold = true
 		case solved:
 			islandBG = solvedIslandBackground()
-			visual.fg = theme.TextOnBG(islandBG)
+			visual.fg = theme.Current().SolvedFG
 			visual.bg = islandBG
 			visual.bold = true
 		case m.selectedIsland != nil && *m.selectedIsland == ci.IslandID:

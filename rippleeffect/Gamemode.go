@@ -131,7 +131,7 @@ var DailyModes = []list.Item{
 
 var Definition = game.Definition{
 	Name:        "Ripple Effect",
-	Description: "Place digits in cages without violating ripple distance.",
+	Description: "Fill the cages with sequential numbers without violating ripple distance.",
 	Aliases:     []string{"ripple"},
 	Modes:       Modes,
 	DailyModes:  DailyModes,

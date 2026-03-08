@@ -6,7 +6,6 @@ import (
 	"unicode/utf8"
 
 	"codeberg.org/go-pdf/fpdf"
-	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/pdfexport"
 )
 
@@ -136,5 +135,5 @@ func drawHashiIslandNumber(pdf *fpdf.Fpdf, cx, cy, radius float64, required int)
 }
 
 func init() {
-	game.RegisterPrintAdapter(printAdapter{})
+	pdfexport.RegisterPrintAdapter(printAdapter{})
 }

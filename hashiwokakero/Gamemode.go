@@ -73,7 +73,7 @@ var DailyModes = []list.Item{
 
 var Definition = game.Definition{
 	Name:        "Hashiwokakero",
-	Description: "Connect islands with bridges.",
+	Description: "Connect the islands with bridges.",
 	Aliases:     []string{"hashi", "bridges"},
 	Modes:       Modes,
 	DailyModes:  DailyModes,

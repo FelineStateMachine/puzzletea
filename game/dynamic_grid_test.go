@@ -1,6 +1,8 @@
 package game
 
 import (
+	"image"
+	"image/color"
 	"strings"
 	"testing"
 
@@ -227,6 +229,83 @@ func TestDynamicGridScreenToCell(t *testing.T) {
 				t.Fatalf("cell = (%d,%d), want (%d,%d)", col, row, tt.wantCol, tt.wantRow)
 			}
 		})
+	}
+}
+
+func TestDynamicGridBridgeOnCrosshairAxis(t *testing.T) {
+	cursor := Cursor{X: 2, Y: 1}
+
+	tests := []struct {
+		name   string
+		bridge DynamicGridBridge
+		want   bool
+	}{
+		{
+			name: "vertical bridge matches cursor row via cells",
+			bridge: DynamicGridBridge{
+				Kind:  DynamicGridBridgeVertical,
+				Cells: [4]image.Point{{X: 1, Y: 1}, {X: 2, Y: 1}},
+				Count: 2,
+			},
+			want: true,
+		},
+		{
+			name: "horizontal bridge matches cursor column via cells",
+			bridge: DynamicGridBridge{
+				Kind:  DynamicGridBridgeHorizontal,
+				Cells: [4]image.Point{{X: 2, Y: 0}, {X: 2, Y: 1}},
+				Count: 2,
+			},
+			want: true,
+		},
+		{
+			name: "separator vertical bridge matches cursor row without cells",
+			bridge: DynamicGridBridge{
+				Kind: DynamicGridBridgeVertical,
+				Y:    1,
+			},
+			want: true,
+		},
+		{
+			name: "separator horizontal bridge matches cursor column without cells",
+			bridge: DynamicGridBridge{
+				Kind: DynamicGridBridgeHorizontal,
+				X:    2,
+			},
+			want: true,
+		},
+		{
+			name: "junction does not participate in axis highlighting",
+			bridge: DynamicGridBridge{
+				Kind:  DynamicGridBridgeJunction,
+				Cells: [4]image.Point{{X: 2, Y: 1}},
+				Count: 1,
+			},
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := DynamicGridBridgeOnCrosshairAxis(cursor, tt.bridge); got != tt.want {
+				t.Fatalf("DynamicGridBridgeOnCrosshairAxis() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSameColor(t *testing.T) {
+	if !SameColor(color.NRGBA{R: 10, G: 20, B: 30, A: 40}, color.NRGBA{R: 10, G: 20, B: 30, A: 40}) {
+		t.Fatal("expected identical colors to match")
+	}
+	if SameColor(color.NRGBA{R: 10, G: 20, B: 30, A: 40}, color.NRGBA{R: 10, G: 20, B: 30, A: 41}) {
+		t.Fatal("expected different colors not to match")
+	}
+	if !SameColor(nil, nil) {
+		t.Fatal("expected nil colors to match")
+	}
+	if SameColor(color.NRGBA{R: 10, G: 20, B: 30, A: 40}, nil) {
+		t.Fatal("expected color and nil not to match")
 	}
 }
 

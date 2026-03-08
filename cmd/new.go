@@ -4,12 +4,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/FelineStateMachine/puzzletea/catalog"
 	"github.com/FelineStateMachine/puzzletea/config"
 	"github.com/FelineStateMachine/puzzletea/game"
+	"github.com/FelineStateMachine/puzzletea/registry"
 	"github.com/FelineStateMachine/puzzletea/resolve"
 	sessionflow "github.com/FelineStateMachine/puzzletea/session"
-	"github.com/FelineStateMachine/puzzletea/stats"
 	"github.com/FelineStateMachine/puzzletea/store"
 
 	"github.com/spf13/cobra"
@@ -27,7 +26,7 @@ var newCmd = &cobra.Command{
 	Short: "Start a new puzzle game",
 	Long: fmt.Sprintf("Start a new puzzle game, optionally specifying the difficulty mode.\n"+
 		"Use --set-seed to generate a deterministic puzzle from a seed string.\n\nAvailable games:\n  %s",
-		strings.Join(catalog.Names(), "\n  ")),
+		strings.Join(registry.Names(), "\n  ")),
 	Args: cobra.RangeArgs(0, 2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if flagOutput != "" || cmd.Flags().Changed("export") {
@@ -63,12 +62,13 @@ func init() {
 
 // launchNewGame resolves the game/mode, spawns a new game, and launches the TUI.
 func launchNewGame(gameArg, modeArg, seed string, cfg *config.Config) error {
-	cat, err := catalog.Category(gameArg)
-	if err != nil {
+	entry, ok := registry.Resolve(gameArg)
+	if !ok {
+		err := fmt.Errorf("unknown game %q", gameArg)
 		return err
 	}
 
-	spawner, modeTitle, err := resolve.Mode(cat, modeArg)
+	spawner, modeTitle, err := resolve.Mode(entry, modeArg)
 	if err != nil {
 		return err
 	}
@@ -84,12 +84,10 @@ func launchNewGame(gameArg, modeArg, seed string, cfg *config.Config) error {
 	}
 	defer s.Close()
 
-	stats.InitModeXP(catalog.Categories())
-
 	name := sessionflow.GenerateUniqueName(s)
 	g = g.SetTitle(name)
 
-	rec, err := sessionflow.CreateRecord(s, g, name, cat.Name, modeTitle)
+	rec, err := sessionflow.CreateRecord(s, g, name, entry.Definition.Name, modeTitle)
 	if err != nil {
 		return err
 	}
@@ -126,8 +124,6 @@ func launchSeededGame(seed string, cfg *config.Config) error {
 	}
 	defer s.Close()
 
-	stats.InitModeXP(catalog.Categories())
-
 	// If a game with this name already exists, resume it (including
 	// abandoned games — seeded puzzles are deterministic and should
 	// always be resumable rather than duplicated).
@@ -146,7 +142,7 @@ func launchSeededGame(seed string, cfg *config.Config) error {
 	}
 
 	// Mode selection uses rendezvous hashing (independent of RNG).
-	spawner, gameType, modeTitle, err := resolve.SeededMode(seed, catalog.All)
+	spawner, gameType, modeTitle, err := resolve.SeededMode(seed, registry.Entries())
 	if err != nil {
 		return err
 	}

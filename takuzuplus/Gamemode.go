@@ -64,7 +64,7 @@ var DailyModes = []list.Item{
 
 var Definition = game.Definition{
 	Name:        "Takuzu+",
-	Description: "Fill grid with ● and ○ using cell and relation clues.",
+	Description: "Fill the grid with ● and ○ using some relational clues. No 3 in a row.",
 	Aliases:     []string{"takuzu plus", "binario+", "binario plus"},
 	Modes:       Modes,
 	DailyModes:  DailyModes,

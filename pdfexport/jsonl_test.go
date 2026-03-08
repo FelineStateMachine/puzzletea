@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"codeberg.org/go-pdf/fpdf"
-	"github.com/FelineStateMachine/puzzletea/game"
 )
 
 func TestParseJSONLFile(t *testing.T) {
@@ -525,7 +524,7 @@ func init() {
 func ensureJSONLTestAdapters() {
 	registerJSONLAdaptersOnce.Do(func() {
 		register := func(category string, build func(save []byte) (any, error), aliases ...string) {
-			game.RegisterPrintAdapter(jsonlTestAdapter{
+			RegisterPrintAdapter(jsonlTestAdapter{
 				category: category,
 				aliases:  aliases,
 				build:    build,

@@ -91,18 +91,19 @@ func gridView(m Model) string {
 			return 0
 		},
 		BridgeFill: func(bridge game.DynamicGridBridge) color.Color {
-			if m.solved {
-				return theme.Current().SuccessBG
-			}
-			for i := 0; i < bridge.Count; i++ {
-				cell := bridge.Cells[i]
-				if cell.X == m.cursor.X || cell.Y == m.cursor.Y {
-					return theme.Current().Surface
-				}
-			}
-			return nil
+			return bridgeFill(m, bridge)
 		},
 	})
+}
+
+func bridgeFill(m Model, bridge game.DynamicGridBridge) color.Color {
+	if m.solved {
+		return nil
+	}
+	if game.DynamicGridBridgeOnCrosshairAxis(m.cursor, bridge) {
+		return theme.Current().Surface
+	}
+	return nil
 }
 
 func statusBarView(showFullHelp bool) string {

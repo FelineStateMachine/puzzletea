@@ -9,10 +9,10 @@ import (
 	"charm.land/bubbles/v2/list"
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
-	"github.com/FelineStateMachine/puzzletea/catalog"
 	"github.com/FelineStateMachine/puzzletea/daily"
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/lightsout"
+	"github.com/FelineStateMachine/puzzletea/registry"
 	sessionflow "github.com/FelineStateMachine/puzzletea/session"
 	"github.com/FelineStateMachine/puzzletea/store"
 	"github.com/FelineStateMachine/puzzletea/ui"
@@ -215,7 +215,7 @@ func TestHandleSeedConfirmDoesNotResumeStatusWhenImportFails(t *testing.T) {
 }
 
 func TestSeedInputSelectorCyclesAndPersistsDefault(t *testing.T) {
-	options := buildSeedModeOptions(catalog.All)
+	options := buildSeedModeOptions(registry.Definitions())
 	if len(options) < 2 {
 		t.Fatal("expected at least one seeded game option in addition to Random")
 	}
@@ -255,7 +255,7 @@ func TestSeedInputSelectorCyclesAndPersistsDefault(t *testing.T) {
 
 func TestHandleSeedConfirmUsesSelectedSpecificMode(t *testing.T) {
 	s := openAppTestStore(t)
-	options := buildSeedModeOptions(catalog.All)
+	options := buildSeedModeOptions(registry.Definitions())
 	if len(options) < 2 {
 		t.Fatal("expected at least one seeded game option in addition to Random")
 	}

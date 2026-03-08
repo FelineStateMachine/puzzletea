@@ -2,12 +2,16 @@ package hitori
 
 import (
 	"encoding/json"
+	"image"
+	"image/color"
 	"math/rand/v2"
 	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/FelineStateMachine/puzzletea/game"
+	"github.com/FelineStateMachine/puzzletea/theme"
+	"github.com/charmbracelet/x/ansi"
 )
 
 // --- Helpers ---
@@ -40,6 +44,15 @@ func makeMarks(rows ...string) [][]cellMark {
 
 func testMode(size int) HitoriMode {
 	return NewMode("Test", "test mode", size, 0.25)
+}
+
+func sameColor(left, right color.Color) bool {
+	if left == nil || right == nil {
+		return left == nil && right == nil
+	}
+	lr, lg, lb, la := left.RGBA()
+	rr, rg, rb, ra := right.RGBA()
+	return lr == rr && lg == rg && lb == rb && la == ra
 }
 
 // --- Grid and serialization (P0) ---
@@ -147,6 +160,122 @@ func TestCellView_CursorSolvedShadedPreservesShadedPayload(t *testing.T) {
 	got := cellView('5', shaded, true, false, false, true, false)
 	if !strings.Contains(got, "█") {
 		t.Fatalf("cursor solved shaded cell should preserve shaded payload, got %q", got)
+	}
+}
+
+func TestGridViewUsesDynamicGridWithoutInteriorSeparators(t *testing.T) {
+	numbers := makeGrid("123", "456", "789")
+	marks := makeMarks("...", "...", "...")
+	conflicts := computeConflicts(numbers, marks, 3)
+
+	lines := strings.Split(ansi.Strip(gridView(numbers, marks, game.Cursor{X: 1, Y: 1}, false, conflicts)), "\n")
+	if got, want := len(lines), 7; got != want {
+		t.Fatalf("line count = %d, want %d", got, want)
+	}
+	if !strings.HasPrefix(lines[0], "┌") || !strings.HasSuffix(lines[0], "┐") {
+		t.Fatalf("top row = %q, want outer border corners", lines[0])
+	}
+	last := lines[len(lines)-1]
+	if !strings.HasPrefix(last, "└") || !strings.HasSuffix(last, "┘") {
+		t.Fatalf("bottom row = %q, want outer border corners", last)
+	}
+
+	for _, idx := range []int{1, 2, 3, 4, 5} {
+		line := lines[idx]
+		if strings.Count(line, "│") != 2 {
+			t.Fatalf("line %d = %q, want only outer vertical borders", idx, line)
+		}
+	}
+	for _, idx := range []int{2, 4} {
+		if strings.Contains(lines[idx], "─") {
+			t.Fatalf("line %d = %q, want no interior horizontal separators", idx, lines[idx])
+		}
+	}
+}
+
+func TestBridgeFillUsesVerticalCrosshairAcrossOpenInterior(t *testing.T) {
+	numbers := makeGrid("12", "34")
+	marks := makeMarks("..", "..")
+	conflicts := computeConflicts(numbers, marks, 2)
+
+	got := bridgeFill(numbers, marks, game.Cursor{X: 0, Y: 1}, false, conflicts, game.DynamicGridBridge{
+		Kind:    game.DynamicGridBridgeVertical,
+		X:       1,
+		Y:       1,
+		Count:   2,
+		Uniform: true,
+		Cells: [4]image.Point{
+			{X: 0, Y: 1},
+			{X: 1, Y: 1},
+		},
+	})
+	if !sameColor(got, theme.Current().Surface) {
+		t.Fatal("expected open vertical bridge on cursor row to use crosshair background")
+	}
+}
+
+func TestBridgeFillUsesHorizontalCrosshairAcrossOpenInterior(t *testing.T) {
+	numbers := makeGrid("12", "34")
+	marks := makeMarks("..", "..")
+	conflicts := computeConflicts(numbers, marks, 2)
+
+	got := bridgeFill(numbers, marks, game.Cursor{X: 0, Y: 1}, false, conflicts, game.DynamicGridBridge{
+		Kind:    game.DynamicGridBridgeHorizontal,
+		X:       0,
+		Y:       1,
+		Count:   2,
+		Uniform: true,
+		Cells: [4]image.Point{
+			{X: 0, Y: 0},
+			{X: 0, Y: 1},
+		},
+	})
+	if !sameColor(got, theme.Current().Surface) {
+		t.Fatal("expected open horizontal bridge on cursor column to use crosshair background")
+	}
+}
+
+func TestBridgeFillLeavesInteriorJunctionOpen(t *testing.T) {
+	numbers := makeGrid("12", "34")
+	marks := makeMarks("..", "..")
+	conflicts := computeConflicts(numbers, marks, 2)
+
+	got := bridgeFill(numbers, marks, game.Cursor{X: 0, Y: 1}, false, conflicts, game.DynamicGridBridge{
+		Kind:    game.DynamicGridBridgeJunction,
+		X:       1,
+		Y:       1,
+		Count:   4,
+		Uniform: true,
+		Cells: [4]image.Point{
+			{X: 0, Y: 0},
+			{X: 1, Y: 0},
+			{X: 0, Y: 1},
+			{X: 1, Y: 1},
+		},
+	})
+	if got != nil {
+		t.Fatal("expected open interior junction to remain unfilled")
+	}
+}
+
+func TestBridgeFillReturnsNilWhenSolved(t *testing.T) {
+	numbers := makeGrid("12", "34")
+	marks := makeMarks("..", "..")
+	conflicts := computeConflicts(numbers, marks, 2)
+
+	got := bridgeFill(numbers, marks, game.Cursor{X: 0, Y: 0}, true, conflicts, game.DynamicGridBridge{
+		Kind:    game.DynamicGridBridgeVertical,
+		X:       1,
+		Y:       0,
+		Count:   2,
+		Uniform: true,
+		Cells: [4]image.Point{
+			{X: 0, Y: 0},
+			{X: 1, Y: 0},
+		},
+	})
+	if got != nil {
+		t.Fatal("expected solved bridges to use dynamic grid default solved styling")
 	}
 }
 
@@ -952,6 +1081,77 @@ func TestModel_View(t *testing.T) {
 	}
 }
 
+func TestScreenToGridUsesDynamicGridCoordinates(t *testing.T) {
+	mode := testMode(3)
+	numbers := makeGrid("123", "456", "789")
+	g, _ := New(mode, numbers)
+	next, _ := g.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+	m := next.(Model)
+	x, y := m.cachedGridOrigin()
+
+	if col, row, ok := m.screenToGrid(x, y); !ok || col != 0 || row != 0 {
+		t.Fatalf("screenToGrid(origin) = (%d,%d,%v), want (0,0,true)", col, row, ok)
+	}
+	if _, _, ok := m.screenToGrid(x+cellWidth, y); ok {
+		t.Fatal("screenToGrid(separator) = ok, want false")
+	}
+}
+
+func TestMouseClickMovesCursor(t *testing.T) {
+	mode := testMode(3)
+	numbers := makeGrid("123", "456", "789")
+	g, _ := New(mode, numbers)
+	next, _ := g.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+	m := next.(Model)
+	x, y := hitoriCellScreenCoords(&m, 2, 1)
+
+	next, _ = m.Update(tea.MouseClickMsg{X: x, Y: y, Button: tea.MouseLeft})
+	got := next.(Model)
+
+	if got.cursor.X != 2 || got.cursor.Y != 1 {
+		t.Fatalf("cursor = (%d,%d), want (2,1)", got.cursor.X, got.cursor.Y)
+	}
+	if got.userMarks[1][2] != unmarked {
+		t.Fatalf("clicked destination mark = %v, want unchanged unmarked", got.userMarks[1][2])
+	}
+}
+
+func TestMouseClickOnSeparatorDoesNotMoveCursor(t *testing.T) {
+	mode := testMode(3)
+	numbers := makeGrid("123", "456", "789")
+	g, _ := New(mode, numbers)
+	next, _ := g.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+	m := next.(Model)
+	m.cursor = game.Cursor{X: 1, Y: 1}
+	x, y := hitoriCellScreenCoords(&m, 1, 1)
+
+	next, _ = m.Update(tea.MouseClickMsg{X: x + cellWidth, Y: y, Button: tea.MouseLeft})
+	got := next.(Model)
+
+	if got.cursor.X != 1 || got.cursor.Y != 1 {
+		t.Fatalf("cursor = (%d,%d), want unchanged (1,1)", got.cursor.X, got.cursor.Y)
+	}
+}
+
+func TestMouseClickSameCellDoesNotMutateMarks(t *testing.T) {
+	mode := testMode(3)
+	numbers := makeGrid("123", "456", "789")
+	g, _ := New(mode, numbers)
+	next, _ := g.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+	m := next.(Model)
+	m.cursor = game.Cursor{X: 1, Y: 1}
+	m.userMarks[1][1] = shaded
+	m.recomputeState()
+	x, y := hitoriCellScreenCoords(&m, 1, 1)
+
+	next, _ = m.Update(tea.MouseClickMsg{X: x, Y: y, Button: tea.MouseLeft})
+	got := next.(Model)
+
+	if got.userMarks[1][1] != shaded {
+		t.Fatalf("mark = %v, want unchanged shaded", got.userMarks[1][1])
+	}
+}
+
 // --- Gamer interface compliance (P0) ---
 
 func TestGamerInterface(t *testing.T) {
@@ -973,6 +1173,11 @@ func TestModeTitleDescription(t *testing.T) {
 	if mode.Description() != "6x6 grid" {
 		t.Errorf("Description = %q, want %q", mode.Description(), "6x6 grid")
 	}
+}
+
+func hitoriCellScreenCoords(m *Model, col, row int) (x, y int) {
+	ox, oy := m.cachedGridOrigin()
+	return ox + col*(cellWidth+1), oy + row*2
 }
 
 // --- Puzzle generation (P2) ---

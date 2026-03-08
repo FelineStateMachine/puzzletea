@@ -7,9 +7,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/FelineStateMachine/puzzletea/catalog"
 	"github.com/FelineStateMachine/puzzletea/config"
 	"github.com/FelineStateMachine/puzzletea/game"
+	"github.com/FelineStateMachine/puzzletea/registry"
 	"github.com/FelineStateMachine/puzzletea/stats"
 	"github.com/FelineStateMachine/puzzletea/store"
 	"github.com/FelineStateMachine/puzzletea/theme"
@@ -26,11 +26,8 @@ import (
 	"github.com/charmbracelet/glamour"
 )
 
-// Categories is the typed catalog view used by stats and print-export helpers.
-var Categories = catalog.Categories()
-
-// GameCategories is the list.Item view of Categories for Bubble Tea lists.
-var GameCategories = catalog.CategoryItems()
+var gameCategoryItems = buildCategoryItems()
+var GameCategories = gameCategoryItems
 
 type viewState int
 
@@ -70,7 +67,7 @@ type navigationState struct {
 	gameSelectList    list.Model
 	categoryDetail    viewport.Model
 	modeSelectList    list.Model
-	selectedCategory  game.Category
+	selectedCategory  registry.Entry
 	selectedModeTitle string
 	continueTable     table.Model
 	continueGames     []store.GameRecord
@@ -98,7 +95,7 @@ type sessionState struct {
 }
 
 type helpState struct {
-	category      game.Category
+	category      registry.Entry
 	viewport      viewport.Model
 	renderer      *glamour.TermRenderer
 	rendererWidth int
@@ -187,7 +184,7 @@ func newSpinner() spinner.Model {
 // InitialModel creates the root TUI model for the main menu.
 func InitialModel(s *store.Store, cfg *config.Config) model {
 	r := initDebugRenderer()
-	l := ui.InitCategoryList(GameCategories, "Select Category")
+	l := ui.InitCategoryList(gameCategoryItems, "Select Category")
 	mm := ui.NewMainMenu(mainMenuItems)
 	return model{
 		state:   mainMenuView,
@@ -203,7 +200,7 @@ func InitialModel(s *store.Store, cfg *config.Config) model {
 // bypassing the menu. Used by CLI flags (--new, --continue).
 func InitialModelWithGame(s *store.Store, cfg *config.Config, g game.Gamer, activeGameID int64, completionSaved bool) model {
 	r := initDebugRenderer()
-	l := ui.InitCategoryList(GameCategories, "Select Category")
+	l := ui.InitCategoryList(gameCategoryItems, "Select Category")
 	mm := ui.NewMainMenu(mainMenuItems)
 	return model{
 		state:   gameView,

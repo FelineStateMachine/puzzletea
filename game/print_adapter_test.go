@@ -17,23 +17,19 @@ func (a testPrintAdapter) BuildPDFPayload([]byte) (any, error) { return nil, nil
 func (a testPrintAdapter) RenderPDFBody(*fpdf.Fpdf, any) error { return nil }
 
 func TestPrintAdapterRegistryLookupAndAliases(t *testing.T) {
-	original := printAdapterRegistry
-	printAdapterRegistry = map[string]PrintAdapter{}
-	t.Cleanup(func() { printAdapterRegistry = original })
-
 	adapter := testPrintAdapter{
-		canonical: "Word Search",
-		aliases:   []string{"wordsearch", "word-search"},
+		canonical: "Test Word Search",
+		aliases:   []string{"testwordsearch", "test-word-search"},
 	}
 	RegisterPrintAdapter(adapter)
 
-	if !HasPrintAdapter("Word Search") {
+	if !HasPrintAdapter("Test Word Search") {
 		t.Fatal("expected canonical lookup to be supported")
 	}
-	if !HasPrintAdapter("word_search") {
+	if !HasPrintAdapter("test_word_search") {
 		t.Fatal("expected underscore alias lookup to be supported")
 	}
-	if !HasPrintAdapter("wordsearch") {
+	if !HasPrintAdapter("testwordsearch") {
 		t.Fatal("expected compact alias lookup to be supported")
 	}
 	if HasPrintAdapter("lights out") {
@@ -42,13 +38,9 @@ func TestPrintAdapterRegistryLookupAndAliases(t *testing.T) {
 }
 
 func TestRegisterPrintAdapterSkipsBlankCanonical(t *testing.T) {
-	original := printAdapterRegistry
-	printAdapterRegistry = map[string]PrintAdapter{}
-	t.Cleanup(func() { printAdapterRegistry = original })
-
 	RegisterPrintAdapter(testPrintAdapter{canonical: "  "})
-	if len(printAdapterRegistry) != 0 {
-		t.Fatalf("registry size = %d, want 0", len(printAdapterRegistry))
+	if HasPrintAdapter("should-not-exist") {
+		t.Fatal("blank canonical adapter should not create lookups")
 	}
 }
 

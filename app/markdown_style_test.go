@@ -3,7 +3,8 @@ package app
 import (
 	"testing"
 
-	"github.com/FelineStateMachine/puzzletea/game"
+	"github.com/FelineStateMachine/puzzletea/puzzle"
+	"github.com/FelineStateMachine/puzzletea/registry"
 	"github.com/FelineStateMachine/puzzletea/theme"
 )
 
@@ -55,9 +56,9 @@ func TestUpdateHelpDetailViewportRebuildsRendererAfterThemeChange(t *testing.T) 
 		width:  100,
 		height: 30,
 		help: helpState{
-			category: game.Category{
-				Name: "Nonogram",
-				Help: "# Nonogram\n\n- clue\n",
+			category: registry.Entry{
+				Definition: puzzle.Definition{Name: "Nonogram"},
+				Help:       "# Nonogram\n\n- clue\n",
 			},
 		},
 	}

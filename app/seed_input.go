@@ -3,8 +3,8 @@ package app
 import (
 	"strings"
 
-	"github.com/FelineStateMachine/puzzletea/catalog"
-	"github.com/FelineStateMachine/puzzletea/game"
+	"github.com/FelineStateMachine/puzzletea/puzzle"
+	"github.com/FelineStateMachine/puzzletea/registry"
 	"github.com/FelineStateMachine/puzzletea/theme"
 	"github.com/FelineStateMachine/puzzletea/ui"
 
@@ -15,7 +15,7 @@ import (
 
 const randomSeedModeLabel = "Random"
 
-func buildSeedModeOptions(definitions []game.Definition) []seedModeOption {
+func buildSeedModeOptions(definitions []puzzle.Definition) []seedModeOption {
 	options := []seedModeOption{{label: randomSeedModeLabel}}
 
 	for _, def := range definitions {
@@ -23,8 +23,8 @@ func buildSeedModeOptions(definitions []game.Definition) []seedModeOption {
 			continue
 		}
 
-		for _, item := range def.Modes {
-			if _, ok := item.(game.SeededSpawner); !ok {
+		for _, mode := range def.Modes {
+			if !mode.Seeded {
 				continue
 			}
 
@@ -42,14 +42,14 @@ func buildSeedModeOptions(definitions []game.Definition) []seedModeOption {
 
 func seedModeKey(gameType, modeTitle string) string {
 	if modeTitle == "" {
-		return game.NormalizeName(gameType)
+		return puzzle.NormalizeName(gameType)
 	}
-	return game.NormalizeName(gameType) + "::" + game.NormalizeName(modeTitle)
+	return puzzle.NormalizeName(gameType) + "::" + puzzle.NormalizeName(modeTitle)
 }
 
-func definitionHasSeededModes(def game.Definition) bool {
-	for _, item := range def.Modes {
-		if _, ok := item.(game.SeededSpawner); ok {
+func definitionHasSeededModes(def puzzle.Definition) bool {
+	for _, mode := range def.Modes {
+		if mode.Seeded {
 			return true
 		}
 	}
@@ -74,7 +74,7 @@ func (m model) enterSeedInputView() (model, tea.Cmd) {
 	ti.CharLimit = 64
 	ti.SetWidth(min(m.width, 48))
 
-	options := buildSeedModeOptions(catalog.All)
+	options := buildSeedModeOptions(registry.Definitions())
 	index := findSeedModeIndex(options, m.nav.lastSeedModeKey)
 
 	m.nav.seedInput = ti

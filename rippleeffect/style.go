@@ -194,34 +194,10 @@ func bridgeFill(m Model, bridgeBG map[int]color.Color, bridge game.DynamicGridBr
 	if bridge.Count > 0 && !bridgeTouchesBorder(m.geo, bridge) {
 		return nil
 	}
-	if bridgeOnCrosshairAxis(m.cursor, bridge) {
+	if game.DynamicGridBridgeOnCrosshairAxis(m.cursor, bridge) {
 		return theme.Current().Surface
 	}
 	return nil
-}
-
-func bridgeOnCrosshairAxis(cursor game.Cursor, bridge game.DynamicGridBridge) bool {
-	switch bridge.Kind {
-	case game.DynamicGridBridgeVertical:
-		if bridge.Count == 0 {
-			return bridge.Y == cursor.Y
-		}
-		for i := 0; i < bridge.Count; i++ {
-			if bridge.Cells[i].Y == cursor.Y {
-				return true
-			}
-		}
-	case game.DynamicGridBridgeHorizontal:
-		if bridge.Count == 0 {
-			return bridge.X == cursor.X
-		}
-		for i := 0; i < bridge.Count; i++ {
-			if bridge.Cells[i].X == cursor.X {
-				return true
-			}
-		}
-	}
-	return false
 }
 
 func bridgeTouchesBorder(geo *geometry, bridge game.DynamicGridBridge) bool {

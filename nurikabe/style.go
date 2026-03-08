@@ -9,7 +9,15 @@ import (
 	"github.com/FelineStateMachine/puzzletea/theme"
 )
 
-const cellWidth = game.DynamicGridCellWidth
+const (
+	cellWidth   = game.DynamicGridCellWidth
+	neutralZone = -1
+)
+
+type renderGridState struct {
+	zones      [][]int
+	zoneColors map[int]color.Color
+}
 
 type cellVisual struct {
 	text     string
@@ -23,28 +31,77 @@ type cellVisual struct {
 type cellVisualKind int
 
 const (
-	cellVisualLand cellVisualKind = iota
+	cellVisualNeutral cellVisualKind = iota
 	cellVisualSea
 	cellVisualCursor
 	cellVisualSolved
 	cellVisualConflict
 )
 
+func buildRenderGridState(m Model) renderGridState {
+	zones := make([][]int, m.height)
+	for y := range m.height {
+		zones[y] = make([]int, m.width)
+		for x := range m.width {
+			zones[y][x] = neutralZone
+		}
+	}
+
+	_, idx := islandComponents(m.marks, m.clues)
+	if idx == nil {
+		return renderGridState{zones: zones}
+	}
+
+	themeColors := theme.Current().ThemeColors()
+	zoneColors := make(map[int]color.Color)
+	for y := range m.height {
+		for x := range m.width {
+			zone := idx[y][x]
+			if zone < 0 {
+				continue
+			}
+			zones[y][x] = zone
+			if len(themeColors) == 0 {
+				continue
+			}
+			if _, ok := zoneColors[zone]; !ok {
+				zoneColors[zone] = themeColors[zone%len(themeColors)]
+			}
+		}
+	}
+
+	return renderGridState{
+		zones:      zones,
+		zoneColors: zoneColors,
+	}
+}
+
+func zoneBackground(renderState renderGridState, zone int) color.Color {
+	if zone < 0 {
+		return nil
+	}
+	return renderState.zoneColors[zone]
+}
+
 func resolveCellVisual(m Model, x, y int) cellVisual {
+	return resolveCellVisualWithState(m, buildRenderGridState(m), x, y)
+}
+
+func resolveCellVisualWithState(m Model, renderState renderGridState, x, y int) cellVisual {
 	p := theme.Current()
-	landBg := theme.Blend(p.BG, p.Success, 0.45)
 	seaBg := theme.Blend(p.BG, p.Secondary, 0.24)
 	c := m.marks[y][x]
 	clue := m.clues[y][x]
 	isCursor := x == m.cursor.X && y == m.cursor.Y
 	conflict := m.conflicts[y][x]
 	inSeaSquare := isSeaSquareCell(m.marks, x, y)
+	islandBg := zoneBackground(renderState, renderState.zones[y][x])
 	visual := cellVisual{
 		text:     "   ",
-		fg:       theme.TextOnBG(landBg),
-		bg:       landBg,
-		bridgeBG: landBg,
-		kind:     cellVisualLand,
+		fg:       p.FG,
+		bg:       p.BG,
+		bridgeBG: p.BG,
+		kind:     cellVisualNeutral,
 	}
 
 	switch {
@@ -53,7 +110,13 @@ func resolveCellVisual(m Model, x, y int) cellVisual {
 		if clue < 10 {
 			visual.text = fmt.Sprintf(" %d ", clue)
 		}
-		visual.fg = p.Info
+		if islandBg != nil {
+			visual.bg = islandBg
+			visual.bridgeBG = islandBg
+			visual.fg = theme.TextOnBG(islandBg)
+		} else {
+			visual.fg = p.Info
+		}
 		visual.bold = true
 	case c == seaCell:
 		visual.text = " ~ "
@@ -65,6 +128,13 @@ func resolveCellVisual(m Model, x, y int) cellVisual {
 		visual.fg = theme.TextOnBG(seaBg)
 		visual.kind = cellVisualSea
 	case c == islandCell:
+		visual.text = " \u00b7 "
+		if islandBg != nil {
+			visual.bg = islandBg
+			visual.bridgeBG = islandBg
+			visual.fg = theme.TextOnBG(islandBg)
+		}
+	case m.solved && c == unknownCell:
 		visual.text = " \u00b7 "
 	}
 
@@ -84,8 +154,22 @@ func resolveCellVisual(m Model, x, y int) cellVisual {
 		visual.fg = game.CursorFG()
 		visual.kind = cellVisualCursor
 	}
+	if isCursor {
+		visual.text = cursorWrappedText(visual.text)
+	}
 
 	return visual
+}
+
+func cursorWrappedText(text string) string {
+	runes := []rune(text)
+	if len(runes) != cellWidth {
+		return text
+	}
+	if runes[0] != ' ' || runes[cellWidth-1] != ' ' {
+		return text
+	}
+	return game.CursorLeft + string(runes[1]) + game.CursorRight
 }
 
 func renderCellVisual(visual cellVisual) string {
@@ -100,20 +184,10 @@ func renderCellVisual(visual cellVisual) string {
 	return style.Render(visual.text)
 }
 
-func colorsMatch(left, right color.Color) bool {
-	if left == nil || right == nil {
-		return left == nil && right == nil
-	}
-	lr, lg, lb, la := left.RGBA()
-	rr, rg, rb, ra := right.RGBA()
-	return lr == rr && lg == rg && lb == rb && la == ra
-}
-
 func dominantBridgeBackground(visuals []cellVisual) color.Color {
 	for _, kind := range []cellVisualKind{
 		cellVisualConflict,
 		cellVisualSolved,
-		cellVisualCursor,
 	} {
 		for _, visual := range visuals {
 			if visual.kind == kind {
@@ -148,6 +222,10 @@ func blendBridgeBackgrounds(visuals []cellVisual) color.Color {
 }
 
 func bridgeFill(m Model, bridge game.DynamicGridBridge) color.Color {
+	return bridgeFillWithState(m, buildRenderGridState(m), bridge)
+}
+
+func bridgeFillWithState(m Model, renderState renderGridState, bridge game.DynamicGridBridge) color.Color {
 	if bridge.Count == 0 {
 		return nil
 	}
@@ -155,18 +233,24 @@ func bridgeFill(m Model, bridge game.DynamicGridBridge) color.Color {
 	visuals := make([]cellVisual, 0, bridge.Count)
 	for i := 0; i < bridge.Count; i++ {
 		cell := bridge.Cells[i]
-		visuals = append(visuals, resolveCellVisual(m, cell.X, cell.Y))
+		visuals = append(visuals, resolveCellVisualWithState(m, renderState, cell.X, cell.Y))
 	}
 
 	bg := visuals[0].bridgeBG
 	allMatch := true
 	for _, visual := range visuals[1:] {
-		if !colorsMatch(bg, visual.bridgeBG) {
+		if !game.SameColor(bg, visual.bridgeBG) {
 			allMatch = false
 			break
 		}
 	}
 	if allMatch {
+		if dominant := dominantBridgeBackground(visuals); dominant != nil {
+			return dominant
+		}
+		if bridge.Uniform && bridge.Zone >= 0 {
+			return nil
+		}
 		return bg
 	}
 
@@ -178,21 +262,23 @@ func bridgeFill(m Model, bridge game.DynamicGridBridge) color.Color {
 }
 
 func gridView(m Model) string {
+	renderState := buildRenderGridState(m)
+
 	return game.RenderDynamicGrid(game.DynamicGridSpec{
 		Width:  m.width,
 		Height: m.height,
 		Solved: m.solved,
 		Cell: func(x, y int) string {
-			return renderCellVisual(resolveCellVisual(m, x, y))
+			return renderCellVisual(resolveCellVisualWithState(m, renderState, x, y))
 		},
-		HasVerticalEdge: func(x, _ int) bool {
-			return x <= 0 || x >= m.width
+		ZoneAt: func(x, y int) int {
+			return renderState.zones[y][x]
 		},
-		HasHorizontalEdge: func(_, y int) bool {
-			return y <= 0 || y >= m.height
+		ZoneFill: func(zone int) color.Color {
+			return zoneBackground(renderState, zone)
 		},
 		BridgeFill: func(bridge game.DynamicGridBridge) color.Color {
-			return bridgeFill(m, bridge)
+			return bridgeFillWithState(m, renderState, bridge)
 		},
 	})
 }

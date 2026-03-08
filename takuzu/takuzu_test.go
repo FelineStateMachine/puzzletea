@@ -2,11 +2,14 @@ package takuzu
 
 import (
 	"encoding/json"
+	"image"
+	"image/color"
 	"math/rand/v2"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/FelineStateMachine/puzzletea/game"
+	"github.com/FelineStateMachine/puzzletea/theme"
 )
 
 // --- Helpers ---
@@ -32,6 +35,15 @@ func validGrid6() grid {
 		"100110",
 		"011001",
 	)
+}
+
+func sameColor(left, right color.Color) bool {
+	if left == nil || right == nil {
+		return left == nil && right == nil
+	}
+	lr, lg, lb, la := left.RGBA()
+	rr, rg, rb, ra := right.RGBA()
+	return lr == rr && lg == rg && lb == rb && la == ra
 }
 
 // --- canPlace (P0) ---
@@ -995,6 +1007,68 @@ func TestMouseClickSameCellDoesNotCycleProvidedCell(t *testing.T) {
 
 	if got.grid[0][0] != zeroCell {
 		t.Fatalf("provided cell changed to %q, want %q", got.grid[0][0], zeroCell)
+	}
+}
+
+func TestBridgeFillUsesVerticalCrosshairAcrossOpenInterior(t *testing.T) {
+	m := testMouseModel()
+	m.cursor = game.Cursor{X: 0, Y: 1}
+
+	got := bridgeFill(m, game.DynamicGridBridge{
+		Kind:    game.DynamicGridBridgeVertical,
+		X:       1,
+		Y:       1,
+		Count:   2,
+		Uniform: true,
+		Cells: [4]image.Point{
+			{X: 0, Y: 1},
+			{X: 1, Y: 1},
+		},
+	})
+	if !sameColor(got, theme.Current().Surface) {
+		t.Fatal("expected open vertical bridge on cursor row to use crosshair background")
+	}
+}
+
+func TestBridgeFillUsesHorizontalCrosshairAcrossOpenInterior(t *testing.T) {
+	m := testMouseModel()
+	m.cursor = game.Cursor{X: 0, Y: 1}
+
+	got := bridgeFill(m, game.DynamicGridBridge{
+		Kind:    game.DynamicGridBridgeHorizontal,
+		X:       0,
+		Y:       1,
+		Count:   2,
+		Uniform: true,
+		Cells: [4]image.Point{
+			{X: 0, Y: 0},
+			{X: 0, Y: 1},
+		},
+	})
+	if !sameColor(got, theme.Current().Surface) {
+		t.Fatal("expected open horizontal bridge on cursor column to use crosshair background")
+	}
+}
+
+func TestBridgeFillLeavesInteriorJunctionOpen(t *testing.T) {
+	m := testMouseModel()
+	m.cursor = game.Cursor{X: 0, Y: 1}
+
+	got := bridgeFill(m, game.DynamicGridBridge{
+		Kind:    game.DynamicGridBridgeJunction,
+		X:       1,
+		Y:       1,
+		Count:   4,
+		Uniform: true,
+		Cells: [4]image.Point{
+			{X: 0, Y: 0},
+			{X: 1, Y: 0},
+			{X: 0, Y: 1},
+			{X: 1, Y: 1},
+		},
+	})
+	if got != nil {
+		t.Fatal("expected open interior junction to remain unfilled")
 	}
 }
 

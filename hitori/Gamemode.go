@@ -63,7 +63,7 @@ var DailyModes = []list.Item{
 
 var Definition = game.Definition{
 	Name:        "Hitori",
-	Description: "Shade cells to eliminate duplicates.",
+	Description: "Shade the cells to eliminate duplicates.",
 	Modes:       Modes,
 	DailyModes:  DailyModes,
 	Help:        HelpContent,

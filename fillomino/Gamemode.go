@@ -65,7 +65,7 @@ var DailyModes = []list.Item{
 
 var Definition = game.Definition{
 	Name:        "Fillomino",
-	Description: "Grow numbered regions to their exact sizes.",
+	Description: "Grow the numbered regions to their exact sizes.",
 	Aliases:     []string{"polyomino", "regions"},
 	Modes:       Modes,
 	DailyModes:  DailyModes,

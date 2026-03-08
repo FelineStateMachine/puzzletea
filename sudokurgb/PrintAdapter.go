@@ -4,7 +4,6 @@ import (
 	"strconv"
 
 	"codeberg.org/go-pdf/fpdf"
-	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/pdfexport"
 )
 
@@ -110,5 +109,5 @@ func drawSudokuRGBGivens(pdf *fpdf.Fpdf, startX, startY, cellSize float64, given
 }
 
 func init() {
-	game.RegisterPrintAdapter(printAdapter{})
+	pdfexport.RegisterPrintAdapter(printAdapter{})
 }

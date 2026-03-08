@@ -136,6 +136,32 @@ func DynamicGridScreenToCell(
 	return col, row, true
 }
 
+// DynamicGridBridgeOnCrosshairAxis reports whether a bridge should be tinted
+// by a row/column crosshair for the given cursor position.
+func DynamicGridBridgeOnCrosshairAxis(cursor Cursor, bridge DynamicGridBridge) bool {
+	switch bridge.Kind {
+	case DynamicGridBridgeVertical:
+		if bridge.Count == 0 {
+			return bridge.Y == cursor.Y
+		}
+		for i := 0; i < bridge.Count; i++ {
+			if bridge.Cells[i].Y == cursor.Y {
+				return true
+			}
+		}
+	case DynamicGridBridgeHorizontal:
+		if bridge.Count == 0 {
+			return bridge.X == cursor.X
+		}
+		for i := 0; i < bridge.Count; i++ {
+			if bridge.Cells[i].X == cursor.X {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func dynamicGridContentRow(spec DynamicGridSpec, y int) string {
 	var b strings.Builder
 	for x := range spec.Width {

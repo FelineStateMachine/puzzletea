@@ -4,8 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/FelineStateMachine/puzzletea/game"
-	"github.com/FelineStateMachine/puzzletea/stats"
+	"github.com/FelineStateMachine/puzzletea/registry"
 	"github.com/FelineStateMachine/puzzletea/theme"
 	"github.com/FelineStateMachine/puzzletea/ui"
 
@@ -36,7 +35,7 @@ func (m model) View() tea.View {
 		content = m.gameSelectViewContent()
 	case modeSelectView:
 		panel := ui.Panel(
-			m.nav.selectedCategory.Name+" — Select Mode",
+			m.nav.selectedCategory.Definition.Name+" — Select Mode",
 			m.nav.modeSelectList.View(),
 			"↑/↓ navigate • enter select • esc back",
 		)
@@ -90,7 +89,7 @@ func (m model) View() tea.View {
 		content = ui.CenterView(m.width, m.height, panel)
 	case helpDetailView:
 		panel := ui.Panel(
-			m.help.category.Name+" — Guide",
+			m.help.category.Definition.Name+" — Guide",
 			m.help.viewport.View(),
 			"↑/↓ scroll • esc back",
 		)
@@ -103,7 +102,7 @@ func (m model) View() tea.View {
 		if len(m.stats.cards) == 0 {
 			statsBody = m.stats.viewport.View()
 		} else {
-			banner := stats.RenderBanner(m.stats.profile, statsWidth)
+			banner := ui.RenderStatsBanner(m.stats.profile, statsWidth)
 			statsBody = lipgloss.JoinVertical(lipgloss.Left,
 				banner,
 				"",
@@ -207,32 +206,32 @@ func categoryPickerListHeight() int {
 	return maxVisibleItems + filterChrome
 }
 
-func renderCategoryDetailContent(cat game.Category, width int) string {
+func renderCategoryDetailContent(entry registry.Entry, width int) string {
 	p := theme.Current()
 	desc := lipgloss.NewStyle().
 		Foreground(p.FG).
 		Width(width).
-		Render(cat.Desc)
+		Render(entry.Definition.Description)
 
-	meta := ui.DimItemStyle().Render(fmt.Sprintf("%d modes available", len(cat.Modes)))
+	meta := ui.DimItemStyle().Render(fmt.Sprintf("%d modes available", len(entry.Modes)))
 	content := lipgloss.JoinVertical(lipgloss.Left,
-		ui.PanelTitle().Render(cat.Name),
+		ui.PanelTitle().Render(entry.Definition.Name),
 		meta,
 		"",
 		desc,
 		"",
 		ui.SelectedItemStyle().Render("Modes"),
-		renderModeList(cat, width),
+		renderModeList(entry, width),
 	)
 	return content
 }
 
-func renderModeList(cat game.Category, width int) string {
-	if len(cat.Modes) == 0 {
+func renderModeList(entry registry.Entry, width int) string {
+	if len(entry.Modes) == 0 {
 		return ui.DimItemStyle().Render("No modes available.")
 	}
 
-	displayTitles := modeDisplayTitles(cat)
+	displayTitles := modeDisplayTitles(entry)
 	modeNames := make([]string, 0, len(displayTitles))
 	for _, title := range displayTitles {
 		modeNames = append(modeNames, "• "+title)

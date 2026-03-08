@@ -279,6 +279,23 @@ func isSolvedGrid(g grid, clues clueGrid) bool {
 }
 
 func isSolvedGridWithScratch(g grid, clues clueGrid, scratch *solverScratch) bool {
+	normalized := normalizeSolvedGrid(g, clues)
+	return isNormalizedSolvedGridWithScratch(normalized, clues, scratch)
+}
+
+func normalizeSolvedGrid(g grid, clues clueGrid) grid {
+	normalized := g.clone()
+	for y := range normalized {
+		for x := range normalized[y] {
+			if clues[y][x] > 0 || normalized[y][x] != seaCell {
+				normalized[y][x] = islandCell
+			}
+		}
+	}
+	return normalized
+}
+
+func isNormalizedSolvedGridWithScratch(g grid, clues clueGrid, scratch *solverScratch) bool {
 	if len(g) == 0 || len(g[0]) == 0 {
 		return false
 	}

@@ -8,64 +8,44 @@ import (
 	"strings"
 
 	"github.com/FelineStateMachine/puzzletea/game"
+	"github.com/FelineStateMachine/puzzletea/puzzle"
+	"github.com/FelineStateMachine/puzzletea/registry"
 )
 
 // Normalize lowercases and replaces hyphens/underscores with spaces for
 // fuzzy matching of CLI arguments to mode names.
 func Normalize(s string) string {
-	return game.NormalizeName(s)
+	return puzzle.NormalizeName(s)
 }
 
-// Mode finds a mode within a category by name. If name is empty,
+// Mode finds a mode within a game entry by name. If name is empty,
 // returns the first (default) mode.
-func Mode(cat game.Category, name string) (game.Spawner, string, error) {
-	if len(cat.Modes) == 0 {
-		return nil, "", fmt.Errorf("game %q has no available modes", cat.Name)
+func Mode(entry registry.Entry, name string) (game.Spawner, string, error) {
+	if len(entry.Modes) == 0 {
+		return nil, "", fmt.Errorf("game %q has no available modes", entry.Definition.Name)
 	}
 
 	if name == "" {
-		for _, item := range cat.Modes {
-			m, ok := item.(game.Mode)
-			if !ok {
-				continue
-			}
-			s, ok := item.(game.Spawner)
-			if !ok {
-				continue
-			}
-			return s, m.Title(), nil
-		}
-		return nil, "", fmt.Errorf("game %q has no spawnable modes", cat.Name)
+		mode := entry.Modes[0]
+		return mode.Spawner, mode.Definition.Title, nil
 	}
 
 	norm := Normalize(name)
-	for _, item := range cat.Modes {
-		m, ok := item.(game.Mode)
-		if !ok {
-			continue
-		}
-		if Normalize(m.Title()) == norm {
-			s, ok := item.(game.Spawner)
-			if !ok {
-				return nil, "", fmt.Errorf("mode %q for %s is not spawnable", m.Title(), cat.Name)
-			}
-			return s, m.Title(), nil
+	for _, mode := range entry.Modes {
+		if Normalize(mode.Definition.Title) == norm {
+			return mode.Spawner, mode.Definition.Title, nil
 		}
 	}
 
 	return nil, "", fmt.Errorf("unknown mode %q for %s\n\nAvailable modes:\n  %s",
-		name, cat.Name, strings.Join(ModeNames(cat), "\n  "))
+		name, entry.Definition.Name, strings.Join(ModeNames(entry), "\n  "))
 }
 
-// ModeNames returns the display names of all modes in a category.
-func ModeNames(cat game.Category) []string {
-	names := make([]string, 0, len(cat.Modes))
-	for _, item := range cat.Modes {
-		mode, ok := item.(game.Mode)
-		if !ok {
-			continue
-		}
-		names = append(names, mode.Title())
+// ModeNames returns the display names of all modes in an entry.
+func ModeNames(entry registry.Entry) []string {
+	names := make([]string, 0, len(entry.Modes))
+	for _, mode := range entry.Modes {
+		names = append(names, mode.Definition.Title)
 	}
 	return names
 }
@@ -86,33 +66,28 @@ type seededEntry struct {
 	mode     string
 }
 
-func seededModeForDefinition(seed string, def game.Definition) (seededEntry, bool) {
+func seededModeForDefinition(seed string, entry registry.Entry) (seededEntry, bool) {
 	var best seededEntry
 	var bestHash uint64
 	found := false
 
-	for _, modeItem := range def.Modes {
-		mode, ok := modeItem.(game.Mode)
-		if !ok {
-			continue
-		}
-		s, ok := modeItem.(game.SeededSpawner)
-		if !ok {
+	for _, mode := range entry.Modes {
+		if mode.Seeded == nil {
 			continue
 		}
 		h := fnv.New64a()
 		h.Write([]byte(seed))
 		h.Write([]byte{0})
-		h.Write([]byte(def.Name))
+		h.Write([]byte(entry.Definition.Name))
 		h.Write([]byte{0})
-		h.Write([]byte(mode.Title()))
+		h.Write([]byte(mode.Definition.Title))
 		score := h.Sum64()
 		if !found || score > bestHash {
 			bestHash = score
 			best = seededEntry{
-				spawner:  s,
-				gameType: def.Name,
-				mode:     mode.Title(),
+				spawner:  mode.Seeded,
+				gameType: entry.Definition.Name,
+				mode:     mode.Definition.Title,
 			}
 			found = true
 		}
@@ -129,25 +104,25 @@ func seededModeForDefinition(seed string, def game.Definition) (seededEntry, boo
 // This is resilient to changes in the category/mode lists: adding or
 // removing a mode only affects seeds where the changed entry would have
 // been the winner.
-func SeededMode(seed string, definitions []game.Definition) (game.SeededSpawner, string, string, error) {
+func SeededMode(seed string, entries []registry.Entry) (game.SeededSpawner, string, string, error) {
 	var best seededEntry
 	var bestHash uint64
 	found := false
-	for _, def := range definitions {
-		entry, ok := seededModeForDefinition(seed, def)
+	for _, entry := range entries {
+		selected, ok := seededModeForDefinition(seed, entry)
 		if !ok {
 			continue
 		}
 		h := fnv.New64a()
 		h.Write([]byte(seed))
 		h.Write([]byte{0})
-		h.Write([]byte(entry.gameType))
+		h.Write([]byte(selected.gameType))
 		h.Write([]byte{0})
-		h.Write([]byte(entry.mode))
+		h.Write([]byte(selected.mode))
 		score := h.Sum64()
 		if !found || score > bestHash {
 			bestHash = score
-			best = entry
+			best = selected
 			found = true
 		}
 	}
@@ -160,18 +135,18 @@ func SeededMode(seed string, definitions []game.Definition) (game.SeededSpawner,
 // SeededModeForGame deterministically selects a seeded mode within a single
 // game definition, so the same seed and game name always produce the same
 // puzzle for that game.
-func SeededModeForGame(seed, gameType string, definitions []game.Definition) (game.SeededSpawner, string, string, error) {
+func SeededModeForGame(seed, gameType string, entries []registry.Entry) (game.SeededSpawner, string, string, error) {
 	norm := Normalize(gameType)
-	for _, def := range definitions {
-		if Normalize(def.Name) != norm {
+	for _, entry := range entries {
+		if Normalize(entry.Definition.Name) != norm {
 			continue
 		}
 
-		entry, ok := seededModeForDefinition(seed, def)
+		selected, ok := seededModeForDefinition(seed, entry)
 		if !ok {
-			return nil, "", "", fmt.Errorf("game %q has no seeded modes", def.Name)
+			return nil, "", "", fmt.Errorf("game %q has no seeded modes", entry.Definition.Name)
 		}
-		return entry.spawner, entry.gameType, entry.mode, nil
+		return selected.spawner, selected.gameType, selected.mode, nil
 	}
 
 	return nil, "", "", fmt.Errorf("unknown game %q", gameType)

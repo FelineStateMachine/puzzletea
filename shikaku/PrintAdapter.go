@@ -5,7 +5,6 @@ import (
 	"unicode/utf8"
 
 	"codeberg.org/go-pdf/fpdf"
-	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/pdfexport"
 )
 
@@ -98,5 +97,5 @@ func drawShikakuClue(pdf *fpdf.Fpdf, x, y, cellSize float64, value int) {
 }
 
 func init() {
-	game.RegisterPrintAdapter(printAdapter{})
+	pdfexport.RegisterPrintAdapter(printAdapter{})
 }

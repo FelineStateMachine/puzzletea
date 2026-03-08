@@ -35,9 +35,16 @@ func conflictCellStyle() lipgloss.Style {
 		Underline(true)
 }
 
-func valueCursorStyle() lipgloss.Style {
+func valueCursorStyle(value int) lipgloss.Style {
+	if value == 0 {
+		return game.CursorStyle()
+	}
+
+	bg := symbolColor(value)
 	return lipgloss.NewStyle().
-		Bold(true)
+		Bold(true).
+		Foreground(theme.TextOnBG(bg)).
+		Background(bg)
 }
 
 func renderGrid(m Model, solved bool) string {
@@ -76,6 +83,7 @@ func cellView(m Model, x, y int, solved bool) string {
 }
 
 func cellStyle(m Model, c cell, x, y int, conflict, solved bool) lipgloss.Style {
+	p := theme.Current()
 	isCursor := m.cursor.X == x && m.cursor.Y == y
 	var base lipgloss.Style
 
@@ -93,26 +101,45 @@ func cellStyle(m Model, c cell, x, y int, conflict, solved bool) lipgloss.Style 
 		}
 	}
 
+	if !solved && !isCursor && inCursorContext(m.cursor, x, y) {
+		base = base.Background(p.Surface)
+	}
+
 	switch {
+	case isCursor:
+		return valueCursorStyle(c.v)
 	case conflict:
 		base = base.Inherit(conflictCellStyle())
 	case solved:
 		base = base.Bold(true)
 	}
 
-	if isCursor {
-		base = base.Inherit(valueCursorStyle())
-	}
-
 	return base
 }
 
 func bridgeFill(m Model, solved bool, bridge game.DynamicGridBridge) color.Color {
+	if solved {
+		return nil
+	}
+
+	if game.DynamicGridBridgeOnCrosshairAxis(m.cursor, bridge) {
+		return theme.Current().Surface
+	}
+
 	return nil
 }
 
 func activeBoxZoneFill(cursor game.Cursor, solved bool, zone int) color.Color {
-	return nil
+	if solved || zone != sudokuBoxIndex(cursor.X, cursor.Y) {
+		return nil
+	}
+	return theme.Current().Surface
+}
+
+func inCursorContext(cursor game.Cursor, x, y int) bool {
+	return cursor.X == x ||
+		cursor.Y == y ||
+		sudokuBoxIndex(cursor.X, cursor.Y) == sudokuBoxIndex(x, y)
 }
 
 func sudokuBoxIndex(x, y int) int {

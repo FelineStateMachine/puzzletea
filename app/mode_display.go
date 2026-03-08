@@ -4,42 +4,37 @@ import (
 	"strings"
 
 	"charm.land/bubbles/v2/list"
-	"github.com/FelineStateMachine/puzzletea/game"
+	"github.com/FelineStateMachine/puzzletea/puzzle"
+	"github.com/FelineStateMachine/puzzletea/registry"
 )
 
 type modeDisplayItem struct {
-	item        list.Item
+	mode        registry.ModeEntry
 	title       string
 	description string
 	filterValue string
 }
 
-func (i modeDisplayItem) Title() string       { return i.title }
-func (i modeDisplayItem) Description() string { return i.description }
-func (i modeDisplayItem) FilterValue() string { return i.filterValue }
-func (i modeDisplayItem) Original() list.Item { return i.item }
+func (i modeDisplayItem) Title() string                { return i.title }
+func (i modeDisplayItem) Description() string          { return i.description }
+func (i modeDisplayItem) FilterValue() string          { return i.filterValue }
+func (i modeDisplayItem) Original() registry.ModeEntry { return i.mode }
 
-func buildModeDisplayItems(cat game.Category) []list.Item {
-	titles := modeDisplayTitles(cat)
-	items := make([]list.Item, 0, len(cat.Modes))
+func buildModeDisplayItems(entry registry.Entry) []list.Item {
+	titles := modeDisplayTitles(entry)
+	items := make([]list.Item, 0, len(entry.Modes))
 
-	for idx, item := range cat.Modes {
-		mode, ok := item.(game.Mode)
-		if !ok {
-			items = append(items, item)
-			continue
-		}
-
+	for idx, mode := range entry.Modes {
 		displayTitle := titles[idx]
-		filterValue := displayTitle + " " + mode.Description()
-		if displayTitle != mode.Title() {
-			filterValue += " " + mode.Title()
+		filterValue := displayTitle + " " + mode.Definition.Description
+		if displayTitle != mode.Definition.Title {
+			filterValue += " " + mode.Definition.Title
 		}
 
 		items = append(items, modeDisplayItem{
-			item:        item,
+			mode:        mode,
 			title:       displayTitle,
-			description: mode.Description(),
+			description: mode.Definition.Description,
 			filterValue: strings.TrimSpace(filterValue),
 		})
 	}
@@ -47,28 +42,19 @@ func buildModeDisplayItems(cat game.Category) []list.Item {
 	return items
 }
 
-func modeDisplayTitles(cat game.Category) []string {
-	counts := make(map[string]int, len(cat.Modes))
-	titles := make([]string, 0, len(cat.Modes))
+func modeDisplayTitles(entry registry.Entry) []string {
+	counts := make(map[string]int, len(entry.Modes))
+	titles := make([]string, 0, len(entry.Modes))
 
-	for _, item := range cat.Modes {
-		mode, ok := item.(game.Mode)
-		if !ok {
-			continue
-		}
-		base, _ := trimGridSizeSuffix(mode.Title())
-		counts[game.NormalizeName(base)]++
+	for _, mode := range entry.Modes {
+		base, _ := trimGridSizeSuffix(mode.Definition.Title)
+		counts[puzzle.NormalizeName(base)]++
 	}
 
-	for _, item := range cat.Modes {
-		mode, ok := item.(game.Mode)
-		if !ok {
-			continue
-		}
-
-		title := mode.Title()
+	for _, mode := range entry.Modes {
+		title := mode.Definition.Title
 		base, hadSize := trimGridSizeSuffix(title)
-		if hadSize && counts[game.NormalizeName(base)] == 1 {
+		if hadSize && counts[puzzle.NormalizeName(base)] == 1 {
 			title = base
 		}
 		titles = append(titles, title)
@@ -77,8 +63,8 @@ func modeDisplayTitles(cat game.Category) []string {
 	return titles
 }
 
-func unwrapModeDisplayItem(item list.Item) list.Item {
-	displayItem, ok := item.(interface{ Original() list.Item })
+func unwrapModeDisplayItem(item list.Item) any {
+	displayItem, ok := item.(interface{ Original() registry.ModeEntry })
 	if !ok {
 		return item
 	}

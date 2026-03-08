@@ -64,7 +64,7 @@ var DailyModes = []list.Item{
 
 var Definition = game.Definition{
 	Name:        "Shikaku",
-	Description: "Divide the grid into rectangles.",
+	Description: "Divide the grid into rectangles with set sizes.",
 	Aliases:     []string{"rectangles"},
 	Modes:       Modes,
 	DailyModes:  DailyModes,
