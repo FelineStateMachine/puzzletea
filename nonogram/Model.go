@@ -4,10 +4,11 @@ package nonogram
 import (
 	"errors"
 	"fmt"
+	"strconv"
+	"strings"
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 	"github.com/FelineStateMachine/puzzletea/game"
 )
 
@@ -137,7 +138,7 @@ func (m Model) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 	case tea.MouseClickMsg:
 		m.lastMouseX, m.lastMouseY = msg.X, msg.Y
 		m.lastMouseBtn = msg.String()
-		col, row, ok := m.screenToGrid(msg.X, msg.Y)
+		col, row, ok := m.screenToGrid(msg.X, msg.Y, false)
 		m.lastMouseGridCol, m.lastMouseGridRow = col, row
 		m.lastMouseHit = ok
 		if m.solved || !ok {
@@ -157,7 +158,7 @@ func (m Model) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 		if m.solved || m.dragging == 0 {
 			break
 		}
-		col, row, ok := m.screenToGrid(msg.X, msg.Y)
+		col, row, ok := m.screenToGrid(msg.X, msg.Y, true)
 		if !ok {
 			break
 		}
@@ -177,24 +178,18 @@ func (m Model) Update(msg tea.Msg) (game.Gamer, tea.Cmd) {
 }
 
 func (m Model) View() string {
-	maxWidth, maxHeight := m.rowHints.RequiredLen()*cellWidth, m.colHints.RequiredLen()
-
 	title := game.TitleBarView("Nonogram", m.modeTitle, m.solved)
-	g := gridView(m.grid, m.cursor, m.solved)
-	r := rowHintView(m.rowHints, maxWidth, m.currentHints.rows)
-	c := colHintView(m.colHints, maxHeight, m.currentHints.cols)
-	spacer := lipgloss.NewStyle().Width(maxWidth).Height(maxHeight).Render("")
+	board := buildBoardBlock(m)
 	status := statusBarView(m.showFullHelp)
-
-	s1 := lipgloss.JoinHorizontal(lipgloss.Bottom, spacer, c)
-	s2 := lipgloss.JoinHorizontal(lipgloss.Top, r, g)
-
-	grid := lipgloss.JoinVertical(lipgloss.Center, s1, s2)
 	if m.solved {
-		return game.ComposeGameView(title, grid)
+		return game.ComposeGameView(title, board.Block)
 	}
 
-	return game.ComposeGameViewRows(title, grid, game.StableRow(status, statusBarView(false), statusBarView(true)))
+	return game.ComposeGameViewRows(
+		title,
+		board.Block,
+		game.StableRow(status, statusBarView(false), statusBarView(true)),
+	)
 }
 
 func (m Model) GetDebugInfo() string {
@@ -247,14 +242,14 @@ func intSliceStr(s []int) string {
 	if len(s) == 0 {
 		return "[]"
 	}
-	result := ""
+	var b strings.Builder
 	for i, v := range s {
 		if i > 0 {
-			result += ", "
+			b.WriteString(", ")
 		}
-		result += fmt.Sprintf("%d", v)
+		b.WriteString(strconv.Itoa(v))
 	}
-	return result
+	return b.String()
 }
 
 func (m Model) SetTitle(t string) game.Gamer {

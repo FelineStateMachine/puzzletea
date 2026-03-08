@@ -25,8 +25,6 @@ func BenchmarkGeneratePuzzleByBoardSize(b *testing.B) {
 	skipBenchmarkInShortMode(b)
 
 	for modeIndex, mode := range benchmarkHashiModesByBoardSize() {
-		mode := mode
-		modeIndex := modeIndex
 		b.Run(mode.Title(), func(b *testing.B) {
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
@@ -56,8 +54,6 @@ func BenchmarkBuildSpanningTree(b *testing.B) {
 	skipBenchmarkInShortMode(b)
 
 	for modeIndex, mode := range benchmarkHashiModesByBoardSize() {
-		mode := mode
-		modeIndex := modeIndex
 		b.Run(mode.Title(), func(b *testing.B) {
 			base, err := GeneratePuzzleSeeded(mode, rand.New(rand.NewPCG(uint64(modeIndex+50), uint64(modeIndex+60))))
 			if err != nil {

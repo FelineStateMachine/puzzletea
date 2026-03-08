@@ -171,7 +171,7 @@ func bridgeTouchesBorder(renderState renderGridState, bridge game.DynamicGridBri
 	}
 }
 
-func zoneHorizontalEdge(zones [][]int, width, height, x, y int) bool {
+func zoneHorizontalEdge(zones [][]int, height, x, y int) bool {
 	switch {
 	case y <= 0, y >= height:
 		return true
@@ -193,8 +193,8 @@ func zoneVerticalEdge(zones [][]int, width, height, x, y int) bool {
 func zoneJunctionRune(zones [][]int, width, height, x, y int) rune {
 	north := y > 0 && zoneVerticalEdge(zones, width, height, x, y-1)
 	south := y < height && zoneVerticalEdge(zones, width, height, x, y)
-	west := x > 0 && zoneHorizontalEdge(zones, width, height, x-1, y)
-	east := x < width && zoneHorizontalEdge(zones, width, height, x, y)
+	west := x > 0 && zoneHorizontalEdge(zones, height, x-1, y)
+	east := x < width && zoneHorizontalEdge(zones, height, x, y)
 
 	switch {
 	case north && south && west && east:
@@ -308,9 +308,7 @@ func cursorRegionInfoView(m Model) string {
 func cursorRegionInfoVariants(m Model) []string {
 	area := m.width * m.height
 	maxTarget := m.maxCellValue
-	if maxTarget < 1 {
-		maxTarget = 1
-	}
+	maxTarget = max(maxTarget, 1)
 
 	return []string{
 		cursorRegionInfoStyle().Render("region size: " + strconv.Itoa(area) + "/-"),

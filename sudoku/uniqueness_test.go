@@ -7,9 +7,6 @@ import (
 
 func TestGenerateProvidedCellsUniquenessAcrossModes(t *testing.T) {
 	for modeIndex, mode := range benchmarkSudokuModes() {
-		mode := mode
-		modeIndex := modeIndex
-
 		t.Run(mode.Title(), func(t *testing.T) {
 			rng := rand.New(rand.NewPCG(uint64(modeIndex+101), uint64(modeIndex+1001)))
 			cells := GenerateProvidedCellsSeeded(mode, rng)

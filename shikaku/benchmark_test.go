@@ -37,8 +37,6 @@ func BenchmarkGeneratePuzzleBySize(b *testing.B) {
 	skipBenchmarkInShortMode(b)
 
 	for modeIndex, mode := range benchmarkShikakuModes() {
-		mode := mode
-		modeIndex := modeIndex
 		b.Run(mode.Title(), func(b *testing.B) {
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
@@ -68,8 +66,6 @@ func BenchmarkPartitionGrid(b *testing.B) {
 	skipBenchmarkInShortMode(b)
 
 	for modeIndex, mode := range benchmarkShikakuModes() {
-		mode := mode
-		modeIndex := modeIndex
 		b.Run(mode.Title(), func(b *testing.B) {
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {

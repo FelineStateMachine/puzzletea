@@ -544,9 +544,7 @@ func ParseWordSearchPrintData(saveData []byte) (*WordSearchData, error) {
 	}
 
 	height := save.Height
-	if len(rows) > height {
-		height = len(rows)
-	}
+	height = max(height, len(rows))
 	if width <= 0 || height <= 0 {
 		return nil, nil
 	}
@@ -591,7 +589,7 @@ func ParseWordSearchPrintData(saveData []byte) (*WordSearchData, error) {
 func parseNumberGrid(encoded string, width, height int) ([][]int, error) {
 	rows := strings.Split(strings.TrimSpace(encoded), "\n")
 	grid := make([][]int, height)
-	for y := 0; y < height; y++ {
+	for y := range height {
 		grid[y] = make([]int, width)
 		if y >= len(rows) {
 			continue
@@ -604,7 +602,7 @@ func parseNumberGrid(encoded string, width, height int) ([][]int, error) {
 		if len(fields) != width {
 			return nil, fmt.Errorf("decode number grid: invalid row width")
 		}
-		for x := 0; x < width; x++ {
+		for x := range width {
 			if fields[x] == "." {
 				continue
 			}
@@ -621,7 +619,7 @@ func parseNumberGrid(encoded string, width, height int) ([][]int, error) {
 func parseProvidedMask(encoded string, width, height int) [][]bool {
 	rows := strings.Split(encoded, "\n")
 	mask := make([][]bool, height)
-	for y := 0; y < height; y++ {
+	for y := range height {
 		mask[y] = make([]bool, width)
 		if y >= len(rows) {
 			continue
@@ -711,7 +709,7 @@ func parseNurikabeClues(raw string, width, height int) ([][]int, error) {
 	}
 
 	clues := make([][]int, height)
-	for y := 0; y < height; y++ {
+	for y := range height {
 		clues[y] = make([]int, width)
 	}
 
@@ -761,7 +759,7 @@ func normalizeNonogramHintRows(src [][]int, size int) [][]int {
 	}
 
 	normalized := make([][]int, size)
-	for i := 0; i < size; i++ {
+	for i := range size {
 		if i >= len(src) {
 			normalized[i] = []int{0}
 			continue
@@ -788,9 +786,9 @@ func normalizeNonogramStateGrid(rows []string, width, height int) [][]string {
 	}
 
 	grid := make([][]string, height)
-	for y := 0; y < height; y++ {
+	for y := range height {
 		grid[y] = make([]string, width)
-		for x := 0; x < width; x++ {
+		for x := range width {
 			grid[y][x] = " "
 		}
 

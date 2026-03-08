@@ -76,9 +76,7 @@ func renderStatsStatLine(label, value string) string {
 	l := statsLabelStyle().Render(label)
 	v := statsValueStyle().Render(value)
 	gap := stats.CardInnerWidth - lipgloss.Width(l) - lipgloss.Width(v)
-	if gap < 1 {
-		gap = 1
-	}
+	gap = max(gap, 1)
 	return l + strings.Repeat(" ", gap) + v
 }
 
@@ -96,12 +94,7 @@ func renderStatsXPBar(currentXP, level int) string {
 	if xpNeeded > 0 {
 		filled = int(float64(xpIntoLevel) / float64(xpNeeded) * barWidth)
 	}
-	if filled > barWidth {
-		filled = barWidth
-	}
-	if filled < 0 {
-		filled = 0
-	}
+	filled = max(0, min(filled, barWidth))
 
 	bar := statsXPBarFilledStyle().Render(strings.Repeat("\u2588", filled)) +
 		statsXPBarEmptyStyle().Render(strings.Repeat("\u2591", barWidth-filled))
@@ -135,15 +128,11 @@ func RenderStatsBanner(b stats.ProfileBanner, width int) string {
 		statsBannerValueStyle().Render(fmt.Sprintf("%d total (%2d/99 this week)", b.WeekliesCompleted, b.ThisWeekHighestIndex))
 
 	gap := width - lipgloss.Width(col1) - lipgloss.Width(col2)
-	if gap < 2 {
-		gap = 2
-	}
+	gap = max(gap, 2)
 	row1 := col1 + strings.Repeat(" ", gap) + col2
 
 	gap2 := width - lipgloss.Width(col3) - lipgloss.Width(col4)
-	if gap2 < 2 {
-		gap2 = 2
-	}
+	gap2 = max(gap2, 2)
 	row2 := col3 + strings.Repeat(" ", gap2) + col4
 
 	bottomRule := statsBannerRuleStyle().Render(strings.Repeat("\u2500", max(width, 1)))

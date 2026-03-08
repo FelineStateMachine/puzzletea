@@ -245,7 +245,7 @@ func TestSampledModeDistributionStaysNearProfile(t *testing.T) {
 			totalHorizontal := 0
 			totalSame := 0
 
-			for sample := 0; sample < samples; sample++ {
+			for sample := range samples {
 				rng := rand.New(rand.NewPCG(uint64(1000+i*37+sample), uint64(2000+i*41+sample)))
 				complete := generateCompleteSeeded(mode.Size, rng)
 				_, provided, rels := generatePuzzleSeeded(complete, mode.Size, mode.Prefilled, mode.profile, rng)

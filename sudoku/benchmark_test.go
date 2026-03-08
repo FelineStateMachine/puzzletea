@@ -28,8 +28,6 @@ func BenchmarkGenerateProvidedCellsByMode(b *testing.B) {
 	skipBenchmarkInShortMode(b)
 
 	for modeIndex, mode := range benchmarkSudokuModes() {
-		mode := mode
-		modeIndex := modeIndex
 		b.Run(mode.Title(), func(b *testing.B) {
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
@@ -47,8 +45,6 @@ func BenchmarkCountSolutionsByDifficulty(b *testing.B) {
 	skipBenchmarkInShortMode(b)
 
 	for modeIndex, mode := range benchmarkSudokuModes() {
-		mode := mode
-		modeIndex := modeIndex
 		b.Run(mode.Title(), func(b *testing.B) {
 			rng := rand.New(rand.NewPCG(uint64(modeIndex+1), uint64(modeIndex+2)))
 			cells := GenerateProvidedCellsSeeded(mode, rng)
@@ -75,12 +71,14 @@ func BenchmarkGenerateProvidedCellsSeededStable(b *testing.B) {
 
 	mode := NewMode("Hard", "benchmark", 27)
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	i := 0
+	for b.Loop() {
 		rng := rand.New(rand.NewPCG(uint64(i+1), uint64(i+100)))
 		cells := GenerateProvidedCellsSeeded(mode, rng)
 		if len(cells) < mode.ProvidedCount {
 			b.Fatalf("generated %d clues, want >= %d", len(cells), mode.ProvidedCount)
 		}
+		i++
 	}
 }
 
@@ -96,12 +94,14 @@ func BenchmarkCountSolutionsFixedPuzzle(b *testing.B) {
 
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	i := 0
+	for b.Loop() {
 		g := source
 		count := countSolutions(&g, 2)
 		if count != 1 {
 			b.Fatalf("iteration %d: countSolutions=%d, want 1", i, count)
 		}
+		i++
 	}
 }
 
@@ -114,7 +114,7 @@ func BenchmarkIsValidAllCells(b *testing.B) {
 
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		for y := range gridSize {
 			for x := range gridSize {
 				val := g[y][x].v
@@ -134,7 +134,8 @@ func BenchmarkCountSolutionsModesSummary(b *testing.B) {
 
 	modes := benchmarkSudokuModes()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	i := 0
+	for b.Loop() {
 		mode := modes[i%len(modes)]
 		rng := rand.New(rand.NewPCG(uint64(i+1), uint64(i+2)))
 		cells := GenerateProvidedCellsSeeded(mode, rng)
@@ -142,6 +143,7 @@ func BenchmarkCountSolutionsModesSummary(b *testing.B) {
 		if got := countSolutions(&g, 2); got != 1 {
 			b.Fatalf("mode %s uniqueness check failed: %d", mode.Title(), got)
 		}
+		i++
 	}
 }
 

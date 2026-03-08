@@ -242,7 +242,7 @@ func normalizeNonogramHintsForRender(hints [][]int, size int) [][]int {
 	}
 
 	normalized := make([][]int, size)
-	for i := 0; i < size; i++ {
+	for i := range size {
 		if i >= len(hints) || len(hints[i]) == 0 {
 			normalized[i] = []int{0}
 			continue

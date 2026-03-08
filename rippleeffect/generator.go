@@ -40,7 +40,7 @@ func GeneratePuzzleSeeded(width, height, maxCage int, givenRatio float64, rng *r
 func generatePuzzleSeededWithProfile(width, height, maxCage int, givenRatio float64, profile generationProfile, rng *rand.Rand) (Puzzle, error) {
 	const maxAttempts = 24
 	profile = profile.withDefaults(maxCage)
-	for attempt := 0; attempt < maxAttempts; attempt++ {
+	for range maxAttempts {
 		cages := generateCages(width, height, maxCage, profile, rng)
 		geo, err := buildGeometry(width, height, cages)
 		if err != nil {

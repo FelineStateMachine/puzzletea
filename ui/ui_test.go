@@ -224,7 +224,7 @@ func alternatingCasePrefix(s string, n int) string {
 
 func renderedWidth(s string) int {
 	maxW := 0
-	for _, line := range strings.Split(s, "\n") {
+	for line := range strings.SplitSeq(s, "\n") {
 		if w := ansi.StringWidth(line); w > maxW {
 			maxW = w
 		}

@@ -206,7 +206,7 @@ func TestSampledGivenValueDistributionMatchesSolutions(t *testing.T) {
 			totalSolutions := 0
 			totalGivens := 0
 
-			for sample := 0; sample < samples; sample++ {
+			for sample := range samples {
 				rng := rand.New(rand.NewPCG(uint64(3000+i*37+sample), uint64(4000+i*41+sample)))
 				puzzle, err := mode.generatePuzzleSeeded(rng)
 				if err != nil {

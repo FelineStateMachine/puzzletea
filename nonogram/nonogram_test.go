@@ -911,7 +911,6 @@ func TestGenerateRandomTomography_LargeModes_Unique(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			rng := rand.New(rand.NewPCG(tc.seedA, tc.seedB))
 			hints := GenerateRandomTomographySeeded(tc.mode, rng)
@@ -952,7 +951,6 @@ func TestGenerateRandomTomography_LargeModes_PerfBudget(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			start := time.Now()
 			rng := rand.New(rand.NewPCG(tc.seedA, tc.seedB))
@@ -997,14 +995,13 @@ func TestSpawnPerformance(t *testing.T) {
 
 	t.Run("average spawn time across all modes", func(t *testing.T) {
 		for _, cfg := range modeConfigs {
-			cfg := cfg
 			t.Run(cfg.name, func(t *testing.T) {
 				if cfg.mode.Width >= 15 && testing.Short() {
 					t.Skip("skipping large grids in short mode")
 				}
 
 				var totalDuration time.Duration
-				for i := 0; i < numRuns; i++ {
+				for range numRuns {
 					start := time.Now()
 					_, err := cfg.mode.Spawn()
 					if err != nil {
@@ -1057,171 +1054,96 @@ func TestReset(t *testing.T) {
 	}
 }
 
-// --- localToCell (P0) ---
-
-func TestLocalToCellX(t *testing.T) {
-	t.Run("small grid no spacers", func(t *testing.T) {
-		// 5 cells, cellWidth=3, no separators.
-		tests := []struct {
-			pos  int
-			want int
-		}{
-			{0, 0}, {1, 0}, {2, 0}, // cell 0
-			{3, 1}, {4, 1}, {5, 1}, // cell 1
-			{6, 2}, {7, 2}, {8, 2}, // cell 2
-			{9, 3}, {10, 3}, {11, 3}, // cell 3
-			{12, 4}, {13, 4}, {14, 4}, // cell 4
-			{15, -1}, // out of bounds
-		}
-		for _, tt := range tests {
-			got := localToCellX(tt.pos, 5)
-			if got != tt.want {
-				t.Errorf("localToCellX(%d, 5) = %d, want %d", tt.pos, got, tt.want)
-			}
-		}
-	})
-
-	t.Run("10 cells with one spacer", func(t *testing.T) {
-		// Cells 0-4, separator, cells 5-9.
-		// Block width = 5*3+1 = 16.
-		tests := []struct {
-			pos  int
-			want int
-		}{
-			{0, 0},   // cell 0 start
-			{2, 0},   // cell 0 end
-			{3, 1},   // cell 1 start
-			{12, 4},  // cell 4 start
-			{14, 4},  // cell 4 end
-			{15, -1}, // separator
-			{16, 5},  // cell 5 start
-			{18, 5},  // cell 5 end
-			{19, 6},  // cell 6 start
-			{28, 9},  // cell 9 start
-			{30, 9},  // cell 9 end
-			{31, -1}, // out of bounds
-		}
-		for _, tt := range tests {
-			got := localToCellX(tt.pos, 10)
-			if got != tt.want {
-				t.Errorf("localToCellX(%d, 10) = %d, want %d", tt.pos, got, tt.want)
-			}
-		}
-	})
-
-	t.Run("15 cells with two spacers", func(t *testing.T) {
-		// Cells 0-4, sep, 5-9, sep, 10-14.
-		// Total = 15*3 + 2 separators = 47 characters.
-		tests := []struct {
-			pos  int
-			want int
-		}{
-			{0, 0},
-			{15, -1}, // first separator
-			{16, 5},  // cell 5
-			{31, -1}, // second separator
-			{32, 10}, // cell 10
-			{44, 14}, // cell 14
-			{46, 14}, // still cell 14 (chars 44-46)
-		}
-		for _, tt := range tests {
-			got := localToCellX(tt.pos, 15)
-			if got != tt.want {
-				t.Errorf("localToCellX(%d, 15) = %d, want %d", tt.pos, got, tt.want)
-			}
-		}
-	})
-}
-
-func TestLocalToCellY(t *testing.T) {
-	t.Run("small grid no spacers", func(t *testing.T) {
-		for i := range 5 {
-			got := localToCellY(i, 5)
-			if got != i {
-				t.Errorf("localToCellY(%d, 5) = %d, want %d", i, got, i)
-			}
-		}
-		if got := localToCellY(5, 5); got != -1 {
-			t.Errorf("localToCellY(5, 5) = %d, want -1", got)
-		}
-	})
-
-	t.Run("10 rows with one spacer", func(t *testing.T) {
-		// Rows 0-4, separator at 5, rows 5-9 at positions 6-10.
-		tests := []struct {
-			pos  int
-			want int
-		}{
-			{0, 0},
-			{4, 4},
-			{5, -1}, // separator
-			{6, 5},
-			{10, 9},
-			{11, -1}, // out of bounds
-		}
-		for _, tt := range tests {
-			got := localToCellY(tt.pos, 10)
-			if got != tt.want {
-				t.Errorf("localToCellY(%d, 10) = %d, want %d", tt.pos, got, tt.want)
-			}
-		}
-	})
-}
-
 // --- screenToGrid (P0) ---
 
 func TestScreenToGrid(t *testing.T) {
-	// Build a 5x5 model with known hint sizes and terminal dimensions.
-	mode := NonogramMode{
-		BaseMode: game.NewBaseMode("Test", "5x5"),
-		Width:    5,
-		Height:   5,
+	buildModel := func(width, height int) Model {
+		mode := NonogramMode{
+			BaseMode: game.NewBaseMode("Test", "grid"),
+			Width:    width,
+			Height:   height,
+		}
+		hints := Hints{
+			rows: repeatedHints(height, []int{1}),
+			cols: repeatedHints(width, []int{1}),
+		}
+		g, err := New(mode, hints)
+		if err != nil {
+			t.Fatal(err)
+		}
+		m := g.(Model)
+		m.termWidth = 80
+		m.termHeight = 40
+		return m
 	}
-	hints := Hints{
-		rows: TomographyDefinition{{1}, {1}, {1}, {1}, {1}},
-		cols: TomographyDefinition{{1}, {1}, {1}, {1}, {1}},
-	}
-	g, err := New(mode, hints)
-	if err != nil {
-		t.Fatal(err)
-	}
-	m := g.(Model)
-	m.termWidth = 80
-	m.termHeight = 40
 
-	ox, oy := m.gridOrigin()
+	t.Run("basic 5x5 hit-testing", func(t *testing.T) {
+		m := buildModel(5, 5)
+		ox, oy := m.gridOrigin()
 
-	t.Run("first cell", func(t *testing.T) {
-		col, row, ok := m.screenToGrid(ox, oy)
+		col, row, ok := m.screenToGrid(ox, oy, false)
 		if !ok {
 			t.Fatal("expected ok for first cell")
 		}
 		if col != 0 || row != 0 {
 			t.Errorf("got (%d,%d), want (0,0)", col, row)
 		}
-	})
 
-	t.Run("last cell", func(t *testing.T) {
-		col, row, ok := m.screenToGrid(ox+4*cellWidth, oy+4)
+		col, row, ok = m.screenToGrid(ox+4*cellWidth, oy+4, false)
 		if !ok {
 			t.Fatal("expected ok for last cell")
 		}
 		if col != 4 || row != 4 {
 			t.Errorf("got (%d,%d), want (4,4)", col, row)
 		}
-	})
 
-	t.Run("outside grid left", func(t *testing.T) {
-		_, _, ok := m.screenToGrid(ox-1, oy)
+		_, _, ok = m.screenToGrid(ox-1, oy, false)
 		if ok {
 			t.Error("expected not ok for click left of grid")
 		}
-	})
 
-	t.Run("outside grid above", func(t *testing.T) {
-		_, _, ok := m.screenToGrid(ox, oy-1)
+		_, _, ok = m.screenToGrid(ox, oy-1, false)
 		if ok {
 			t.Error("expected not ok for click above grid")
+		}
+	})
+
+	t.Run("10x10 separators and hint bands", func(t *testing.T) {
+		m := buildModel(10, 10)
+		ox, oy := m.gridOrigin()
+
+		separatorX := ox + cellWidth*5
+		separatorY := oy + 5
+
+		_, _, ok := m.screenToGrid(separatorX, oy, false)
+		if ok {
+			t.Error("expected separator click to miss")
+		}
+
+		col, row, ok := m.screenToGrid(separatorX, oy, true)
+		if !ok {
+			t.Fatal("expected separator drag to snap")
+		}
+		if col != 5 || row != 0 {
+			t.Errorf("got (%d,%d), want (5,0)", col, row)
+		}
+
+		_, _, ok = m.screenToGrid(ox, separatorY, false)
+		if ok {
+			t.Error("expected row separator click to miss")
+		}
+
+		col, row, ok = m.screenToGrid(ox, separatorY, true)
+		if !ok {
+			t.Fatal("expected row separator drag to snap")
+		}
+		if col != 0 || row != 5 {
+			t.Errorf("got (%d,%d), want (0,5)", col, row)
+		}
+
+		_, _, ok = m.screenToGrid(ox-cellWidth, oy, false)
+		if ok {
+			t.Error("expected hint band click to miss")
 		}
 	})
 }
@@ -1281,7 +1203,6 @@ func BenchmarkGenerateRandomTomographyModes(b *testing.B) {
 	}
 
 	for _, cfg := range modeConfigs {
-		cfg := cfg
 		b.Run(cfg.name, func(b *testing.B) {
 			b.ReportAllocs()
 			for n := 0; n < b.N; n++ {
@@ -1317,7 +1238,6 @@ func BenchmarkCountSolutionsLarge(b *testing.B) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		b.Run(tc.name, func(b *testing.B) {
 			rng := rand.New(rand.NewPCG(tc.seedA, tc.seedB))
 			hints := GenerateRandomTomographySeeded(tc.mode, rng)

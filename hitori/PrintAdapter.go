@@ -45,8 +45,8 @@ func renderHitoriPage(pdf *fpdf.Fpdf, data *pdfexport.HitoriData) {
 
 	pdf.SetDrawColor(55, 55, 55)
 	pdf.SetLineWidth(pdfexport.ThinGridLineMM)
-	for y := 0; y < size; y++ {
-		for x := 0; x < size; x++ {
+	for y := range size {
+		for x := range size {
 			cellX := startX + float64(x)*cellSize
 			cellY := startY + float64(y)*cellSize
 			pdf.Rect(cellX, cellY, cellSize, cellSize, "D")

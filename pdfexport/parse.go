@@ -253,7 +253,7 @@ func parseNonogramBody(bodyLines []string, path string, bodyStartLine int) (*Non
 
 	rowHints := make([][]int, height)
 	grid := make([][]string, height)
-	for y := 0; y < height; y++ {
+	for y := range height {
 		row := dataRows[colHintRows+y]
 		hints := parseHintCells(row[:rowHintCols])
 		if len(hints) == 0 {

@@ -410,15 +410,15 @@ func adjacentRelationCandidates(rels relations, x, y, size int) []relationCandid
 
 func allUnusedRelationCandidates(rels relations, size int) []relationCandidate {
 	candidates := make([]relationCandidate, 0, 2*size*(size-1))
-	for y := 0; y < size; y++ {
-		for x := 0; x < size-1; x++ {
+	for y := range size {
+		for x := range size - 1 {
 			if rels.horizontal[y][x] == relationNone {
 				candidates = append(candidates, relationCandidate{horizontal: true, x: x, y: y})
 			}
 		}
 	}
-	for y := 0; y < size-1; y++ {
-		for x := 0; x < size; x++ {
+	for y := range size - 1 {
+		for x := range size {
 			if rels.vertical[y][x] == relationNone {
 				candidates = append(candidates, relationCandidate{horizontal: false, x: x, y: y})
 			}

@@ -134,9 +134,7 @@ func TablePagination(t table.Model) string {
 
 	// Estimate the visible window based on cursor and table height.
 	start := cursor - height + 1
-	if start < 0 {
-		start = 0
-	}
+	start = max(start, 0)
 	end := start + height
 	if end > total {
 		end = total

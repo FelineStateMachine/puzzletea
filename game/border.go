@@ -2,6 +2,7 @@ package game
 
 import (
 	"image/color"
+	"strings"
 
 	"charm.land/lipgloss/v2"
 	"github.com/FelineStateMachine/puzzletea/theme"
@@ -64,10 +65,7 @@ func BorderChar(ch string, colors GridBorderColors, solved, highlight bool) stri
 func HBorderRow(w, cursorX, cellWidth int, left, right string, colors GridBorderColors, solved bool) string {
 	var parts []string
 	parts = append(parts, BorderChar(left, colors, solved, false))
-	segment := ""
-	for range cellWidth {
-		segment += "─"
-	}
+	segment := strings.Repeat("─", cellWidth)
 	for x := range w {
 		highlight := !solved && x == cursorX
 		bg := color.Color(nil)

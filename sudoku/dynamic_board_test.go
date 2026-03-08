@@ -123,46 +123,21 @@ func TestZoneFillHighlightsOnlyActiveBox(t *testing.T) {
 	m := Model{cursor: game.Cursor{X: 1, Y: 1}}
 	surface := theme.Current().Surface
 
-	inBox := game.DynamicGridBridge{
-		Kind:    game.DynamicGridBridgeVertical,
-		X:       2,
-		Y:       1,
-		Cells:   [4]image.Point{image.Pt(1, 1), image.Pt(2, 1)},
-		Count:   2,
-		Zone:    0,
-		Uniform: true,
-	}
-	if got := activeBoxZoneFill(m.cursor, false, inBox.Zone); !sameColor(got, surface) {
+	inBoxZone := 0
+	if got := activeBoxZoneFill(m.cursor, false, inBoxZone); !sameColor(got, surface) {
 		t.Fatalf("in-box bridge background = %v, want %v", got, surface)
 	}
 
-	inBoxJunction := game.DynamicGridBridge{
-		Kind:    game.DynamicGridBridgeJunction,
-		X:       2,
-		Y:       2,
-		Cells:   [4]image.Point{image.Pt(1, 1), image.Pt(2, 1), image.Pt(1, 2), image.Pt(2, 2)},
-		Count:   4,
-		Zone:    0,
-		Uniform: true,
-	}
-	if got := activeBoxZoneFill(m.cursor, false, inBoxJunction.Zone); !sameColor(got, surface) {
+	if got := activeBoxZoneFill(m.cursor, false, inBoxZone); !sameColor(got, surface) {
 		t.Fatalf("in-box junction background = %v, want %v", got, surface)
 	}
 
-	outOfBox := game.DynamicGridBridge{
-		Kind:    game.DynamicGridBridgeVertical,
-		X:       4,
-		Y:       1,
-		Cells:   [4]image.Point{image.Pt(3, 1), image.Pt(4, 1)},
-		Count:   2,
-		Zone:    1,
-		Uniform: true,
-	}
-	if got := activeBoxZoneFill(m.cursor, false, outOfBox.Zone); got != nil {
+	outOfBoxZone := 1
+	if got := activeBoxZoneFill(m.cursor, false, outOfBoxZone); got != nil {
 		t.Fatalf("out-of-box bridge background = %v, want nil", got)
 	}
 
-	if got := activeBoxZoneFill(m.cursor, true, inBox.Zone); got != nil {
+	if got := activeBoxZoneFill(m.cursor, true, inBoxZone); got != nil {
 		t.Fatalf("solved in-box bridge background = %v, want nil", got)
 	}
 }

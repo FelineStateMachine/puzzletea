@@ -129,12 +129,7 @@ func GenerateSeededWithContext(ctx context.Context, mode NurikabeMode, rng *rand
 
 	area := mode.Width * mode.Height
 	clueTarget := int(math.Round(float64(area) * mode.ClueDensity))
-	if clueTarget < 2 {
-		clueTarget = 2
-	}
-	if clueTarget > area-2 {
-		clueTarget = area - 2
-	}
+	clueTarget = min(max(clueTarget, 2), area-2)
 
 	profile := modeIslandProfile(mode)
 	budget := modeGenerationBudget(mode)
@@ -224,7 +219,7 @@ outer:
 
 		roundSize := min(workerCount, budget.attempts-attemptID)
 		dispatched := 0
-		for i := 0; i < roundSize; i++ {
+		for i := range roundSize {
 			seedA, seedB := deriveAttemptSeeds(masterA, masterB, attemptID+i)
 			job := attemptSeed{attemptID: attemptID + i, seedA: seedA, seedB: seedB}
 			select {

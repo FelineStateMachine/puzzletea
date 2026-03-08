@@ -109,6 +109,48 @@ func TestRenderDynamicGridSupportsCustomCellWidth(t *testing.T) {
 	}
 }
 
+func TestRenderDynamicGridCollapsesSparseBridges(t *testing.T) {
+	view := RenderDynamicGrid(DynamicGridSpec{
+		Width:  2,
+		Height: 2,
+		Cell: func(_, _ int) string {
+			return "   "
+		},
+		ZoneAt: func(_, _ int) int {
+			return 0
+		},
+		HasVerticalEdge: func(x, _ int) bool {
+			return x <= 0 || x >= 2
+		},
+		HasHorizontalEdge: func(_, y int) bool {
+			return y <= 0 || y >= 2
+		},
+		VerticalBridgeWidth: func(x int) int {
+			if x <= 0 || x >= 2 {
+				return 1
+			}
+			return 0
+		},
+		HorizontalBridgeHeight: func(y int) int {
+			if y <= 0 || y >= 2 {
+				return 1
+			}
+			return 0
+		},
+	})
+
+	lines := strings.Split(ansi.Strip(view), "\n")
+	if got, want := len(lines), 4; got != want {
+		t.Fatalf("line count = %d, want %d", got, want)
+	}
+	if got, want := lines[0], "┌──────┐"; got != want {
+		t.Fatalf("top row = %q, want %q", got, want)
+	}
+	if got := strings.Count(lines[1], "│"); got != 2 {
+		t.Fatalf("content row border count = %d, want 2", got)
+	}
+}
+
 func TestRenderDynamicGridEdgeOverridesSuppressInteriorBorders(t *testing.T) {
 	view := RenderDynamicGrid(DynamicGridSpec{
 		Width:  2,
@@ -210,6 +252,63 @@ func TestDynamicGridScreenToCell(t *testing.T) {
 		{"separator rejected", originX + DynamicGridCellWidth, originY, false, 0, 0, false},
 		{"separator snaps during drag", originX + DynamicGridCellWidth, originY, true, 1, 0, true},
 		{"outside right", originX + 3*(DynamicGridCellWidth+1), originY, false, 0, 0, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			col, row, ok := DynamicGridScreenToCell(
+				metrics,
+				originX,
+				originY,
+				tt.screenX,
+				tt.screenY,
+				tt.includeSeparators,
+			)
+			if ok != tt.wantOK {
+				t.Fatalf("ok = %v, want %v", ok, tt.wantOK)
+			}
+			if ok && (col != tt.wantCol || row != tt.wantRow) {
+				t.Fatalf("cell = (%d,%d), want (%d,%d)", col, row, tt.wantCol, tt.wantRow)
+			}
+		})
+	}
+}
+
+func TestDynamicGridScreenToCellSupportsSparseBridges(t *testing.T) {
+	metrics := DynamicGridMetrics{
+		Width:     3,
+		Height:    3,
+		CellWidth: DynamicGridCellWidth,
+		VerticalBridgeWidth: func(x int) int {
+			if x == 2 {
+				return 1
+			}
+			return 0
+		},
+		HorizontalBridgeHeight: func(y int) int {
+			if y == 2 {
+				return 1
+			}
+			return 0
+		},
+	}
+	originX, originY := 10, 20
+
+	tests := []struct {
+		name              string
+		screenX           int
+		screenY           int
+		includeSeparators bool
+		wantCol           int
+		wantRow           int
+		wantOK            bool
+	}{
+		{"flush next cell", originX + DynamicGridCellWidth, originY, false, 1, 0, true},
+		{"major vertical separator rejected", originX + 2*DynamicGridCellWidth, originY, false, 0, 0, false},
+		{"major vertical separator snaps", originX + 2*DynamicGridCellWidth, originY, true, 2, 0, true},
+		{"major horizontal separator rejected", originX, originY + 2, false, 0, 0, false},
+		{"major horizontal separator snaps", originX, originY + 2, true, 0, 2, true},
+		{"outside right", originX + 3*DynamicGridCellWidth + 1, originY, false, 0, 0, false},
 	}
 
 	for _, tt := range tests {

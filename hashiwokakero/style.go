@@ -3,6 +3,7 @@ package hashiwokakero
 import (
 	"fmt"
 	"image/color"
+	"slices"
 	"strings"
 
 	"charm.land/lipgloss/v2"
@@ -331,14 +332,7 @@ func dynamicBridgeIdentity(p *Puzzle, bridge game.DynamicGridBridge) (int, int) 
 		if cell.Kind != cellIsland {
 			continue
 		}
-		duplicate := false
-		for _, id := range ids {
-			if id == cell.IslandID {
-				duplicate = true
-				break
-			}
-		}
-		if !duplicate {
+		if !slices.Contains(ids, cell.IslandID) {
 			ids = append(ids, cell.IslandID)
 		}
 	}

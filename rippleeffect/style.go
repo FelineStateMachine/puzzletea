@@ -2,6 +2,7 @@ package rippleeffect
 
 import (
 	"image/color"
+	"maps"
 	"strconv"
 
 	"charm.land/lipgloss/v2"
@@ -175,12 +176,8 @@ func bridgeBackgrounds(m Model, completed map[int]color.Color) map[int]color.Col
 	}
 
 	backgrounds := activeCageBridgeBackgrounds(m)
-	for cageIdx, bg := range completed {
-		backgrounds[cageIdx] = bg
-	}
-	for cageIdx, bg := range conflictBridgeBackgrounds(m) {
-		backgrounds[cageIdx] = bg
-	}
+	maps.Copy(backgrounds, completed)
+	maps.Copy(backgrounds, conflictBridgeBackgrounds(m))
 	return backgrounds
 }
 

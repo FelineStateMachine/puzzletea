@@ -4,7 +4,6 @@ import (
 	"strings"
 
 	"charm.land/bubbles/v2/list"
-	"github.com/FelineStateMachine/puzzletea/puzzle"
 	"github.com/FelineStateMachine/puzzletea/registry"
 )
 
@@ -35,12 +34,4 @@ func selectedCategoryEntry(item list.Item) (registry.Entry, bool) {
 		return registry.Entry{}, false
 	}
 	return category.entry, true
-}
-
-func categoryEntryByName(name string) (registry.Entry, bool) {
-	return registry.Resolve(name)
-}
-
-func normalizeCategoryName(name string) string {
-	return puzzle.NormalizeName(name)
 }

@@ -54,13 +54,13 @@ func newRelations(size int) relations {
 		horizontal: make([][]rune, size),
 		vertical:   make([][]rune, max(size-1, 0)),
 	}
-	for y := 0; y < size; y++ {
+	for y := range size {
 		r.horizontal[y] = make([]rune, max(size-1, 0))
 		for x := range r.horizontal[y] {
 			r.horizontal[y][x] = relationNone
 		}
 	}
-	for y := 0; y < size-1; y++ {
+	for y := range size - 1 {
 		r.vertical[y] = make([]rune, size)
 		for x := range r.vertical[y] {
 			r.vertical[y][x] = relationNone
@@ -98,9 +98,9 @@ func deserializeRuneRows(s string, rows, cols int) [][]rune {
 
 	parsed := strings.Split(s, "\n")
 	out := make([][]rune, rows)
-	for y := 0; y < rows; y++ {
+	for y := range rows {
 		out[y] = make([]rune, cols)
-		for x := 0; x < cols; x++ {
+		for x := range cols {
 			out[y][x] = relationNone
 		}
 		if y >= len(parsed) {

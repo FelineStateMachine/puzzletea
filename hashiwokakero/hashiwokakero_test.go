@@ -1211,7 +1211,7 @@ func TestPlaceIslands(t *testing.T) {
 			if islands == nil {
 				continue
 			}
-			for i := 0; i < len(islands); i++ {
+			for i := range len(islands) {
 				for j := i + 1; j < len(islands); j++ {
 					dx := abs(islands[i].X - islands[j].X)
 					dy := abs(islands[i].Y - islands[j].Y)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 )
 
 var errNodeLimit = errors.New("solver node limit exceeded")
@@ -658,10 +659,8 @@ func maxReachableForComponentWithScratch(
 
 func hasAnyUnknown(g grid) bool {
 	for _, row := range g {
-		for _, c := range row {
-			if c == unknownCell {
-				return true
-			}
+		if slices.Contains(row, unknownCell) {
+			return true
 		}
 	}
 	return false

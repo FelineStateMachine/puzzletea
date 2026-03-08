@@ -1139,9 +1139,7 @@ func TestConstructedCandidateValidCompletedBoard(t *testing.T) {
 	mode := Modes[2].(NurikabeMode) // Medium
 	profile := modeIslandProfile(mode)
 	clueTarget := int(float64(mode.Width*mode.Height) * mode.ClueDensity)
-	if clueTarget < 2 {
-		clueTarget = 2
-	}
+	clueTarget = max(clueTarget, 2)
 
 	var (
 		candidate candidateResult
@@ -1318,7 +1316,7 @@ func TestNoGoroutineLeakOnCancel(t *testing.T) {
 	mode := Modes[4].(NurikabeMode)
 	before := runtime.NumGoroutine()
 
-	for i := 0; i < 8; i++ {
+	for i := range 8 {
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 		rng := rand.New(rand.NewPCG(uint64(400+i), uint64(900+i)))
@@ -1336,7 +1334,7 @@ func TestNoGoroutineLeakOnDeadlineTimeout(t *testing.T) {
 	mode := Modes[4].(NurikabeMode)
 	before := runtime.NumGoroutine()
 
-	for i := 0; i < 8; i++ {
+	for i := range 8 {
 		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
 		rng := rand.New(rand.NewPCG(uint64(1400+i), uint64(1900+i)))
 		_, _ = GenerateSeededWithContext(ctx, mode, rng)
@@ -1407,7 +1405,6 @@ func BenchmarkCountSolutions(b *testing.B) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		b.Run(tc.name, func(b *testing.B) {
 			b.ReportAllocs()
 			b.ResetTimer()

@@ -21,6 +21,13 @@ test-short:
 lint:
     golangci-lint run ./...
 
+check:
+    just lint
+    just diagnostic
+
+diagnostic:
+    rg --files -g '*.go' -0 | xargs -0 gopls check -severity=hint
+
 # Format all Go files with gofumpt.
 fmt:
     gofumpt -w .

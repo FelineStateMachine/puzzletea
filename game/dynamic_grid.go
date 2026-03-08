@@ -10,14 +10,12 @@ import (
 
 const DynamicGridCellWidth = 3
 
-const (
-	dynamicGridCellStepY = 2
-)
-
 type DynamicGridMetrics struct {
-	Width     int
-	Height    int
-	CellWidth int
+	Width                  int
+	Height                 int
+	CellWidth              int
+	VerticalBridgeWidth    func(x int) int
+	HorizontalBridgeHeight func(y int) int
 }
 
 type DynamicGridBridgeKind int
@@ -39,29 +37,39 @@ type DynamicGridBridge struct {
 }
 
 type DynamicGridSpec struct {
-	Width                int
-	Height               int
-	CellWidth            int
-	Solved               bool
-	Colors               *GridBorderColors
-	Cell                 func(x, y int) string
-	ZoneAt               func(x, y int) int
-	HasVerticalEdge      func(x, y int) bool
-	HasHorizontalEdge    func(x, y int) bool
-	ZoneFill             func(zone int) color.Color
-	BridgeFill           func(bridge DynamicGridBridge) color.Color
-	BridgeForeground     func(bridge DynamicGridBridge) color.Color
-	BridgeBold           func(bridge DynamicGridBridge) bool
-	VerticalBridgeText   func(x, y int) string
-	HorizontalBridgeText func(x, y int) string
+	Width                  int
+	Height                 int
+	CellWidth              int
+	Solved                 bool
+	Colors                 *GridBorderColors
+	Cell                   func(x, y int) string
+	ZoneAt                 func(x, y int) int
+	HasVerticalEdge        func(x, y int) bool
+	HasHorizontalEdge      func(x, y int) bool
+	VerticalBridgeWidth    func(x int) int
+	HorizontalBridgeHeight func(y int) int
+	ZoneFill               func(zone int) color.Color
+	BridgeFill             func(bridge DynamicGridBridge) color.Color
+	BridgeForeground       func(bridge DynamicGridBridge) color.Color
+	BridgeBold             func(bridge DynamicGridBridge) bool
+	VerticalBridgeText     func(x, y int) string
+	HorizontalBridgeText   func(x, y int) string
 }
 
 func RenderDynamicGrid(spec DynamicGridSpec) string {
-	rows := make([]string, 0, spec.Height*dynamicGridCellStepY+1)
-	rows = append(rows, dynamicGridBoundaryRow(spec, 0))
-	for y := range spec.Height {
+	rows := make([]string, 0, spec.Height*2+1)
+	for y := 0; y <= spec.Height; y++ {
+		rowHeight := dynamicGridHorizontalBridgeHeight(spec, y)
+		if rowHeight > 0 {
+			row := dynamicGridBoundaryRow(spec, y)
+			for range rowHeight {
+				rows = append(rows, row)
+			}
+		}
+		if y == spec.Height {
+			continue
+		}
 		rows = append(rows, dynamicGridContentRow(spec, y))
-		rows = append(rows, dynamicGridBoundaryRow(spec, y+1))
 	}
 	return lipgloss.JoinVertical(lipgloss.Left, rows...)
 }
@@ -113,21 +121,30 @@ func DynamicGridScreenToCell(
 		return 0, 0, false
 	}
 
-	maxX := (metrics.Width-1)*(cellWidth+1) + (cellWidth - 1)
-	maxY := (metrics.Height - 1) * dynamicGridCellStepY
-	if lx > maxX || ly > maxY {
+	col, ok = dynamicGridLocateAxis(
+		lx,
+		metrics.Width,
+		cellWidth,
+		includeSeparators,
+		func(x int) int {
+			return dynamicGridMetricVerticalBridgeWidth(metrics, x)
+		},
+	)
+	if !ok {
 		return 0, 0, false
 	}
 
-	if includeSeparators {
-		col = min((lx+cellWidth/2)/(cellWidth+1), metrics.Width-1)
-		row = min((ly+1)/dynamicGridCellStepY, metrics.Height-1)
-	} else {
-		col = lx / (cellWidth + 1)
-		row = ly / dynamicGridCellStepY
-		if lx%(cellWidth+1) >= cellWidth || ly%dynamicGridCellStepY != 0 {
-			return 0, 0, false
-		}
+	row, ok = dynamicGridLocateAxis(
+		ly,
+		metrics.Height,
+		1,
+		includeSeparators,
+		func(y int) int {
+			return dynamicGridMetricHorizontalBridgeHeight(metrics, y)
+		},
+	)
+	if !ok {
+		return 0, 0, false
 	}
 
 	if col < 0 || col >= metrics.Width || row < 0 || row >= metrics.Height {
@@ -180,13 +197,11 @@ func dynamicGridContentRow(spec DynamicGridSpec, y int) string {
 func dynamicGridBoundaryRow(spec DynamicGridSpec, y int) string {
 	var b strings.Builder
 	for x := 0; x <= spec.Width; x++ {
-		runeValue := dynamicGridJunctionRune(spec, x, y)
-		b.WriteString(dynamicGridRenderBorderChar(
-			runeValue,
-			dynamicGridColors(spec),
-			spec.Solved,
-			dynamicGridBridgeBackground(spec, dynamicGridJunctionBridge(spec, x, y, runeValue)),
-		))
+		junctionWidth := dynamicGridVerticalBridgeWidth(spec, x)
+		if junctionWidth > 0 {
+			runeValue := dynamicGridJunctionRune(spec, x, y)
+			b.WriteString(dynamicGridRenderJunction(spec, x, y, junctionWidth, runeValue))
+		}
 		if x == spec.Width {
 			continue
 		}
@@ -212,12 +227,20 @@ func dynamicGridRenderBorderChar(ch rune, colors GridBorderColors, solved bool, 
 }
 
 func dynamicGridRenderVerticalBridge(spec DynamicGridSpec, x, y int, bridge DynamicGridBridge) string {
+	bridgeWidth := dynamicGridVerticalBridgeWidth(spec, x)
+	if bridgeWidth <= 0 {
+		return ""
+	}
+
 	if dynamicGridHasVerticalEdge(spec, x, y) {
-		return dynamicGridRenderBorderChar(
-			verticalEdgeRune(true),
-			dynamicGridColors(spec),
-			spec.Solved,
-			dynamicGridBridgeBackground(spec, bridge),
+		return strings.Repeat(
+			dynamicGridRenderBorderChar(
+				verticalEdgeRune(true),
+				dynamicGridColors(spec),
+				spec.Solved,
+				dynamicGridBridgeBackground(spec, bridge),
+			),
+			bridgeWidth,
 		)
 	}
 
@@ -225,7 +248,7 @@ func dynamicGridRenderVerticalBridge(spec DynamicGridSpec, x, y int, bridge Dyna
 		if text := strings.TrimSpace(spec.VerticalBridgeText(x, y)); text != "" {
 			return dynamicGridRenderBridgeText(
 				text,
-				1,
+				bridgeWidth,
 				dynamicGridColors(spec),
 				spec.Solved,
 				dynamicGridBridgeBackground(spec, bridge),
@@ -235,11 +258,14 @@ func dynamicGridRenderVerticalBridge(spec DynamicGridSpec, x, y int, bridge Dyna
 		}
 	}
 
-	return dynamicGridRenderBorderChar(
-		verticalEdgeRune(false),
-		dynamicGridColors(spec),
-		spec.Solved,
-		dynamicGridBridgeBackground(spec, bridge),
+	return strings.Repeat(
+		dynamicGridRenderBorderChar(
+			verticalEdgeRune(false),
+			dynamicGridColors(spec),
+			spec.Solved,
+			dynamicGridBridgeBackground(spec, bridge),
+		),
+		bridgeWidth,
 	)
 }
 
@@ -333,6 +359,22 @@ func dynamicGridHasVerticalEdge(spec DynamicGridSpec, x, y int) bool {
 	}
 }
 
+func dynamicGridRenderJunction(spec DynamicGridSpec, x, y, width int, runeValue rune) string {
+	if width <= 0 {
+		return ""
+	}
+
+	return dynamicGridRenderBridgeText(
+		string(runeValue),
+		width,
+		dynamicGridColors(spec),
+		spec.Solved,
+		dynamicGridBridgeBackground(spec, dynamicGridJunctionBridge(spec, x, y, runeValue)),
+		nil,
+		false,
+	)
+}
+
 func dynamicGridJunctionRune(spec DynamicGridSpec, x, y int) rune {
 	north := y > 0 && dynamicGridHasVerticalEdge(spec, x, y-1)
 	south := y < spec.Height && dynamicGridHasVerticalEdge(spec, x, y)
@@ -391,6 +433,45 @@ func dynamicGridBridgeBold(spec DynamicGridSpec, bridge DynamicGridBridge) bool 
 		return spec.BridgeBold(bridge)
 	}
 	return false
+}
+
+func dynamicGridLocateAxis(
+	offset, count, cellSpan int,
+	includeSeparators bool,
+	bridgeSize func(index int) int,
+) (index int, ok bool) {
+	if count <= 0 || cellSpan <= 0 {
+		return 0, false
+	}
+
+	position := 0
+	for i := range count {
+		cellEnd := position + cellSpan
+		if offset < cellEnd {
+			return i, true
+		}
+
+		position = cellEnd
+		if i == count-1 {
+			break
+		}
+
+		size := max(bridgeSize(i+1), 0)
+		if size <= 0 {
+			continue
+		}
+
+		bridgeEnd := position + size
+		if offset < bridgeEnd {
+			if !includeSeparators {
+				return 0, false
+			}
+			return i + 1, true
+		}
+		position = bridgeEnd
+	}
+
+	return 0, false
 }
 
 func dynamicGridVerticalBridge(spec DynamicGridSpec, x, y int) DynamicGridBridge {
@@ -487,6 +568,34 @@ func dynamicGridZoneAt(spec DynamicGridSpec, x, y int) int {
 		return 0
 	}
 	return spec.ZoneAt(x, y)
+}
+
+func dynamicGridVerticalBridgeWidth(spec DynamicGridSpec, x int) int {
+	if spec.VerticalBridgeWidth == nil {
+		return 1
+	}
+	return max(spec.VerticalBridgeWidth(x), 0)
+}
+
+func dynamicGridHorizontalBridgeHeight(spec DynamicGridSpec, y int) int {
+	if spec.HorizontalBridgeHeight == nil {
+		return 1
+	}
+	return max(spec.HorizontalBridgeHeight(y), 0)
+}
+
+func dynamicGridMetricVerticalBridgeWidth(metrics DynamicGridMetrics, x int) int {
+	if metrics.VerticalBridgeWidth == nil {
+		return 1
+	}
+	return max(metrics.VerticalBridgeWidth(x), 0)
+}
+
+func dynamicGridMetricHorizontalBridgeHeight(metrics DynamicGridMetrics, y int) int {
+	if metrics.HorizontalBridgeHeight == nil {
+		return 1
+	}
+	return max(metrics.HorizontalBridgeHeight(y), 0)
 }
 
 func verticalEdgeRune(hasEdge bool) rune {

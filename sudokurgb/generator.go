@@ -258,7 +258,7 @@ func GenerateProvidedCellsSeeded(mode SudokuRGBMode, rng *rand.Rand) []cell {
 	bestCells := []cell{}
 	bestCount := gridSize*gridSize + 1
 
-	for attempt := 0; attempt < 96; attempt++ {
+	for range 96 {
 		g := newGrid(nil)
 		if !fillGridSeeded(&g, rng) {
 			continue

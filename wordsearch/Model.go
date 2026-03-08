@@ -622,10 +622,3 @@ func squaredDistance(a, b game.Cursor) int {
 func cursorInBounds(cursor game.Cursor, maxX, maxY int) bool {
 	return cursor.X >= 0 && cursor.X <= maxX && cursor.Y >= 0 && cursor.Y <= maxY
 }
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}

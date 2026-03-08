@@ -13,15 +13,15 @@ func Generate(w, h int) [][]bool {
 
 func GenerateSeeded(w, h int, rng *rand.Rand) [][]bool {
 	grid := make([][]bool, h)
-	for y := 0; y < h; y++ {
+	for y := range h {
 		grid[y] = make([]bool, w)
 	}
 
 	// Iterate through every cell and randomly decide whether to "click" it.
 	// Since clicking a cell twice cancels out, and the order of clicks doesn't matter,
 	// iterating once through all cells covers all reachable states from "all off".
-	for y := 0; y < h; y++ {
-		for x := 0; x < w; x++ {
+	for y := range h {
+		for x := range w {
 			if rng.IntN(2) == 1 {
 				Toggle(grid, x, y)
 			}

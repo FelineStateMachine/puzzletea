@@ -62,7 +62,7 @@ func runNewExport(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func validateNewExportFlags(cmd *cobra.Command, args []string) error {
+func validateNewExportFlags(_ *cobra.Command, args []string) error {
 	if flagExport < 1 {
 		return fmt.Errorf("--export must be at least 1")
 	}
@@ -123,7 +123,7 @@ func buildExportRecords(
 	nameRNG := resolve.RNGFromString("export-names:" + nameSeed)
 
 	records := make([]pdfexport.JSONLRecord, 0, count)
-	for i := 0; i < count; i++ {
+	for i := range count {
 		entry := entries[0]
 		if len(entries) > 1 {
 			var modeIndex int

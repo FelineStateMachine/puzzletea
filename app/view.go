@@ -135,14 +135,14 @@ func (m model) gameSelectViewContent() string {
 	listView := lipgloss.NewStyle().
 		Width(metrics.listWidth).
 		Height(metrics.listHeight).
+		Border(lipgloss.NormalBorder(), false, true, false, false).
+		BorderForeground(theme.Current().Border).
 		Render(m.nav.gameSelectList.View())
 
 	detailBox := lipgloss.NewStyle().
 		Width(metrics.detailWidth).
 		Height(metrics.detailHeight).
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(theme.Current().Border).
-		Padding(1, 2).
+		Padding(2, 3).
 		Render(m.nav.categoryDetail.View())
 
 	body := lipgloss.JoinHorizontal(lipgloss.Top, listView, strings.Repeat(" ", categoryGapWidth), detailBox)
@@ -157,7 +157,7 @@ func (m model) gameSelectViewContent() string {
 	panel := ui.Panel(
 		"Select Category",
 		body,
-		"↑/↓ navigate • pgup/pgdn details • / filter • enter select • esc back",
+		"↑/↓ navigate • / filter • enter select • esc back",
 	)
 	return ui.CenterView(m.width, m.height, panel)
 }
@@ -289,9 +289,7 @@ func (m model) themeSelectViewContent() string {
 	// Panel chrome: border (2) + padding (2) + title (1) + blank (1) + footer (1) + blank (1) = 8
 	const panelChrome = 8
 	innerH := m.height - panelChrome
-	if innerH < 10 {
-		innerH = 10
-	}
+	innerH = max(innerH, 10)
 
 	// Left side: theme list.
 	listView := m.theme.list.View()

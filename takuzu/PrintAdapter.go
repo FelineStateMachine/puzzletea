@@ -56,8 +56,8 @@ func RenderTakuzuPDFBodyWithRules(pdf *fpdf.Fpdf, data *pdfexport.TakuzuData, ru
 
 	pdf.SetDrawColor(60, 60, 60)
 	pdf.SetLineWidth(pdfexport.ThinGridLineMM)
-	for y := 0; y < size; y++ {
-		for x := 0; x < size; x++ {
+	for y := range size {
+		for x := range size {
 			cellX := startX + float64(x)*cellSize
 			cellY := startY + float64(y)*cellSize
 			pdf.Rect(cellX, cellY, cellSize, cellSize, "D")
@@ -75,8 +75,8 @@ func RenderTakuzuPDFBodyWithRules(pdf *fpdf.Fpdf, data *pdfexport.TakuzuData, ru
 		}
 	}
 
-	for y := 0; y < size; y++ {
-		for x := 0; x < size; x++ {
+	for y := range size {
+		for x := range size {
 			text := ""
 			if y < len(data.Givens) && x < len(data.Givens[y]) {
 				text = strings.TrimSpace(data.Givens[y][x])

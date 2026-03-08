@@ -13,7 +13,6 @@ const (
 
 const (
 	cardColumnGap = 2
-	cardRowGap    = 2
 )
 
 func StaticHeight(cards []Card) int {

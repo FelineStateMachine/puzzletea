@@ -23,9 +23,7 @@ func WeightsFromDefinitions(definitions []puzzle.Definition) Weights {
 		count := len(def.Modes)
 		for i, mode := range def.Modes {
 			xp := int(math.Round(float64(i) / float64(count) * 10))
-			if xp < 1 {
-				xp = 1
-			}
+			xp = max(xp, 1)
 			weights[ModeKey{GameType: def.Name, Mode: mode.Title}] = xp
 		}
 	}

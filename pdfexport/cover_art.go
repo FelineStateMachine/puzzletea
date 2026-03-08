@@ -294,7 +294,7 @@ func newCoverArtDirection(seed uint64, base RGB) coverArtDirection {
 	})
 
 	glowCount := 2 + structureRNG.Intn(3)
-	for i := 0; i < glowCount; i++ {
+	for i := range glowCount {
 		col := palette.accentA
 		if i%2 == 1 {
 			col = palette.accentB
@@ -337,7 +337,7 @@ func newCoverArtDirection(seed uint64, base RGB) coverArtDirection {
 
 	flowLayers := make([]coverFlowLayer, 0, 4)
 	layerCount := 2 + structureRNG.Intn(3)
-	for i := 0; i < layerCount; i++ {
+	for i := range layerCount {
 		t := float64(i) / float64(maxInt(1, layerCount-1))
 		a := jitterRGBA(lerpRGB(palette.accentA, palette.bgMid, 0.28+t*0.42), structureRNG, 24)
 		b := jitterRGBA(lerpRGB(palette.accentB, palette.bgTop, 0.16+t*0.38), structureRNG, 24)
@@ -799,7 +799,7 @@ func buildCoverLatticeNodes(
 			ringT := float64(ring) / float64(rings+1)
 			radius := ringT * minDim * (0.16 + 0.62*ringT)
 			offset := rng.Float64() * math.Pi * 2
-			for spoke := 0; spoke < spokes; spoke++ {
+			for spoke := range spokes {
 				ang := offset + float64(spoke)/float64(spokes)*math.Pi*2
 				ang += math.Sin(float64(ring)*0.9+float64(spoke)*0.45) * profile.radialWarp
 				jitter := (rng.Float64() - 0.5) * profile.jitterX
@@ -810,7 +810,7 @@ func buildCoverLatticeNodes(
 		}
 	case 2:
 		total := maxInt(38, profile.cols*profile.rows)
-		for i := 0; i < total; i++ {
+		for i := range total {
 			tx := (rng.Float64()*0.84 + 0.08)
 			ty := (rng.Float64()*0.84 + 0.08)
 			warpX := math.Sin(ty*math.Pi*4+float64(i)*0.22) * profile.radialWarp * 0.12
@@ -855,7 +855,7 @@ func drawCoverOrbitBands(
 		t := float64(i) / float64(maxInt(1, direction.orbit.count-1))
 		col := lerpRGB(direction.orbit.colorA, direction.orbit.colorB, t)
 		col.A = minUint8(220, direction.orbit.alphaBase+uint8(i)*direction.orbit.alphaStep)
-		for s := 0; s < segments; s++ {
+		for s := range segments {
 			a := start + float64(s)/float64(segments)*sweep
 			jx := math.Sin(float64(i)*0.43+a*2.9) * direction.orbit.wobble
 			jy := math.Cos(float64(i)*0.37+a*2.3) * direction.orbit.wobble * 0.82

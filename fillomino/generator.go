@@ -24,7 +24,7 @@ func GeneratePuzzle(width, height, maxRegion int, givenRatio float64) (Puzzle, e
 
 func GeneratePuzzleSeeded(width, height, maxRegion int, givenRatio float64, rng *rand.Rand) (Puzzle, error) {
 	const maxAttempts = 12
-	for attempt := 0; attempt < maxAttempts; attempt++ {
+	for range maxAttempts {
 		solution, _, err := generateSolution(width, height, maxRegion, rng)
 		if err != nil {
 			continue
@@ -169,9 +169,7 @@ func removeClues(givens grid, maxRegion int, givenRatio float64, rng *rand.Rand)
 	width := len(givens[0])
 	height := len(givens)
 	target := int(float64(width*height) * givenRatio)
-	if target < 1 {
-		target = 1
-	}
+	target = max(target, 1)
 
 	cells := make([]point, 0, width*height)
 	for y := range height {

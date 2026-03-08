@@ -30,7 +30,7 @@ func gridView(m Model, solved bool) string {
 			return regionTokenAt(m, preview, x, y)
 		},
 		ZoneFill: func(zone int) color.Color {
-			return regionBackground(m, zone, previewClue, previewValid)
+			return regionBackground(zone, previewClue, previewValid)
 		},
 	})
 }
@@ -61,7 +61,7 @@ func cellView(m Model, x, y int, preview *Rectangle, previewClue *Clue, previewV
 		style = style.Bold(true)
 	}
 
-	if regionBG := regionBackground(m, token, previewClue, previewValid); regionBG != nil {
+	if regionBG := regionBackground(token, previewClue, previewValid); regionBG != nil {
 		bg = regionBG
 		fg = theme.TextOnBG(regionBG)
 	}
@@ -128,7 +128,7 @@ func regionTokenAt(m Model, preview *Rectangle, x, y int) int {
 	return unownedRegionID
 }
 
-func regionBackground(m Model, token int, previewClue *Clue, previewValid bool) color.Color {
+func regionBackground(token int, previewClue *Clue, previewValid bool) color.Color {
 	p := theme.Current()
 	switch token {
 	case previewRegionID:

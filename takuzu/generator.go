@@ -77,7 +77,7 @@ func generateCompleteSeeded(size int, rng *rand.Rand) grid {
 	g := newGrid(createEmptyState(size))
 
 	const maxRetries = 10
-	for attempt := 0; attempt < maxRetries; attempt++ {
+	for range maxRetries {
 		for y := range size {
 			for x := range size {
 				g[y][x] = emptyCell
@@ -434,11 +434,12 @@ func canPlaceWithStats(g grid, size, x, y int, val rune, stats *lineStats) bool 
 	}
 
 	half := size / 2
-	if val == zeroCell {
+	switch val {
+	case zeroCell:
 		if stats.rowZero[y] >= half || stats.colZero[x] >= half {
 			return false
 		}
-	} else if val == oneCell {
+	case oneCell:
 		if stats.rowOne[y] >= half || stats.colOne[x] >= half {
 			return false
 		}

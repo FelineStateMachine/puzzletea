@@ -515,7 +515,7 @@ func generateLinePossibilitiesRecursive(length int, hint []int, hintIdx, pos int
 			newCurrent = append(newCurrent, cellEmpty)
 		}
 
-		for i := 0; i < blockLen; i++ {
+		for range blockLen {
 			newCurrent = append(newCurrent, cellFilled)
 		}
 

@@ -198,9 +198,7 @@ func renderSourceExportsTable(
 	}
 
 	rowCount := len(docs)
-	if rowCount > maxRows {
-		rowCount = maxRows
-	}
+	rowCount = min(rowCount, maxRows)
 
 	pdf.SetDrawColor(125, 125, 125)
 	pdf.SetLineWidth(thinGridLineMM)
