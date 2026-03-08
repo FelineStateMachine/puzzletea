@@ -2,8 +2,10 @@ package store
 
 import "time"
 
-type GameStatus string
-type RunKind string
+type (
+	GameStatus string
+	RunKind    string
+)
 
 const (
 	StatusNew        GameStatus = "new"

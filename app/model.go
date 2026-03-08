@@ -26,8 +26,10 @@ import (
 	"github.com/charmbracelet/glamour"
 )
 
-var gameCategoryItems = buildCategoryItems()
-var GameCategories = gameCategoryItems
+var (
+	gameCategoryItems = buildCategoryItems()
+	GameCategories    = gameCategoryItems
+)
 
 type viewState int
 
