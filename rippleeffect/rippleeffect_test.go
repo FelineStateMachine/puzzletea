@@ -333,6 +333,35 @@ func TestCellViewConflictedCursorIsDistinct(t *testing.T) {
 	}
 }
 
+func TestCellViewUsesGivenTintForImmutableGivens(t *testing.T) {
+	geo, err := buildGeometry(3, 3, sampleCages())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	m := Model{
+		width:     3,
+		height:    3,
+		grid:      sampleSolution(),
+		givens:    grid{{1, 0, 0}, {0, 0, 0}, {0, 0, 0}},
+		conflicts: newConflictGrid(3, 3),
+		cursor:    pointCursor(2, 2),
+		geo:       geo,
+	}
+
+	got := cellView(m, 0, 0, -1, nil)
+	want := lipgloss.NewStyle().
+		Width(cellWidth).
+		AlignHorizontal(lipgloss.Center).
+		Bold(true).
+		Foreground(theme.Current().FG).
+		Background(theme.GivenTint(theme.Current().BG)).
+		Render(" 1 ")
+	if got != want {
+		t.Fatalf("given cellView() = %q, want %q", got, want)
+	}
+}
+
 func TestGridViewUsesUniformRowsForBronzeBirchState(t *testing.T) {
 	model, err := ImportModel([]byte(`{"width":5,"height":5,"state":". 2 1 . 3\n2 1 1 1 .\n1 1 3 . .\n1 . 1 3 2\n2 3 2 1 1","givens":". 2 1 . 3\n2 1 1 1 .\n1 1 3 . .\n1 . 1 3 2\n2 3 2 1 1","cages":[{"id":0,"size":3,"cells":[{"x":0,"y":0},{"x":1,"y":0},{"x":1,"y":1}]},{"id":1,"size":2,"cells":[{"x":2,"y":0},{"x":3,"y":0}]},{"id":2,"size":3,"cells":[{"x":4,"y":0},{"x":4,"y":1},{"x":4,"y":2}]},{"id":3,"size":2,"cells":[{"x":0,"y":1},{"x":0,"y":2}]},{"id":4,"size":1,"cells":[{"x":2,"y":1}]},{"id":5,"size":3,"cells":[{"x":3,"y":1},{"x":3,"y":2},{"x":3,"y":3}]},{"id":6,"size":3,"cells":[{"x":1,"y":2},{"x":1,"y":3},{"x":2,"y":2}]},{"id":7,"size":2,"cells":[{"x":0,"y":3},{"x":0,"y":4}]},{"id":8,"size":3,"cells":[{"x":2,"y":3},{"x":2,"y":4},{"x":1,"y":4}]},{"id":9,"size":2,"cells":[{"x":4,"y":3},{"x":4,"y":4}]},{"id":10,"size":1,"cells":[{"x":3,"y":4}]}],"mode_title":"bronze-birch"}`))
 	if err != nil {

@@ -47,10 +47,6 @@ func cellView(val rune, isProvided, isCursor, inCursorRow, inCursorCol, solved b
 		style = emptyStyle()
 	}
 
-	if isProvided && val != emptyCell {
-		style = style.Bold(true)
-	}
-
 	text, ok := renderRuneMap[val]
 	if !ok {
 		text = renderRuneMap[emptyCell]
@@ -67,6 +63,14 @@ func cellView(val rune, isProvided, isCursor, inCursorRow, inCursorCol, solved b
 		style = style.Foreground(p.SolvedFG).Background(p.SuccessBG)
 	case inCursorRow || inCursorCol:
 		style = style.Background(p.Surface)
+	}
+
+	if isProvided && val != emptyCell && !isCursor && !solved {
+		bg := p.BG
+		if inCursorRow || inCursorCol {
+			bg = p.Surface
+		}
+		style = style.Bold(true).Background(theme.GivenTint(bg))
 	}
 
 	return style.Width(cellWidth).AlignHorizontal(lipgloss.Center).Render(text)

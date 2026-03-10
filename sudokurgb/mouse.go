@@ -28,6 +28,7 @@ func (m *Model) cachedGridOrigin() (x, y int) {
 func (m *Model) gridOrigin() (x, y int) {
 	solved := m.isSolved()
 	title := game.TitleBarView("Sudoku RGB", m.modeTitle, solved)
-	grid := renderGrid(*m, solved)
-	return game.DynamicGridOrigin(m.termWidth, m.termHeight, m.View(), title, grid)
+	board := buildBoardBlock(*m, solved)
+	x, y = game.DynamicGridOrigin(m.termWidth, m.termHeight, m.View(), title, board.Block)
+	return x + board.HintWidth, y + board.HintHeight
 }

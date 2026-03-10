@@ -185,7 +185,7 @@ func TestCellViewUsesSemanticDigitColors(t *testing.T) {
 	wantProvided := lipgloss.NewStyle().
 		Bold(true).
 		Foreground(digitColor(7)).
-		Background(p.BG).
+		Background(theme.GivenTint(p.BG)).
 		Width(cellWidth).
 		AlignHorizontal(lipgloss.Center).
 		Render("7")

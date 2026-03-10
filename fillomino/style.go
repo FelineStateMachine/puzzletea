@@ -64,6 +64,19 @@ func cellView(
 		style = style.Background(p.Surface)
 	}
 
+	if provided && value != 0 && !conflict && !solved && !cursor {
+		bg := p.BG
+		switch {
+		case completedBG != nil:
+			bg = completedBG
+		case regionHighlight:
+			bg = p.HighlightBG
+		case rowHighlight || colHighlight:
+			bg = p.Surface
+		}
+		style = style.Background(theme.GivenTint(bg))
+	}
+
 	if cursor {
 		if value == 0 {
 			text = game.CursorLeft + "·" + game.CursorRight

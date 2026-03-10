@@ -118,6 +118,10 @@ func cellView(m Model, x, y, activeCage int, completedBG color.Color) string {
 
 	if m.givens[y][x] != 0 {
 		style = style.Bold(true)
+		switch kind {
+		case visualNormal, visualCrosshair, visualCage, visualCompleted:
+			bg = theme.GivenTint(bg)
+		}
 	}
 
 	return style.Foreground(fg).Background(bg).Render(text)

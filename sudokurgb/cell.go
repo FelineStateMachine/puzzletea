@@ -27,16 +27,20 @@ func (c cell) String() string {
 }
 
 func (m Model) isSolved() bool {
-	return isSolvedWith(m.grid, m.conflicts)
+	return isSolvedWith(m.grid, m.analysis)
 }
 
-func isSolvedWith(g grid, conflicts [gridSize][gridSize]bool) bool {
+func isSolvedWith(g grid, analysis boardAnalysis) bool {
 	for y := range gridSize {
 		for x := range gridSize {
-			if g[y][x].v == 0 || conflicts[y][x] {
+			if g[y][x].v == 0 {
 				return false
 			}
 		}
+	}
+
+	if analysis.hasConflicts() {
+		return false
 	}
 
 	for i := range gridSize {

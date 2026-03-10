@@ -193,6 +193,23 @@ func TestCellViewConflictedCursorIsDistinct(t *testing.T) {
 	}
 }
 
+func TestCellViewUsesGivenTintForProvidedDigits(t *testing.T) {
+	p := theme.Current()
+	text := lipgloss.NewStyle().Width(cellWidth).AlignHorizontal(lipgloss.Center).Render("3")
+
+	got := cellView(3, true, false, false, false, false, false, false, nil)
+	want := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(p.FG).
+		Background(theme.GivenTint(p.BG)).
+		Width(cellWidth).
+		AlignHorizontal(lipgloss.Center).
+		Render(text)
+	if got != want {
+		t.Fatalf("provided cellView() = %q, want %q", got, want)
+	}
+}
+
 func TestGridViewRendersRegionBoundaries(t *testing.T) {
 	m := Model{
 		width:     3,

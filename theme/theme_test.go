@@ -233,3 +233,15 @@ func TestMidTone(t *testing.T) {
 		t.Errorf("midTone(black, white) = %s, want 127,127,127", got)
 	}
 }
+
+func TestGivenTint(t *testing.T) {
+	base := color.NRGBA{R: 24, G: 80, B: 160, A: 255}
+	got := GivenTint(base)
+	want := Blend(base, Current().Given, givenTintBlend)
+
+	gr, gg, gb, ga := got.RGBA()
+	wr, wg, wb, wa := want.RGBA()
+	if gr != wr || gg != wg || gb != wb || ga != wa {
+		t.Fatalf("GivenTint() = %v, want %v", got, want)
+	}
+}

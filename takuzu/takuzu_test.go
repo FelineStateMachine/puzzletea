@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/theme"
 )
@@ -1007,6 +1008,34 @@ func TestMouseClickSameCellDoesNotCycleProvidedCell(t *testing.T) {
 
 	if got.grid[0][0] != zeroCell {
 		t.Fatalf("provided cell changed to %q, want %q", got.grid[0][0], zeroCell)
+	}
+}
+
+func TestCellViewUsesGivenTintForProvidedCells(t *testing.T) {
+	p := theme.Current()
+
+	gotZero := cellView(zeroCell, true, false, false, false, false)
+	wantZero := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(p.Accent).
+		Background(theme.GivenTint(p.BG)).
+		Width(cellWidth).
+		AlignHorizontal(lipgloss.Center).
+		Render(renderRuneMap[zeroCell])
+	if gotZero != wantZero {
+		t.Fatalf("provided zero cellView() = %q, want %q", gotZero, wantZero)
+	}
+
+	gotOne := cellView(oneCell, true, false, false, false, false)
+	wantOne := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(p.Secondary).
+		Background(theme.GivenTint(p.BG)).
+		Width(cellWidth).
+		AlignHorizontal(lipgloss.Center).
+		Render(renderRuneMap[oneCell])
+	if gotOne != wantOne {
+		t.Fatalf("provided one cellView() = %q, want %q", gotOne, wantOne)
 	}
 }
 

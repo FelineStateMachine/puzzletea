@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/theme"
 	"github.com/charmbracelet/x/ansi"
@@ -486,6 +487,34 @@ func TestRelationBridgeBackgroundIncompleteIsNeutral(t *testing.T) {
 
 	if got != nil {
 		t.Fatal("expected incomplete relation clue to stay neutral")
+	}
+}
+
+func TestCellViewUsesGivenTintForProvidedCells(t *testing.T) {
+	p := theme.Current()
+
+	gotZero := cellView(zeroCell, true, false, false, false, false)
+	wantZero := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(p.Accent).
+		Background(theme.GivenTint(p.BG)).
+		Width(cellWidth).
+		AlignHorizontal(lipgloss.Center).
+		Render(renderRuneMap[zeroCell])
+	if gotZero != wantZero {
+		t.Fatalf("provided zero cellView() = %q, want %q", gotZero, wantZero)
+	}
+
+	gotOne := cellView(oneCell, true, false, false, false, false)
+	wantOne := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(p.Secondary).
+		Background(theme.GivenTint(p.BG)).
+		Width(cellWidth).
+		AlignHorizontal(lipgloss.Center).
+		Render(renderRuneMap[oneCell])
+	if gotOne != wantOne {
+		t.Fatalf("provided one cellView() = %q, want %q", gotOne, wantOne)
 	}
 }
 
