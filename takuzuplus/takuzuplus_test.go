@@ -3,6 +3,7 @@ package takuzuplus
 import (
 	"encoding/json"
 	"fmt"
+	"image"
 	"image/color"
 	"math/rand/v2"
 	"strings"
@@ -515,6 +516,128 @@ func TestCellViewUsesGivenTintForProvidedCells(t *testing.T) {
 		Render(renderRuneMap[oneCell])
 	if gotOne != wantOne {
 		t.Fatalf("provided one cellView() = %q, want %q", gotOne, wantOne)
+	}
+}
+
+func TestCellViewCursorUsesGlyphsWithoutChangingEmptyCellColors(t *testing.T) {
+	p := theme.Current()
+
+	got := cellView(emptyCell, false, true, false, false, false)
+	want := lipgloss.NewStyle().
+		Foreground(p.TextDim).
+		Background(p.BG).
+		Width(cellWidth).
+		AlignHorizontal(lipgloss.Center).
+		Render(game.CursorLeft + "·" + game.CursorRight)
+
+	if got != want {
+		t.Fatalf("cursor empty cellView() = %q, want %q", got, want)
+	}
+}
+
+func TestCellViewCursorPreservesProvidedCellColors(t *testing.T) {
+	p := theme.Current()
+
+	got := cellView(zeroCell, true, true, true, false, false)
+	want := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(p.Accent).
+		Background(theme.GivenTint(p.BG)).
+		Width(cellWidth).
+		AlignHorizontal(lipgloss.Center).
+		Render(game.CursorLeft + "●" + game.CursorRight)
+
+	if got != want {
+		t.Fatalf("cursor provided zero cellView() = %q, want %q", got, want)
+	}
+}
+
+func TestKeyBindingsUseZeroAndOneForPlacement(t *testing.T) {
+	m := testMouseModel()
+	m.cursor = game.Cursor{X: 1, Y: 1}
+
+	next, _ := m.Update(tea.KeyPressMsg{Code: '0', Text: "0"})
+	got := next.(Model)
+	if got.grid[1][1] != zeroCell {
+		t.Fatalf("key 0 cell = %q, want %q", got.grid[1][1], zeroCell)
+	}
+
+	next, _ = got.Update(tea.KeyPressMsg{Code: '1', Text: "1"})
+	got = next.(Model)
+	if got.grid[1][1] != oneCell {
+		t.Fatalf("key 1 cell = %q, want %q", got.grid[1][1], oneCell)
+	}
+}
+
+func TestBridgeFillLeavesOpenInteriorUnfilledWithoutRelationCue(t *testing.T) {
+	m := testMouseModel()
+	m.cursor = game.Cursor{X: 0, Y: 1}
+
+	got := bridgeFill(m, game.DynamicGridBridge{
+		Kind:  game.DynamicGridBridgeVertical,
+		X:     1,
+		Y:     1,
+		Count: 2,
+		Cells: [4]image.Point{
+			{X: 0, Y: 1},
+			{X: 1, Y: 1},
+		},
+	})
+	if got != nil {
+		t.Fatal("expected relation-free bridge to remain unfilled")
+	}
+}
+
+func TestBuildCountContextUsesCursorRowAndColumn(t *testing.T) {
+	m := testMouseModel()
+	m.cursor = game.Cursor{X: 3, Y: 0}
+
+	ctx := buildCountContext(m.grid, m.cursor, m.size)
+	if got, want := ctx.row, (countPair{zeros: 1, ones: 1}); got != want {
+		t.Fatalf("row counts = %+v, want %+v", got, want)
+	}
+	if got, want := ctx.col, (countPair{zeros: 1, ones: 1}); got != want {
+		t.Fatalf("col counts = %+v, want %+v", got, want)
+	}
+	if got, want := ctx.target, 2; got != want {
+		t.Fatalf("target = %d, want %d", got, want)
+	}
+}
+
+func TestCountContextViewHighlightsMetAndOverGoals(t *testing.T) {
+	m := Model{
+		size: 4,
+		grid: makeGrid4(
+			"0011",
+			"000.",
+			"....",
+			"....",
+		),
+		cursor: game.Cursor{X: 0, Y: 1},
+	}
+
+	view := countContextView(m)
+	wantMet := metGoalCountStyle(zeroCell).Width(3).AlignHorizontal(lipgloss.Right).Render("2/2")
+	if !strings.Contains(view, wantMet) {
+		t.Fatalf("countContextView() = %q, want met-goal chip %q", view, wantMet)
+	}
+	wantOver := overGoalCountStyle().Width(3).AlignHorizontal(lipgloss.Right).Render("3/2")
+	if !strings.Contains(view, wantOver) {
+		t.Fatalf("countContextView() = %q, want over-goal chip %q", view, wantOver)
+	}
+	if !strings.Contains(view, string([]rune(renderRuneMap[zeroCell])[1])+":") {
+		t.Fatalf("countContextView() = %q, want zero symbol label", view)
+	}
+	if !strings.Contains(view, string([]rune(renderRuneMap[oneCell])[1])+":") {
+		t.Fatalf("countContextView() = %q, want one symbol label", view)
+	}
+	wantZeroLabel := countLabelStyle(zeroCell).Render(string([]rune(renderRuneMap[zeroCell])[1]) + ":")
+	if !strings.Contains(view, wantZeroLabel) {
+		t.Fatalf("countContextView() = %q, want colored zero label %q", view, wantZeroLabel)
+	}
+	wantOneLabel := countLabelStyle(oneCell).Render(string([]rune(renderRuneMap[oneCell])[1]) + ":")
+	if !strings.Contains(view, wantOneLabel) {
+		t.Fatalf("countContextView() = %q, want colored one label %q", view, wantOneLabel)
 	}
 }
 

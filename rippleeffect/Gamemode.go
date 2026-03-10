@@ -61,7 +61,7 @@ var Modes = []list.Item{
 		"Compact cages with extra anchors for quick local reads.",
 		5,
 		3,
-		0.72,
+		0.69,
 		generationProfile{
 			cageWeights:     []int{0, 5, 6, 3},
 			frontierSamples: 3,
@@ -74,7 +74,7 @@ var Modes = []list.Item{
 		"Gentle spacing logic with compact cages and steady clues.",
 		6,
 		3,
-		0.67,
+		0.64,
 		generationProfile{
 			cageWeights:     []int{0, 3, 5, 4},
 			frontierSamples: 3,
@@ -87,7 +87,7 @@ var Modes = []list.Item{
 		"Mixed cage shapes with a balanced clue spread.",
 		7,
 		4,
-		0.62,
+		0.59,
 		generationProfile{
 			cageWeights:     []int{0, 2, 4, 5, 3},
 			frontierSamples: 2,
@@ -100,7 +100,7 @@ var Modes = []list.Item{
 		"Longer cages and lighter anchors create broader ripple scans.",
 		8,
 		4,
-		0.58,
+		0.55,
 		generationProfile{
 			cageWeights:     []int{0, 1, 2, 4, 5},
 			frontierSamples: 3,
@@ -113,7 +113,7 @@ var Modes = []list.Item{
 		"Sparser anchors and winding large cages push global deductions.",
 		9,
 		5,
-		0.54,
+		0.51,
 		generationProfile{
 			cageWeights:     []int{0, 1, 1, 3, 4, 5},
 			frontierSamples: 4,

@@ -9,6 +9,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/FelineStateMachine/puzzletea/game"
+	"github.com/FelineStateMachine/puzzletea/theme"
 	"github.com/charmbracelet/x/ansi"
 )
 
@@ -943,6 +944,81 @@ func TestGridViewUsesUniformRows(t *testing.T) {
 		if width := lipgloss.Width(line); width != wantWidth {
 			t.Fatalf("line %d width = %d, want %d", i, width, wantWidth)
 		}
+	}
+}
+
+func TestCellViewCursorUsesGlyphsWithoutChangingEmptyCellColors(t *testing.T) {
+	m := Model{
+		puzzle: Puzzle{Width: 1, Height: 1},
+		cursor: game.Cursor{X: 0, Y: 0},
+	}
+
+	got := cellView(m, 0, 0, nil, nil, false, false)
+
+	p := theme.Current()
+	want := lipgloss.NewStyle().
+		Width(cellWidth).
+		AlignHorizontal(lipgloss.Center).
+		Foreground(p.TextDim).
+		Background(p.BG).
+		Render(game.CursorLeft + "·" + game.CursorRight)
+
+	if got != want {
+		t.Fatalf("cursor empty cell = %q, want %q", got, want)
+	}
+}
+
+func TestCellViewCursorPreservesSelectionColors(t *testing.T) {
+	selected := 0
+	m := Model{
+		puzzle: Puzzle{
+			Width:  1,
+			Height: 1,
+			Clues:  []Clue{{ID: 0, X: 0, Y: 0, Value: 4}},
+		},
+		cursor:       game.Cursor{X: 0, Y: 0},
+		selectedClue: &selected,
+	}
+
+	got := cellView(m, 0, 0, nil, nil, false, false)
+
+	bg := theme.Current().SelectionBG
+	want := lipgloss.NewStyle().
+		Width(cellWidth).
+		AlignHorizontal(lipgloss.Center).
+		Bold(true).
+		Foreground(theme.TextOnBG(bg)).
+		Background(bg).
+		Render(game.CursorLeft + "4" + game.CursorRight)
+
+	if got != want {
+		t.Fatalf("cursor selected clue = %q, want %q", got, want)
+	}
+}
+
+func TestCellViewCursorKeepsDoubleDigitClueVisible(t *testing.T) {
+	m := Model{
+		puzzle: Puzzle{
+			Width:  1,
+			Height: 1,
+			Clues:  []Clue{{ID: 0, X: 0, Y: 0, Value: 12}},
+		},
+		cursor: game.Cursor{X: 0, Y: 0},
+	}
+
+	got := cellView(m, 0, 0, nil, nil, false, false)
+
+	p := theme.Current()
+	want := lipgloss.NewStyle().
+		Width(cellWidth).
+		AlignHorizontal(lipgloss.Center).
+		Bold(true).
+		Foreground(p.Given).
+		Background(p.BG).
+		Render(game.CursorLeft + "12")
+
+	if got != want {
+		t.Fatalf("cursor double-digit clue = %q, want %q", got, want)
 	}
 }
 

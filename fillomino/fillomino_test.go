@@ -454,6 +454,32 @@ func TestGridViewOmitsBorderBetweenAdjacentEmptyCells(t *testing.T) {
 	}
 }
 
+func TestBuildRenderGridStateColorsIncompleteRegions(t *testing.T) {
+	base := grid{
+		{3, 3},
+		{0, 1},
+	}
+	m := Model{
+		width:     2,
+		height:    2,
+		grid:      base,
+		provided:  newProvidedMask(base),
+		conflicts: validateGridState(base).conflicts,
+	}
+
+	renderState := buildRenderGridState(m)
+	incompleteZone := renderState.zones[0][0]
+	if got := renderState.zones[0][1]; got != incompleteZone {
+		t.Fatalf("connected incomplete cells should share a zone: got %d and %d", incompleteZone, got)
+	}
+	if renderState.zoneFill[incompleteZone] == nil {
+		t.Fatal("expected incomplete zone to receive a background color")
+	}
+	if got := renderState.zoneFill[renderState.zones[1][0]]; got != nil {
+		t.Fatal("expected empty zone to remain transparent")
+	}
+}
+
 func TestCursorRegionInfoViewNumberedCell(t *testing.T) {
 	m := Model{
 		width:     3,

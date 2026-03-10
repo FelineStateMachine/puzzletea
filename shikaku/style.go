@@ -77,22 +77,29 @@ func cellView(m Model, x, y int, preview *Rectangle, previewClue *Clue, previewV
 		fg = p.SolvedFG
 	}
 
-	if solved && isCursor {
-		style = game.CursorSolvedStyle()
-		if clue != nil {
-			style = style.Bold(true)
-		}
-		return style.Width(cellWidth).AlignHorizontal(lipgloss.Center).Render(display)
-	}
 	if isCursor {
-		style = game.CursorStyle()
-		if clue != nil {
-			style = style.Bold(true)
-		}
-		return style.Width(cellWidth).AlignHorizontal(lipgloss.Center).Render(display)
+		display = cursorDisplay(display)
 	}
 
 	return style.Foreground(fg).Background(bg).Render(display)
+}
+
+func cursorDisplay(display string) string {
+	runes := []rune(display)
+	if len(runes) != cellWidth {
+		return display
+	}
+
+	switch {
+	case runes[0] == ' ' && runes[cellWidth-1] == ' ':
+		return game.CursorLeft + string(runes[1]) + game.CursorRight
+	case runes[cellWidth-1] == ' ':
+		return game.CursorLeft + string(runes[:cellWidth-1])
+	case runes[0] == ' ':
+		return string(runes[1:]) + game.CursorRight
+	default:
+		return display
+	}
 }
 
 func activePreview(m Model) (*Rectangle, *Clue, bool) {

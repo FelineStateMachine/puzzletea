@@ -14,7 +14,7 @@ const cellWidth = game.DynamicGridCellWidth
 type renderGridState struct {
 	zones      [][]int
 	activeZone int
-	completed  map[int]color.Color
+	zoneFill   map[int]color.Color
 }
 
 func cellBaseStyle() lipgloss.Style {
@@ -34,7 +34,7 @@ func emptyCellStyle() lipgloss.Style {
 func cellView(
 	value int,
 	provided, cursor, rowHighlight, colHighlight, regionHighlight, solved, conflict bool,
-	completedBG color.Color,
+	zoneBG color.Color,
 ) string {
 	p := theme.Current()
 	style := cellBaseStyle()
@@ -56,10 +56,10 @@ func cellView(
 		style = style.Foreground(game.SolvedFG()).Background(p.SuccessBG)
 	} else if cursor {
 		style = game.CursorStyle()
-	} else if completedBG != nil {
-		style = style.Background(completedBG).Foreground(theme.TextOnBG(completedBG))
 	} else if regionHighlight {
 		style = style.Background(p.HighlightBG)
+	} else if zoneBG != nil {
+		style = style.Background(zoneBG).Foreground(theme.TextOnBG(zoneBG))
 	} else if rowHighlight || colHighlight {
 		style = style.Background(p.Surface)
 	}
@@ -67,10 +67,10 @@ func cellView(
 	if provided && value != 0 && !conflict && !solved && !cursor {
 		bg := p.BG
 		switch {
-		case completedBG != nil:
-			bg = completedBG
 		case regionHighlight:
 			bg = p.HighlightBG
+		case zoneBG != nil:
+			bg = zoneBG
 		case rowHighlight || colHighlight:
 			bg = p.Surface
 		}
@@ -104,7 +104,7 @@ func gridView(m Model) string {
 		Solved: m.solved,
 		Cell: func(x, y int) string {
 			zone := renderState.zones[y][x]
-			completedBG := renderState.completed[zone]
+			zoneBG := renderState.zoneFill[zone]
 			return cellView(
 				m.grid[y][x],
 				m.provided[y][x],
@@ -114,7 +114,7 @@ func gridView(m Model) string {
 				renderState.activeZone >= 0 && zone == renderState.activeZone,
 				m.solved,
 				m.conflicts[y][x],
-				completedBG,
+				zoneBG,
 			)
 		},
 		ZoneAt: func(x, y int) int {
@@ -125,12 +125,10 @@ func gridView(m Model) string {
 			switch {
 			case m.solved:
 				return p.SuccessBG
-			case renderState.completed[zone] != nil:
-				return renderState.completed[zone]
 			case renderState.activeZone >= 0 && zone == renderState.activeZone:
 				return p.HighlightBG
 			default:
-				return nil
+				return renderState.zoneFill[zone]
 			}
 		},
 		BridgeFill: func(bridge game.DynamicGridBridge) color.Color {
@@ -153,9 +151,9 @@ func bridgeFill(m Model, renderState renderGridState, bridge game.DynamicGridBri
 
 	if bridge.Uniform {
 		switch {
-		case renderState.completed[bridge.Zone] != nil:
-			return nil
 		case renderState.activeZone >= 0 && bridge.Zone == renderState.activeZone:
+			return nil
+		case renderState.zoneFill[bridge.Zone] != nil:
 			return nil
 		}
 	}
@@ -255,7 +253,7 @@ func buildRenderGridState(m Model) renderGridState {
 
 	palette := theme.Current()
 	colors := palette.ThemeColors()
-	completed := make(map[int]color.Color)
+	zoneFill := make(map[int]color.Color)
 	nextZone := 0
 	activeZone := -1
 	emptyZone := nextZone
@@ -277,8 +275,11 @@ func buildRenderGridState(m Model) renderGridState {
 			for _, cell := range comp.cells {
 				zones[cell.y][cell.x] = zone
 			}
+			if len(colors) > 0 {
+				zoneFill[zone] = incompleteRegionColor(comp, colors, palette.Surface)
+			}
 			if len(colors) > 0 && len(comp.cells) == comp.value && !componentHasConflict(comp, m.conflicts) {
-				completed[zone] = completedRegionColor(comp, colors, palette.Surface)
+				zoneFill[zone] = completedRegionColor(comp, colors, palette.Surface)
 			}
 		}
 	}
@@ -290,7 +291,7 @@ func buildRenderGridState(m Model) renderGridState {
 	return renderGridState{
 		zones:      zones,
 		activeZone: activeZone,
-		completed:  completed,
+		zoneFill:   zoneFill,
 	}
 }
 
@@ -304,9 +305,21 @@ func componentHasConflict(comp component, conflicts [][]bool) bool {
 }
 
 func completedRegionColor(comp component, colors []color.Color, base color.Color) color.Color {
+	return regionColor(comp, colors, base, 0.52)
+}
+
+func incompleteRegionColor(comp component, colors []color.Color, base color.Color) color.Color {
+	return regionColor(comp, colors, base, 0.26)
+}
+
+func regionColor(comp component, colors []color.Color, base color.Color, amount float64) color.Color {
+	if len(colors) == 0 {
+		return nil
+	}
+
 	anchor := comp.cells[0]
 	index := (anchor.y*37 + anchor.x*17 + comp.value*13) % len(colors)
-	return theme.Blend(base, colors[index], 0.52)
+	return theme.Blend(base, colors[index], amount)
 }
 
 func cursorRegionInfoStyle() lipgloss.Style {

@@ -2,6 +2,8 @@ package takuzu
 
 import (
 	"image/color"
+	"strconv"
+	"strings"
 
 	"charm.land/lipgloss/v2"
 	"github.com/FelineStateMachine/puzzletea/game"
@@ -39,6 +41,17 @@ func renderStyleMap() map[rune]lipgloss.Style {
 	}
 }
 
+type countPair struct {
+	zeros int
+	ones  int
+}
+
+type countContext struct {
+	row    countPair
+	col    countPair
+	target int
+}
+
 func cellView(val rune, isProvided, isCursor, inCursorRow, inCursorCol, solved bool) string {
 	p := theme.Current()
 	styles := renderStyleMap()
@@ -53,27 +66,36 @@ func cellView(val rune, isProvided, isCursor, inCursorRow, inCursorCol, solved b
 	}
 
 	switch {
-	case isCursor && solved:
-		style = game.CursorSolvedStyle()
-		text = game.CursorLeft + string([]rune(text)[1]) + game.CursorRight
-	case isCursor:
-		style = game.CursorStyle()
-		text = game.CursorLeft + string([]rune(text)[1]) + game.CursorRight
 	case solved:
 		style = style.Foreground(p.SolvedFG).Background(p.SuccessBG)
-	case inCursorRow || inCursorCol:
-		style = style.Background(p.Surface)
 	}
 
-	if isProvided && val != emptyCell && !isCursor && !solved {
-		bg := p.BG
-		if inCursorRow || inCursorCol {
-			bg = p.Surface
-		}
-		style = style.Bold(true).Background(theme.GivenTint(bg))
+	if isProvided && val != emptyCell && !solved {
+		style = style.Bold(true).Background(theme.GivenTint(p.BG))
+	}
+	if isCursor {
+		text = cursorText(text)
 	}
 
 	return style.Width(cellWidth).AlignHorizontal(lipgloss.Center).Render(text)
+}
+
+func cursorText(text string) string {
+	runes := []rune(text)
+	if len(runes) != cellWidth {
+		return text
+	}
+
+	switch {
+	case runes[0] == ' ' && runes[cellWidth-1] == ' ':
+		return game.CursorLeft + string(runes[1]) + game.CursorRight
+	case runes[cellWidth-1] == ' ':
+		return game.CursorLeft + string(runes[:cellWidth-1])
+	case runes[0] == ' ':
+		return string(runes[1:]) + game.CursorRight
+	default:
+		return text
+	}
 }
 
 func gridView(m Model) string {
@@ -100,19 +122,140 @@ func gridView(m Model) string {
 	})
 }
 
-func bridgeFill(m Model, bridge game.DynamicGridBridge) color.Color {
-	if m.solved {
-		return nil
-	}
-	if game.DynamicGridBridgeOnCrosshairAxis(m.cursor, bridge) {
-		return theme.Current().Surface
-	}
+func bridgeFill(_ Model, _ game.DynamicGridBridge) color.Color {
 	return nil
+}
+
+func countContextView(m Model) string {
+	ctx := buildCountContext(m.grid, m.cursor, m.size)
+	width := countValueWidth(ctx.target)
+	label := lipgloss.NewStyle().Foreground(theme.Current().Info)
+
+	var b strings.Builder
+	b.WriteString(label.Render("row  "))
+	b.WriteString(countLabelStyle(zeroCell).Render(string([]rune(renderRuneMap[zeroCell])[1]) + ":"))
+	b.WriteString(renderCountValue(ctx.row.zeros, ctx.target, zeroCell, width))
+	b.WriteString(label.Render("  "))
+	b.WriteString(countLabelStyle(oneCell).Render(string([]rune(renderRuneMap[oneCell])[1]) + ":"))
+	b.WriteString(renderCountValue(ctx.row.ones, ctx.target, oneCell, width))
+	b.WriteString(label.Render("  col  "))
+	b.WriteString(countLabelStyle(zeroCell).Render(string([]rune(renderRuneMap[zeroCell])[1]) + ":"))
+	b.WriteString(renderCountValue(ctx.col.zeros, ctx.target, zeroCell, width))
+	b.WriteString(label.Render("  "))
+	b.WriteString(countLabelStyle(oneCell).Render(string([]rune(renderRuneMap[oneCell])[1]) + ":"))
+	b.WriteString(renderCountValue(ctx.col.ones, ctx.target, oneCell, width))
+	return b.String()
+}
+
+func buildCountContext(g grid, cursor game.Cursor, size int) countContext {
+	if size <= 0 || len(g) == 0 {
+		return countContext{}
+	}
+	row := 0
+	if cursor.Y >= 0 && cursor.Y < len(g) {
+		row = cursor.Y
+	}
+	col := 0
+	if cursor.X >= 0 && len(g[row]) > 0 && cursor.X < len(g[row]) {
+		col = cursor.X
+	}
+	return countContext{
+		row:    countLine(g[row]),
+		col:    countColumn(g, col, size),
+		target: size / 2,
+	}
+}
+
+func countLine(row []rune) countPair {
+	var counts countPair
+	for _, value := range row {
+		switch value {
+		case zeroCell:
+			counts.zeros++
+		case oneCell:
+			counts.ones++
+		}
+	}
+	return counts
+}
+
+func countColumn(g grid, col, size int) countPair {
+	var counts countPair
+	for y := 0; y < size && y < len(g); y++ {
+		if col < 0 || col >= len(g[y]) {
+			continue
+		}
+		switch g[y][col] {
+		case zeroCell:
+			counts.zeros++
+		case oneCell:
+			counts.ones++
+		}
+	}
+	return counts
+}
+
+func countPairString(counts countPair) string {
+	return strconv.Itoa(counts.zeros) + "/" + strconv.Itoa(counts.ones)
+}
+
+func renderCountValue(count, target int, value rune, width int) string {
+	text := strconv.Itoa(count) + "/" + strconv.Itoa(target)
+	style := countValueStyle(value)
+	if count == target {
+		style = metGoalCountStyle(value)
+	}
+	if count > target {
+		style = overGoalCountStyle()
+	}
+	return style.Width(width).AlignHorizontal(lipgloss.Right).Render(text)
+}
+
+func countValueWidth(target int) int {
+	return len(strconv.Itoa(target))*2 + 1
+}
+
+func countValueStyle(value rune) lipgloss.Style {
+	return lipgloss.NewStyle().Foreground(binaryValueColor(value))
+}
+
+func countLabelStyle(value rune) lipgloss.Style {
+	return lipgloss.NewStyle().
+		Bold(true).
+		Foreground(binaryValueColor(value))
+}
+
+func metGoalCountStyle(value rune) lipgloss.Style {
+	bg := binaryValueColor(value)
+	return lipgloss.NewStyle().
+		Bold(true).
+		Foreground(theme.TextOnBG(bg)).
+		Background(bg)
+}
+
+func overGoalCountStyle() lipgloss.Style {
+	bg := game.ConflictBG()
+	return lipgloss.NewStyle().
+		Bold(true).
+		Foreground(theme.TextOnBG(bg)).
+		Background(bg)
+}
+
+func binaryValueColor(value rune) color.Color {
+	p := theme.Current()
+	switch value {
+	case zeroCell:
+		return p.Accent
+	case oneCell:
+		return p.Secondary
+	default:
+		return p.TextDim
+	}
 }
 
 func statusBarView(showFullHelp bool) string {
 	if showFullHelp {
-		return game.StatusBarStyle().Render("arrows/wasd: move  mouse: click/cycle  z: ●  x: ○  bkspc: clear  esc: menu  ctrl+r: reset  ctrl+h: help")
+		return game.StatusBarStyle().Render("arrows/wasd: move  mouse: click/cycle  z/0: ●  x/1: ○  bkspc: clear  esc: menu  ctrl+r: reset  ctrl+h: help")
 	}
-	return game.StatusBarStyle().Render("mouse: click/cycle  z: ●  x: ○")
+	return game.StatusBarStyle().Render("mouse: click/cycle  z/0: ●  x/1: ○")
 }

@@ -16,7 +16,6 @@ type visualKind int
 
 const (
 	visualNormal visualKind = iota
-	visualCrosshair
 	visualCage
 	visualCompleted
 	visualConflictCursor
@@ -25,7 +24,7 @@ const (
 	visualConflict
 )
 
-func chooseVisualKind(cursor, solved, conflict, completed, cageHighlight, crosshair bool) visualKind {
+func chooseVisualKind(cursor, solved, conflict, completed, cageHighlight bool) visualKind {
 	switch {
 	case cursor && conflict:
 		return visualConflictCursor
@@ -39,8 +38,6 @@ func chooseVisualKind(cursor, solved, conflict, completed, cageHighlight, crossh
 		return visualCompleted
 	case cageHighlight:
 		return visualCage
-	case crosshair:
-		return visualCrosshair
 	default:
 		return visualNormal
 	}
@@ -77,7 +74,6 @@ func cellView(m Model, x, y, activeCage int, completedBG color.Color) string {
 		m.conflicts[y][x],
 		completedBG != nil,
 		m.geo.cageGrid[y][x] == activeCage,
-		y == m.cursor.Y || x == m.cursor.X,
 	)
 
 	style := lipgloss.NewStyle().
@@ -112,14 +108,12 @@ func cellView(m Model, x, y, activeCage int, completedBG color.Color) string {
 	case visualCage:
 		bg = p.SelectionBG
 		fg = theme.TextOnBG(bg)
-	case visualCrosshair:
-		bg = p.Surface
 	}
 
 	if m.givens[y][x] != 0 {
 		style = style.Bold(true)
 		switch kind {
-		case visualNormal, visualCrosshair, visualCage, visualCompleted:
+		case visualNormal, visualCage, visualCompleted:
 			bg = theme.GivenTint(bg)
 		}
 	}
@@ -194,9 +188,6 @@ func bridgeFill(m Model, bridgeBG map[int]color.Color, bridge game.DynamicGridBr
 	}
 	if bridge.Count > 0 && !bridgeTouchesBorder(m.geo, bridge) {
 		return nil
-	}
-	if game.DynamicGridBridgeOnCrosshairAxis(m.cursor, bridge) {
-		return theme.Current().Surface
 	}
 	return nil
 }

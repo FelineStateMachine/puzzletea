@@ -32,7 +32,8 @@ func providedCellStyle(value int, bg color.Color) lipgloss.Style {
 
 func userCellStyle(value int) lipgloss.Style {
 	return lipgloss.NewStyle().
-		Foreground(symbolColor(value))
+		Foreground(symbolColor(value)).
+		Background(game.DefaultBorderColors().BackgroundBG)
 }
 
 func boxConflictCellStyle() lipgloss.Style {

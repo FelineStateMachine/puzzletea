@@ -11,6 +11,10 @@ Fill the grid with two symbols so that the normal Takuzu rules hold, while also 
 
 Pre-filled cells are locked. Relation clues are also fixed and cannot be edited.
 
+The context row below the grid shows the current cursor row and column counts for
+`0` and `1`. Count chips invert when a line reaches its quota and turn into an
+error chip if a line goes over quota.
+
 ## Controls
 
 | Key | Action |

@@ -11,6 +11,10 @@ Fill the grid with two symbols so that every row and column obeys three simple r
 Pre-filled cells (shown in **bold**) are locked and cannot be changed. The puzzle is
 solved when every cell is filled and all three rules are satisfied.
 
+The context row below the grid shows the current cursor row and column counts for
+`0` and `1`. Count chips invert when a line reaches its quota and turn into an
+error chip if a line goes over quota.
+
 ## Controls
 
 | Key | Action |
@@ -30,7 +34,8 @@ solved when every cell is filled and all three rules are satisfied.
   either side *must* be the opposite symbol. For example, ● ● means the neighbours
   are both ○.
 - **Count what you have**: When a row or column already has its full quota of one
-  symbol, every remaining empty cell in that line must be the other symbol.
+  symbol, the context row marks that count so every remaining empty cell in that
+  line must be the other symbol.
 - **Avoid the third**: Before placing a symbol, glance one and two cells ahead in
   each direction. If placing it would create three in a row, it has to be the
   other symbol.

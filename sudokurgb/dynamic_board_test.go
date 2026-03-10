@@ -228,3 +228,23 @@ func TestCellViewUsesErrorBackgroundForBoxConflictOnly(t *testing.T) {
 		t.Fatalf("row-only conflict cellView() = %q, want %q", got, want)
 	}
 }
+
+func TestUserCellViewUsesDefaultBoardBackground(t *testing.T) {
+	g := newGrid(nil)
+	g[0][0].v = 2
+	m := Model{
+		grid:     g,
+		analysis: analyzeGrid(g),
+		keys:     DefaultKeyMap,
+		cursor:   game.Cursor{X: 8, Y: 8},
+	}
+
+	got := cellView(m, 0, 0, false)
+	want := userCellStyle(2).
+		Width(cellWidth).
+		AlignHorizontal(lipgloss.Center).
+		Render("■")
+	if got != want {
+		t.Fatalf("user cellView() = %q, want %q", got, want)
+	}
+}
