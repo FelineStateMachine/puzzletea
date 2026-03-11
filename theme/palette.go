@@ -157,11 +157,11 @@ func derivePalette(t Theme) Palette {
 		SolvedFG:      ansi[15], // brightWhite — text on state BGs
 		Error:         errorFG,
 		Info:          ansi[12], // brightBlue
-		Given:         ansi[5],  // purple
+		Given:         ansi[13], // brightPurple
 		Linked:        linked,
 		Highlight:     highlight,
 		Secondary:     secondary,
-		Tertiary:      ansi[13], // brightPurple
+		Tertiary:      ansi[5], // purple
 
 		AccentBG:    accentBG,
 		SuccessBG:   successBG,

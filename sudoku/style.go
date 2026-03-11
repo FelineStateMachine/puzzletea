@@ -18,12 +18,11 @@ func emptyCellStyle() lipgloss.Style {
 		Background(p.BG)
 }
 
-func providedCellStyle(v int) lipgloss.Style {
-	p := theme.Current()
+func providedCellStyle(v int, bg color.Color) lipgloss.Style {
 	return lipgloss.NewStyle().
 		Bold(true).
 		Foreground(digitColor(v)).
-		Background(p.BG)
+		Background(theme.GivenTint(bg))
 }
 
 func userCellStyle(v int) lipgloss.Style {
@@ -118,11 +117,11 @@ func cellStyle(m Model, c cell, x, y int, conflict, solved bool) lipgloss.Style 
 
 	isProvided := m.providedGrid[y][x]
 	if isProvided {
-		style := providedCellStyle(c.v)
+		bg := p.BG
 		if inCursorContext(m.cursor, x, y) {
-			style = style.Background(p.Surface)
+			bg = p.Surface
 		}
-		return style
+		return providedCellStyle(c.v, bg)
 	}
 
 	if c.v != 0 {

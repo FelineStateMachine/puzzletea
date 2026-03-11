@@ -3,11 +3,12 @@ package takuzu
 import (
 	"encoding/json"
 	"image"
-	"image/color"
 	"math/rand/v2"
+	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/theme"
 )
@@ -35,15 +36,6 @@ func validGrid6() grid {
 		"100110",
 		"011001",
 	)
-}
-
-func sameColor(left, right color.Color) bool {
-	if left == nil || right == nil {
-		return left == nil && right == nil
-	}
-	lr, lg, lb, la := left.RGBA()
-	rr, rg, rb, ra := right.RGBA()
-	return lr == rr && lg == rg && lb == rb && la == ra
 }
 
 // --- canPlace (P0) ---
@@ -1010,7 +1002,138 @@ func TestMouseClickSameCellDoesNotCycleProvidedCell(t *testing.T) {
 	}
 }
 
-func TestBridgeFillUsesVerticalCrosshairAcrossOpenInterior(t *testing.T) {
+func TestCellViewUsesGivenTintForProvidedCells(t *testing.T) {
+	p := theme.Current()
+
+	gotZero := cellView(zeroCell, true, false, false, false, false)
+	wantZero := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(p.Accent).
+		Background(theme.GivenTint(p.BG)).
+		Width(cellWidth).
+		AlignHorizontal(lipgloss.Center).
+		Render(renderRuneMap[zeroCell])
+	if gotZero != wantZero {
+		t.Fatalf("provided zero cellView() = %q, want %q", gotZero, wantZero)
+	}
+
+	gotOne := cellView(oneCell, true, false, false, false, false)
+	wantOne := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(p.Secondary).
+		Background(theme.GivenTint(p.BG)).
+		Width(cellWidth).
+		AlignHorizontal(lipgloss.Center).
+		Render(renderRuneMap[oneCell])
+	if gotOne != wantOne {
+		t.Fatalf("provided one cellView() = %q, want %q", gotOne, wantOne)
+	}
+}
+
+func TestCellViewCursorUsesGlyphsWithoutChangingEmptyCellColors(t *testing.T) {
+	p := theme.Current()
+
+	got := cellView(emptyCell, false, true, false, false, false)
+	want := lipgloss.NewStyle().
+		Foreground(p.TextDim).
+		Background(p.BG).
+		Width(cellWidth).
+		AlignHorizontal(lipgloss.Center).
+		Render(game.CursorLeft + "·" + game.CursorRight)
+
+	if got != want {
+		t.Fatalf("cursor empty cellView() = %q, want %q", got, want)
+	}
+}
+
+func TestCellViewCursorPreservesProvidedCellColors(t *testing.T) {
+	p := theme.Current()
+
+	got := cellView(zeroCell, true, true, true, false, false)
+	want := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(p.Accent).
+		Background(theme.GivenTint(p.BG)).
+		Width(cellWidth).
+		AlignHorizontal(lipgloss.Center).
+		Render(game.CursorLeft + "●" + game.CursorRight)
+
+	if got != want {
+		t.Fatalf("cursor provided zero cellView() = %q, want %q", got, want)
+	}
+}
+
+func TestKeyBindingsUseZeroAndOneForPlacement(t *testing.T) {
+	m := testMouseModel()
+	m.cursor = game.Cursor{X: 1, Y: 1}
+
+	next, _ := m.Update(tea.KeyPressMsg{Code: '0', Text: "0"})
+	got := next.(Model)
+	if got.grid[1][1] != zeroCell {
+		t.Fatalf("key 0 cell = %q, want %q", got.grid[1][1], zeroCell)
+	}
+
+	next, _ = got.Update(tea.KeyPressMsg{Code: '1', Text: "1"})
+	got = next.(Model)
+	if got.grid[1][1] != oneCell {
+		t.Fatalf("key 1 cell = %q, want %q", got.grid[1][1], oneCell)
+	}
+}
+
+func TestBuildCountContextUsesCursorRowAndColumn(t *testing.T) {
+	m := testMouseModel()
+	m.cursor = game.Cursor{X: 3, Y: 0}
+
+	ctx := buildCountContext(m.grid, m.cursor, m.size)
+	if got, want := ctx.row, (countPair{zeros: 1, ones: 1}); got != want {
+		t.Fatalf("row counts = %+v, want %+v", got, want)
+	}
+	if got, want := ctx.col, (countPair{zeros: 1, ones: 1}); got != want {
+		t.Fatalf("col counts = %+v, want %+v", got, want)
+	}
+	if got, want := ctx.target, 2; got != want {
+		t.Fatalf("target = %d, want %d", got, want)
+	}
+}
+
+func TestCountContextViewHighlightsMetAndOverGoals(t *testing.T) {
+	m := Model{
+		size: 4,
+		grid: grid{
+			[]rune("0011"),
+			[]rune("000."),
+			[]rune("...."),
+			[]rune("...."),
+		},
+		cursor: game.Cursor{X: 0, Y: 1},
+	}
+
+	view := countContextView(m)
+	wantMet := metGoalCountStyle(zeroCell).Width(3).AlignHorizontal(lipgloss.Right).Render("2/2")
+	if !strings.Contains(view, wantMet) {
+		t.Fatalf("countContextView() = %q, want met-goal chip %q", view, wantMet)
+	}
+	wantOver := overGoalCountStyle().Width(3).AlignHorizontal(lipgloss.Right).Render("3/2")
+	if !strings.Contains(view, wantOver) {
+		t.Fatalf("countContextView() = %q, want over-goal chip %q", view, wantOver)
+	}
+	if !strings.Contains(view, string([]rune(renderRuneMap[zeroCell])[1])+":") {
+		t.Fatalf("countContextView() = %q, want zero symbol label", view)
+	}
+	if !strings.Contains(view, string([]rune(renderRuneMap[oneCell])[1])+":") {
+		t.Fatalf("countContextView() = %q, want one symbol label", view)
+	}
+	wantZeroLabel := countLabelStyle(zeroCell).Render(string([]rune(renderRuneMap[zeroCell])[1]) + ":")
+	if !strings.Contains(view, wantZeroLabel) {
+		t.Fatalf("countContextView() = %q, want colored zero label %q", view, wantZeroLabel)
+	}
+	wantOneLabel := countLabelStyle(oneCell).Render(string([]rune(renderRuneMap[oneCell])[1]) + ":")
+	if !strings.Contains(view, wantOneLabel) {
+		t.Fatalf("countContextView() = %q, want colored one label %q", view, wantOneLabel)
+	}
+}
+
+func TestBridgeFillLeavesVerticalOpenInteriorUnfilled(t *testing.T) {
 	m := testMouseModel()
 	m.cursor = game.Cursor{X: 0, Y: 1}
 
@@ -1025,12 +1148,12 @@ func TestBridgeFillUsesVerticalCrosshairAcrossOpenInterior(t *testing.T) {
 			{X: 1, Y: 1},
 		},
 	})
-	if !sameColor(got, theme.Current().Surface) {
-		t.Fatal("expected open vertical bridge on cursor row to use crosshair background")
+	if got != nil {
+		t.Fatal("expected open vertical bridge on cursor row to remain unfilled")
 	}
 }
 
-func TestBridgeFillUsesHorizontalCrosshairAcrossOpenInterior(t *testing.T) {
+func TestBridgeFillLeavesHorizontalOpenInteriorUnfilled(t *testing.T) {
 	m := testMouseModel()
 	m.cursor = game.Cursor{X: 0, Y: 1}
 
@@ -1045,8 +1168,8 @@ func TestBridgeFillUsesHorizontalCrosshairAcrossOpenInterior(t *testing.T) {
 			{X: 0, Y: 1},
 		},
 	})
-	if !sameColor(got, theme.Current().Surface) {
-		t.Fatal("expected open horizontal bridge on cursor column to use crosshair background")
+	if got != nil {
+		t.Fatal("expected open horizontal bridge on cursor column to remain unfilled")
 	}
 }
 

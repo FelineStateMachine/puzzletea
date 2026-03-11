@@ -41,6 +41,8 @@ const minContrastNormal = 4.5
 // minContrastLarge is the WCAG AA minimum for large/bold text (3:1).
 const minContrastLarge = 3.0
 
+const givenTintBlend = 0.25
+
 // ensurePairContrast ensures that the foreground/background pair meets the
 // minimum contrast ratio. When the original fg falls short, it scans the
 // full 16-color ANSI palette for the candidate that meets the ratio and
@@ -146,6 +148,16 @@ func TextOnBG(bg color.Color) color.Color {
 		return p.FG
 	}
 	return p.BG
+}
+
+// GivenTint shifts a color toward the current palette's Given color while
+// preserving some of the original hue. This is used for immutable-cell
+// styling cues in editable grids.
+func GivenTint(c color.Color) color.Color {
+	if c == nil {
+		return Current().Given
+	}
+	return Blend(c, Current().Given, givenTintBlend)
 }
 
 // Blend returns a color that is t fraction of the way from a toward b.

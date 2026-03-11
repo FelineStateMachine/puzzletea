@@ -22,7 +22,7 @@ type Model struct {
 	grid         grid
 	provided     []cell
 	providedGrid [gridSize][gridSize]bool
-	conflicts    [gridSize][gridSize]bool
+	analysis     boardAnalysis
 	keys         KeyMap
 	modeTitle    string
 	showFullHelp bool
@@ -47,7 +47,7 @@ func New(mode SudokuRGBMode, provided []cell) (game.Gamer, error) {
 		grid:         g,
 		provided:     provided,
 		providedGrid: buildProvidedGrid(provided),
-		conflicts:    computeConflicts(g),
+		analysis:     analyzeGrid(g),
 		keys:         DefaultKeyMap,
 		modeTitle:    mode.Title(),
 	}
@@ -101,7 +101,7 @@ func (m Model) IsSolved() bool {
 
 func (m Model) Reset() game.Gamer {
 	m.grid = newGrid(m.provided)
-	m.conflicts = computeConflicts(m.grid)
+	m.analysis = analyzeGrid(m.grid)
 	m.originValid = false
 	return m
 }
@@ -113,28 +113,28 @@ func (m *Model) updateCell(value int) {
 
 	wasSolved := m.isSolved()
 	m.grid[m.cursor.Y][m.cursor.X].v = value
-	m.conflicts = computeConflicts(m.grid)
+	m.analysis = analyzeGrid(m.grid)
 	if m.isSolved() != wasSolved {
 		m.originValid = false
 	}
 }
 
 func (m Model) View() string {
-	solved := isSolvedWith(m.grid, m.conflicts)
+	solved := isSolvedWith(m.grid, m.analysis)
 	title := game.TitleBarView("Sudoku RGB", m.modeTitle, solved)
-	grid := renderGrid(m, solved)
+	board := buildBoardBlock(m, solved)
 	if solved {
-		return game.ComposeGameView(title, grid)
+		return game.ComposeGameView(title, board.Block)
 	}
 
 	status := statusBarView(m.showFullHelp)
-	return game.ComposeGameViewRows(title, grid, game.StableRow(status, statusBarView(false), statusBarView(true)))
+	return game.ComposeGameViewRows(title, board.Block, game.StableRow(status, statusBarView(false), statusBarView(true)))
 }
 
 func (m Model) GetDebugInfo() string {
 	cursorCell := m.grid[m.cursor.Y][m.cursor.X]
 	isProvided := m.providedGrid[m.cursor.Y][m.cursor.X]
-	conflict := m.conflicts[m.cursor.Y][m.cursor.X]
+	boxConflict := m.analysis.boxConflictCells[m.cursor.Y][m.cursor.X]
 	solved := m.isSolved()
 
 	filledCount := 0
@@ -144,7 +144,7 @@ func (m Model) GetDebugInfo() string {
 			if m.grid[y][x].v != 0 {
 				filledCount++
 			}
-			if m.conflicts[y][x] {
+			if m.analysis.boxConflictCells[y][x] {
 				conflictCount++
 			}
 		}
@@ -160,9 +160,11 @@ func (m Model) GetDebugInfo() string {
 		{"Cursor", fmt.Sprintf("(%d, %d)", m.cursor.X, m.cursor.Y)},
 		{"Cell Value", cellDebugValue(cursorCell.v)},
 		{"Is Provided", fmt.Sprintf("%v", isProvided)},
-		{"Has Conflict", fmt.Sprintf("%v", conflict)},
+		{"Box Conflict", fmt.Sprintf("%v", boxConflict)},
+		{"Row Counts", m.analysis.rowCountsString(m.cursor.Y)},
+		{"Col Counts", m.analysis.colCountsString(m.cursor.X)},
 		{"Cells Filled", fmt.Sprintf("%d / 81", filledCount)},
-		{"Conflict Count", fmt.Sprintf("%d", conflictCount)},
+		{"Box Conflict Count", fmt.Sprintf("%d", conflictCount)},
 		{"Provided Count", fmt.Sprintf("%d", len(m.provided))},
 	})
 }

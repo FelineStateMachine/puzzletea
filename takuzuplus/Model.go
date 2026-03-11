@@ -84,8 +84,14 @@ func (m Model) View() string {
 	if m.solved {
 		return game.ComposeGameView(title, grid)
 	}
+	info := countContextView(m)
 	status := statusBarView(m.showFullHelp)
-	return game.ComposeGameViewRows(title, grid, game.StableRow(status, statusBarView(false), statusBarView(true)))
+	return game.ComposeGameViewRows(
+		title,
+		grid,
+		game.StaticRow(info),
+		game.StableRow(status, statusBarView(false), statusBarView(true)),
+	)
 }
 
 func (m Model) SetTitle(t string) game.Gamer {
@@ -138,6 +144,8 @@ func (m Model) GetDebugInfo() string {
 		{"Cursor", fmt.Sprintf("(%d, %d)", m.cursor.X, m.cursor.Y)},
 		{"Grid Size", fmt.Sprintf("%d×%d", m.size, m.size)},
 		{"Cells Filled", fmt.Sprintf("%d / %d", filled, m.size*m.size)},
+		{"Row Counts", countPairString(countLine(m.grid[m.cursor.Y]))},
+		{"Col Counts", countPairString(countColumn(m.grid, m.cursor.X, m.size))},
 		{"Relation Clues", fmt.Sprintf("%d", countRelations(m.relations))},
 	})
 }

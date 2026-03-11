@@ -37,7 +37,7 @@ func TestFillGridSeededProducesValidBoard(t *testing.T) {
 	if !fillGridSeeded(&g, rand.New(rand.NewPCG(7, 11))) {
 		t.Fatal("fillGridSeeded returned false")
 	}
-	if conflicts := computeConflicts(g); !isSolvedWith(g, conflicts) {
+	if analysis := analyzeGrid(g); !isSolvedWith(g, analysis) {
 		t.Fatal("generated board is not solved")
 	}
 }
@@ -73,7 +73,7 @@ func TestModelUpdateRestrictsInputsAndRespectsProvidedCells(t *testing.T) {
 		grid:         newGrid([]cell{{x: 0, y: 0, v: 1}}),
 		provided:     []cell{{x: 0, y: 0, v: 1}},
 		providedGrid: buildProvidedGrid([]cell{{x: 0, y: 0, v: 1}}),
-		conflicts:    computeConflicts(newGrid([]cell{{x: 0, y: 0, v: 1}})),
+		analysis:     analyzeGrid(newGrid([]cell{{x: 0, y: 0, v: 1}})),
 		keys:         DefaultKeyMap,
 		cursor:       game.Cursor{X: 1, Y: 1},
 	}
@@ -108,9 +108,10 @@ func TestCellViewUsesUnicodeSymbolsWithCursorMarkers(t *testing.T) {
 	g := newGrid(nil)
 	g[0][0].v = 3
 	m := Model{
-		grid:   g,
-		keys:   DefaultKeyMap,
-		cursor: game.Cursor{X: 0, Y: 0},
+		grid:     g,
+		keys:     DefaultKeyMap,
+		cursor:   game.Cursor{X: 0, Y: 0},
+		analysis: analyzeGrid(g),
 	}
 
 	got := ansi.Strip(cellView(m, 0, 0, false))
@@ -128,9 +129,9 @@ func TestCellViewUsesUnicodeSymbolsWithCursorMarkers(t *testing.T) {
 
 func TestScreenToGridUsesStandardCellWidth(t *testing.T) {
 	m := Model{
-		grid:      newGrid(nil),
-		conflicts: computeConflicts(newGrid(nil)),
-		keys:      DefaultKeyMap,
+		grid:     newGrid(nil),
+		analysis: analyzeGrid(newGrid(nil)),
+		keys:     DefaultKeyMap,
 	}
 
 	next, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
@@ -143,6 +144,12 @@ func TestScreenToGridUsesStandardCellWidth(t *testing.T) {
 	if _, _, ok := got.screenToGrid(x+cellWidth, y); ok {
 		t.Fatal("screenToGrid(separator) = ok, want false")
 	}
+	if _, _, ok := got.screenToGrid(x-rowHintWidth, y); ok {
+		t.Fatal("screenToGrid(row hint band) = ok, want false")
+	}
+	if _, _, ok := got.screenToGrid(x, y-colHintHeight); ok {
+		t.Fatal("screenToGrid(column hint band) = ok, want false")
+	}
 }
 
 func TestSaveRoundTrip(t *testing.T) {
@@ -153,7 +160,7 @@ func TestSaveRoundTrip(t *testing.T) {
 		grid:         g,
 		provided:     []cell{{x: 0, y: 0, v: 1}},
 		providedGrid: buildProvidedGrid([]cell{{x: 0, y: 0, v: 1}}),
-		conflicts:    computeConflicts(g),
+		analysis:     analyzeGrid(g),
 		keys:         DefaultKeyMap,
 		modeTitle:    "Easy",
 	}
@@ -173,4 +180,97 @@ func TestSaveRoundTrip(t *testing.T) {
 	if loaded.modeTitle != "Easy" {
 		t.Fatalf("mode title = %q, want Easy", loaded.modeTitle)
 	}
+}
+
+func TestAnalyzeGridTracksRowColumnAndBoxState(t *testing.T) {
+	t.Run("counts solved board", func(t *testing.T) {
+		analysis := analyzeGrid(validCompleteGrid())
+		for row := range gridSize {
+			if got := analysis.rowCountsString(row); got != "3/3/3" {
+				t.Fatalf("rowCountsString(%d) = %q, want 3/3/3", row, got)
+			}
+		}
+		for col := range gridSize {
+			if got := analysis.colCountsString(col); got != "3/3/3" {
+				t.Fatalf("colCountsString(%d) = %q, want 3/3/3", col, got)
+			}
+		}
+		if analysis.hasConflicts() {
+			t.Fatal("solved board unexpectedly has conflicts")
+		}
+	})
+
+	t.Run("row over-quota stays off cells", func(t *testing.T) {
+		g := newGrid(nil)
+		for x := 0; x < 4; x++ {
+			g[0][x].v = 1
+		}
+
+		analysis := analyzeGrid(g)
+		if !analysis.rowOverQuota[0][1] {
+			t.Fatal("expected row over-quota for red")
+		}
+		if analysis.colOverQuota[0][1] {
+			t.Fatal("unexpected column over-quota")
+		}
+		for y := range gridSize {
+			for x := range gridSize {
+				if analysis.boxConflictCells[y][x] {
+					t.Fatalf("unexpected box conflict at (%d,%d)", x, y)
+				}
+			}
+		}
+	})
+
+	t.Run("column over-quota stays off cells", func(t *testing.T) {
+		g := newGrid(nil)
+		for _, y := range []int{0, 3, 6, 8} {
+			g[y][0].v = 2
+		}
+
+		analysis := analyzeGrid(g)
+		if !analysis.colOverQuota[0][2] {
+			t.Fatal("expected column over-quota for green")
+		}
+		if analysis.rowOverQuota[0][2] {
+			t.Fatal("unexpected row over-quota")
+		}
+		for y := range gridSize {
+			for x := range gridSize {
+				if analysis.boxConflictCells[y][x] {
+					t.Fatalf("unexpected box conflict at (%d,%d)", x, y)
+				}
+			}
+		}
+	})
+
+	t.Run("box over-quota marks only box cells", func(t *testing.T) {
+		g := newGrid(nil)
+		for _, cell := range []cell{
+			{x: 0, y: 0, v: 3},
+			{x: 1, y: 0, v: 3},
+			{x: 2, y: 1, v: 3},
+			{x: 0, y: 2, v: 3},
+		} {
+			g[cell.y][cell.x] = cell
+		}
+
+		analysis := analyzeGrid(g)
+		if analysis.rowOverQuota[0][3] || analysis.colOverQuota[0][3] {
+			t.Fatal("box-only conflict leaked into row or column state")
+		}
+		for _, cell := range []cell{
+			{x: 0, y: 0},
+			{x: 1, y: 0},
+			{x: 2, y: 1},
+			{x: 0, y: 2},
+		} {
+			if !analysis.boxConflictCells[cell.y][cell.x] {
+				t.Fatalf("expected box conflict at (%d,%d)", cell.x, cell.y)
+			}
+		}
+		if analysis.boxConflictCells[3][3] {
+			t.Fatal("unexpected box conflict outside offending box")
+		}
+	})
 }

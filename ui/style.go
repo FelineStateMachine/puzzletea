@@ -26,10 +26,10 @@ func LogoStyle() lipgloss.Style {
 		Margin(1, 0)
 }
 
-// MainMenuFrame returns the double-border frame for the main menu.
+// MainMenuFrame returns the frame for the main menu.
 func MainMenuFrame() lipgloss.Style {
 	return lipgloss.NewStyle().
-		Border(lipgloss.DoubleBorder()).
+		Border(lipgloss.RoundedBorder()).
 		BorderForeground(theme.Current().Accent).
 		Padding(2, 4)
 }
@@ -39,7 +39,7 @@ func PanelFrame() lipgloss.Style {
 	return lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(theme.Current().Border).
-		Padding(1, 2)
+		Padding(2, 4)
 }
 
 // PanelTitle returns the style for panel title text.

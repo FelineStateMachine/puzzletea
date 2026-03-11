@@ -193,6 +193,23 @@ func TestCellViewConflictedCursorIsDistinct(t *testing.T) {
 	}
 }
 
+func TestCellViewUsesGivenTintForProvidedDigits(t *testing.T) {
+	p := theme.Current()
+	text := lipgloss.NewStyle().Width(cellWidth).AlignHorizontal(lipgloss.Center).Render("3")
+
+	got := cellView(3, true, false, false, false, false, false, false, nil)
+	want := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(p.FG).
+		Background(theme.GivenTint(p.BG)).
+		Width(cellWidth).
+		AlignHorizontal(lipgloss.Center).
+		Render(text)
+	if got != want {
+		t.Fatalf("provided cellView() = %q, want %q", got, want)
+	}
+}
+
 func TestGridViewRendersRegionBoundaries(t *testing.T) {
 	m := Model{
 		width:     3,
@@ -434,6 +451,32 @@ func TestGridViewOmitsBorderBetweenAdjacentEmptyCells(t *testing.T) {
 	content := []rune(lines[1])
 	if got := content[4]; got != ' ' {
 		t.Fatalf("separator between adjacent empty cells = %q, want space", got)
+	}
+}
+
+func TestBuildRenderGridStateColorsIncompleteRegions(t *testing.T) {
+	base := grid{
+		{3, 3},
+		{0, 1},
+	}
+	m := Model{
+		width:     2,
+		height:    2,
+		grid:      base,
+		provided:  newProvidedMask(base),
+		conflicts: validateGridState(base).conflicts,
+	}
+
+	renderState := buildRenderGridState(m)
+	incompleteZone := renderState.zones[0][0]
+	if got := renderState.zones[0][1]; got != incompleteZone {
+		t.Fatalf("connected incomplete cells should share a zone: got %d and %d", incompleteZone, got)
+	}
+	if renderState.zoneFill[incompleteZone] == nil {
+		t.Fatal("expected incomplete zone to receive a background color")
+	}
+	if got := renderState.zoneFill[renderState.zones[1][0]]; got != nil {
+		t.Fatal("expected empty zone to remain transparent")
 	}
 }
 

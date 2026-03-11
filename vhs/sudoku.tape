@@ -2,8 +2,8 @@ Output vhs/sudoku.gif
 
 Set Theme "MaterialDarker"
 Set FontSize 16
-Set Width 600
-Set Height 680
+Set Width 1000
+Set Height 800
 Set Margin 60
 Set MarginFill "#6B5B5E"
 Set WindowBar Rings

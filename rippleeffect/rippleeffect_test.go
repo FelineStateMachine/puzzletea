@@ -282,16 +282,16 @@ func TestSaveRoundTrip(t *testing.T) {
 }
 
 func TestChooseVisualKindPriority(t *testing.T) {
-	if got := chooseVisualKind(true, false, true, true, true, true); got != visualConflictCursor {
+	if got := chooseVisualKind(true, false, true, true, true); got != visualConflictCursor {
 		t.Fatalf("conflicted cursor should win, got %v", got)
 	}
-	if got := chooseVisualKind(true, true, false, true, true, true); got != visualSolved {
+	if got := chooseVisualKind(true, true, false, true, true); got != visualSolved {
 		t.Fatalf("solved should beat cursor, got %v", got)
 	}
-	if got := chooseVisualKind(true, false, false, true, true, true); got != visualCursor {
+	if got := chooseVisualKind(true, false, false, true, true); got != visualCursor {
 		t.Fatalf("cursor should beat cage highlight, got %v", got)
 	}
-	if got := chooseVisualKind(false, false, false, true, true, true); got != visualCompleted {
+	if got := chooseVisualKind(false, false, false, true, true); got != visualCompleted {
 		t.Fatalf("completed should beat transient cage highlight, got %v", got)
 	}
 }
@@ -330,6 +330,63 @@ func TestCellViewConflictedCursorIsDistinct(t *testing.T) {
 	}
 	if !strings.Contains(cursorConflict, game.CursorLeft+"3"+game.CursorRight) {
 		t.Fatal("conflicted cursor should include cursor markers")
+	}
+}
+
+func TestCellViewUsesGivenTintForImmutableGivens(t *testing.T) {
+	geo, err := buildGeometry(3, 3, sampleCages())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	m := Model{
+		width:     3,
+		height:    3,
+		grid:      sampleSolution(),
+		givens:    grid{{1, 0, 0}, {0, 0, 0}, {0, 0, 0}},
+		conflicts: newConflictGrid(3, 3),
+		cursor:    pointCursor(2, 2),
+		geo:       geo,
+	}
+
+	got := cellView(m, 0, 0, -1, nil)
+	want := lipgloss.NewStyle().
+		Width(cellWidth).
+		AlignHorizontal(lipgloss.Center).
+		Bold(true).
+		Foreground(theme.Current().FG).
+		Background(theme.GivenTint(theme.Current().BG)).
+		Render(" 1 ")
+	if got != want {
+		t.Fatalf("given cellView() = %q, want %q", got, want)
+	}
+}
+
+func TestCellViewDoesNotHighlightCrosshairAxis(t *testing.T) {
+	geo, err := buildGeometry(3, 3, sampleCages())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	m := Model{
+		width:     3,
+		height:    3,
+		grid:      newGrid(3, 3),
+		givens:    newGrid(3, 3),
+		conflicts: newConflictGrid(3, 3),
+		cursor:    pointCursor(0, 0),
+		geo:       geo,
+	}
+
+	got := cellView(m, 0, 1, geo.cageGrid[m.cursor.Y][m.cursor.X], nil)
+	want := lipgloss.NewStyle().
+		Width(cellWidth).
+		AlignHorizontal(lipgloss.Center).
+		Foreground(theme.Current().FG).
+		Background(theme.Current().BG).
+		Render(" · ")
+	if got != want {
+		t.Fatalf("crosshair-axis cellView() = %q, want %q", got, want)
 	}
 }
 
@@ -451,7 +508,7 @@ func TestBridgeFillDefersToUniformZoneBackground(t *testing.T) {
 	}
 }
 
-func TestBridgeFillUsesOpenAnchoredCrosshair(t *testing.T) {
+func TestBridgeFillLeavesOpenAnchoredBridgeUnfilled(t *testing.T) {
 	geo, err := buildGeometry(3, 2, []Cage{
 		{ID: 0, Size: 2, Cells: []Cell{{0, 0}, {0, 1}}},
 		{ID: 1, Size: 2, Cells: []Cell{{1, 0}, {2, 0}}},
@@ -485,8 +542,8 @@ func TestBridgeFillUsesOpenAnchoredCrosshair(t *testing.T) {
 			{X: 2, Y: 0},
 		},
 	})
-	if !sameColor(got, theme.Current().Surface) {
-		t.Fatal("expected anchored open bridge on cursor row to use crosshair background")
+	if got != nil {
+		t.Fatal("expected anchored open bridge to remain unfilled")
 	}
 }
 
@@ -528,7 +585,7 @@ func TestBridgeFillDoesNotExpandIntoOpenInterior(t *testing.T) {
 	}
 }
 
-func TestBridgeFillVerticalUsesRowCrosshairOnly(t *testing.T) {
+func TestBridgeFillVerticalSeparatorStaysUnfilled(t *testing.T) {
 	m := Model{cursor: pointCursor(0, 1)}
 
 	if got := bridgeFill(m, nil, game.DynamicGridBridge{
@@ -536,11 +593,11 @@ func TestBridgeFillVerticalUsesRowCrosshairOnly(t *testing.T) {
 		X:    1,
 		Y:    0,
 	}); got != nil {
-		t.Fatal("expected vertical separator to ignore column-only crosshair match")
+		t.Fatal("expected vertical separator to remain unfilled")
 	}
 }
 
-func TestBridgeFillHorizontalUsesColumnCrosshairOnly(t *testing.T) {
+func TestBridgeFillHorizontalSeparatorStaysUnfilled(t *testing.T) {
 	m := Model{cursor: pointCursor(1, 0)}
 
 	if got := bridgeFill(m, nil, game.DynamicGridBridge{
@@ -548,11 +605,11 @@ func TestBridgeFillHorizontalUsesColumnCrosshairOnly(t *testing.T) {
 		X:    0,
 		Y:    1,
 	}); got != nil {
-		t.Fatal("expected horizontal separator to ignore row-only crosshair match")
+		t.Fatal("expected horizontal separator to remain unfilled")
 	}
 }
 
-func TestBridgeFillExtendsThroughClosedVerticalSeparator(t *testing.T) {
+func TestBridgeFillClosedVerticalSeparatorStaysUnfilled(t *testing.T) {
 	m := Model{cursor: pointCursor(0, 0)}
 
 	got := bridgeFill(m, nil, game.DynamicGridBridge{
@@ -560,12 +617,12 @@ func TestBridgeFillExtendsThroughClosedVerticalSeparator(t *testing.T) {
 		X:    1,
 		Y:    0,
 	})
-	if !sameColor(got, theme.Current().Surface) {
-		t.Fatal("expected closed vertical separator on cursor row to use surface background")
+	if got != nil {
+		t.Fatal("expected closed vertical separator to remain unfilled")
 	}
 }
 
-func TestBridgeFillExtendsThroughClosedHorizontalSeparator(t *testing.T) {
+func TestBridgeFillClosedHorizontalSeparatorStaysUnfilled(t *testing.T) {
 	m := Model{cursor: pointCursor(0, 0)}
 
 	got := bridgeFill(m, nil, game.DynamicGridBridge{
@@ -573,8 +630,8 @@ func TestBridgeFillExtendsThroughClosedHorizontalSeparator(t *testing.T) {
 		X:    0,
 		Y:    1,
 	})
-	if !sameColor(got, theme.Current().Surface) {
-		t.Fatal("expected closed horizontal separator on cursor column to use surface background")
+	if got != nil {
+		t.Fatal("expected closed horizontal separator to remain unfilled")
 	}
 }
 

@@ -14,6 +14,7 @@ import (
 	"github.com/FelineStateMachine/puzzletea/puzzle"
 	"github.com/FelineStateMachine/puzzletea/rippleeffect"
 	"github.com/FelineStateMachine/puzzletea/shikaku"
+	"github.com/FelineStateMachine/puzzletea/spellpuzzle"
 	"github.com/FelineStateMachine/puzzletea/sudoku"
 	"github.com/FelineStateMachine/puzzletea/sudokurgb"
 	"github.com/FelineStateMachine/puzzletea/takuzu"
@@ -51,6 +52,7 @@ var all = []Entry{
 	adaptLegacy(nurikabe.Definition),
 	adaptLegacy(rippleeffect.Definition),
 	adaptLegacy(shikaku.Definition),
+	adaptLegacy(spellpuzzle.Definition),
 	adaptLegacy(sudoku.Definition),
 	adaptLegacy(sudokurgb.Definition),
 	adaptLegacy(takuzu.Definition),

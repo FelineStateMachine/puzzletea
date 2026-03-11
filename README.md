@@ -8,13 +8,13 @@ Twelve puzzle types, multiple difficulty modes, daily and weekly deterministic c
 
 ## Features
 
-- **12 puzzle games** -- Fillomino, Nonogram, Nurikabe, Ripple Effect, Sudoku, Shikaku, Word Search, Hashiwokakero, Hitori, Lights Out, Takuzu, Takuzu+
+- **13 puzzle games** -- Fillomino, Nonogram, Nurikabe, Ripple Effect, Sudoku, Shikaku, Spell Puzzle, Word Search, Hashiwokakero, Hitori, Lights Out, Takuzu, Takuzu+
 - **Daily puzzles** -- A unique puzzle generated each day using deterministic seeding. Same date, same puzzle for everyone. Streak tracking rewards consecutive daily completions.
 - **Weekly gauntlet** -- Each ISO calendar week has a shared 99-puzzle ladder. The current week unlocks sequentially from `#01` to `#99`; past weeks can be reviewed from completed saves only.
 - **XP and leveling** -- Per-category levels based on victories. Harder modes yield more XP. Daily puzzles grant 2x XP, and weekly puzzles add slot-based bonus XP.
 - **Stats dashboard** -- Profile level, daily streak status, weekly completion progress, victory counts, and XP progress bars per category.
 - **365 color themes** -- Live-preview theme picker with WCAG-compliant contrast enforcement. Dark and light themes included.
-- **Mouse support** -- Click and drag in Nonogram, Nurikabe, Shikaku, and Word Search. Lights Out supports click-to-toggle.
+- **Mouse support** -- Click and drag in Nonogram, Nurikabe, Shikaku, Spell Puzzle, and Word Search. Lights Out supports click-to-toggle.
 - **Seeded puzzles** -- Share a seed string to generate identical puzzles across sessions and machines.
 - **Save/load persistence** -- Games auto-save to SQLite. Resume any in-progress game by name.
 
@@ -28,6 +28,7 @@ Twelve puzzle types, multiple difficulty modes, daily and weekly deterministic c
 | **Ripple Effect** | Place digits in cages without violating ripple distance | Mini 5x5 through Expert 9x9 |
 | **Shikaku** | Divide grid into rectangles matching cell counts | 5 modes from 7x7 to 11x11 |
 | **Sudoku** | Classic 9x9 grid | Beginner, Easy, Medium, Hard, Expert, Diabolical |
+| **Spell Puzzle** | Connect letters to reveal crossword words and bonus anagrams | Beginner, Easy, Medium, Hard |
 | **Word Search** | Find hidden words in a letter grid | Easy, Medium, Hard (3-8 directions) |
 | **Hashiwokakero** | Connect islands with bridges | 12 modes across 7x7 to 13x13 grids |
 | **Hitori** | Shade cells to eliminate duplicates | 6 modes from 5x5 to 12x12 |
@@ -102,6 +103,7 @@ puzzletea new nonogram medium
 puzzletea new fillomino "Hard 10x10"
 puzzletea new ripple-effect "Medium 7x7"
 puzzletea new sudoku hard
+puzzletea new spell beginner
 puzzletea new lights-out
 puzzletea new hashi easy
 ```
@@ -171,7 +173,7 @@ puzzletea --continue amber-falcon
 
 ### CLI Aliases
 
-Several shorthand names are accepted for games: `polyomino`/`regions` for Fillomino, `hashi`/`bridges` for Hashiwokakero, `lights` for Lights Out, `islands`/`sea` for Nurikabe, `ripple` for Ripple Effect, `binairo`/`binary` for Takuzu, `binario+` for Takuzu+, `words`/`ws` for Word Search, `rectangles` for Shikaku.
+Several shorthand names are accepted for games: `polyomino`/`regions` for Fillomino, `hashi`/`bridges` for Hashiwokakero, `lights` for Lights Out, `islands`/`sea` for Nurikabe, `ripple` for Ripple Effect, `spell`/`spellpuzzle` for Spell Puzzle, `binairo`/`binary` for Takuzu, `binario+` for Takuzu+, `words`/`ws` for Word Search, `rectangles` for Shikaku.
 
 ## Controls
 
@@ -192,7 +194,7 @@ Arrow keys, WASD, and Vim bindings (`hjkl`) are supported for grid movement acro
 
 ### Mouse
 
-Nonogram, Nurikabe, Shikaku, and Word Search support click and drag. Lights Out supports click to toggle. See each game's help for details.
+Nonogram, Nurikabe, Shikaku, Spell Puzzle, and Word Search support click and drag. Lights Out supports click to toggle. See each game's help for details.
 
 ## Game Persistence
 
@@ -244,12 +246,24 @@ Classic 9x9 number placement puzzle.
 
 [Game details and controls](sudoku/README.md)
 
+### Sudoku RGB
+Fill the grid with three symbols so every row, column, and box contains `{1,1,1,2,2,2,3,3,3}`.
+
+![Sudoku RGB](vhs/sudokurgb.gif)
+
+[Game details and controls](sudokurgb/README.md)
+
 ### Word Search
 Find hidden words in a letter grid.
 
 ![Word Search](vhs/wordsearch.gif)
 
 [Game details and controls](wordsearch/README.md)
+
+### Spell Puzzle
+Connect letters from a fixed bank to reveal a crossword and score bonus words.
+
+[Game details and controls](spellpuzzle/README.md)
 
 ### Hashiwokakero
 Connect islands with bridges.

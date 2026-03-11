@@ -2,13 +2,19 @@ package sudokurgb
 
 import (
 	"image/color"
+	"strconv"
+	"strings"
 
 	"charm.land/lipgloss/v2"
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/theme"
 )
 
-const cellWidth = game.DynamicGridCellWidth
+const (
+	cellWidth     = game.DynamicGridCellWidth
+	rowHintWidth  = valueCount*2 - 1
+	colHintHeight = valueCount
+)
 
 func emptyCellStyle() lipgloss.Style {
 	p := theme.Current()
@@ -17,22 +23,23 @@ func emptyCellStyle() lipgloss.Style {
 		Background(game.DefaultBorderColors().BackgroundBG)
 }
 
-func providedCellStyle() lipgloss.Style {
+func providedCellStyle(value int, bg color.Color) lipgloss.Style {
 	return lipgloss.NewStyle().
 		Bold(true).
-		Background(game.DefaultBorderColors().BackgroundBG)
+		Foreground(symbolColor(value)).
+		Background(theme.GivenTint(bg))
 }
 
 func userCellStyle(value int) lipgloss.Style {
 	return lipgloss.NewStyle().
-		Foreground(symbolColor(value))
+		Foreground(symbolColor(value)).
+		Background(game.DefaultBorderColors().BackgroundBG)
 }
 
-func conflictCellStyle() lipgloss.Style {
-	p := theme.Current()
+func boxConflictCellStyle() lipgloss.Style {
 	return lipgloss.NewStyle().
-		Foreground(p.Error).
-		Underline(true)
+		Foreground(theme.TextOnBG(game.ConflictBG())).
+		Background(game.ConflictBG())
 }
 
 func valueCursorStyle(value int) lipgloss.Style {
@@ -47,6 +54,63 @@ func valueCursorStyle(value int) lipgloss.Style {
 		Background(bg)
 }
 
+func hintStyle(value int) lipgloss.Style {
+	return lipgloss.NewStyle().Foreground(symbolColor(value))
+}
+
+func hintSolvedStyle(value int) lipgloss.Style {
+	bg := symbolColor(value)
+	return lipgloss.NewStyle().
+		Bold(true).
+		Foreground(theme.TextOnBG(bg)).
+		Background(bg)
+}
+
+func hintErrorStyle() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Bold(true).
+		Foreground(theme.TextOnBG(game.ConflictBG())).
+		Background(game.ConflictBG())
+}
+
+func solvedBoardStyle() lipgloss.Style {
+	p := theme.Current()
+	return lipgloss.NewStyle().
+		Foreground(p.SolvedFG).
+		Background(p.SuccessBG)
+}
+
+type boardBlockLayout struct {
+	Block      string
+	Grid       string
+	HintWidth  int
+	HintHeight int
+}
+
+func buildBoardBlock(m Model, solved bool) boardBlockLayout {
+	grid := renderGrid(m, solved)
+	rowHints := rowHintView(m.analysis, solved)
+	colHints := colHintView(m.analysis, solved)
+	spacerStyle := lipgloss.NewStyle()
+	if solved {
+		spacerStyle = solvedBoardStyle()
+	}
+	spacer := spacerStyle.Width(lipgloss.Width(rowHints)).Height(colHintHeight).Render("")
+	topBand := lipgloss.JoinHorizontal(lipgloss.Top, spacer, colHints)
+	block := lipgloss.JoinVertical(
+		lipgloss.Left,
+		topBand,
+		lipgloss.JoinHorizontal(lipgloss.Top, rowHints, grid),
+	)
+
+	return boardBlockLayout{
+		Block:      block,
+		Grid:       grid,
+		HintWidth:  lipgloss.Width(rowHints),
+		HintHeight: lipgloss.Height(topBand),
+	}
+}
+
 func renderGrid(m Model, solved bool) string {
 	return game.RenderDynamicGrid(game.DynamicGridSpec{
 		Width:  gridSize,
@@ -58,18 +122,12 @@ func renderGrid(m Model, solved bool) string {
 		ZoneAt: func(x, y int) int {
 			return sudokuBoxIndex(x, y)
 		},
-		ZoneFill: func(zone int) color.Color {
-			return activeBoxZoneFill(m.cursor, solved, zone)
-		},
-		BridgeFill: func(bridge game.DynamicGridBridge) color.Color {
-			return bridgeFill(m, solved, bridge)
-		},
 	})
 }
 
 func cellView(m Model, x, y int, solved bool) string {
 	c := m.grid[y][x]
-	style := cellStyle(m, c, x, y, m.conflicts[y][x], solved)
+	style := cellStyle(m, c, x, y, solved)
 	text := cellContent(c)
 	if x == m.cursor.X && y == m.cursor.Y {
 		if c.v == 0 {
@@ -82,8 +140,7 @@ func cellView(m Model, x, y int, solved bool) string {
 	return style.Width(cellWidth).AlignHorizontal(lipgloss.Center).Render(text)
 }
 
-func cellStyle(m Model, c cell, x, y int, conflict, solved bool) lipgloss.Style {
-	p := theme.Current()
+func cellStyle(m Model, c cell, x, y int, solved bool) lipgloss.Style {
 	isCursor := m.cursor.X == x && m.cursor.Y == y
 	var base lipgloss.Style
 
@@ -95,51 +152,24 @@ func cellStyle(m Model, c cell, x, y int, conflict, solved bool) lipgloss.Style 
 	}
 
 	if m.providedGrid[y][x] {
-		base = providedCellStyle()
-		if c.v != 0 {
-			base = base.Foreground(symbolColor(c.v))
-		}
-	}
-
-	if !solved && !isCursor && inCursorContext(m.cursor, x, y) {
-		base = base.Background(p.Surface)
+		base = providedCellStyle(c.v, game.DefaultBorderColors().BackgroundBG)
 	}
 
 	switch {
 	case isCursor:
 		return valueCursorStyle(c.v)
-	case conflict:
-		base = base.Inherit(conflictCellStyle())
+	case m.analysis.boxConflictCells[y][x]:
+		base = base.
+			Foreground(theme.TextOnBG(game.ConflictBG())).
+			Background(game.ConflictBG())
 	case solved:
-		base = base.Bold(true)
+		base = base.
+			Bold(true).
+			Foreground(theme.Current().SolvedFG).
+			Background(theme.Current().SuccessBG)
 	}
 
 	return base
-}
-
-func bridgeFill(m Model, solved bool, bridge game.DynamicGridBridge) color.Color {
-	if solved {
-		return nil
-	}
-
-	if game.DynamicGridBridgeOnCrosshairAxis(m.cursor, bridge) {
-		return theme.Current().Surface
-	}
-
-	return nil
-}
-
-func activeBoxZoneFill(cursor game.Cursor, solved bool, zone int) color.Color {
-	if solved || zone != sudokuBoxIndex(cursor.X, cursor.Y) {
-		return nil
-	}
-	return theme.Current().Surface
-}
-
-func inCursorContext(cursor game.Cursor, x, y int) bool {
-	return cursor.X == x ||
-		cursor.Y == y ||
-		sudokuBoxIndex(cursor.X, cursor.Y) == sudokuBoxIndex(x, y)
 }
 
 func sudokuBoxIndex(x, y int) int {
@@ -180,67 +210,84 @@ func symbolColor(value int) color.Color {
 	}
 }
 
-func computeConflicts(g grid) [gridSize][gridSize]bool {
-	var conflicts [gridSize][gridSize]bool
+func rowHintView(analysis boardAnalysis, solved bool) string {
+	lines := make([]string, 0, gridSize*2+1)
+	blankStyle := lipgloss.NewStyle()
+	if solved {
+		blankStyle = solvedBoardStyle()
+	}
+	blank := blankStyle.Width(rowHintWidth).Render("")
+	lines = append(lines, blank)
+	for row := range gridSize {
+		lines = append(lines, renderRowHintCounts(analysis, row, solved))
+		lines = append(lines, blank)
+	}
+	return strings.Join(lines, "\n")
+}
 
-	for y := range gridSize {
-		var seen [valueCount + 1][]int
-		for x := range gridSize {
-			value := g[y][x].v
-			if value != 0 {
-				seen[value] = append(seen[value], x)
-			}
-		}
-		for value := 1; value <= valueCount; value++ {
-			if len(seen[value]) > houseQuota {
-				for _, x := range seen[value] {
-					conflicts[y][x] = true
-				}
-			}
-		}
+func renderRowHintCounts(analysis boardAnalysis, row int, solved bool) string {
+	var b strings.Builder
+	spacerStyle := lipgloss.NewStyle()
+	if solved {
+		spacerStyle = solvedBoardStyle()
 	}
 
-	for x := range gridSize {
-		var seen [valueCount + 1][]int
-		for y := range gridSize {
-			value := g[y][x].v
-			if value != 0 {
-				seen[value] = append(seen[value], y)
-			}
+	for value := 1; value <= valueCount; value++ {
+		if value > 1 {
+			b.WriteString(spacerStyle.Render(" "))
 		}
-		for value := 1; value <= valueCount; value++ {
-			if len(seen[value]) > houseQuota {
-				for _, y := range seen[value] {
-					conflicts[y][x] = true
-				}
-			}
-		}
+		b.WriteString(renderHintCount(analysis.rowCounts[row][value], value, analysis.rowOverQuota[row][value], solved))
 	}
 
-	for boxY := range 3 {
-		for boxX := range 3 {
-			type pos struct{ x, y int }
-			var seen [valueCount + 1][]pos
-			for dy := range 3 {
-				for dx := range 3 {
-					x, y := boxX*3+dx, boxY*3+dy
-					value := g[y][x].v
-					if value != 0 {
-						seen[value] = append(seen[value], pos{x: x, y: y})
-					}
-				}
+	rowStyle := lipgloss.NewStyle()
+	if solved {
+		rowStyle = solvedBoardStyle()
+	}
+	return rowStyle.Width(rowHintWidth).Render(b.String())
+}
+
+func colHintView(analysis boardAnalysis, solved bool) string {
+	lines := make([]string, 0, colHintHeight)
+	for value := 1; value <= valueCount; value++ {
+		var b strings.Builder
+		lineStyle := lipgloss.NewStyle()
+		if solved {
+			lineStyle = solvedBoardStyle()
+		}
+		b.WriteString(lineStyle.Render(" "))
+		for col := range gridSize {
+			cellStyle := lipgloss.NewStyle().
+				Width(cellWidth).
+				AlignHorizontal(lipgloss.Center)
+			if solved {
+				cellStyle = cellStyle.Inherit(solvedBoardStyle())
 			}
-			for value := 1; value <= valueCount; value++ {
-				if len(seen[value]) > houseQuota {
-					for _, p := range seen[value] {
-						conflicts[p.y][p.x] = true
-					}
-				}
+			b.WriteString(
+				cellStyle.Render(renderHintCount(analysis.colCounts[col][value], value, analysis.colOverQuota[col][value], solved)),
+			)
+			if col < gridSize-1 {
+				b.WriteString(lineStyle.Render(" "))
 			}
 		}
+		b.WriteString(lineStyle.Render(" "))
+		lines = append(lines, b.String())
+	}
+	return strings.Join(lines, "\n")
+}
+
+func renderHintCount(count, value int, overQuota, solved bool) string {
+	if solved {
+		return solvedBoardStyle().Render(strconv.Itoa(count))
 	}
 
-	return conflicts
+	style := hintStyle(value)
+	if count == houseQuota {
+		style = hintSolvedStyle(value)
+	}
+	if overQuota {
+		style = hintErrorStyle()
+	}
+	return style.Render(strconv.Itoa(count))
 }
 
 func statusBarView(showFullHelp bool) string {
