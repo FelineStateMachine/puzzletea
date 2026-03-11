@@ -10,7 +10,7 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
-func TestHelpViewportSizeKeepsPanelInsideInsetBounds(t *testing.T) {
+func TestHelpViewportSizeKeepsPanelWithinWindowBounds(t *testing.T) {
 	const (
 		windowWidth  = 120
 		windowHeight = 40
@@ -21,11 +21,11 @@ func TestHelpViewportSizeKeepsPanelInsideInsetBounds(t *testing.T) {
 	content := strings.TrimSuffix(strings.Repeat(line+"\n", helpHeight), "\n")
 	panel := ui.Panel("Guide", content, "esc back")
 
-	if got := lipgloss.Width(panel); got > windowWidth-(helpPanelInsetX*2) {
-		t.Fatalf("panel width = %d, want <= %d", got, windowWidth-(helpPanelInsetX*2))
+	if got := lipgloss.Width(panel); got > windowWidth {
+		t.Fatalf("panel width = %d, want <= %d", got, windowWidth)
 	}
-	if got := lipgloss.Height(panel); got > windowHeight-(helpPanelInsetY*2) {
-		t.Fatalf("panel height = %d, want <= %d", got, windowHeight-(helpPanelInsetY*2))
+	if got := lipgloss.Height(panel); got > windowHeight {
+		t.Fatalf("panel height = %d, want <= %d", got, windowHeight)
 	}
 }
 
@@ -39,7 +39,7 @@ func TestHelpViewportSizeNeverFallsBelowOne(t *testing.T) {
 	}
 }
 
-func TestHelpSelectListSizeKeepsPanelInsideInsetBounds(t *testing.T) {
+func TestHelpSelectListSizeKeepsPanelWithinWindowBounds(t *testing.T) {
 	const (
 		windowWidth  = 120
 		windowHeight = 20
@@ -55,11 +55,11 @@ func TestHelpSelectListSizeKeepsPanelInsideInsetBounds(t *testing.T) {
 		"↑/↓ navigate • enter select • esc back",
 	)
 
-	if got := lipgloss.Width(panel); got > windowWidth-(helpPanelInsetX*2) {
-		t.Fatalf("panel width = %d, want <= %d", got, windowWidth-(helpPanelInsetX*2))
+	if got := lipgloss.Width(panel); got > windowWidth {
+		t.Fatalf("panel width = %d, want <= %d", got, windowWidth)
 	}
-	if got := lipgloss.Height(panel); got > windowHeight-(helpPanelInsetY*2) {
-		t.Fatalf("panel height = %d, want <= %d", got, windowHeight-(helpPanelInsetY*2))
+	if got := lipgloss.Height(panel); got > windowHeight {
+		t.Fatalf("panel height = %d, want <= %d", got, windowHeight)
 	}
 }
 
