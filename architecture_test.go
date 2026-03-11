@@ -45,6 +45,7 @@ func TestCatalogPackageDoesNotImportConcreteGames(t *testing.T) {
 		"github.com/FelineStateMachine/puzzletea/nurikabe",
 		"github.com/FelineStateMachine/puzzletea/rippleeffect",
 		"github.com/FelineStateMachine/puzzletea/shikaku",
+		"github.com/FelineStateMachine/puzzletea/spellpuzzle",
 		"github.com/FelineStateMachine/puzzletea/sudoku",
 		"github.com/FelineStateMachine/puzzletea/sudokurgb",
 		"github.com/FelineStateMachine/puzzletea/takuzu",

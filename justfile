@@ -53,6 +53,8 @@ vhs: build
     vhs vhs/nonogram.tape
     vhs vhs/nurikabe.tape
     vhs vhs/sudoku.tape
+    vhs vhs/sudokurgb.tape
+    vhs vhs/spellpuzzle.tape
     vhs vhs/shikaku.tape
     vhs vhs/takuzu.tape
     vhs vhs/wordsearch.tape
