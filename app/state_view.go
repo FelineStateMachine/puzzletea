@@ -11,53 +11,48 @@ import (
 func (m model) viewContent() string {
 	switch m.state {
 	case mainMenuView:
-		return ui.CenterView(m.width, m.height, m.nav.mainMenu.View())
+		return ui.CenterView(m.width, m.height, m.appendNotice(m.nav.mainMenu.View()))
 	case playMenuView:
-		return ui.CenterView(m.width, m.height, m.nav.playMenu.ViewAsPanel("Play"))
+		return ui.CenterView(m.width, m.height, m.appendNotice(m.nav.playMenu.ViewAsPanel("Play")))
 	case optionsMenuView:
 		items := m.nav.optionsMenu.RenderItems() + "\n\n" + ui.DimItemStyle().Render("- Dami")
-		panel := ui.Panel("Options", items, "↑/↓ navigate • enter select • esc back")
-		return ui.CenterView(m.width, m.height, panel)
+		return m.renderPanel("Options", items, "↑/↓ navigate • enter select • esc back")
 	case seedInputView:
-		panel := ui.Panel(
+		return m.renderPanel(
 			"Enter Seed",
 			m.seedInputBody(),
 			"↑/↓ change field • ←/→ game • enter confirm • esc back",
 		)
-		return ui.CenterView(m.width, m.height, panel)
 	case gameSelectView:
 		return m.gameSelectViewContent()
 	case modeSelectView:
-		panel := ui.Panel(
+		return m.renderPanel(
 			m.nav.selectedCategory.Definition.Name+" — Select Mode",
 			m.nav.modeSelectList.View(),
 			"↑/↓ navigate • enter select • esc back",
 		)
-		return ui.CenterView(m.width, m.height, panel)
 	case generatingView:
 		s := m.spinner.View() + " Generating puzzle..."
-		box := ui.GeneratingFrame().Render(s)
+		box := ui.GeneratingFrame().Render(m.appendNotice(s))
 		return ui.CenterView(m.width, m.height, box)
 	case continueView:
 		return m.renderContinueView()
 	case weeklyView:
-		return ui.CenterView(m.width, m.height, m.weeklyViewContent())
+		return ui.CenterView(m.width, m.height, m.appendNotice(m.weeklyViewContent()))
 	case gameView:
 		return m.renderGameView()
 	case helpSelectView:
-		panel := ui.Panel(
+		return m.renderPanel(
 			"How to Play",
 			m.nav.helpSelectList.View(),
 			"↑/↓ navigate • enter select • esc back",
 		)
-		return ui.CenterView(m.width, m.height, panel)
 	case helpDetailView:
-		panel := ui.Panel(
+		return m.renderPanel(
 			m.help.category.Definition.Name+" — Guide",
 			m.help.viewport.View(),
 			"↑/↓ scroll • esc back",
 		)
-		return ui.CenterView(m.width, m.height, panel)
 	case themeSelectView:
 		return m.themeSelectViewContent()
 	case statsView:
@@ -69,16 +64,14 @@ func (m model) viewContent() string {
 
 func (m model) renderContinueView() string {
 	if len(m.nav.continueGames) == 0 {
-		panel := ui.Panel("Saved Games", "No saved games yet.", "esc back")
-		return ui.CenterView(m.width, m.height, panel)
+		return m.renderPanel("Saved Games", "No saved games yet.", "esc back")
 	}
 
 	footer := "↑/↓ navigate • enter resume • esc back"
 	if pg := ui.TablePagination(m.nav.continueTable); pg != "" {
 		footer = pg + "  " + footer
 	}
-	panel := ui.Panel("Saved Games", m.nav.continueTable.View(), footer)
-	return ui.CenterView(m.width, m.height, panel)
+	return m.renderPanel("Saved Games", m.nav.continueTable.View(), footer)
 }
 
 func (m model) renderGameView() string {
@@ -94,7 +87,7 @@ func (m model) renderGameView() string {
 		)
 		centered = lipgloss.JoinVertical(lipgloss.Center, gameView, debugInfo)
 	}
-	return ui.CenterView(m.width, m.height, centered)
+	return ui.CenterView(m.width, m.height, m.appendNotice(centered))
 }
 
 func (m model) renderStatsView() string {
@@ -111,6 +104,5 @@ func (m model) renderStatsView() string {
 		)
 	}
 	statsBody = lipgloss.NewStyle().Width(statsWidth).Render(statsBody)
-	panel := ui.Panel("Stats", statsBody, "↑/↓ scroll • esc back")
-	return ui.CenterView(m.width, m.height, panel)
+	return m.renderPanel("Stats", statsBody, "↑/↓ scroll • esc back")
 }

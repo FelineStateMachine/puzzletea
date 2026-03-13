@@ -15,11 +15,13 @@ func (m model) handleMainMenuEnter() (tea.Model, tea.Cmd) {
 	case "Play":
 		m.nav.playMenu = ui.NewMainMenu(buildPlayMenuItems(time.Now(), m.currentWeeklyMenuIndex()))
 		m.state = playMenuView
+		m = m.clearNotice()
 	case "Stats":
 		return m.handleStatsEnter()
 	case "Options":
 		m.nav.optionsMenu = ui.NewMainMenu(optionsMenuItems)
 		m.state = optionsMenuView
+		m = m.clearNotice()
 	case "Quit":
 		return m, tea.Quit
 	}
@@ -51,9 +53,11 @@ func (m model) handlePlayMenuEnter() (tea.Model, tea.Cmd) {
 	case "Create":
 		m.state = gameSelectView
 		m = m.updateCategoryDetailViewport()
+		m = m.clearNotice()
 	case "Continue":
 		m.nav.continueTable, m.nav.continueGames = ui.InitContinueTable(m.store, m.height)
 		m.state = continueView
+		m = m.clearNotice()
 	case "Daily":
 		return m.handleDailyPuzzle()
 	case "Weekly":
@@ -74,6 +78,7 @@ func (m model) handleOptionsMenuEnter() (tea.Model, tea.Cmd) {
 		listWidth, listHeight := helpSelectListSize(m.width, m.height, m.nav.helpSelectList)
 		m.nav.helpSelectList.SetSize(listWidth, listHeight)
 		m.state = helpSelectView
+		m = m.clearNotice()
 	}
 	return m, nil
 }

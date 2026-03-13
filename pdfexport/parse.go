@@ -173,20 +173,12 @@ func parsePuzzleSection(section []string, path string, startLine int, meta PackM
 		Body:           body,
 	}
 
-	if strings.EqualFold(strings.TrimSpace(meta.Category), "nonogram") {
-		nonogram, err := parseNonogramBody(bodyLines, path, startLine+1)
-		if err != nil {
-			return Puzzle{}, err
-		}
-		p.PrintPayload = nonogram
-		return p, nil
-	}
-
-	table, err := parseGridTableBody(bodyLines, path, startLine+1)
+	parser := lookupMarkdownBodyParser(meta.Category)
+	payload, err := parser.ParseMarkdownBody(bodyLines, path, startLine+1)
 	if err != nil {
 		return Puzzle{}, err
 	}
-	p.PrintPayload = table
+	p.PrintPayload = payload
 
 	return p, nil
 }

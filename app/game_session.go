@@ -1,8 +1,6 @@
 package app
 
 import (
-	"log"
-
 	"github.com/FelineStateMachine/puzzletea/game"
 	sessionflow "github.com/FelineStateMachine/puzzletea/session"
 	"github.com/FelineStateMachine/puzzletea/store"
@@ -38,8 +36,7 @@ func (m model) importAndActivateRecord(rec store.GameRecord) (model, bool) {
 func (m model) importAndActivateRecordWithOptions(rec store.GameRecord, options gameOpenOptions) (model, bool) {
 	g, err := sessionflow.ImportRecord(&rec)
 	if err != nil {
-		log.Printf("failed to import game: %v", err)
-		return m, false
+		return m.setErrorf("Could not load saved puzzle %q: %v", rec.Name, err), false
 	}
 
 	activeGameID := rec.ID
@@ -49,5 +46,5 @@ func (m model) importAndActivateRecordWithOptions(rec store.GameRecord, options 
 		completionSaved = true
 	}
 
-	return m.activateGame(g, activeGameID, completionSaved, options), true
+	return m.activateGame(g, activeGameID, completionSaved, options).clearNotice(), true
 }

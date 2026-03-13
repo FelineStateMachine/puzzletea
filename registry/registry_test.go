@@ -33,3 +33,24 @@ func TestModeSeededFlagMatchesSpawnerAvailability(t *testing.T) {
 		}
 	}
 }
+
+func TestEntriesStayAlignedWithDefinitions(t *testing.T) {
+	definitions := Definitions()
+	entries := Entries()
+	if got, want := len(entries), len(definitions); got != want {
+		t.Fatalf("len(Entries()) = %d, want %d", got, want)
+	}
+
+	for _, def := range definitions {
+		entry, ok := Lookup(def.Name)
+		if !ok {
+			t.Fatalf("Lookup(%q) = false", def.Name)
+		}
+		if entry.Import == nil {
+			t.Fatalf("%s missing import function", def.Name)
+		}
+		if got, want := len(entry.Modes), len(def.Modes); got != want {
+			t.Fatalf("%s mode count = %d, want %d", def.Name, got, want)
+		}
+	}
+}

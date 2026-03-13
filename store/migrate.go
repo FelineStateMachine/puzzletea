@@ -5,6 +5,20 @@ import (
 	"fmt"
 )
 
+const currentSchemaVersion = 3
+
+type migration struct {
+	version int
+	name    string
+	apply   func(*sql.DB) error
+}
+
+var schemaMigrations = []migration{
+	{version: 1, name: "create games table", apply: createGamesSchema},
+	{version: 2, name: "add game metadata columns", apply: migrateGameMetadata},
+	{version: 3, name: "refresh stats views", apply: refreshStatsViews},
+}
+
 type gameRowMeta struct {
 	ID       int64
 	Name     string
@@ -13,6 +27,145 @@ type gameRowMeta struct {
 	GameID   string
 	ModeID   string
 	RunKind  string
+}
+
+func runMigrations(db *sql.DB) error {
+	if err := ensureSchemaMigrationsTable(db); err != nil {
+		return err
+	}
+
+	version, err := schemaVersion(db)
+	if err != nil {
+		return err
+	}
+	if version == 0 {
+		version, err = detectSchemaVersion(db)
+		if err != nil {
+			return err
+		}
+		if err := setSchemaVersion(db, version); err != nil {
+			return err
+		}
+	}
+
+	for _, m := range schemaMigrations {
+		if m.version <= version {
+			continue
+		}
+		if err := m.apply(db); err != nil {
+			return fmt.Errorf("applying migration %d (%s): %w", m.version, m.name, err)
+		}
+		if err := setSchemaVersion(db, m.version); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func ensureSchemaMigrationsTable(db *sql.DB) error {
+	_, err := db.Exec(`
+CREATE TABLE IF NOT EXISTS schema_migrations (
+    id         INTEGER PRIMARY KEY CHECK(id = 1),
+    version    INTEGER NOT NULL,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);`)
+	if err != nil {
+		return fmt.Errorf("creating schema_migrations table: %w", err)
+	}
+	return nil
+}
+
+func schemaVersion(db *sql.DB) (int, error) {
+	var version int
+	err := db.QueryRow(`SELECT version FROM schema_migrations WHERE id = 1`).Scan(&version)
+	if err == sql.ErrNoRows {
+		return 0, nil
+	}
+	if err != nil {
+		return 0, fmt.Errorf("reading schema version: %w", err)
+	}
+	return version, nil
+}
+
+func setSchemaVersion(db *sql.DB, version int) error {
+	_, err := db.Exec(`
+INSERT INTO schema_migrations (id, version)
+VALUES (1, ?)
+ON CONFLICT(id) DO UPDATE
+SET version = excluded.version,
+    updated_at = CURRENT_TIMESTAMP
+`, version)
+	if err != nil {
+		return fmt.Errorf("writing schema version %d: %w", version, err)
+	}
+	return nil
+}
+
+func detectSchemaVersion(db *sql.DB) (int, error) {
+	exists, err := tableExists(db, "games")
+	if err != nil {
+		return 0, err
+	}
+	if !exists {
+		return 0, nil
+	}
+
+	columns, err := tableColumns(db, "games")
+	if err != nil {
+		return 0, err
+	}
+
+	required := []string{
+		"game_id",
+		"mode_id",
+		"run_kind",
+		"run_date",
+		"week_year",
+		"week_number",
+		"week_index",
+		"seed_text",
+	}
+	for _, column := range required {
+		if !columns[column] {
+			return 1, nil
+		}
+	}
+
+	return 2, nil
+}
+
+func createGamesSchema(db *sql.DB) error {
+	if _, err := db.Exec(createTableSQL); err != nil {
+		return fmt.Errorf("creating games table: %w", err)
+	}
+	return nil
+}
+
+func migrateGameMetadata(db *sql.DB) error {
+	if err := ensureGameColumns(db); err != nil {
+		return err
+	}
+	if err := backfillGameMetadata(db); err != nil {
+		return err
+	}
+	return nil
+}
+
+func refreshStatsViews(db *sql.DB) error {
+	if _, err := db.Exec(`DROP VIEW IF EXISTS category_stats`); err != nil {
+		return fmt.Errorf("dropping category_stats view: %w", err)
+	}
+	if _, err := db.Exec(`DROP VIEW IF EXISTS mode_stats`); err != nil {
+		return fmt.Errorf("dropping mode_stats view: %w", err)
+	}
+	if _, err := db.Exec(createCategoryStatsViewSQL); err != nil {
+		return fmt.Errorf("creating category_stats view: %w", err)
+	}
+	if _, err := db.Exec(createModeStatsViewSQL); err != nil {
+		return fmt.Errorf("creating mode_stats view: %w", err)
+	}
+	return nil
 }
 
 func ensureGameColumns(db *sql.DB) error {
@@ -68,6 +221,18 @@ func tableColumns(db *sql.DB, table string) (map[string]bool, error) {
 		columns[name] = true
 	}
 	return columns, rows.Err()
+}
+
+func tableExists(db *sql.DB, table string) (bool, error) {
+	var name string
+	err := db.QueryRow(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?`, table).Scan(&name)
+	if err == sql.ErrNoRows {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("checking %s existence: %w", table, err)
+	}
+	return true, nil
 }
 
 func backfillGameMetadata(db *sql.DB) error {

@@ -163,6 +163,7 @@ type model struct {
 	stats   statsState
 	theme   themeState
 	debug   debugState
+	notice  noticeState
 
 	spinner spinner.Model
 

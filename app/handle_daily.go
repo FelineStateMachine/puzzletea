@@ -1,7 +1,6 @@
 package app
 
 import (
-	"log"
 	"time"
 
 	"github.com/FelineStateMachine/puzzletea/daily"
@@ -16,15 +15,14 @@ func (m model) handleDailyPuzzle() (tea.Model, tea.Cmd) {
 
 	rec, err := m.store.GetDailyGame(name)
 	if err != nil {
-		log.Printf("failed to check daily game: %v", err)
-		return m, nil
+		return m.setErrorf("Could not check today’s daily puzzle: %v", err), nil
 	}
 	if rec != nil {
 		var resumed bool
 		m, resumed = m.importAndActivateRecord(*rec)
 		if resumed {
 			if err := sessionflow.ResumeAbandonedDeterministicRecord(m.store, rec); err != nil {
-				log.Printf("%v", err)
+				m = m.setErrorf("%v", err)
 			}
 		}
 		return m, nil
@@ -32,8 +30,7 @@ func (m model) handleDailyPuzzle() (tea.Model, tea.Cmd) {
 
 	spawner, gameType, modeTitle := daily.Mode(today)
 	if spawner == nil {
-		log.Printf("no daily mode available for %s", today.Format("2006-01-02"))
-		return m, nil
+		return m.setErrorf("No daily puzzle is configured for %s", today.Format("2006-01-02")), nil
 	}
 
 	rng := daily.RNG(today)
@@ -47,5 +44,6 @@ func (m model) handleDailyPuzzle() (tea.Model, tea.Cmd) {
 		exitState:   mainMenuView,
 	}
 	m.state = generatingView
+	m = m.clearNotice()
 	return m, tea.Batch(m.spinner.Tick, spawnSeededCmd(spawner, rng, ctx, jobID))
 }

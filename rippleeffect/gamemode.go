@@ -122,21 +122,15 @@ var Modes = []game.Mode{
 	),
 }
 
-var DailyModes = []game.Mode{
-	Modes[1],
-	Modes[2],
-	Modes[3],
-}
-
-var Definition = game.Definition{
-	Name:        "Ripple Effect",
-	Description: "Fill the cages with sequential numbers without violating ripple distance.",
-	Aliases:     []string{"ripple"},
-	Modes:       Modes,
-	DailyModes:  DailyModes,
-	Help:        HelpContent,
-	Import:      func(data []byte) (game.Gamer, error) { return ImportModel(data) },
-}
+var Definition = game.NewDefinition(game.DefinitionSpec{
+	Name:             "Ripple Effect",
+	Description:      "Fill the cages with sequential numbers without violating ripple distance.",
+	Aliases:          []string{"ripple"},
+	Modes:            Modes,
+	DailyModeIndexes: []int{1, 2, 3},
+	Help:             HelpContent,
+	Import:           game.AdaptImport(ImportModel),
+})
 
 func (m Mode) generatePuzzle() (Puzzle, error) {
 	rng := rand.New(rand.NewPCG(rand.Uint64(), rand.Uint64()))

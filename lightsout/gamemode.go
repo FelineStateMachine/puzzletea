@@ -44,17 +44,12 @@ var Modes = []game.Mode{
 	NewMode("Extreme", "9x9 grid", 9, 9),
 }
 
-var DailyModes = []game.Mode{
-	Modes[1], // Medium 5x5
-	Modes[2], // Hard 7x7
-}
-
-var Definition = game.Definition{
-	Name:        "Lights Out",
-	Description: "Turn the lights off.",
-	Aliases:     []string{"lights"},
-	Modes:       Modes,
-	DailyModes:  DailyModes,
-	Help:        HelpContent,
-	Import:      func(data []byte) (game.Gamer, error) { return ImportModel(data) },
-}
+var Definition = game.NewDefinition(game.DefinitionSpec{
+	Name:             "Lights Out",
+	Description:      "Turn the lights off.",
+	Aliases:          []string{"lights"},
+	Modes:            Modes,
+	DailyModeIndexes: []int{1, 2},
+	Help:             HelpContent,
+	Import:           game.AdaptImport(ImportModel),
+})

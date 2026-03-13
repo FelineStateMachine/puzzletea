@@ -1,7 +1,6 @@
 package app
 
 import (
-	"log"
 	"sort"
 	"strconv"
 	"time"
@@ -50,8 +49,10 @@ func (m model) refreshWeeklyBrowser() model {
 	year, weekNumber := m.selectedWeek()
 	games, err := m.store.ListWeeklyGames(year, weekNumber)
 	if err != nil {
-		log.Printf("failed to list weekly games: %v", err)
+		m = m.setErrorf("Could not load weekly puzzles: %v", err)
 		games = nil
+	} else {
+		m = m.clearNotice()
 	}
 
 	if m.isCurrentWeeklySelection() {
@@ -141,7 +142,7 @@ func (m model) openWeeklyRow(row weeklyRow) (tea.Model, tea.Cmd) {
 		m, resumed = m.importAndActivateRecordWithOptions(*row.Record, options)
 		if resumed {
 			if err := sessionflow.ResumeAbandonedDeterministicRecord(m.store, row.Record); err != nil {
-				log.Printf("%v", err)
+				m = m.setErrorf("%v", err)
 			}
 		}
 		return m, nil
@@ -153,8 +154,7 @@ func (m model) openWeeklyRow(row weeklyRow) (tea.Model, tea.Cmd) {
 
 	spawner, gameType, modeTitle := weekly.Mode(info.Year, info.Week, info.Index)
 	if spawner == nil {
-		log.Printf("no weekly mode available for %s", row.Name)
-		return m, nil
+		return m.setErrorf("No weekly puzzle is configured for %s", row.Name), nil
 	}
 
 	rng := weekly.RNG(info.Year, info.Week, info.Index)
@@ -170,6 +170,7 @@ func (m model) openWeeklyRow(row weeklyRow) (tea.Model, tea.Cmd) {
 		weeklyInfo:  &infoCopy,
 	}
 	m.state = generatingView
+	m = m.clearNotice()
 	return m, tea.Batch(m.spinner.Tick, spawnSeededCmd(spawner, rng, ctx, jobID))
 }
 

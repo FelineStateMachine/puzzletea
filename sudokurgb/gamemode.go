@@ -45,17 +45,12 @@ var Modes = []game.Mode{
 	NewMode("Diabolical", "30 clues. Tightest clue budget in the launch set.", 30),
 }
 
-var DailyModes = []game.Mode{
-	Modes[1], // Easy
-	Modes[2], // Medium
-}
-
-var Definition = game.Definition{
-	Name:        "Sudoku RGB",
-	Description: "Fill the board with RGB symbols so each row, column, and 3x3 box contains {1,1,1,2,2,2,3,3,3}. [1,2,3] maps to [▲,■,●]. Inspired by Sudoku Ripeto.",
-	Aliases:     []string{"rgb sudoku", "ripeto", "sudoku ripeto"},
-	Modes:       Modes,
-	DailyModes:  DailyModes,
-	Help:        HelpContent,
-	Import:      func(data []byte) (game.Gamer, error) { return ImportModel(data) },
-}
+var Definition = game.NewDefinition(game.DefinitionSpec{
+	Name:             "Sudoku RGB",
+	Description:      "Fill the board with RGB symbols so each row, column, and 3x3 box contains {1,1,1,2,2,2,3,3,3}. [1,2,3] maps to [▲,■,●]. Inspired by Sudoku Ripeto.",
+	Aliases:          []string{"rgb sudoku", "ripeto", "sudoku ripeto"},
+	Modes:            Modes,
+	DailyModeIndexes: []int{1, 2},
+	Help:             HelpContent,
+	Import:           game.AdaptImport(ImportModel),
+})

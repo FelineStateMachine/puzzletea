@@ -49,7 +49,7 @@ func (m model) gameSelectViewContent() string {
 
 	panel := ui.Panel(
 		"Select Category",
-		body,
+		m.appendNotice(body),
 		"↑/↓ navigate • / filter • enter select • esc back",
 	)
 	return ui.CenterView(m.width, m.height, panel)
@@ -202,7 +202,7 @@ func (m model) themeSelectViewContent() string {
 
 	panel := ui.Panel(
 		"Select Theme",
-		body,
+		m.appendNotice(body),
 		"↑/↓ navigate • / filter • enter select • esc back",
 	)
 	return ui.CenterView(m.width, m.height, panel)

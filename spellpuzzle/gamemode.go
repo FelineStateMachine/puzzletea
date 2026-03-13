@@ -55,16 +55,12 @@ var Modes = []game.Mode{
 	NewMode("Hard", "9 letters, 9 board words, largest launch board.", 9, 9, 8),
 }
 
-var DailyModes = []game.Mode{
-	Modes[0],
-}
-
-var Definition = game.Definition{
-	Name:        "Spell Puzzle",
-	Description: "Connect letters to fill a crossword with bonus anagrams.",
-	Aliases:     []string{"spell", "spellpuzzle"},
-	Modes:       Modes,
-	DailyModes:  DailyModes,
-	Help:        HelpContent,
-	Import:      func(data []byte) (game.Gamer, error) { return ImportModel(data) },
-}
+var Definition = game.NewDefinition(game.DefinitionSpec{
+	Name:             "Spell Puzzle",
+	Description:      "Connect letters to fill a crossword with bonus anagrams.",
+	Aliases:          []string{"spell", "spellpuzzle"},
+	Modes:            Modes,
+	DailyModeIndexes: []int{0},
+	Help:             HelpContent,
+	Import:           game.AdaptImport(ImportModel),
+})

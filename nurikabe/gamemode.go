@@ -73,17 +73,12 @@ var Modes = []game.Mode{
 	NewMode("Expert", "12x12 grid, sparse clues and long chains.", 12, 12, 0.14, 12),
 }
 
-var DailyModes = []game.Mode{
-	Modes[1], // Easy
-	Modes[2], // Medium
-}
-
-var Definition = game.Definition{
-	Name:        "Nurikabe",
-	Description: "Split the land while keeping one connected sea.",
-	Aliases:     []string{"islands", "sea"},
-	Modes:       Modes,
-	DailyModes:  DailyModes,
-	Help:        HelpContent,
-	Import:      func(data []byte) (game.Gamer, error) { return ImportModel(data) },
-}
+var Definition = game.NewDefinition(game.DefinitionSpec{
+	Name:             "Nurikabe",
+	Description:      "Split the land while keeping one connected sea.",
+	Aliases:          []string{"islands", "sea"},
+	Modes:            Modes,
+	DailyModeIndexes: []int{1, 2},
+	Help:             HelpContent,
+	Import:           game.AdaptImport(ImportModel),
+})

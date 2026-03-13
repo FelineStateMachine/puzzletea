@@ -56,18 +56,12 @@ var Modes = []game.Mode{
 	NewMode("Expert 12x12", "Wide board with long deduction chains.", 12, 9, 0.52),
 }
 
-var DailyModes = []game.Mode{
-	Modes[1],
-	Modes[2],
-	Modes[3],
-}
-
-var Definition = game.Definition{
-	Name:        "Fillomino",
-	Description: "Grow the numbered regions to their exact sizes.",
-	Aliases:     []string{"polyomino", "regions"},
-	Modes:       Modes,
-	DailyModes:  DailyModes,
-	Help:        HelpContent,
-	Import:      func(data []byte) (game.Gamer, error) { return ImportModel(data) },
-}
+var Definition = game.NewDefinition(game.DefinitionSpec{
+	Name:             "Fillomino",
+	Description:      "Grow the numbered regions to their exact sizes.",
+	Aliases:          []string{"polyomino", "regions"},
+	Modes:            Modes,
+	DailyModeIndexes: []int{1, 2, 3},
+	Help:             HelpContent,
+	Import:           game.AdaptImport(ImportModel),
+})

@@ -1,7 +1,6 @@
 package app
 
 import (
-	"log"
 	"time"
 
 	"github.com/FelineStateMachine/puzzletea/daily"
@@ -14,37 +13,34 @@ import (
 )
 
 func (m model) handleStatsEnter() (tea.Model, tea.Cmd) {
+	m = m.clearNotice()
+
 	catStats, err := m.store.GetCategoryStats()
 	if err != nil {
-		log.Printf("failed to get category stats: %v", err)
-		return m, nil
+		return m.setErrorf("Could not load category stats: %v", err), nil
 	}
 	modeStats, err := m.store.GetModeStats()
 	if err != nil {
-		log.Printf("failed to get mode stats: %v", err)
-		return m, nil
+		return m.setErrorf("Could not load mode stats: %v", err), nil
 	}
 	streakDates, err := m.store.GetDailyStreakDates()
 	if err != nil {
-		log.Printf("failed to get daily streak dates: %v", err)
-		return m, nil
+		return m.setErrorf("Could not load streak data: %v", err), nil
 	}
 	weekliesCompleted, err := m.store.GetCompletedWeeklyGauntlets()
 	if err != nil {
-		log.Printf("failed to get weekly gauntlet completions: %v", err)
-		return m, nil
+		return m.setErrorf("Could not load weekly progress: %v", err), nil
 	}
 	now := time.Now()
 	currentYear, currentWeek := now.ISOWeek()
 	thisWeekHighestIndex, err := m.store.GetCurrentWeeklyHighestCompletedIndex(currentYear, currentWeek)
 	if err != nil {
-		log.Printf("failed to get current weekly progress: %v", err)
-		return m, nil
+		return m.setErrorf("Could not load this week’s progress: %v", err), nil
 	}
 	currentDaily := false
 	rec, err := m.store.GetDailyGame(daily.Name(now))
 	if err != nil {
-		log.Printf("failed to check current daily: %v", err)
+		m = m.setErrorf("Could not check today’s daily puzzle: %v", err)
 	} else {
 		currentDaily = rec != nil
 	}

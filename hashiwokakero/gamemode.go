@@ -65,17 +65,12 @@ var Modes = []game.Mode{
 	NewMode("Hard 13x13", "13x13 grid with 59-68 islands.", 13, 13, 59, 68),
 }
 
-var DailyModes = []game.Mode{
-	Modes[3], // Easy 9x9
-	Modes[1], // Medium 7x7
-}
-
-var Definition = game.Definition{
-	Name:        "Hashiwokakero",
-	Description: "Connect the islands with bridges.",
-	Aliases:     []string{"hashi", "bridges"},
-	Modes:       Modes,
-	DailyModes:  DailyModes,
-	Help:        HelpContent,
-	Import:      func(data []byte) (game.Gamer, error) { return ImportModel(data) },
-}
+var Definition = game.NewDefinition(game.DefinitionSpec{
+	Name:             "Hashiwokakero",
+	Description:      "Connect the islands with bridges.",
+	Aliases:          []string{"hashi", "bridges"},
+	Modes:            Modes,
+	DailyModeIndexes: []int{3, 1},
+	Help:             HelpContent,
+	Import:           game.AdaptImport(ImportModel),
+})

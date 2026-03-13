@@ -163,37 +163,9 @@ func Open(dbPath string) (*Store, error) {
 		return nil, fmt.Errorf("enabling WAL mode: %w", err)
 	}
 
-	if _, err := db.Exec(createTableSQL); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("creating table: %w", err)
-	}
-
-	if err := ensureGameColumns(db); err != nil {
+	if err := runMigrations(db); err != nil {
 		db.Close()
 		return nil, err
-	}
-	if err := backfillGameMetadata(db); err != nil {
-		db.Close()
-		return nil, err
-	}
-
-	if _, err := db.Exec(`DROP VIEW IF EXISTS category_stats`); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("dropping category_stats view: %w", err)
-	}
-	if _, err := db.Exec(`DROP VIEW IF EXISTS mode_stats`); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("dropping mode_stats view: %w", err)
-	}
-
-	if _, err := db.Exec(createCategoryStatsViewSQL); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("creating category_stats view: %w", err)
-	}
-
-	if _, err := db.Exec(createModeStatsViewSQL); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("creating mode_stats view: %w", err)
 	}
 
 	return &Store{db: db}, nil

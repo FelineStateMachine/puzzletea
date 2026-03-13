@@ -1,6 +1,7 @@
 package store
 
 import (
+	"database/sql"
 	"path/filepath"
 	"testing"
 	"time"
@@ -66,6 +67,101 @@ func TestOpen(t *testing.T) {
 		}
 		if got == nil {
 			t.Fatal("expected record to persist across reopen")
+		}
+	})
+
+	t.Run("records current schema version", func(t *testing.T) {
+		s := openTestStore(t)
+
+		version, err := schemaVersion(s.db)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got, want := version, currentSchemaVersion; got != want {
+			t.Fatalf("schema version = %d, want %d", got, want)
+		}
+	})
+
+	t.Run("upgrades legacy databases and backfills metadata", func(t *testing.T) {
+		dbPath := filepath.Join(t.TempDir(), "legacy.db")
+
+		raw, err := sql.Open("sqlite", dbPath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { raw.Close() })
+
+		_, err = raw.Exec(`
+CREATE TABLE games (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    name          TEXT    NOT NULL UNIQUE,
+    game_type     TEXT    NOT NULL,
+    mode          TEXT    NOT NULL,
+    initial_state TEXT    NOT NULL,
+    save_state    TEXT,
+    status        TEXT    NOT NULL DEFAULT 'new'
+                  CHECK(status IN ('new','in_progress','completed','abandoned')),
+    created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    completed_at  DATETIME
+);`)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		_, err = raw.Exec(`
+INSERT INTO games (name, game_type, mode, initial_state, save_state, status)
+VALUES (?, ?, ?, ?, ?, ?)`,
+			"Daily Feb 16 26 - amber-fox",
+			"Sudoku",
+			"Easy",
+			`{"grid":"initial"}`,
+			`{"grid":"save"}`,
+			string(StatusNew),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := raw.Close(); err != nil {
+			t.Fatal(err)
+		}
+
+		s, err := Open(dbPath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer s.Close()
+
+		version, err := schemaVersion(s.db)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got, want := version, currentSchemaVersion; got != want {
+			t.Fatalf("schema version = %d, want %d", got, want)
+		}
+
+		rec, err := s.GetGameByName("Daily Feb 16 26 - amber-fox")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if rec == nil {
+			t.Fatal("expected migrated record")
+		}
+		if got, want := rec.GameID, "sudoku"; got != want {
+			t.Fatalf("GameID = %q, want %q", got, want)
+		}
+		if got, want := rec.ModeID, "easy"; got != want {
+			t.Fatalf("ModeID = %q, want %q", got, want)
+		}
+		if got, want := rec.RunKind, RunKindDaily; got != want {
+			t.Fatalf("RunKind = %q, want %q", got, want)
+		}
+		if rec.RunDate == nil {
+			t.Fatal("expected RunDate to be backfilled")
+		}
+
+		if _, err := s.GetCategoryStats(); err != nil {
+			t.Fatalf("GetCategoryStats() error after migration: %v", err)
 		}
 	})
 }

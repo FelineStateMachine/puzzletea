@@ -58,16 +58,11 @@ var Modes = []game.Mode{
 	NewMode("Massive", "20x20 grid, ~56% filled. Truly massive puzzle.", 20, 20, 0.56),
 }
 
-var DailyModes = []game.Mode{
-	Modes[3], // Standard 10x10
-	Modes[4], // Classic 10x10
-}
-
-var Definition = game.Definition{
-	Name:        "Nonogram",
-	Description: "Fill the cells to match tomographic hints.",
-	Modes:       Modes,
-	DailyModes:  DailyModes,
-	Help:        HelpContent,
-	Import:      func(data []byte) (game.Gamer, error) { return ImportModel(data) },
-}
+var Definition = game.NewDefinition(game.DefinitionSpec{
+	Name:             "Nonogram",
+	Description:      "Fill the cells to match tomographic hints.",
+	Modes:            Modes,
+	DailyModeIndexes: []int{3, 4},
+	Help:             HelpContent,
+	Import:           game.AdaptImport(ImportModel),
+})

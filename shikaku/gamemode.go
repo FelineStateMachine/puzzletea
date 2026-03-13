@@ -56,17 +56,12 @@ var Modes = []game.Mode{
 	NewMode("Expert 12x12", "12x12 grid, maximum challenge.", 12, 12, 20),
 }
 
-var DailyModes = []game.Mode{
-	Modes[1], // Easy 7x7
-	Modes[2], // Medium 8x8
-}
-
-var Definition = game.Definition{
-	Name:        "Shikaku",
-	Description: "Divide the grid into rectangles with set sizes.",
-	Aliases:     []string{"rectangles"},
-	Modes:       Modes,
-	DailyModes:  DailyModes,
-	Help:        HelpContent,
-	Import:      func(data []byte) (game.Gamer, error) { return ImportModel(data) },
-}
+var Definition = game.NewDefinition(game.DefinitionSpec{
+	Name:             "Shikaku",
+	Description:      "Divide the grid into rectangles with set sizes.",
+	Aliases:          []string{"rectangles"},
+	Modes:            Modes,
+	DailyModeIndexes: []int{1, 2},
+	Help:             HelpContent,
+	Import:           game.AdaptImport(ImportModel),
+})

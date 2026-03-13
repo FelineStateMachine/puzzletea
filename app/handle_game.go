@@ -1,8 +1,6 @@
 package app
 
 import (
-	"log"
-
 	"github.com/FelineStateMachine/puzzletea/registry"
 	sessionflow "github.com/FelineStateMachine/puzzletea/session"
 	"github.com/FelineStateMachine/puzzletea/store"
@@ -63,11 +61,13 @@ func (m model) persistCompletionIfSolved() model {
 	saveData, err := m.session.game.GetSave()
 	if err == nil {
 		if err := m.store.UpdateSaveState(m.session.activeGameID, string(saveData)); err != nil {
-			log.Printf("failed to save completion state: %v", err)
+			m = m.setErrorf("Puzzle completed, but saving the final state failed: %v", err)
 		}
+	} else {
+		m = m.setErrorf("Puzzle completed, but reading the final state failed: %v", err)
 	}
 	if err := m.store.UpdateStatus(m.session.activeGameID, store.StatusCompleted); err != nil {
-		log.Printf("failed to mark game completed: %v", err)
+		m = m.setErrorf("Puzzle completed, but updating completion status failed: %v", err)
 	}
 	return m
 }

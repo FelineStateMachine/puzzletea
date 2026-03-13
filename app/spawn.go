@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"log"
 	"math/rand/v2"
 	"time"
 
@@ -102,7 +101,7 @@ func (m model) handleSpawnComplete(jobID int64, msg game.SpawnCompleteMsg) (tea.
 	}
 
 	if msg.Err != nil {
-		log.Printf("failed to spawn game: %v", msg.Err)
+		m = m.setErrorf("Could not generate puzzle: %v", msg.Err)
 		if request != nil {
 			m.state = request.returnState
 		}
@@ -110,13 +109,12 @@ func (m model) handleSpawnComplete(jobID int64, msg game.SpawnCompleteMsg) (tea.
 	}
 
 	if request == nil {
-		log.Printf("missing spawn request metadata")
-		return m, nil
+		return m.setErrorf("Internal error: missing spawn request metadata"), nil
 	}
 	m = m.activateGame(msg.Game.SetTitle(request.name), 0, false, gameOpenOptions{
 		returnState: request.exitState,
 		weeklyInfo:  request.weeklyInfo,
-	})
+	}).clearNotice()
 
 	// Capture initial state and create DB record.
 	rec, err := sessionflow.CreateRecord(
@@ -127,7 +125,7 @@ func (m model) handleSpawnComplete(jobID int64, msg game.SpawnCompleteMsg) (tea.
 		request.modeTitle,
 	)
 	if err != nil {
-		log.Printf("failed to create game record: %v", err)
+		m = m.setErrorf("Started puzzle, but could not create a save record: %v", err)
 	} else {
 		m.session.activeGameID = rec.ID
 	}
@@ -144,16 +142,15 @@ func saveCurrentGame(m model, status store.GameStatus) model {
 	}
 	saveData, err := m.session.game.GetSave()
 	if err != nil {
-		log.Printf("failed to get save data: %v", err)
-		return m
+		return m.setErrorf("Could not save puzzle progress: %v", err)
 	}
 	if err := m.store.UpdateSaveState(m.session.activeGameID, string(saveData)); err != nil {
-		log.Printf("failed to update save state: %v", err)
+		m = m.setErrorf("Could not save puzzle progress: %v", err)
 	}
 	// Don't overwrite a completed status when navigating away.
 	if !(m.session.completionSaved && status != store.StatusCompleted) {
 		if err := m.store.UpdateStatus(m.session.activeGameID, status); err != nil {
-			log.Printf("failed to update game status: %v", err)
+			m = m.setErrorf("Could not update puzzle status: %v", err)
 		}
 	}
 	return clearActiveGame(m)

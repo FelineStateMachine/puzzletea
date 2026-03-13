@@ -52,17 +52,12 @@ var Modes = []game.Mode{
 	NewMode("Extreme", "14×14 grid, ~28% clues. Maximum challenge.", 14, 0.28),
 }
 
-var DailyModes = []game.Mode{
-	Modes[2], // Medium 8x8
-	Modes[3], // Tricky 10x10
-}
-
-var Definition = game.Definition{
-	Name:        "Takuzu",
-	Description: "Fill the grid with ● and ○. No 3 in a row.",
-	Aliases:     []string{"binairo", "binary"},
-	Modes:       Modes,
-	DailyModes:  DailyModes,
-	Help:        HelpContent,
-	Import:      func(data []byte) (game.Gamer, error) { return ImportModel(data) },
-}
+var Definition = game.NewDefinition(game.DefinitionSpec{
+	Name:             "Takuzu",
+	Description:      "Fill the grid with ● and ○. No 3 in a row.",
+	Aliases:          []string{"binairo", "binary"},
+	Modes:            Modes,
+	DailyModeIndexes: []int{2, 3},
+	Help:             HelpContent,
+	Import:           game.AdaptImport(ImportModel),
+})

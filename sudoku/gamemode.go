@@ -45,16 +45,11 @@ var Modes = []game.Mode{
 	NewMode("Diabolical", "17–21 clues. Swordfish / XY-Chains.", 17),
 }
 
-var DailyModes = []game.Mode{
-	Modes[1], // Easy
-	Modes[2], // Medium
-}
-
-var Definition = game.Definition{
-	Name:        "Sudoku",
-	Description: "Fill the 9x9 grid following sudoku rules.",
-	Modes:       Modes,
-	DailyModes:  DailyModes,
-	Help:        HelpContent,
-	Import:      func(data []byte) (game.Gamer, error) { return ImportModel(data) },
-}
+var Definition = game.NewDefinition(game.DefinitionSpec{
+	Name:             "Sudoku",
+	Description:      "Fill the 9x9 grid following sudoku rules.",
+	Modes:            Modes,
+	DailyModeIndexes: []int{1, 2},
+	Help:             HelpContent,
+	Import:           game.AdaptImport(ImportModel),
+})

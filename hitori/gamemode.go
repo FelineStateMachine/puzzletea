@@ -55,16 +55,11 @@ var Modes = []game.Mode{
 	NewMode("Expert", "12\u00d712 grid, maximum challenge.", 12, 0.28),
 }
 
-var DailyModes = []game.Mode{
-	Modes[1], // Easy 6x6
-	Modes[2], // Medium 8x8
-}
-
-var Definition = game.Definition{
-	Name:        "Hitori",
-	Description: "Shade the cells to eliminate duplicates.",
-	Modes:       Modes,
-	DailyModes:  DailyModes,
-	Help:        HelpContent,
-	Import:      func(data []byte) (game.Gamer, error) { return ImportModel(data) },
-}
+var Definition = game.NewDefinition(game.DefinitionSpec{
+	Name:             "Hitori",
+	Description:      "Shade the cells to eliminate duplicates.",
+	Modes:            Modes,
+	DailyModeIndexes: []int{1, 2},
+	Help:             HelpContent,
+	Import:           game.AdaptImport(ImportModel),
+})

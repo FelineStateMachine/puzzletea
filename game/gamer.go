@@ -99,6 +99,45 @@ type Definition struct {
 	Import      func([]byte) (Gamer, error)
 }
 
+type DefinitionSpec struct {
+	Name             string
+	Description      string
+	Aliases          []string
+	Modes            []Mode
+	DailyModeIndexes []int
+	Help             string
+	Import           func([]byte) (Gamer, error)
+}
+
+func NewDefinition(spec DefinitionSpec) Definition {
+	return Definition{
+		Name:        spec.Name,
+		Description: spec.Description,
+		Aliases:     append([]string(nil), spec.Aliases...),
+		Modes:       append([]Mode(nil), spec.Modes...),
+		DailyModes:  SelectModesByIndex(spec.Modes, spec.DailyModeIndexes...),
+		Help:        spec.Help,
+		Import:      spec.Import,
+	}
+}
+
+func SelectModesByIndex(modes []Mode, indexes ...int) []Mode {
+	selected := make([]Mode, 0, len(indexes))
+	for _, idx := range indexes {
+		if idx < 0 || idx >= len(modes) {
+			continue
+		}
+		selected = append(selected, modes[idx])
+	}
+	return selected
+}
+
+func AdaptImport[T Gamer](fn func([]byte) (T, error)) func([]byte) (Gamer, error) {
+	return func(data []byte) (Gamer, error) {
+		return fn(data)
+	}
+}
+
 func (d Definition) Category() Category {
 	modes := make([]list.Item, len(d.Modes))
 	for i, m := range d.Modes {

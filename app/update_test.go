@@ -128,8 +128,15 @@ func TestGameViewEscapeReturnsToMainMenu(t *testing.T) {
 
 func TestImportAndActivateRecordSuccessFlag(t *testing.T) {
 	unknown := model{state: playMenuView}
-	if _, ok := unknown.importAndActivateRecord(store.GameRecord{GameType: "NoSuchGameType"}); ok {
+	nextUnknown, ok := unknown.importAndActivateRecord(store.GameRecord{
+		Name:     "broken-save",
+		GameType: "NoSuchGameType",
+	})
+	if ok {
 		t.Fatal("expected unknown game type import to fail")
+	}
+	if nextUnknown.notice.message == "" {
+		t.Fatal("expected failed import to surface a user-visible notice")
 	}
 
 	loadedGame, err := lightsout.New(3, 3)
@@ -169,6 +176,9 @@ func TestImportAndActivateRecordSuccessFlag(t *testing.T) {
 	}
 	if next.session.game == nil {
 		t.Fatal("expected game to be activated")
+	}
+	if next.notice.message != "" {
+		t.Fatalf("notice = %q, want empty after successful import", next.notice.message)
 	}
 }
 

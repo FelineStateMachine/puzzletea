@@ -54,16 +54,12 @@ var Modes = []game.Mode{
 	NewMode("Hard 20x20", "Find 15 words in a 20x20 grid.", 20, 20, 15, 5, 10, []Direction{Right, Down, DownRight, DownLeft, Left, Up, UpRight, UpLeft}),
 }
 
-var DailyModes = []game.Mode{
-	Modes[0], // Easy 10x10
-}
-
-var Definition = game.Definition{
-	Name:        "Word Search",
-	Description: "Find the hidden words in a letter grid.",
-	Aliases:     []string{"words", "wordsearch", "ws"},
-	Modes:       Modes,
-	DailyModes:  DailyModes,
-	Help:        HelpContent,
-	Import:      func(data []byte) (game.Gamer, error) { return ImportModel(data) },
-}
+var Definition = game.NewDefinition(game.DefinitionSpec{
+	Name:             "Word Search",
+	Description:      "Find the hidden words in a letter grid.",
+	Aliases:          []string{"words", "wordsearch", "ws"},
+	Modes:            Modes,
+	DailyModeIndexes: []int{0},
+	Help:             HelpContent,
+	Import:           game.AdaptImport(ImportModel),
+})

@@ -1,8 +1,6 @@
 package app
 
 import (
-	"log"
-
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/registry"
 	"github.com/FelineStateMachine/puzzletea/resolve"
@@ -25,15 +23,14 @@ func (m model) handleSeedConfirm() (tea.Model, tea.Cmd) {
 
 	rec, err := m.store.GetDailyGame(name)
 	if err != nil {
-		log.Printf("failed to check seeded game: %v", err)
-		return m, nil
+		return m.setErrorf("Could not check saved seeded puzzle: %v", err), nil
 	}
 	if rec != nil {
 		var resumed bool
 		m, resumed = m.importAndActivateRecord(*rec)
 		if resumed {
 			if err := sessionflow.ResumeAbandonedDeterministicRecord(m.store, rec); err != nil {
-				log.Printf("%v", err)
+				m = m.setErrorf("%v", err)
 			}
 		}
 		return m, nil
@@ -45,14 +42,12 @@ func (m model) handleSeedConfirm() (tea.Model, tea.Cmd) {
 	if selectedMode.key == "" {
 		spawner, gameType, modeTitle, err = resolve.SeededMode(seed, registry.Entries())
 		if err != nil {
-			log.Printf("failed to select seeded mode: %v", err)
-			return m, nil
+			return m.setErrorf("Could not choose a seeded mode: %v", err), nil
 		}
 	} else {
 		spawner, gameType, modeTitle, err = resolve.SeededModeForGame(seed, selectedMode.gameType, registry.Entries())
 		if err != nil {
-			log.Printf("failed to select seeded mode for %s: %v", selectedMode.gameType, err)
-			return m, nil
+			return m.setErrorf("Could not choose a seeded mode for %s: %v", selectedMode.gameType, err), nil
 		}
 	}
 
@@ -67,5 +62,6 @@ func (m model) handleSeedConfirm() (tea.Model, tea.Cmd) {
 		exitState:   mainMenuView,
 	}
 	m.state = generatingView
+	m = m.clearNotice()
 	return m, tea.Batch(m.spinner.Tick, spawnSeededCmd(spawner, rng, ctx, jobID))
 }

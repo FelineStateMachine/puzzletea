@@ -239,6 +239,36 @@ func TestDefinitionCategory(t *testing.T) {
 	}
 }
 
+func TestNewDefinitionSelectsDailyModesByIndex(t *testing.T) {
+	modes := []Mode{
+		NewBaseMode("Beginner", "Easy board"),
+		NewBaseMode("Medium", "Balanced board"),
+		NewBaseMode("Expert", "Hard board"),
+	}
+
+	def := NewDefinition(DefinitionSpec{
+		Name:             "Sudoku",
+		Description:      "Classic grid logic",
+		Aliases:          []string{"classic"},
+		Modes:            modes,
+		DailyModeIndexes: []int{1, 2, 99, -1},
+		Help:             "Rules",
+	})
+
+	if got, want := len(def.DailyModes), 2; got != want {
+		t.Fatalf("len(DailyModes) = %d, want %d", got, want)
+	}
+	if got, want := def.DailyModes[0].Title(), "Medium"; got != want {
+		t.Fatalf("DailyModes[0] = %q, want %q", got, want)
+	}
+	if got, want := def.DailyModes[1].Title(), "Expert"; got != want {
+		t.Fatalf("DailyModes[1] = %q, want %q", got, want)
+	}
+	if got, want := len(def.Aliases), 1; got != want {
+		t.Fatalf("len(Aliases) = %d, want %d", got, want)
+	}
+}
+
 func TestNormalizeName(t *testing.T) {
 	tests := []struct {
 		input string

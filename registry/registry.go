@@ -43,22 +43,22 @@ type DailyEntry struct {
 	Mode     string
 }
 
-var all = []Entry{
-	adaptLegacy(fillomino.Definition),
-	adaptLegacy(hashiwokakero.Definition),
-	adaptLegacy(hitori.Definition),
-	adaptLegacy(lightsout.Definition),
-	adaptLegacy(nonogram.Definition),
-	adaptLegacy(nurikabe.Definition),
-	adaptLegacy(rippleeffect.Definition),
-	adaptLegacy(shikaku.Definition),
-	adaptLegacy(spellpuzzle.Definition),
-	adaptLegacy(sudoku.Definition),
-	adaptLegacy(sudokurgb.Definition),
-	adaptLegacy(takuzu.Definition),
-	adaptLegacy(takuzuplus.Definition),
-	adaptLegacy(wordsearch.Definition),
-}
+var all = buildEntries(
+	fillomino.Definition,
+	hashiwokakero.Definition,
+	hitori.Definition,
+	lightsout.Definition,
+	nonogram.Definition,
+	nurikabe.Definition,
+	rippleeffect.Definition,
+	shikaku.Definition,
+	spellpuzzle.Definition,
+	sudoku.Definition,
+	sudokurgb.Definition,
+	takuzu.Definition,
+	takuzuplus.Definition,
+	wordsearch.Definition,
+)
 
 var (
 	definitions = buildDefinitions(all)
@@ -110,6 +110,14 @@ func adaptLegacy(def game.Definition) Entry {
 		Import: def.Import,
 		Modes:  modes,
 	}
+}
+
+func buildEntries(defs ...game.Definition) []Entry {
+	entries := make([]Entry, 0, len(defs))
+	for _, def := range defs {
+		entries = append(entries, adaptLegacy(def))
+	}
+	return entries
 }
 
 func extractModeDefs(modes []ModeEntry) []puzzle.ModeDef {
