@@ -5,6 +5,8 @@ import (
 	"math/rand/v2"
 
 	"github.com/FelineStateMachine/puzzletea/game"
+	"github.com/FelineStateMachine/puzzletea/gamereg"
+	"github.com/FelineStateMachine/puzzletea/puzzle"
 )
 
 //go:embed help.md
@@ -55,12 +57,19 @@ var Modes = []game.Mode{
 	NewMode("Hard", "9 letters, 9 board words, largest launch board.", 9, 9, 8),
 }
 
-var Definition = game.NewDefinition(game.DefinitionSpec{
-	Name:             "Spell Puzzle",
-	Description:      "Connect letters to fill a crossword with bonus anagrams.",
-	Aliases:          []string{"spell", "spellpuzzle"},
-	Modes:            Modes,
-	DailyModeIndexes: []int{0},
-	Help:             HelpContent,
-	Import:           game.AdaptImport(ImportModel),
+var ModeDefinitions = gamereg.BuildModeDefs(Modes)
+
+var Definition = puzzle.NewDefinition(puzzle.DefinitionSpec{
+	Name:         "Spell Puzzle",
+	Description:  "Connect letters to fill a crossword with bonus anagrams.",
+	Aliases:      []string{"spell", "spellpuzzle"},
+	Modes:        ModeDefinitions,
+	DailyModeIDs: puzzle.SelectModeIDsByIndex(ModeDefinitions, 0),
+})
+
+var Entry = gamereg.NewEntry(gamereg.EntrySpec{
+	Definition: Definition,
+	Help:       HelpContent,
+	Import:     game.AdaptImport(ImportModel),
+	Modes:      Modes,
 })

@@ -5,6 +5,8 @@ import (
 	"math/rand/v2"
 
 	"github.com/FelineStateMachine/puzzletea/game"
+	"github.com/FelineStateMachine/puzzletea/gamereg"
+	"github.com/FelineStateMachine/puzzletea/puzzle"
 )
 
 //go:embed help.md
@@ -55,11 +57,18 @@ var Modes = []game.Mode{
 	NewMode("Expert", "12\u00d712 grid, maximum challenge.", 12, 0.28),
 }
 
-var Definition = game.NewDefinition(game.DefinitionSpec{
-	Name:             "Hitori",
-	Description:      "Shade the cells to eliminate duplicates.",
-	Modes:            Modes,
-	DailyModeIndexes: []int{1, 2},
-	Help:             HelpContent,
-	Import:           game.AdaptImport(ImportModel),
+var ModeDefinitions = gamereg.BuildModeDefs(Modes)
+
+var Definition = puzzle.NewDefinition(puzzle.DefinitionSpec{
+	Name:         "Hitori",
+	Description:  "Shade the cells to eliminate duplicates.",
+	Modes:        ModeDefinitions,
+	DailyModeIDs: puzzle.SelectModeIDsByIndex(ModeDefinitions, 1, 2),
+})
+
+var Entry = gamereg.NewEntry(gamereg.EntrySpec{
+	Definition: Definition,
+	Help:       HelpContent,
+	Import:     game.AdaptImport(ImportModel),
+	Modes:      Modes,
 })

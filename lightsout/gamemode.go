@@ -5,6 +5,8 @@ import (
 	"math/rand/v2"
 
 	"github.com/FelineStateMachine/puzzletea/game"
+	"github.com/FelineStateMachine/puzzletea/gamereg"
+	"github.com/FelineStateMachine/puzzletea/puzzle"
 )
 
 //go:embed help.md
@@ -44,12 +46,19 @@ var Modes = []game.Mode{
 	NewMode("Extreme", "9x9 grid", 9, 9),
 }
 
-var Definition = game.NewDefinition(game.DefinitionSpec{
-	Name:             "Lights Out",
-	Description:      "Turn the lights off.",
-	Aliases:          []string{"lights"},
-	Modes:            Modes,
-	DailyModeIndexes: []int{1, 2},
-	Help:             HelpContent,
-	Import:           game.AdaptImport(ImportModel),
+var ModeDefinitions = gamereg.BuildModeDefs(Modes)
+
+var Definition = puzzle.NewDefinition(puzzle.DefinitionSpec{
+	Name:         "Lights Out",
+	Description:  "Turn the lights off.",
+	Aliases:      []string{"lights"},
+	Modes:        ModeDefinitions,
+	DailyModeIDs: puzzle.SelectModeIDsByIndex(ModeDefinitions, 1, 2),
+})
+
+var Entry = gamereg.NewEntry(gamereg.EntrySpec{
+	Definition: Definition,
+	Help:       HelpContent,
+	Import:     game.AdaptImport(ImportModel),
+	Modes:      Modes,
 })

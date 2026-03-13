@@ -5,6 +5,8 @@ import (
 	"math/rand/v2"
 
 	"github.com/FelineStateMachine/puzzletea/game"
+	"github.com/FelineStateMachine/puzzletea/gamereg"
+	"github.com/FelineStateMachine/puzzletea/puzzle"
 )
 
 //go:embed help.md
@@ -58,11 +60,18 @@ var Modes = []game.Mode{
 	NewMode("Massive", "20x20 grid, ~56% filled. Truly massive puzzle.", 20, 20, 0.56),
 }
 
-var Definition = game.NewDefinition(game.DefinitionSpec{
-	Name:             "Nonogram",
-	Description:      "Fill the cells to match tomographic hints.",
-	Modes:            Modes,
-	DailyModeIndexes: []int{3, 4},
-	Help:             HelpContent,
-	Import:           game.AdaptImport(ImportModel),
+var ModeDefinitions = gamereg.BuildModeDefs(Modes)
+
+var Definition = puzzle.NewDefinition(puzzle.DefinitionSpec{
+	Name:         "Nonogram",
+	Description:  "Fill the cells to match tomographic hints.",
+	Modes:        ModeDefinitions,
+	DailyModeIDs: puzzle.SelectModeIDsByIndex(ModeDefinitions, 3, 4),
+})
+
+var Entry = gamereg.NewEntry(gamereg.EntrySpec{
+	Definition: Definition,
+	Help:       HelpContent,
+	Import:     game.AdaptImport(ImportModel),
+	Modes:      Modes,
 })

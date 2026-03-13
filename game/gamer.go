@@ -6,7 +6,6 @@ import (
 	"math/rand/v2"
 
 	"charm.land/bubbles/v2/key"
-	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
 	"github.com/FelineStateMachine/puzzletea/puzzle"
 )
@@ -76,78 +75,9 @@ func (b BaseMode) Title() string       { return b.title }
 func (b BaseMode) Description() string { return b.description }
 func (b BaseMode) FilterValue() string { return b.title + " " + b.description }
 
-// Category groups related game modes under a heading in the menu.
-type Category struct {
-	Name  string
-	Desc  string
-	Modes []list.Item
-	Help  string // embedded help.md content rendered in "How to Play"
-}
-
-func (c Category) Title() string       { return c.Name }
-func (c Category) Description() string { return c.Desc }
-func (c Category) FilterValue() string { return c.Name }
-
-// Definition is the package-level metadata for a puzzle game.
-type Definition struct {
-	Name        string
-	Description string
-	Aliases     []string
-	Modes       []Mode
-	DailyModes  []Mode
-	Help        string
-	Import      func([]byte) (Gamer, error)
-}
-
-type DefinitionSpec struct {
-	Name             string
-	Description      string
-	Aliases          []string
-	Modes            []Mode
-	DailyModeIndexes []int
-	Help             string
-	Import           func([]byte) (Gamer, error)
-}
-
-func NewDefinition(spec DefinitionSpec) Definition {
-	return Definition{
-		Name:        spec.Name,
-		Description: spec.Description,
-		Aliases:     append([]string(nil), spec.Aliases...),
-		Modes:       append([]Mode(nil), spec.Modes...),
-		DailyModes:  SelectModesByIndex(spec.Modes, spec.DailyModeIndexes...),
-		Help:        spec.Help,
-		Import:      spec.Import,
-	}
-}
-
-func SelectModesByIndex(modes []Mode, indexes ...int) []Mode {
-	selected := make([]Mode, 0, len(indexes))
-	for _, idx := range indexes {
-		if idx < 0 || idx >= len(modes) {
-			continue
-		}
-		selected = append(selected, modes[idx])
-	}
-	return selected
-}
-
 func AdaptImport[T Gamer](fn func([]byte) (T, error)) func([]byte) (Gamer, error) {
 	return func(data []byte) (Gamer, error) {
 		return fn(data)
-	}
-}
-
-func (d Definition) Category() Category {
-	modes := make([]list.Item, len(d.Modes))
-	for i, m := range d.Modes {
-		modes[i] = m
-	}
-	return Category{
-		Name:  d.Name,
-		Desc:  d.Description,
-		Modes: modes,
-		Help:  d.Help,
 	}
 }
 

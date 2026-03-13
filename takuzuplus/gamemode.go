@@ -5,6 +5,8 @@ import (
 	"math/rand/v2"
 
 	"github.com/FelineStateMachine/puzzletea/game"
+	"github.com/FelineStateMachine/puzzletea/gamereg"
+	"github.com/FelineStateMachine/puzzletea/puzzle"
 )
 
 //go:embed help.md
@@ -56,12 +58,19 @@ var Modes = []game.Mode{
 	NewMode("Extreme", "14×14 grid, maximum size with additive relation clues.", 14, 0.28, modeProfiles[6]),
 }
 
-var Definition = game.NewDefinition(game.DefinitionSpec{
-	Name:             "Takuzu+",
-	Description:      "Fill the grid with ● and ○ using some relational clues. No 3 in a row.",
-	Aliases:          []string{"takuzu plus", "binario+", "binario plus"},
-	Modes:            Modes,
-	DailyModeIndexes: []int{2, 3},
-	Help:             HelpContent,
-	Import:           game.AdaptImport(ImportModel),
+var ModeDefinitions = gamereg.BuildModeDefs(Modes)
+
+var Definition = puzzle.NewDefinition(puzzle.DefinitionSpec{
+	Name:         "Takuzu+",
+	Description:  "Fill the grid with ● and ○ using some relational clues. No 3 in a row.",
+	Aliases:      []string{"takuzu plus", "binario+", "binario plus"},
+	Modes:        ModeDefinitions,
+	DailyModeIDs: puzzle.SelectModeIDsByIndex(ModeDefinitions, 2, 3),
+})
+
+var Entry = gamereg.NewEntry(gamereg.EntrySpec{
+	Definition: Definition,
+	Help:       HelpContent,
+	Import:     game.AdaptImport(ImportModel),
+	Modes:      Modes,
 })

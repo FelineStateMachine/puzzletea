@@ -5,6 +5,8 @@ import (
 	"math/rand/v2"
 
 	"github.com/FelineStateMachine/puzzletea/game"
+	"github.com/FelineStateMachine/puzzletea/gamereg"
+	"github.com/FelineStateMachine/puzzletea/puzzle"
 )
 
 //go:embed help.md
@@ -65,12 +67,19 @@ var Modes = []game.Mode{
 	NewMode("Hard 13x13", "13x13 grid with 59-68 islands.", 13, 13, 59, 68),
 }
 
-var Definition = game.NewDefinition(game.DefinitionSpec{
-	Name:             "Hashiwokakero",
-	Description:      "Connect the islands with bridges.",
-	Aliases:          []string{"hashi", "bridges"},
-	Modes:            Modes,
-	DailyModeIndexes: []int{3, 1},
-	Help:             HelpContent,
-	Import:           game.AdaptImport(ImportModel),
+var ModeDefinitions = gamereg.BuildModeDefs(Modes)
+
+var Definition = puzzle.NewDefinition(puzzle.DefinitionSpec{
+	Name:         "Hashiwokakero",
+	Description:  "Connect the islands with bridges.",
+	Aliases:      []string{"hashi", "bridges"},
+	Modes:        ModeDefinitions,
+	DailyModeIDs: puzzle.SelectModeIDsByIndex(ModeDefinitions, 3, 1),
+})
+
+var Entry = gamereg.NewEntry(gamereg.EntrySpec{
+	Definition: Definition,
+	Help:       HelpContent,
+	Import:     game.AdaptImport(ImportModel),
+	Modes:      Modes,
 })

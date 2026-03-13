@@ -5,6 +5,8 @@ import (
 	"math/rand/v2"
 
 	"github.com/FelineStateMachine/puzzletea/game"
+	"github.com/FelineStateMachine/puzzletea/gamereg"
+	"github.com/FelineStateMachine/puzzletea/puzzle"
 )
 
 //go:embed help.md
@@ -45,11 +47,18 @@ var Modes = []game.Mode{
 	NewMode("Diabolical", "17–21 clues. Swordfish / XY-Chains.", 17),
 }
 
-var Definition = game.NewDefinition(game.DefinitionSpec{
-	Name:             "Sudoku",
-	Description:      "Fill the 9x9 grid following sudoku rules.",
-	Modes:            Modes,
-	DailyModeIndexes: []int{1, 2},
-	Help:             HelpContent,
-	Import:           game.AdaptImport(ImportModel),
+var ModeDefinitions = gamereg.BuildModeDefs(Modes)
+
+var Definition = puzzle.NewDefinition(puzzle.DefinitionSpec{
+	Name:         "Sudoku",
+	Description:  "Fill the 9x9 grid following sudoku rules.",
+	Modes:        ModeDefinitions,
+	DailyModeIDs: puzzle.SelectModeIDsByIndex(ModeDefinitions, 1, 2),
+})
+
+var Entry = gamereg.NewEntry(gamereg.EntrySpec{
+	Definition: Definition,
+	Help:       HelpContent,
+	Import:     game.AdaptImport(ImportModel),
+	Modes:      Modes,
 })

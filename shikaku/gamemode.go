@@ -5,6 +5,8 @@ import (
 	"math/rand/v2"
 
 	"github.com/FelineStateMachine/puzzletea/game"
+	"github.com/FelineStateMachine/puzzletea/gamereg"
+	"github.com/FelineStateMachine/puzzletea/puzzle"
 )
 
 //go:embed help.md
@@ -56,12 +58,19 @@ var Modes = []game.Mode{
 	NewMode("Expert 12x12", "12x12 grid, maximum challenge.", 12, 12, 20),
 }
 
-var Definition = game.NewDefinition(game.DefinitionSpec{
-	Name:             "Shikaku",
-	Description:      "Divide the grid into rectangles with set sizes.",
-	Aliases:          []string{"rectangles"},
-	Modes:            Modes,
-	DailyModeIndexes: []int{1, 2},
-	Help:             HelpContent,
-	Import:           game.AdaptImport(ImportModel),
+var ModeDefinitions = gamereg.BuildModeDefs(Modes)
+
+var Definition = puzzle.NewDefinition(puzzle.DefinitionSpec{
+	Name:         "Shikaku",
+	Description:  "Divide the grid into rectangles with set sizes.",
+	Aliases:      []string{"rectangles"},
+	Modes:        ModeDefinitions,
+	DailyModeIDs: puzzle.SelectModeIDsByIndex(ModeDefinitions, 1, 2),
+})
+
+var Entry = gamereg.NewEntry(gamereg.EntrySpec{
+	Definition: Definition,
+	Help:       HelpContent,
+	Import:     game.AdaptImport(ImportModel),
+	Modes:      Modes,
 })
