@@ -8,6 +8,8 @@ import (
 
 type printAdapter struct{}
 
+var PDFPrintAdapter = printAdapter{}
+
 var takuzuPlusRules = []string{
 	"No three equal adjacent in any row or column.",
 	"Each row/column has equal 0 and 1 counts, and rows/columns are unique.",
@@ -27,8 +29,4 @@ func (printAdapter) RenderPDFBody(pdf *fpdf.Fpdf, payload any) error {
 		takuzu.RenderTakuzuPDFBodyWithRules(pdf, data, takuzuPlusRules)
 	}
 	return nil
-}
-
-func init() {
-	pdfexport.RegisterPrintAdapter(printAdapter{})
 }

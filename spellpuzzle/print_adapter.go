@@ -11,6 +11,8 @@ import (
 
 type printAdapter struct{}
 
+var PDFPrintAdapter = printAdapter{}
+
 type printPayload struct {
 	Board      board
 	Placements []WordPlacement
@@ -225,8 +227,4 @@ func drawSpellPuzzleBank(pdf *fpdf.Fpdf, bank []rune, layout printLayout) {
 		pdf.SetXY(x, layout.bankY+(layout.tileSize-lineH)/2)
 		pdf.CellFormat(layout.tileSize, lineH, strings.ToUpper(string(letter)), "", 0, "C", false, 0, "")
 	}
-}
-
-func init() {
-	pdfexport.RegisterPrintAdapter(printAdapter{})
 }

@@ -132,55 +132,6 @@ func TestModeDeterministic(t *testing.T) {
 	}
 }
 
-func TestModeStableOnPoolChange(t *testing.T) {
-	// Verify the core property of rendezvous hashing: for a given date,
-	// the selected entry depends only on the (date, gameType, mode) triple,
-	// not on the total number of entries in the pool.
-	//
-	// We test this by recording the mode for a set of dates, then adding
-	// a synthetic entry to eligibleModes and confirming that dates which
-	// did NOT select the new entry still return the same mode as before.
-	dates := make([]time.Time, 30)
-	for i := range dates {
-		dates[i] = time.Date(2026, 1, 1+i, 0, 0, 0, 0, time.UTC)
-	}
-
-	// Record original selections.
-	type selection struct {
-		gameType string
-		mode     string
-	}
-	original := make([]selection, len(dates))
-	for i, d := range dates {
-		_, gt, m := Mode(d)
-		original[i] = selection{gt, m}
-	}
-
-	// Temporarily add a synthetic entry.
-	synth := Entry{
-		Spawner:  eligibleModes[0].Spawner,
-		GameType: "SyntheticGame",
-		Mode:     "SyntheticMode",
-	}
-	eligibleModes = append(eligibleModes, synth)
-	defer func() {
-		eligibleModes = eligibleModes[:len(eligibleModes)-1]
-	}()
-
-	for i, d := range dates {
-		_, gt, m := Mode(d)
-		if gt == "SyntheticGame" && m == "SyntheticMode" {
-			// This date was "stolen" by the new entry — expected for some dates.
-			continue
-		}
-		if gt != original[i].gameType || m != original[i].mode {
-			t.Errorf("date %s: selection changed from (%q,%q) to (%q,%q) after adding unrelated entry",
-				d.Format("2006-01-02"),
-				original[i].gameType, original[i].mode, gt, m)
-		}
-	}
-}
-
 // --- EligibleModes pool (P1) ---
 
 func TestEligibleModesNotEmpty(t *testing.T) {

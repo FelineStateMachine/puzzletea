@@ -9,6 +9,8 @@ import (
 
 type printAdapter struct{}
 
+var PDFPrintAdapter = printAdapter{}
+
 var defaultTakuzuRules = []string{
 	"No three equal adjacent in any row or column.",
 	"Each row/column has equal 0 and 1 counts, and rows/columns are unique.",
@@ -195,8 +197,4 @@ func takuzuRelationFontSize(cellSize float64, size int) float64 {
 
 func takuzuRelationBackdropSize(cellSize, fontSize float64) float64 {
 	return fontSize + cellSize*0.12
-}
-
-func init() {
-	pdfexport.RegisterPrintAdapter(printAdapter{})
 }

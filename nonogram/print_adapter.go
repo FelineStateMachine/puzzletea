@@ -10,6 +10,8 @@ import (
 
 type printAdapter struct{}
 
+var PDFPrintAdapter = printAdapter{}
+
 func (printAdapter) CanonicalGameType() string { return "Nonogram" }
 func (printAdapter) Aliases() []string         { return []string{"nonogram"} }
 
@@ -276,8 +278,4 @@ func drawNonogramMajorLines(
 		y := puzzleStartY + float64(row)*cellSize
 		pdf.Line(puzzleStartX, y, puzzleStartX+float64(width)*cellSize, y)
 	}
-}
-
-func init() {
-	pdfexport.RegisterPrintAdapter(printAdapter{})
 }

@@ -6,6 +6,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/FelineStateMachine/puzzletea/puzzle"
 )
 
 func OrderPuzzlesForPrint(puzzles []Puzzle, seed string) []Puzzle {
@@ -18,10 +20,10 @@ func OrderPuzzlesForPrint(puzzles []Puzzle, seed string) []Puzzle {
 		if ordered[i].DifficultyScore != ordered[j].DifficultyScore {
 			return ordered[i].DifficultyScore < ordered[j].DifficultyScore
 		}
-		if c := strings.Compare(normalizeToken(ordered[i].Category), normalizeToken(ordered[j].Category)); c != 0 {
+		if c := strings.Compare(puzzle.NormalizeName(ordered[i].Category), puzzle.NormalizeName(ordered[j].Category)); c != 0 {
 			return c < 0
 		}
-		if c := strings.Compare(normalizeToken(ordered[i].ModeSelection), normalizeToken(ordered[j].ModeSelection)); c != 0 {
+		if c := strings.Compare(puzzle.NormalizeName(ordered[i].ModeSelection), puzzle.NormalizeName(ordered[j].ModeSelection)); c != 0 {
 			return c < 0
 		}
 		if c := strings.Compare(ordered[i].SourceFileName, ordered[j].SourceFileName); c != 0 {
@@ -93,12 +95,5 @@ func seededRand(seed string) *rand.Rand {
 }
 
 func sameCategory(a, b Puzzle) bool {
-	return normalizeToken(a.Category) == normalizeToken(b.Category)
-}
-
-func normalizeToken(s string) string {
-	s = strings.ToLower(strings.TrimSpace(s))
-	s = strings.ReplaceAll(s, "-", " ")
-	s = strings.ReplaceAll(s, "_", " ")
-	return strings.Join(strings.Fields(s), " ")
+	return puzzle.NormalizeName(a.Category) == puzzle.NormalizeName(b.Category)
 }

@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/FelineStateMachine/puzzletea/builtinprint"
 	"github.com/FelineStateMachine/puzzletea/pdfexport"
 	"github.com/FelineStateMachine/puzzletea/puzzle"
 	"github.com/FelineStateMachine/puzzletea/registry"
@@ -43,6 +44,8 @@ func init() {
 }
 
 func runExportPDF(cmd *cobra.Command, args []string) error {
+	builtinprint.Register()
+
 	docs, err := pdfexport.ParseJSONLFiles(args)
 	if err != nil {
 		return err
@@ -201,10 +204,7 @@ func annotateDifficulty(puzzles []pdfexport.Puzzle, lookup map[string]map[string
 }
 
 func normalizeDifficultyToken(s string) string {
-	s = strings.ToLower(strings.TrimSpace(s))
-	s = strings.ReplaceAll(s, "-", " ")
-	s = strings.ReplaceAll(s, "_", " ")
-	return strings.Join(strings.Fields(s), " ")
+	return puzzle.NormalizeName(s)
 }
 
 // parseCoverColor parses a cover color string in hex ("#RRGGBB") or

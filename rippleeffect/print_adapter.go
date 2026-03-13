@@ -9,6 +9,8 @@ import (
 
 type printAdapter struct{}
 
+var PDFPrintAdapter = printAdapter{}
+
 func (printAdapter) CanonicalGameType() string { return "Ripple Effect" }
 func (printAdapter) Aliases() []string         { return []string{"ripple effect", "rippleeffect", "ripple"} }
 
@@ -118,8 +120,4 @@ func drawRippleEffectGiven(pdf *fpdf.Fpdf, x, y, cellSize float64, text string) 
 	lineH := fontSize * 0.9
 	pdf.SetXY(x, y+(cellSize-lineH)/2)
 	pdf.CellFormat(cellSize, lineH, text, "", 0, "C", false, 0, "")
-}
-
-func init() {
-	pdfexport.RegisterPrintAdapter(printAdapter{})
 }

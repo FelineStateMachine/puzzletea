@@ -10,6 +10,8 @@ import (
 
 type printAdapter struct{}
 
+var PDFPrintAdapter = printAdapter{}
+
 func (printAdapter) CanonicalGameType() string { return "Hitori" }
 func (printAdapter) Aliases() []string         { return []string{"hitori"} }
 
@@ -98,8 +100,4 @@ func drawHitoriCellNumber(pdf *fpdf.Fpdf, x, y, cellSize float64, text string) {
 	lineH := fontSize * 0.92
 	pdf.SetXY(x, y+(cellSize-lineH)/2)
 	pdf.CellFormat(cellSize, lineH, text, "", 0, "C", false, 0, "")
-}
-
-func init() {
-	pdfexport.RegisterPrintAdapter(printAdapter{})
 }

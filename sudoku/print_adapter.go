@@ -9,6 +9,8 @@ import (
 
 type printAdapter struct{}
 
+var PDFPrintAdapter = printAdapter{}
+
 func (printAdapter) CanonicalGameType() string { return "Sudoku" }
 func (printAdapter) Aliases() []string         { return []string{"sudoku"} }
 
@@ -104,8 +106,4 @@ func drawSudokuGivens(pdf *fpdf.Fpdf, startX, startY, cellSize float64, givens [
 			pdf.CellFormat(cellSize, lineH, strconv.Itoa(value), "", 0, "C", false, 0, "")
 		}
 	}
-}
-
-func init() {
-	pdfexport.RegisterPrintAdapter(printAdapter{})
 }

@@ -4,11 +4,11 @@ package game
 import (
 	"context"
 	"math/rand/v2"
-	"strings"
 
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
+	"github.com/FelineStateMachine/puzzletea/puzzle"
 )
 
 // Gamer is the interface that an active game instance must implement.
@@ -115,10 +115,7 @@ func (d Definition) Category() Category {
 // NormalizeName lowercases and replaces hyphens/underscores with spaces for
 // fuzzy matching of CLI arguments to game names and aliases.
 func NormalizeName(s string) string {
-	s = strings.ToLower(s)
-	s = strings.ReplaceAll(s, "-", " ")
-	s = strings.ReplaceAll(s, "_", " ")
-	return strings.TrimSpace(s)
+	return puzzle.NormalizeName(s)
 }
 
 // SpawnCompleteMsg is sent when an async Spawn() call finishes.

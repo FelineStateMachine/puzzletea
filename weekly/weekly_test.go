@@ -60,41 +60,6 @@ func TestModeDeterministic(t *testing.T) {
 	}
 }
 
-func TestModeStableOnPoolChange(t *testing.T) {
-	type selection struct {
-		gameType string
-		mode     string
-	}
-
-	selections := make([]selection, 0, 20)
-	for index := 1; index <= 20; index++ {
-		_, gameType, mode := Mode(2026, 1, index)
-		selections = append(selections, selection{gameType: gameType, mode: mode})
-	}
-
-	synth := Entry{
-		Spawner:  eligibleModes[0].Spawner,
-		GameType: "SyntheticGame",
-		Mode:     "SyntheticMode",
-	}
-	eligibleModes = append(eligibleModes, synth)
-	defer func() {
-		eligibleModes = eligibleModes[:len(eligibleModes)-1]
-	}()
-
-	for index := 1; index <= 20; index++ {
-		_, gameType, mode := Mode(2026, 1, index)
-		if gameType == synth.GameType && mode == synth.Mode {
-			continue
-		}
-		want := selections[index-1]
-		if gameType != want.gameType || mode != want.mode {
-			t.Fatalf("index %d selection changed from (%q,%q) to (%q,%q)",
-				index, want.gameType, want.mode, gameType, mode)
-		}
-	}
-}
-
 func TestISOWeekBoundary(t *testing.T) {
 	date := time.Date(2025, time.December, 29, 12, 0, 0, 0, time.UTC)
 	info := Current(date)

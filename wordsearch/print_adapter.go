@@ -9,6 +9,8 @@ import (
 
 type printAdapter struct{}
 
+var PDFPrintAdapter = printAdapter{}
+
 func (printAdapter) CanonicalGameType() string { return "Word Search" }
 func (printAdapter) Aliases() []string {
 	return []string{"word search", "wordsearch"}
@@ -253,8 +255,4 @@ func minLineCountColumn(lineCounts []int) int {
 		}
 	}
 	return idx
-}
-
-func init() {
-	pdfexport.RegisterPrintAdapter(printAdapter{})
 }

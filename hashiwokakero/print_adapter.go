@@ -11,6 +11,8 @@ import (
 
 type printAdapter struct{}
 
+var PDFPrintAdapter = printAdapter{}
+
 func (printAdapter) CanonicalGameType() string { return "Hashiwokakero" }
 func (printAdapter) Aliases() []string {
 	return []string{"hashi", "hashiwokakero", "hashi wokakero"}
@@ -132,8 +134,4 @@ func drawHashiIslandNumber(pdf *fpdf.Fpdf, cx, cy, radius float64, required int)
 	lineH := fontSize * 0.88
 	pdf.SetXY(cx-radius, cy-lineH/2)
 	pdf.CellFormat(radius*2, lineH, text, "", 0, "C", false, 0, "")
-}
-
-func init() {
-	pdfexport.RegisterPrintAdapter(printAdapter{})
 }
