@@ -33,16 +33,32 @@ var (
 
 type viewState int
 
+const (
+	mainMenuActionPlay    = "play"
+	mainMenuActionStats   = "stats"
+	mainMenuActionOptions = "options"
+	mainMenuActionQuit    = "quit"
+
+	playMenuActionCreate   = "create"
+	playMenuActionContinue = "continue"
+	playMenuActionDaily    = "daily"
+	playMenuActionWeekly   = "weekly"
+	playMenuActionSeeded   = "seeded"
+
+	optionsMenuActionTheme  = "theme"
+	optionsMenuActionGuides = "guides"
+)
+
 var mainMenuItems = []ui.MenuItem{
-	{ItemTitle: "Play", Desc: "start or continue a puzzle"},
-	{ItemTitle: "Stats", Desc: "your progress"},
-	{ItemTitle: "Options", Desc: "configure and learn"},
-	{ItemTitle: "Quit", Desc: "exit puzzletea"},
+	{Action: mainMenuActionPlay, ItemTitle: "Play", Desc: "start or continue a puzzle"},
+	{Action: mainMenuActionStats, ItemTitle: "Stats", Desc: "your progress"},
+	{Action: mainMenuActionOptions, ItemTitle: "Options", Desc: "configure and learn"},
+	{Action: mainMenuActionQuit, ItemTitle: "Quit", Desc: "exit puzzletea"},
 }
 
 var optionsMenuItems = []ui.MenuItem{
-	{ItemTitle: "Theme", Desc: "change colors"},
-	{ItemTitle: "Guides", Desc: "learn the rules"},
+	{Action: optionsMenuActionTheme, ItemTitle: "Theme", Desc: "change colors"},
+	{Action: optionsMenuActionGuides, ItemTitle: "Guides", Desc: "learn the rules"},
 }
 
 const (
@@ -241,10 +257,10 @@ func (m model) Init() tea.Cmd {
 func buildPlayMenuItems(now time.Time, currentWeeklyIndex int) []ui.MenuItem {
 	year, week := now.ISOWeek()
 	return []ui.MenuItem{
-		{ItemTitle: "Create", Desc: "a new puzzle"},
-		{ItemTitle: "Continue", Desc: "a previously played puzzle"},
-		{ItemTitle: "Daily", Desc: now.Format("Jan _2 06")},
-		{ItemTitle: "Weekly", Desc: "Week " + formatTwoDigits(week) + "-" + strconv.Itoa(year) + " #" + formatWeeklyMenuIndex(currentWeeklyIndex)},
-		{ItemTitle: "Seeded", Desc: "enter a specific seed"},
+		{Action: playMenuActionCreate, ItemTitle: "Create", Desc: "a new puzzle"},
+		{Action: playMenuActionContinue, ItemTitle: "Continue", Desc: "a previously played puzzle"},
+		{Action: playMenuActionDaily, ItemTitle: "Daily", Desc: now.Format("Jan _2 06")},
+		{Action: playMenuActionWeekly, ItemTitle: "Weekly", Desc: "Week " + formatTwoDigits(week) + "-" + strconv.Itoa(year) + " #" + formatWeeklyMenuIndex(currentWeeklyIndex)},
+		{Action: playMenuActionSeeded, ItemTitle: "Seeded", Desc: "enter a specific seed"},
 	}
 }

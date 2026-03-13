@@ -4,8 +4,16 @@ package ui
 type MenuItem struct {
 	ItemTitle string
 	Desc      string
+	Action    string
 }
 
 func (i MenuItem) Title() string       { return i.ItemTitle }
 func (i MenuItem) Description() string { return i.Desc }
 func (i MenuItem) FilterValue() string { return i.ItemTitle }
+
+func (i MenuItem) ActionID() string {
+	if i.Action != "" {
+		return i.Action
+	}
+	return i.ItemTitle
+}

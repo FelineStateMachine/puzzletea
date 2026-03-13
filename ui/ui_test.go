@@ -36,6 +36,22 @@ func TestMenuItemFilterValue(t *testing.T) {
 	}
 }
 
+func TestMenuItemActionID(t *testing.T) {
+	t.Run("uses stable action when present", func(t *testing.T) {
+		item := MenuItem{ItemTitle: "Generate", Action: "create"}
+		if got := item.ActionID(); got != "create" {
+			t.Fatalf("ActionID() = %q, want %q", got, "create")
+		}
+	})
+
+	t.Run("falls back to title for legacy callers", func(t *testing.T) {
+		item := MenuItem{ItemTitle: "Generate"}
+		if got := item.ActionID(); got != "Generate" {
+			t.Fatalf("ActionID() = %q, want %q", got, "Generate")
+		}
+	})
+}
+
 // --- FormatStatus (P0) ---
 
 func TestFormatStatus(t *testing.T) {
