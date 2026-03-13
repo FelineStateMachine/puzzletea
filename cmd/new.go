@@ -87,7 +87,7 @@ func launchNewGame(gameArg, modeArg, seed string, cfg *config.Config) error {
 	name := sessionflow.GenerateUniqueName(s)
 	g = g.SetTitle(name)
 
-	rec, err := sessionflow.CreateRecord(s, g, name, entry.Definition.Name, modeTitle)
+	rec, err := sessionflow.CreateRecord(s, g, name, entry.Definition.Name, modeTitle, store.NormalRunMetadata())
 	if err != nil {
 		return err
 	}
@@ -155,7 +155,7 @@ func launchSeededGame(seed string, cfg *config.Config) error {
 	}
 	g = g.SetTitle(name)
 
-	rec, err := sessionflow.CreateRecord(s, g, name, gameType, modeTitle)
+	rec, err := sessionflow.CreateRecord(s, g, name, gameType, modeTitle, store.SeededRunMetadata(seed))
 	if err != nil {
 		return err
 	}

@@ -5,7 +5,7 @@ import (
 )
 
 func (m model) handleHelpSelectEnter() (tea.Model, tea.Cmd) {
-	entry, ok := selectedCategoryEntry(m.nav.helpSelectList.SelectedItem())
+	entry, ok := selectedCategoryEntry(m.help.selectList.SelectedItem())
 	if !ok {
 		return m, nil
 	}

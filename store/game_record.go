@@ -7,6 +7,15 @@ type (
 	RunKind    string
 )
 
+type RunMetadata struct {
+	Kind       RunKind
+	Date       *time.Time
+	WeekYear   int
+	WeekNumber int
+	WeekIndex  int
+	SeedText   string
+}
+
 const (
 	StatusNew        GameStatus = "new"
 	StatusInProgress GameStatus = "in_progress"

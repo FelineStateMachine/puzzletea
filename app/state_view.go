@@ -44,7 +44,7 @@ func (m model) viewContent() string {
 	case helpSelectView:
 		return m.renderPanel(
 			"How to Play",
-			m.nav.helpSelectList.View(),
+			m.help.selectList.View(),
 			"↑/↓ navigate • enter select • esc back",
 		)
 	case helpDetailView:
@@ -63,15 +63,15 @@ func (m model) viewContent() string {
 }
 
 func (m model) renderContinueView() string {
-	if len(m.nav.continueGames) == 0 {
+	if len(m.cont.games) == 0 {
 		return m.renderPanel("Saved Games", "No saved games yet.", "esc back")
 	}
 
 	footer := "↑/↓ navigate • enter resume • esc back"
-	if pg := ui.TablePagination(m.nav.continueTable); pg != "" {
+	if pg := ui.TablePagination(m.cont.table); pg != "" {
 		footer = pg + "  " + footer
 	}
-	return m.renderPanel("Saved Games", m.nav.continueTable.View(), footer)
+	return m.renderPanel("Saved Games", m.cont.table.View(), footer)
 }
 
 func (m model) renderGameView() string {

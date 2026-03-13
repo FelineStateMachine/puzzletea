@@ -123,6 +123,7 @@ func (m model) handleSpawnComplete(jobID int64, msg game.SpawnCompleteMsg) (tea.
 		request.name,
 		request.gameType,
 		request.modeTitle,
+		request.run,
 	)
 	if err != nil {
 		m = m.setErrorf("Started puzzle, but could not create a save record: %v", err)

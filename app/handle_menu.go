@@ -55,7 +55,7 @@ func (m model) handlePlayMenuEnter() (tea.Model, tea.Cmd) {
 		m = m.updateCategoryDetailViewport()
 		m = m.clearNotice()
 	case "Continue":
-		m.nav.continueTable, m.nav.continueGames = ui.InitContinueTable(m.store, m.height)
+		m.cont.table, m.cont.games = ui.InitContinueTable(m.store, m.height)
 		m.state = continueView
 		m = m.clearNotice()
 	case "Daily":
@@ -74,9 +74,9 @@ func (m model) handleOptionsMenuEnter() (tea.Model, tea.Cmd) {
 	case "Theme":
 		return m.handleThemeEnter()
 	case "Guides":
-		m.nav.helpSelectList = ui.InitList(gameCategoryItems, "How to Play")
-		listWidth, listHeight := helpSelectListSize(m.width, m.height, m.nav.helpSelectList)
-		m.nav.helpSelectList.SetSize(listWidth, listHeight)
+		m.help.selectList = ui.InitList(gameCategoryItems, "How to Play")
+		listWidth, listHeight := helpSelectListSize(m.width, m.height, m.help.selectList)
+		m.help.selectList.SetSize(listWidth, listHeight)
 		m.state = helpSelectView
 		m = m.clearNotice()
 	}

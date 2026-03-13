@@ -5,6 +5,7 @@ import (
 
 	"github.com/FelineStateMachine/puzzletea/daily"
 	sessionflow "github.com/FelineStateMachine/puzzletea/session"
+	"github.com/FelineStateMachine/puzzletea/store"
 
 	tea "charm.land/bubbletea/v2"
 )
@@ -40,6 +41,7 @@ func (m model) handleDailyPuzzle() (tea.Model, tea.Cmd) {
 		name:        name,
 		gameType:    gameType,
 		modeTitle:   modeTitle,
+		run:         store.DailyRunMetadata(today),
 		returnState: playMenuView,
 		exitState:   mainMenuView,
 	}

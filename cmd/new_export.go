@@ -39,7 +39,7 @@ func runNewExport(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("unknown game %q", args[0])
 	}
 	if !pdfexport.HasPrintAdapter(entry.Definition.Name) {
-		return nil
+		return fmt.Errorf("game %q does not support export", entry.Definition.Name)
 	}
 
 	modeArg := ""

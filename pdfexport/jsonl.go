@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
@@ -66,6 +67,7 @@ func ParseJSONLFile(path string) (PackDocument, error) {
 	puzzles := []Puzzle{}
 	lineNo := 0
 	seenAny := false
+	unsupportedCategories := []string{}
 
 	for scanner.Scan() {
 		lineNo++
@@ -104,6 +106,9 @@ func ParseJSONLFile(path string) (PackDocument, error) {
 
 		adapter, ok := LookupPrintAdapter(category)
 		if !ok {
+			if category != "" && !slices.Contains(unsupportedCategories, category) {
+				unsupportedCategories = append(unsupportedCategories, category)
+			}
 			continue
 		}
 		payload, err := adapter.BuildPDFPayload(p.SaveData)
@@ -141,6 +146,16 @@ func ParseJSONLFile(path string) (PackDocument, error) {
 	}
 	if !seenAny {
 		return PackDocument{}, fmt.Errorf("%s: input jsonl is empty", path)
+	}
+	if len(puzzles) == 0 {
+		if len(unsupportedCategories) > 0 {
+			return PackDocument{}, fmt.Errorf(
+				"%s: no printable puzzles found; unsupported categories: %s",
+				path,
+				strings.Join(unsupportedCategories, ", "),
+			)
+		}
+		return PackDocument{}, fmt.Errorf("%s: no printable puzzles found", path)
 	}
 	if doc.Metadata.Count == 0 {
 		doc.Metadata.Count = len(puzzles)

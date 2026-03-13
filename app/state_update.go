@@ -37,11 +37,11 @@ func (m model) updateActiveState(msg tea.Msg) (model, tea.Cmd) {
 	case modeSelectView:
 		m.nav.modeSelectList, cmd = m.nav.modeSelectList.Update(msg)
 	case continueView:
-		m.nav.continueTable, cmd = m.nav.continueTable.Update(msg)
+		m.cont.table, cmd = m.cont.table.Update(msg)
 	case weeklyView:
-		m.nav.weeklyTable, cmd = m.nav.weeklyTable.Update(msg)
+		m.weekly.table, cmd = m.weekly.table.Update(msg)
 	case helpSelectView:
-		m.nav.helpSelectList, cmd = m.nav.helpSelectList.Update(msg)
+		m.help.selectList, cmd = m.help.selectList.Update(msg)
 	case helpDetailView:
 		m.help.viewport, cmd = m.help.viewport.Update(msg)
 	case statsView:
@@ -63,18 +63,18 @@ func (m model) updateActiveState(msg tea.Msg) (model, tea.Cmd) {
 func (m model) resizeActiveState(menuW int) model {
 	switch m.state {
 	case seedInputView:
-		m.nav.seedInput.SetWidth(min(m.width, 48))
+		m.seed.input.SetWidth(min(m.width, 48))
 	case modeSelectView:
 		m.nav.modeSelectList.SetSize(menuW, min(m.height, ui.ListHeight(m.nav.modeSelectList)))
 	case continueView:
-		m.nav.continueTable.SetWidth(m.width)
-		visibleRows := min(len(m.nav.continueGames), ui.MaxTableRows)
-		m.nav.continueTable.SetHeight(min(m.height, visibleRows))
+		m.cont.table.SetWidth(m.width)
+		visibleRows := min(len(m.cont.games), ui.MaxTableRows)
+		m.cont.table.SetHeight(min(m.height, visibleRows))
 	case weeklyView:
 		m = m.refreshWeeklyBrowser()
 	case helpSelectView:
-		listWidth, listHeight := helpSelectListSize(m.width, m.height, m.nav.helpSelectList)
-		m.nav.helpSelectList.SetSize(listWidth, listHeight)
+		listWidth, listHeight := helpSelectListSize(m.width, m.height, m.help.selectList)
+		m.help.selectList.SetSize(listWidth, listHeight)
 	case helpDetailView:
 		m = m.updateHelpDetailViewport()
 	case themeSelectView:

@@ -34,6 +34,7 @@ func (m model) handleModeSelectEnter() (tea.Model, tea.Cmd) {
 		name:        sessionflow.GenerateUniqueName(m.store),
 		gameType:    m.nav.selectedCategory.Definition.Name,
 		modeTitle:   m.nav.selectedModeTitle,
+		run:         store.NormalRunMetadata(),
 		returnState: modeSelectView,
 		exitState:   mainMenuView,
 	}
@@ -42,11 +43,11 @@ func (m model) handleModeSelectEnter() (tea.Model, tea.Cmd) {
 }
 
 func (m model) handleContinueEnter() (tea.Model, tea.Cmd) {
-	idx := m.nav.continueTable.Cursor()
-	if idx < 0 || idx >= len(m.nav.continueGames) {
+	idx := m.cont.table.Cursor()
+	if idx < 0 || idx >= len(m.cont.games) {
 		return m, nil
 	}
-	rec := m.nav.continueGames[idx]
+	rec := m.cont.games[idx]
 	m, _ = m.importAndActivateRecord(rec)
 	return m, nil
 }

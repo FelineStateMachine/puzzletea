@@ -71,17 +71,25 @@ type navigationState struct {
 	modeSelectList    list.Model
 	selectedCategory  registry.Entry
 	selectedModeTitle string
-	continueTable     table.Model
-	continueGames     []store.GameRecord
-	weeklyTable       table.Model
-	weeklyRows        []weeklyRow
-	weeklyCursor      time.Time
-	seedInput         textinput.Model
-	seedModeOptions   []seedModeOption
-	seedModeIndex     int
-	seedFocus         seedInputFocus
-	lastSeedModeKey   string
-	helpSelectList    list.Model
+}
+
+type continueState struct {
+	table table.Model
+	games []store.GameRecord
+}
+
+type weeklyState struct {
+	table  table.Model
+	rows   []weeklyRow
+	cursor time.Time
+}
+
+type seedState struct {
+	input       textinput.Model
+	modeOptions []seedModeOption
+	modeIndex   int
+	focus       seedInputFocus
+	lastModeKey string
 }
 
 type sessionState struct {
@@ -97,6 +105,7 @@ type sessionState struct {
 }
 
 type helpState struct {
+	selectList    list.Model
 	category      registry.Entry
 	viewport      viewport.Model
 	renderer      *glamour.TermRenderer
@@ -136,6 +145,7 @@ type spawnRequest struct {
 	name        string
 	gameType    string
 	modeTitle   string
+	run         store.RunMetadata
 	returnState viewState
 	exitState   viewState
 	weeklyInfo  *weekly.Info
@@ -158,7 +168,10 @@ type model struct {
 	state viewState
 
 	nav     navigationState
+	cont    continueState
 	session sessionState
+	seed    seedState
+	weekly  weeklyState
 	help    helpState
 	stats   statsState
 	theme   themeState

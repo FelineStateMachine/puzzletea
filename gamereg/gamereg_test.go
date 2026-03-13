@@ -69,4 +69,7 @@ func TestNewEntryKeepsMetadataAndRuntimeModesAligned(t *testing.T) {
 	if entry.Modes[0].Seeded == nil {
 		t.Fatal("Modes[0].Seeded = nil, want seeded spawner")
 	}
+	if entry.Print != nil {
+		t.Fatal("Print = non-nil, want nil")
+	}
 }

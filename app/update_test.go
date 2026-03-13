@@ -203,7 +203,7 @@ func TestHandleSeedConfirmDoesNotResumeStatusWhenImportFails(t *testing.T) {
 	m := model{
 		state: seedInputView,
 		store: s,
-		nav:   navigationState{seedInput: ti},
+		seed:  seedState{input: ti},
 	}
 
 	next, _ := m.handleSeedConfirm()
@@ -232,27 +232,25 @@ func TestSeedInputSelectorCyclesAndPersistsDefault(t *testing.T) {
 
 	m := model{
 		state: seedInputView,
-		nav: navigationState{
-			seedModeOptions: options,
-			seedFocus:       seedFocusMode,
+		seed: seedState{
+			modeOptions: options,
+			focus:       seedFocusMode,
 		},
 	}
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyRight})
 	got := next.(model)
 
-	if got.nav.seedModeIndex != 1 {
-		t.Fatalf("seedModeIndex = %d, want 1", got.nav.seedModeIndex)
+	if got.seed.modeIndex != 1 {
+		t.Fatalf("seedModeIndex = %d, want 1", got.seed.modeIndex)
 	}
-	if got.nav.lastSeedModeKey != options[1].key {
-		t.Fatalf("lastSeedModeKey = %q, want %q", got.nav.lastSeedModeKey, options[1].key)
+	if got.seed.lastModeKey != options[1].key {
+		t.Fatalf("lastSeedModeKey = %q, want %q", got.seed.lastModeKey, options[1].key)
 	}
 
 	reopenedModel, _ := (model{
 		state: playMenuView,
-		nav: navigationState{
-			lastSeedModeKey: got.nav.lastSeedModeKey,
-		},
+		seed:  seedState{lastModeKey: got.seed.lastModeKey},
 	}).enterSeedInputView()
 
 	if reopenedModel.state != seedInputView {
@@ -276,10 +274,10 @@ func TestHandleSeedConfirmUsesSelectedSpecificMode(t *testing.T) {
 	m := model{
 		state: seedInputView,
 		store: s,
-		nav: navigationState{
-			seedInput:       ti,
-			seedModeOptions: options,
-			seedModeIndex:   1,
+		seed: seedState{
+			input:       ti,
+			modeOptions: options,
+			modeIndex:   1,
 		},
 	}
 
@@ -491,8 +489,8 @@ func TestEnterOnSolvedLatestWeeklyCompletesAndQueuesNext(t *testing.T) {
 			weeklyAdvance:   &weekly.Info{Year: year, Week: weekNumber, Index: 1},
 			completionSaved: false,
 		},
-		nav: navigationState{
-			weeklyCursor: weekly.StartOfWeek(year, weekNumber, time.Local),
+		weekly: weeklyState{
+			cursor: weekly.StartOfWeek(year, weekNumber, time.Local),
 		},
 	}
 
@@ -528,14 +526,14 @@ func TestMoveWeeklyWeekDoesNotAdvancePastCurrentWeek(t *testing.T) {
 
 	m := model{
 		store: s,
-		nav: navigationState{
-			weeklyCursor: currentCursor,
+		weekly: weeklyState{
+			cursor: currentCursor,
 		},
 	}
 
 	got := m.moveWeeklyWeek(1)
-	if !got.nav.weeklyCursor.Equal(currentCursor) {
-		t.Fatalf("weeklyCursor = %v, want %v", got.nav.weeklyCursor, currentCursor)
+	if !got.weekly.cursor.Equal(currentCursor) {
+		t.Fatalf("weeklyCursor = %v, want %v", got.weekly.cursor, currentCursor)
 	}
 }
 

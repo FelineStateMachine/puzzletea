@@ -18,6 +18,7 @@ type Entry struct {
 	Help       string
 	Import     func([]byte) (game.Gamer, error)
 	Modes      []ModeEntry
+	Print      game.PrintAdapter
 }
 
 type EntrySpec struct {
@@ -25,6 +26,7 @@ type EntrySpec struct {
 	Help       string
 	Import     func([]byte) (game.Gamer, error)
 	Modes      []game.Mode
+	Print      game.PrintAdapter
 }
 
 func BuildModeDefs(modes []game.Mode) []puzzle.ModeDef {
@@ -95,5 +97,6 @@ func NewEntry(spec EntrySpec) Entry {
 		Help:       spec.Help,
 		Import:     spec.Import,
 		Modes:      entries,
+		Print:      spec.Print,
 	}
 }

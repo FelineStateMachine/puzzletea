@@ -54,3 +54,17 @@ func TestEntriesStayAlignedWithDefinitions(t *testing.T) {
 		}
 	}
 }
+
+func TestPrintAdaptersStayAlignedWithRegistryEntries(t *testing.T) {
+	for _, entry := range Entries() {
+		if entry.Definition.Name == "Lights Out" {
+			if entry.Print != nil {
+				t.Fatal("Lights Out should not expose a print adapter")
+			}
+			continue
+		}
+		if entry.Print == nil {
+			t.Fatalf("%s missing print adapter", entry.Definition.Name)
+		}
+	}
+}

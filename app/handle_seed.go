@@ -5,12 +5,13 @@ import (
 	"github.com/FelineStateMachine/puzzletea/registry"
 	"github.com/FelineStateMachine/puzzletea/resolve"
 	sessionflow "github.com/FelineStateMachine/puzzletea/session"
+	"github.com/FelineStateMachine/puzzletea/store"
 
 	tea "charm.land/bubbletea/v2"
 )
 
 func (m model) handleSeedConfirm() (tea.Model, tea.Cmd) {
-	seed := sessionflow.NormalizeSeed(m.nav.seedInput.Value())
+	seed := sessionflow.NormalizeSeed(m.seed.input.Value())
 	if seed == "" {
 		return m, nil
 	}
@@ -58,6 +59,7 @@ func (m model) handleSeedConfirm() (tea.Model, tea.Cmd) {
 		name:        name,
 		gameType:    gameType,
 		modeTitle:   modeTitle,
+		run:         store.SeededRunMetadata(seed),
 		returnState: playMenuView,
 		exitState:   mainMenuView,
 	}

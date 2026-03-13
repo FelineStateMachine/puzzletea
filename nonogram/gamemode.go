@@ -74,4 +74,5 @@ var Entry = gamereg.NewEntry(gamereg.EntrySpec{
 	Help:       HelpContent,
 	Import:     game.AdaptImport(ImportModel),
 	Modes:      Modes,
+	Print:      PDFPrintAdapter,
 })

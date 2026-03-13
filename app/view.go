@@ -57,7 +57,7 @@ func (m model) gameSelectViewContent() string {
 
 func (m model) weeklyViewContent() string {
 	title := "Weekly Gauntlet — " + m.weeklyPanelTitle()
-	if len(m.nav.weeklyRows) == 0 {
+	if len(m.weekly.rows) == 0 {
 		body := "No completed puzzles for this week yet."
 		if m.isCurrentWeeklySelection() {
 			body = "No weekly puzzles are available."
@@ -73,11 +73,11 @@ func (m model) weeklyViewContent() string {
 	if !m.isCurrentWeeklySelection() {
 		footer = "←/→ week • enter review • esc back"
 	}
-	if pg := ui.TablePagination(m.nav.weeklyTable); pg != "" {
+	if pg := ui.TablePagination(m.weekly.table); pg != "" {
 		footer = pg + "  " + footer
 	}
 
-	description := m.nav.weeklyTable.View()
+	description := m.weekly.table.View()
 	if !m.isCurrentWeeklySelection() {
 		description = lipgloss.JoinVertical(
 			lipgloss.Left,

@@ -75,46 +75,46 @@ func (m model) enterSeedInputView() (model, tea.Cmd) {
 	ti.SetWidth(min(m.width, 48))
 
 	options := buildSeedModeOptions(registry.Definitions())
-	index := findSeedModeIndex(options, m.nav.lastSeedModeKey)
+	index := findSeedModeIndex(options, m.seed.lastModeKey)
 
-	m.nav.seedInput = ti
-	m.nav.seedModeOptions = options
-	m.nav.seedModeIndex = index
-	m.nav.seedFocus = seedFocusText
+	m.seed.input = ti
+	m.seed.modeOptions = options
+	m.seed.modeIndex = index
+	m.seed.focus = seedFocusText
 	m.state = seedInputView
-	return m, m.nav.seedInput.Focus()
+	return m, m.seed.input.Focus()
 }
 
 func (m model) currentSeedMode() seedModeOption {
-	if len(m.nav.seedModeOptions) == 0 {
+	if len(m.seed.modeOptions) == 0 {
 		return seedModeOption{label: randomSeedModeLabel}
 	}
-	if m.nav.seedModeIndex < 0 || m.nav.seedModeIndex >= len(m.nav.seedModeOptions) {
-		return m.nav.seedModeOptions[0]
+	if m.seed.modeIndex < 0 || m.seed.modeIndex >= len(m.seed.modeOptions) {
+		return m.seed.modeOptions[0]
 	}
-	return m.nav.seedModeOptions[m.nav.seedModeIndex]
+	return m.seed.modeOptions[m.seed.modeIndex]
 }
 
 func (m model) moveSeedMode(step int) model {
-	if len(m.nav.seedModeOptions) == 0 {
+	if len(m.seed.modeOptions) == 0 {
 		return m
 	}
 
-	index := m.nav.seedModeIndex + step
+	index := m.seed.modeIndex + step
 	for index < 0 {
-		index += len(m.nav.seedModeOptions)
+		index += len(m.seed.modeOptions)
 	}
-	m.nav.seedModeIndex = index % len(m.nav.seedModeOptions)
-	m.nav.lastSeedModeKey = m.currentSeedMode().key
+	m.seed.modeIndex = index % len(m.seed.modeOptions)
+	m.seed.lastModeKey = m.currentSeedMode().key
 	return m
 }
 
 func (m model) setSeedFocus(focus seedInputFocus) (model, tea.Cmd) {
-	m.nav.seedFocus = focus
+	m.seed.focus = focus
 	if focus == seedFocusText {
-		return m, m.nav.seedInput.Focus()
+		return m, m.seed.input.Focus()
 	}
-	m.nav.seedInput.Blur()
+	m.seed.input.Blur()
 	return m, nil
 }
 
@@ -127,34 +127,34 @@ func (m model) handleSeedInputUpdate(msg tea.Msg) (model, tea.Cmd) {
 		case "down", "j":
 			return m.setSeedFocus(seedFocusMode)
 		case "left", "h":
-			if m.nav.seedFocus == seedFocusMode {
+			if m.seed.focus == seedFocusMode {
 				return m.moveSeedMode(-1), nil
 			}
 		case "right", "l":
-			if m.nav.seedFocus == seedFocusMode {
+			if m.seed.focus == seedFocusMode {
 				return m.moveSeedMode(1), nil
 			}
 		}
 	}
 
-	if m.nav.seedFocus != seedFocusText {
+	if m.seed.focus != seedFocusText {
 		return m, nil
 	}
 
 	var cmd tea.Cmd
-	m.nav.seedInput, cmd = m.nav.seedInput.Update(msg)
+	m.seed.input, cmd = m.seed.input.Update(msg)
 	return m, cmd
 }
 
 func (m model) seedInputBody() string {
-	selector := renderSeedModeTitle(m.currentSeedMode().label, m.nav.seedModeIndex)
+	selector := renderSeedModeTitle(m.currentSeedMode().label, m.seed.modeIndex)
 	modePrefix := "  "
-	if m.nav.seedFocus == seedFocusMode {
+	if m.seed.focus == seedFocusMode {
 		modePrefix = ui.CursorStyle().Render("> ")
 	}
 
-	seedInputView := m.nav.seedInput.View()
-	if m.nav.seedFocus != seedFocusText {
+	seedInputView := m.seed.input.View()
+	if m.seed.focus != seedFocusText {
 		seedInputView = strings.Replace(seedInputView, ">", " ", 1)
 	}
 
