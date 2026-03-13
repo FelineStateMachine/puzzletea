@@ -47,6 +47,7 @@ func TestContinueViewStaysAtNaturalTableWidth(t *testing.T) {
 		GameType: "Sudoku",
 		Mode:     "Medium",
 		Status:   store.StatusInProgress,
+		RunKind:  store.RunKindNormal,
 	}); err != nil {
 		t.Fatal(err)
 	}

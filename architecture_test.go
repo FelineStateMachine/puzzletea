@@ -89,6 +89,15 @@ func TestSessionPackageDoesNotUseNameDerivedRunMetadata(t *testing.T) {
 	})
 }
 
+func TestStoreCreateGameDoesNotUseNameDerivedRunMetadata(t *testing.T) {
+	assertFileDoesNotContain(t, filepath.Join("store", "store.go"), []string{
+		"RunKindForName(",
+		"RunDateForName(",
+		"SeedTextForName(",
+		"WeeklyIdentityForName(",
+	})
+}
+
 func TestPDFExportPackageDoesNotContainMarkdownParseEntrypoints(t *testing.T) {
 	assertFilesDoNotContain(t, "pdfexport", []string{
 		"func ParseMarkdown(",
@@ -130,6 +139,21 @@ func assertPackageDoesNotImport(t *testing.T, dir string, forbidden []string) {
 					t.Fatalf("%s imports forbidden package %q", path, value)
 				}
 			}
+		}
+	}
+}
+
+func assertFileDoesNotContain(t *testing.T, path string, forbidden []string) {
+	t.Helper()
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read %s: %v", path, err)
+	}
+	content := string(data)
+	for _, pattern := range forbidden {
+		if strings.Contains(content, pattern) {
+			t.Fatalf("%s contains forbidden pattern %q", path, pattern)
 		}
 	}
 }

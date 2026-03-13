@@ -193,6 +193,8 @@ func TestHandleSeedConfirmDoesNotResumeStatusWhenImportFails(t *testing.T) {
 		InitialState: "{}",
 		SaveState:    "{}",
 		Status:       store.StatusAbandoned,
+		RunKind:      store.RunKindSeeded,
+		SeedText:     seed,
 	}
 	if err := s.CreateGame(rec); err != nil {
 		t.Fatal(err)
@@ -317,6 +319,7 @@ func TestHandleDailyPuzzleDoesNotResumeStatusWhenImportFails(t *testing.T) {
 			continue
 		}
 		seen[name] = true
+		day := time.Date(d.Year(), d.Month(), d.Day(), 0, 0, 0, 0, d.Location())
 		rec := &store.GameRecord{
 			Name:         name,
 			GameType:     "NoSuchGameType",
@@ -324,6 +327,8 @@ func TestHandleDailyPuzzleDoesNotResumeStatusWhenImportFails(t *testing.T) {
 			InitialState: "{}",
 			SaveState:    "{}",
 			Status:       store.StatusAbandoned,
+			RunKind:      store.RunKindDaily,
+			RunDate:      &day,
 		}
 		if err := s.CreateGame(rec); err != nil {
 			t.Fatal(err)
@@ -473,6 +478,10 @@ func TestEnterOnSolvedLatestWeeklyCompletesAndQueuesNext(t *testing.T) {
 		InitialState: "{}",
 		SaveState:    "{}",
 		Status:       store.StatusInProgress,
+		RunKind:      store.RunKindWeekly,
+		WeekYear:     year,
+		WeekNumber:   weekNumber,
+		WeekIndex:    1,
 	}
 	if err := s.CreateGame(rec); err != nil {
 		t.Fatal(err)
@@ -549,6 +558,10 @@ func TestCurrentWeeklyMenuIndexTracksNextPlayableSlot(t *testing.T) {
 			InitialState: "{}",
 			SaveState:    "{}",
 			Status:       store.StatusCompleted,
+			RunKind:      store.RunKindWeekly,
+			WeekYear:     year,
+			WeekNumber:   weekNumber,
+			WeekIndex:    index,
 		}
 		if err := s.CreateGame(rec); err != nil {
 			t.Fatal(err)

@@ -180,20 +180,7 @@ func (s *Store) CreateGame(rec *GameRecord) error {
 		rec.ModeID = CanonicalModeID(rec.Mode)
 	}
 	if rec.RunKind == "" {
-		rec.RunKind = RunKindForName(rec.Name)
-	}
-	if rec.RunDate == nil {
-		rec.RunDate = RunDateForName(rec.Name)
-	}
-	if rec.SeedText == "" {
-		rec.SeedText = SeedTextForName(rec.Name)
-	}
-	if rec.WeekYear == 0 || rec.WeekNumber == 0 || rec.WeekIndex == 0 {
-		if year, week, index, ok := WeeklyIdentityForName(rec.Name); ok {
-			rec.WeekYear = year
-			rec.WeekNumber = week
-			rec.WeekIndex = index
-		}
+		rec.RunKind = RunKindNormal
 	}
 
 	result, err := s.db.Exec(
