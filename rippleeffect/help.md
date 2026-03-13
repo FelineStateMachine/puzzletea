@@ -16,7 +16,7 @@ Fill each cage with the digits `1` through the cage size, then keep equal digits
 | `Arrows` / `wasd` / `hjkl` | Move cursor |
 | `1`-`9` | Place number |
 | `Backspace` / `Delete` | Clear cell |
-| `Ctrl+H` | Toggle help bar |
+| `Ctrl+H` | Toggle full help |
 | `Ctrl+R` | Reset puzzle |
 | `Escape` | Return to main menu |
 

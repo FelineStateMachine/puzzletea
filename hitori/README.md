@@ -20,11 +20,11 @@ The puzzle is solved when all three rules hold simultaneously.
 | Key | Action |
 |-----|--------|
 | Arrow keys / WASD / hjkl | Move cursor |
+| Mouse left-click | Focus a cell |
 | `x` | Shade cell (toggle) |
 | `z` | Circle cell as confirmed white (toggle) |
 | `Backspace` | Clear cell to unmarked |
 | `Ctrl+H` | Toggle full help |
-| `Ctrl+E` | Toggle debug overlay |
 | `Ctrl+R` | Reset puzzle |
 | `Escape` | Return to main menu |
 

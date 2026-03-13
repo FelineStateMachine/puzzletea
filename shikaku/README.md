@@ -27,7 +27,6 @@ clue and the clue's value equals the rectangle's area.
 | `Backspace` | Cancel preview or delete rectangle at cursor |
 | `Ctrl+R` | Reset puzzle |
 | `Ctrl+H` | Toggle full help |
-| `Ctrl+E` | Toggle debug overlay |
 | `Escape` | Return to main menu |
 
 ### Expansion Mode (after selecting a clue)

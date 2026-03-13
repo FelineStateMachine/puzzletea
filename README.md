@@ -2,19 +2,19 @@
 
 A terminal-based puzzle game collection built with [Bubble Tea](https://github.com/charmbracelet/bubbletea).
 
-Twelve puzzle types, multiple difficulty modes, daily and weekly deterministic challenges, XP progression, 365 color themes, and an explicit game catalog for adding new games.
+Fourteen puzzle games, multiple difficulty modes, daily and weekly deterministic challenges, XP progression, 365 theme options, and an explicit built-in registry plus metadata catalog for adding new games.
 
 ![PuzzleTea menu](vhs/menu.gif)
 
 ## Features
 
-- **13 puzzle games** -- Fillomino, Nonogram, Nurikabe, Ripple Effect, Sudoku, Shikaku, Spell Puzzle, Word Search, Hashiwokakero, Hitori, Lights Out, Takuzu, Takuzu+
+- **14 puzzle games** -- Fillomino, Nonogram, Nurikabe, Ripple Effect, Shikaku, Sudoku, Sudoku RGB, Spell Puzzle, Word Search, Hashiwokakero, Hitori, Lights Out, Takuzu, Takuzu+
 - **Daily puzzles** -- A unique puzzle generated each day using deterministic seeding. Same date, same puzzle for everyone. Streak tracking rewards consecutive daily completions.
 - **Weekly gauntlet** -- Each ISO calendar week has a shared 99-puzzle ladder. The current week unlocks sequentially from `#01` to `#99`; past weeks can be reviewed from completed saves only.
 - **XP and leveling** -- Per-category levels based on victories. Harder modes yield more XP. Daily puzzles grant 2x XP, and weekly puzzles add slot-based bonus XP.
 - **Stats dashboard** -- Profile level, daily streak status, weekly completion progress, victory counts, and XP progress bars per category.
 - **365 color themes** -- Live-preview theme picker with WCAG-compliant contrast enforcement. Dark and light themes included.
-- **Mouse support** -- Click and drag in Nonogram, Nurikabe, Shikaku, Spell Puzzle, and Word Search. Lights Out supports click-to-toggle.
+- **Mouse support** -- Drag interactions in Nonogram, Nurikabe, Shikaku, Spell Puzzle, and Word Search; click-to-focus in Fillomino, Hashiwokakero, Hitori, Sudoku, Sudoku RGB, Takuzu, and Takuzu+; click-to-toggle in Lights Out.
 - **Seeded puzzles** -- Share a seed string to generate identical puzzles across sessions and machines.
 - **Save/load persistence** -- Games auto-save to SQLite. Resume any in-progress game by name.
 
@@ -23,13 +23,14 @@ Twelve puzzle types, multiple difficulty modes, daily and weekly deterministic c
 | Game | Description | Modes |
 |------|-------------|-------|
 | **Fillomino** | Grow numbered regions to their exact sizes | Mini 5x5 through Expert 12x12 |
-| **Nonogram** | Fill cells to match row and column hints | Easy/Medium/Hard across 5x5, 10x10, 15x15, 20x20 |
+| **Nonogram** | Fill cells to match row and column hints | 10 named modes from 5x5 `Mini` to 20x20 `Massive` |
 | **Nurikabe** | Build islands while keeping one connected sea | 5 modes from 5x5 to 12x12 |
 | **Ripple Effect** | Place digits in cages without violating ripple distance | Mini 5x5 through Expert 9x9 |
-| **Shikaku** | Divide grid into rectangles matching cell counts | 5 modes from 7x7 to 11x11 |
+| **Shikaku** | Divide grid into rectangles matching cell counts | Mini 5x5 through Expert 12x12 |
 | **Sudoku** | Classic 9x9 grid | Beginner, Easy, Medium, Hard, Expert, Diabolical |
+| **Sudoku RGB** | Fill a 9x9 grid with three symbols so each row, column, and box contains three of each | Beginner, Easy, Medium, Hard, Expert, Diabolical |
 | **Spell Puzzle** | Connect letters to reveal crossword words and bonus anagrams | Beginner, Easy, Medium, Hard |
-| **Word Search** | Find hidden words in a letter grid | Easy, Medium, Hard (3-8 directions) |
+| **Word Search** | Find hidden words in a letter grid | Easy 10x10, Medium 15x15, Hard 20x20 |
 | **Hashiwokakero** | Connect islands with bridges | 12 modes across 7x7 to 13x13 grids |
 | **Hitori** | Shade cells to eliminate duplicates | 6 modes from 5x5 to 12x12 |
 | **Lights Out** | Toggle lights to turn all off | Easy (3x3) to Extreme (9x9) |
@@ -99,14 +100,18 @@ that week. Current-week puzzles unlock one at a time; older weeks are review-onl
 Start a new game directly:
 
 ```bash
-puzzletea new nonogram medium
+puzzletea new nonogram classic
 puzzletea new fillomino "Hard 10x10"
 puzzletea new ripple-effect "Medium 7x7"
 puzzletea new sudoku hard
+puzzletea new ripeto expert
 puzzletea new spell beginner
 puzzletea new lights-out
-puzzletea new hashi easy
+puzzletea new hashi "Easy 7x7"
 ```
+
+Mode names are matched case-insensitively after normalizing spaces, hyphens,
+and underscores. Multi-word mode titles usually need quotes.
 
 Resume and manage saved games:
 
@@ -167,13 +172,13 @@ puzzletea --theme "Catppuccin Mocha"
 Flag aliases on the root command also work:
 
 ```bash
-puzzletea --new nonogram:medium
+puzzletea --new nonogram:classic
 puzzletea --continue amber-falcon
 ```
 
 ### CLI Aliases
 
-Several shorthand names are accepted for games: `polyomino`/`regions` for Fillomino, `hashi`/`bridges` for Hashiwokakero, `lights` for Lights Out, `islands`/`sea` for Nurikabe, `ripple` for Ripple Effect, `spell`/`spellpuzzle` for Spell Puzzle, `binairo`/`binary` for Takuzu, `binario+` for Takuzu+, `words`/`ws` for Word Search, `rectangles` for Shikaku.
+Several shorthand names are accepted for games: `polyomino`/`regions` for Fillomino, `hashi`/`bridges` for Hashiwokakero, `lights` for Lights Out, `islands`/`sea` for Nurikabe, `ripple` for Ripple Effect, `spell`/`spellpuzzle` for Spell Puzzle, `rgb sudoku`/`ripeto`/`sudoku ripeto` for Sudoku RGB, `binairo`/`binary` for Takuzu, `takuzu plus`/`binario+`/`binario plus` for Takuzu+, `words`/`wordsearch`/`ws` for Word Search, and `rectangles` for Shikaku.
 
 ## Controls
 
@@ -185,7 +190,6 @@ Several shorthand names are accepted for games: `polyomino`/`regions` for Fillom
 | `Escape` | Return to the menu or go back |
 | `Ctrl+R` | Reset puzzle |
 | `Ctrl+H` | Toggle full help |
-| `Ctrl+E` | Toggle debug overlay |
 | `Ctrl+C` | Quit |
 
 ### Navigation
@@ -194,7 +198,7 @@ Arrow keys, WASD, and Vim bindings (`hjkl`) are supported for grid movement acro
 
 ### Mouse
 
-Nonogram, Nurikabe, Shikaku, Spell Puzzle, and Word Search support click and drag. Lights Out supports click to toggle. See each game's help for details.
+Nonogram, Nurikabe, Shikaku, Spell Puzzle, and Word Search support drag interactions. Fillomino, Hashiwokakero, Hitori, Sudoku, Sudoku RGB, Takuzu, and Takuzu+ support mouse focus or click-to-cycle interactions. Lights Out supports click to toggle. See each game's help for details.
 
 ## Game Persistence
 
@@ -321,7 +325,7 @@ All code must pass `gofumpt` and `golangci-lint` before committing. CI runs both
 
 ## Adding a New Puzzle
 
-PuzzleTea uses an explicit game catalog. To add a new puzzle type:
+PuzzleTea uses an explicit built-in registry plus a metadata catalog. To add a new puzzle type:
 
 ### 1. Create the game package
 
@@ -329,21 +333,26 @@ Create a directory (e.g., `mypuzzle/`) with these files:
 
 | File | Purpose |
 |------|---------|
-| `Gamemode.go` | Mode struct embedding `game.BaseMode`, `Spawn()`, `Modes`/`DailyModes`, and package-level `Definition` metadata |
-| `Model.go` | `Model` struct implementing `game.Gamer` |
-| `Export.go` | `Save` struct, `GetSave()`, `ImportModel()` for persistence |
+| `gamemode.go` | Mode structs embedding `game.BaseMode`, `Modes`, `ModeDefinitions`, package-level `Definition`, and the built-in `Entry` |
+| `model.go` | `Model` struct implementing `game.Gamer` |
+| `export.go` | `Save` struct, `GetSave()`, `ImportModel()` for persistence |
 | `keys.go` | Game-specific `KeyMap` struct |
 | `style.go` | lipgloss styling and rendering helpers |
 | `generator.go` | Puzzle generation logic (if applicable) |
 | `grid.go` | Grid type and serialization (for grid-based games) |
+| `help.md` | Embedded rules/help content wired into the runtime entry |
+| `print_adapter.go` | Optional printable export adapter for JSONL/PDF support |
 | `mypuzzle_test.go` | Tests (table-driven, save/load round-trip, generator validation) |
 | `README.md` | Game docs: rules, controls table, modes table, quick start examples |
 
-### 2. Wire it into the central catalog
+Use `gameentry.BuildModeDefs(Modes)` and `gameentry.NewEntry(...)` so the
+package exposes both metadata and its validated runtime wiring.
 
-Edit the central catalog once:
+### 2. Wire it into the built-in registry
 
-- **`catalog/catalog.go`**: Import the package and add its exported `Definition` to `All` (maintain alphabetical order).
+Edit the built-in registry once:
+
+- **`registry/registry.go`**: Import the package and add its exported `Entry` to `all` (maintain alphabetical order).
 
 The game package's `Definition` owns:
 
@@ -355,6 +364,9 @@ The game package's `Definition` owns:
 - help content
 - save/import function
 
+The `catalog` package is built from the registered entries and remains the pure
+metadata index for names, aliases, and daily-mode lookup.
+
 ### 3. Add a VHS preview
 
 - Create `vhs/<game>.tape` following the format in existing tapes.
@@ -363,7 +375,9 @@ The game package's `Definition` owns:
 ### 4. Verify
 
 ```bash
-just fmt && just lint && just test
+just fmt
+just lint
+just test-short
 ```
 
 See any existing game package (e.g., `nonogram/`) for the full pattern, and `AGENTS.md` for detailed conventions.

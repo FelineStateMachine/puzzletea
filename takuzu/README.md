@@ -27,7 +27,6 @@ every cell is filled and all three rules are satisfied.
 | `Backspace` | Clear cell |
 | `Ctrl+R` | Reset puzzle |
 | `Ctrl+H` | Toggle full help |
-| `Ctrl+E` | Toggle debug overlay |
 | `Escape` | Return to main menu |
 
 ## Modes

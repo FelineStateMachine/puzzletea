@@ -21,7 +21,7 @@ Connect letters from the bank to spell valid words.
 | `1` | Shuffle the visible bank order |
 | `Enter` | Submit the traced word |
 | `Backspace` | Delete the last traced letter |
-| `Ctrl+H` | Toggle help bar |
+| `Ctrl+H` | Toggle full help |
 | `Ctrl+R` | Reset puzzle |
 | `Escape` | Return to main menu |
 

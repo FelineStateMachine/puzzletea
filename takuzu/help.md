@@ -24,7 +24,7 @@ error chip if a line goes over quota.
 | `z` / `0` | Place ● (filled) |
 | `x` / `1` | Place ○ (open) |
 | `Backspace` | Clear cell |
-| `Ctrl+H` | Toggle help bar |
+| `Ctrl+H` | Toggle full help |
 | `Ctrl+R` | Reset puzzle |
 | `Escape` | Return to main menu |
 

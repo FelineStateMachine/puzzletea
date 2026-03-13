@@ -21,7 +21,7 @@ remaining undecided non-sea cells count as island.
 | `x` | Set sea |
 | `z` | Set island |
 | `Backspace` | Clear to unknown |
-| `Ctrl+H` | Toggle help bar |
+| `Ctrl+H` | Toggle full help |
 | `Ctrl+R` | Reset puzzle |
 | `Escape` | Return to main menu |
 

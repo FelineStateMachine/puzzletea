@@ -16,6 +16,7 @@ Connect numbered islands with bridges to form a single connected group.
 | Key | Action |
 |-----|--------|
 | `Arrows` / `wasd` / `hjkl` | Jump to nearest island |
+| `Mouse left-click` | Focus a clicked island |
 | `Enter` / `Space` | Select island |
 
 ### Bridge Mode
@@ -35,7 +36,7 @@ double bridge, and a third time removes it.
 | Key | Action |
 |-----|--------|
 | `Ctrl+R` | Reset puzzle |
-| `Ctrl+H` | Toggle help bar |
+| `Ctrl+H` | Toggle full help |
 | `Escape` | Return to main menu |
 
 ## Tips

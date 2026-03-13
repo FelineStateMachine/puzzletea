@@ -22,7 +22,7 @@ Press `Backspace` to cancel a selection.
 | `Arrows` / `wasd` / `hjkl` | Move cursor |
 | `Enter` / `Space` | Select start or confirm end |
 | `Backspace` | Cancel current selection |
-| `Ctrl+H` | Toggle help bar |
+| `Ctrl+H` | Toggle full help |
 | `Ctrl+R` | Reset puzzle |
 | `Escape` | Return to main menu |
 

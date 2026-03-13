@@ -2,8 +2,6 @@
 
 Fill the grid with two symbols while obeying the normal Takuzu rules plus fixed relation clues.
 
-![Takuzu+ gameplay](../vhs/takuzu.gif)
-
 ## How to Play
 
 Fill every empty cell with either a filled circle (●) or an open circle (○)
@@ -29,7 +27,6 @@ cell is filled and all four rules are satisfied.
 | `Backspace` | Clear cell |
 | `Ctrl+R` | Reset puzzle |
 | `Ctrl+H` | Toggle full help |
-| `Ctrl+E` | Toggle debug overlay |
 | `Escape` | Return to main menu |
 
 ## Modes

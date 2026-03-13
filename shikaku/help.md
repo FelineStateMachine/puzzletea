@@ -50,7 +50,7 @@ Expansion Mode so you can fine-tune with the keyboard.
 | Key | Action |
 |-----|--------|
 | `Ctrl+R` | Reset puzzle |
-| `Ctrl+H` | Toggle help bar |
+| `Ctrl+H` | Toggle full help |
 | `Escape` | Return to main menu |
 
 ## Tips

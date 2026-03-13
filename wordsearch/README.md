@@ -24,7 +24,6 @@ The puzzle is solved when all words are found.
 | `Backspace` | Cancel current selection |
 | `Ctrl+R` | Reset puzzle |
 | `Ctrl+H` | Toggle full help |
-| `Ctrl+E` | Toggle debug overlay |
 | `Escape` | Return to main menu |
 
 ## Modes
