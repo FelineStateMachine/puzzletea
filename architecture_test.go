@@ -5,6 +5,8 @@ import (
 	"go/token"
 	"os"
 	"path/filepath"
+	"runtime"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -43,41 +45,11 @@ func TestGamePackageDoesNotImportPDFExport(t *testing.T) {
 }
 
 func TestCatalogPackageDoesNotImportConcreteGames(t *testing.T) {
-	assertPackageDoesNotImport(t, "catalog", []string{
-		"github.com/FelineStateMachine/puzzletea/fillomino",
-		"github.com/FelineStateMachine/puzzletea/hashiwokakero",
-		"github.com/FelineStateMachine/puzzletea/hitori",
-		"github.com/FelineStateMachine/puzzletea/lightsout",
-		"github.com/FelineStateMachine/puzzletea/nonogram",
-		"github.com/FelineStateMachine/puzzletea/nurikabe",
-		"github.com/FelineStateMachine/puzzletea/rippleeffect",
-		"github.com/FelineStateMachine/puzzletea/shikaku",
-		"github.com/FelineStateMachine/puzzletea/spellpuzzle",
-		"github.com/FelineStateMachine/puzzletea/sudoku",
-		"github.com/FelineStateMachine/puzzletea/sudokurgb",
-		"github.com/FelineStateMachine/puzzletea/takuzu",
-		"github.com/FelineStateMachine/puzzletea/takuzuplus",
-		"github.com/FelineStateMachine/puzzletea/wordsearch",
-	})
+	assertPackageDoesNotImport(t, "catalog", concreteGameImportPaths(t))
 }
 
 func TestBuiltinPrintDoesNotImportConcreteGames(t *testing.T) {
-	assertPackageDoesNotImport(t, "builtinprint", []string{
-		"github.com/FelineStateMachine/puzzletea/fillomino",
-		"github.com/FelineStateMachine/puzzletea/hashiwokakero",
-		"github.com/FelineStateMachine/puzzletea/hitori",
-		"github.com/FelineStateMachine/puzzletea/lightsout",
-		"github.com/FelineStateMachine/puzzletea/nonogram",
-		"github.com/FelineStateMachine/puzzletea/nurikabe",
-		"github.com/FelineStateMachine/puzzletea/rippleeffect",
-		"github.com/FelineStateMachine/puzzletea/shikaku",
-		"github.com/FelineStateMachine/puzzletea/spellpuzzle",
-		"github.com/FelineStateMachine/puzzletea/sudoku",
-		"github.com/FelineStateMachine/puzzletea/sudokurgb",
-		"github.com/FelineStateMachine/puzzletea/takuzu",
-		"github.com/FelineStateMachine/puzzletea/takuzuplus",
-		"github.com/FelineStateMachine/puzzletea/wordsearch",
-	})
+	assertPackageDoesNotImport(t, "builtinprint", concreteGameImportPaths(t))
 }
 
 func TestSessionPackageDoesNotUseNameDerivedRunMetadata(t *testing.T) {
@@ -141,6 +113,34 @@ func assertPackageDoesNotImport(t *testing.T, dir string, forbidden []string) {
 			}
 		}
 	}
+}
+
+func concreteGameImportPaths(t testing.TB) []string {
+	t.Helper()
+
+	pattern := filepath.Join(repoRoot(t), "*", "gamemode.go")
+	matches, err := filepath.Glob(pattern)
+	if err != nil {
+		t.Fatalf("glob concrete game packages: %v", err)
+	}
+
+	importPaths := make([]string, 0, len(matches))
+	for _, match := range matches {
+		dir := filepath.Base(filepath.Dir(match))
+		importPaths = append(importPaths, "github.com/FelineStateMachine/puzzletea/"+dir)
+	}
+	slices.Sort(importPaths)
+	return importPaths
+}
+
+func repoRoot(t testing.TB) string {
+	t.Helper()
+
+	_, path, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("runtime.Caller failed")
+	}
+	return filepath.Clean(filepath.Dir(path))
 }
 
 func assertFileDoesNotContain(t *testing.T, path string, forbidden []string) {
