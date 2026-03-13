@@ -22,7 +22,7 @@ Inspired by Ripeto.
 | `Mouse left-click` | Focus a cell |
 | `1` / `2` / `3` | Fill cell with `▲` / `■` / `●` |
 | `Backspace` | Clear cell |
-| `Ctrl+H` | Toggle help bar |
+| `Ctrl+H` | Toggle full help |
 | `Ctrl+R` | Reset puzzle |
 | `Escape` | Return to main menu |
 

@@ -1385,7 +1385,7 @@ func TestRegistration(t *testing.T) {
 	g, _ := New(mode, numbers)
 	data, _ := g.GetSave()
 
-	loaded, err := Definition.Import(data)
+	loaded, err := Entry.Import(data)
 	if err != nil {
 		t.Fatalf("definition import: %v", err)
 	}

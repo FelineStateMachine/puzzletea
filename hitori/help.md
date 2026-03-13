@@ -18,10 +18,11 @@ The puzzle is solved when all three rules hold simultaneously.
 | Key | Action |
 |-----|--------|
 | `Arrows` / `wasd` / `hjkl` | Move cursor |
+| `Mouse left-click` | Focus a cell |
 | `x` | Toggle shade on cell |
 | `z` | Toggle circle (confirmed white) |
 | `Backspace` | Clear cell to unmarked |
-| `Ctrl+H` | Toggle help bar |
+| `Ctrl+H` | Toggle full help |
 | `Ctrl+R` | Reset puzzle |
 | `Escape` | Return to main menu |
 

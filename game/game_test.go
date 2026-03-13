@@ -202,43 +202,6 @@ func TestBaseMode(t *testing.T) {
 	})
 }
 
-// --- Category (P3) ---
-
-func TestCategory(t *testing.T) {
-	c := Category{Name: "Sudoku", Desc: "Classic"}
-
-	if got := c.Title(); got != "Sudoku" {
-		t.Errorf("Title() = %q, want %q", got, "Sudoku")
-	}
-	if got := c.Description(); got != "Classic" {
-		t.Errorf("Description() = %q, want %q", got, "Classic")
-	}
-	if got := c.FilterValue(); got != "Sudoku" {
-		t.Errorf("FilterValue() = %q, want %q", got, "Sudoku")
-	}
-}
-
-// --- Definition (P1) ---
-
-func TestDefinitionCategory(t *testing.T) {
-	def := Definition{
-		Name:        "Sudoku",
-		Description: "Classic grid logic",
-		Help:        "Rules",
-	}
-
-	cat := def.Category()
-	if cat.Name != def.Name {
-		t.Fatalf("Category().Name = %q, want %q", cat.Name, def.Name)
-	}
-	if cat.Desc != def.Description {
-		t.Fatalf("Category().Desc = %q, want %q", cat.Desc, def.Description)
-	}
-	if cat.Help != def.Help {
-		t.Fatalf("Category().Help = %q, want %q", cat.Help, def.Help)
-	}
-}
-
 func TestNormalizeName(t *testing.T) {
 	tests := []struct {
 		input string

@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/FelineStateMachine/puzzletea/builtinprint"
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/namegen"
 	"github.com/FelineStateMachine/puzzletea/pdfexport"
@@ -27,6 +28,8 @@ type exportModeEntry struct {
 }
 
 func runNewExport(cmd *cobra.Command, args []string) error {
+	builtinprint.Register()
+
 	if err := validateNewExportFlags(cmd, args); err != nil {
 		return err
 	}
@@ -36,7 +39,7 @@ func runNewExport(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("unknown game %q", args[0])
 	}
 	if !pdfexport.HasPrintAdapter(entry.Definition.Name) {
-		return nil
+		return fmt.Errorf("game %q does not support export", entry.Definition.Name)
 	}
 
 	modeArg := ""

@@ -33,16 +33,32 @@ var (
 
 type viewState int
 
+const (
+	mainMenuActionPlay    = "play"
+	mainMenuActionStats   = "stats"
+	mainMenuActionOptions = "options"
+	mainMenuActionQuit    = "quit"
+
+	playMenuActionCreate   = "create"
+	playMenuActionContinue = "continue"
+	playMenuActionDaily    = "daily"
+	playMenuActionWeekly   = "weekly"
+	playMenuActionSeeded   = "seeded"
+
+	optionsMenuActionTheme  = "theme"
+	optionsMenuActionGuides = "guides"
+)
+
 var mainMenuItems = []ui.MenuItem{
-	{ItemTitle: "Play", Desc: "start or continue a puzzle"},
-	{ItemTitle: "Stats", Desc: "your progress"},
-	{ItemTitle: "Options", Desc: "configure and learn"},
-	{ItemTitle: "Quit", Desc: "exit puzzletea"},
+	{Action: mainMenuActionPlay, ItemTitle: "Play", Desc: "start or continue a puzzle"},
+	{Action: mainMenuActionStats, ItemTitle: "Stats", Desc: "your progress"},
+	{Action: mainMenuActionOptions, ItemTitle: "Options", Desc: "configure and learn"},
+	{Action: mainMenuActionQuit, ItemTitle: "Quit", Desc: "exit puzzletea"},
 }
 
 var optionsMenuItems = []ui.MenuItem{
-	{ItemTitle: "Theme", Desc: "change colors"},
-	{ItemTitle: "Guides", Desc: "learn the rules"},
+	{Action: optionsMenuActionTheme, ItemTitle: "Theme", Desc: "change colors"},
+	{Action: optionsMenuActionGuides, ItemTitle: "Guides", Desc: "learn the rules"},
 }
 
 const (
@@ -71,17 +87,25 @@ type navigationState struct {
 	modeSelectList    list.Model
 	selectedCategory  registry.Entry
 	selectedModeTitle string
-	continueTable     table.Model
-	continueGames     []store.GameRecord
-	weeklyTable       table.Model
-	weeklyRows        []weeklyRow
-	weeklyCursor      time.Time
-	seedInput         textinput.Model
-	seedModeOptions   []seedModeOption
-	seedModeIndex     int
-	seedFocus         seedInputFocus
-	lastSeedModeKey   string
-	helpSelectList    list.Model
+}
+
+type continueState struct {
+	table table.Model
+	games []store.GameRecord
+}
+
+type weeklyState struct {
+	table  table.Model
+	rows   []weeklyRow
+	cursor time.Time
+}
+
+type seedState struct {
+	input       textinput.Model
+	modeOptions []seedModeOption
+	modeIndex   int
+	focus       seedInputFocus
+	lastModeKey string
 }
 
 type sessionState struct {
@@ -97,6 +121,7 @@ type sessionState struct {
 }
 
 type helpState struct {
+	selectList    list.Model
 	category      registry.Entry
 	viewport      viewport.Model
 	renderer      *glamour.TermRenderer
@@ -136,6 +161,7 @@ type spawnRequest struct {
 	name        string
 	gameType    string
 	modeTitle   string
+	run         store.RunMetadata
 	returnState viewState
 	exitState   viewState
 	weeklyInfo  *weekly.Info
@@ -158,11 +184,15 @@ type model struct {
 	state viewState
 
 	nav     navigationState
+	cont    continueState
 	session sessionState
+	seed    seedState
+	weekly  weeklyState
 	help    helpState
 	stats   statsState
 	theme   themeState
 	debug   debugState
+	notice  noticeState
 
 	spinner spinner.Model
 
@@ -227,10 +257,10 @@ func (m model) Init() tea.Cmd {
 func buildPlayMenuItems(now time.Time, currentWeeklyIndex int) []ui.MenuItem {
 	year, week := now.ISOWeek()
 	return []ui.MenuItem{
-		{ItemTitle: "Create", Desc: "a new puzzle"},
-		{ItemTitle: "Continue", Desc: "a previously played puzzle"},
-		{ItemTitle: "Daily", Desc: now.Format("Jan _2 06")},
-		{ItemTitle: "Weekly", Desc: "Week " + formatTwoDigits(week) + "-" + strconv.Itoa(year) + " #" + formatWeeklyMenuIndex(currentWeeklyIndex)},
-		{ItemTitle: "Seeded", Desc: "enter a specific seed"},
+		{Action: playMenuActionCreate, ItemTitle: "Create", Desc: "a new puzzle"},
+		{Action: playMenuActionContinue, ItemTitle: "Continue", Desc: "a previously played puzzle"},
+		{Action: playMenuActionDaily, ItemTitle: "Daily", Desc: now.Format("Jan _2 06")},
+		{Action: playMenuActionWeekly, ItemTitle: "Weekly", Desc: "Week " + formatTwoDigits(week) + "-" + strconv.Itoa(year) + " #" + formatWeeklyMenuIndex(currentWeeklyIndex)},
+		{Action: playMenuActionSeeded, ItemTitle: "Seeded", Desc: "enter a specific seed"},
 	}
 }

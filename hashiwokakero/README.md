@@ -25,10 +25,10 @@ bridges and all islands are connected.
 | Key | Action |
 |-----|--------|
 | Arrow keys / WASD / hjkl | Jump to nearest island |
+| Mouse left-click | Focus a clicked island |
 | `Enter` / `Space` | Select island for bridging |
 | `Ctrl+R` | Reset puzzle |
 | `Ctrl+H` | Toggle full help |
-| `Ctrl+E` | Toggle debug overlay |
 | `Escape` | Return to main menu |
 
 ### Bridge Mode (after selecting an island)

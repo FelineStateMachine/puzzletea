@@ -1,3 +1,5 @@
+// Package registry is the concrete runtime composition root for built-in games,
+// imports, help text, and daily-capable modes.
 package registry
 
 import (
@@ -6,6 +8,7 @@ import (
 	"github.com/FelineStateMachine/puzzletea/catalog"
 	"github.com/FelineStateMachine/puzzletea/fillomino"
 	"github.com/FelineStateMachine/puzzletea/game"
+	"github.com/FelineStateMachine/puzzletea/gameentry"
 	"github.com/FelineStateMachine/puzzletea/hashiwokakero"
 	"github.com/FelineStateMachine/puzzletea/hitori"
 	"github.com/FelineStateMachine/puzzletea/lightsout"
@@ -22,18 +25,10 @@ import (
 	"github.com/FelineStateMachine/puzzletea/wordsearch"
 )
 
-type ModeEntry struct {
-	Definition puzzle.ModeDef
-	Spawner    game.Spawner
-	Seeded     game.SeededSpawner
-}
-
-type Entry struct {
-	Definition puzzle.Definition
-	Help       string
-	Import     func([]byte) (game.Gamer, error)
-	Modes      []ModeEntry
-}
+type (
+	ModeEntry = gameentry.ModeEntry
+	Entry     = gameentry.Entry
+)
 
 type DailyEntry struct {
 	Spawner  game.SeededSpawner
@@ -44,20 +39,20 @@ type DailyEntry struct {
 }
 
 var all = []Entry{
-	adaptLegacy(fillomino.Definition),
-	adaptLegacy(hashiwokakero.Definition),
-	adaptLegacy(hitori.Definition),
-	adaptLegacy(lightsout.Definition),
-	adaptLegacy(nonogram.Definition),
-	adaptLegacy(nurikabe.Definition),
-	adaptLegacy(rippleeffect.Definition),
-	adaptLegacy(shikaku.Definition),
-	adaptLegacy(spellpuzzle.Definition),
-	adaptLegacy(sudoku.Definition),
-	adaptLegacy(sudokurgb.Definition),
-	adaptLegacy(takuzu.Definition),
-	adaptLegacy(takuzuplus.Definition),
-	adaptLegacy(wordsearch.Definition),
+	fillomino.Entry,
+	hashiwokakero.Entry,
+	hitori.Entry,
+	lightsout.Entry,
+	nonogram.Entry,
+	nurikabe.Entry,
+	rippleeffect.Entry,
+	shikaku.Entry,
+	spellpuzzle.Entry,
+	sudoku.Entry,
+	sudokurgb.Entry,
+	takuzu.Entry,
+	takuzuplus.Entry,
+	wordsearch.Entry,
 }
 
 var (
@@ -65,68 +60,6 @@ var (
 	index       = catalog.MustBuild(definitions)
 	entriesByID = buildEntriesByID(all)
 )
-
-func adaptLegacy(def game.Definition) Entry {
-	gameID := puzzle.CanonicalGameID(def.Name)
-	modes := make([]ModeEntry, 0, len(def.Modes))
-	for _, item := range def.Modes {
-		mode, ok := item.(game.Mode)
-		if !ok {
-			continue
-		}
-		spawner, ok := item.(game.Spawner)
-		if !ok {
-			continue
-		}
-		modeID := puzzle.CanonicalModeID(mode.Title())
-		modeDef := puzzle.ModeDef{
-			ID:          modeID,
-			Title:       mode.Title(),
-			Description: mode.Description(),
-		}
-		var seeded game.SeededSpawner
-		if s, ok := item.(game.SeededSpawner); ok {
-			modeDef.Seeded = true
-			seeded = s
-		}
-		modes = append(modes, ModeEntry{
-			Definition: modeDef,
-			Spawner:    spawner,
-			Seeded:     seeded,
-		})
-	}
-
-	dailyIDs := make([]puzzle.ModeID, 0, len(def.DailyModes))
-	for _, item := range def.DailyModes {
-		mode, ok := item.(game.Mode)
-		if !ok {
-			continue
-		}
-		dailyIDs = append(dailyIDs, puzzle.CanonicalModeID(mode.Title()))
-	}
-
-	return Entry{
-		Definition: puzzle.Definition{
-			ID:           gameID,
-			Name:         def.Name,
-			Description:  def.Description,
-			Aliases:      append([]string(nil), def.Aliases...),
-			Modes:        extractModeDefs(modes),
-			DailyModeIDs: dailyIDs,
-		},
-		Help:   def.Help,
-		Import: def.Import,
-		Modes:  modes,
-	}
-}
-
-func extractModeDefs(modes []ModeEntry) []puzzle.ModeDef {
-	defs := make([]puzzle.ModeDef, 0, len(modes))
-	for _, mode := range modes {
-		defs = append(defs, mode.Definition)
-	}
-	return defs
-}
 
 func buildDefinitions(entries []Entry) []puzzle.Definition {
 	defs := make([]puzzle.Definition, 0, len(entries))

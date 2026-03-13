@@ -1,6 +1,7 @@
 package store
 
 import (
+	"database/sql"
 	"path/filepath"
 	"testing"
 	"time"
@@ -26,7 +27,25 @@ func newTestRecord(name string) *GameRecord {
 		InitialState: `{"grid":"..."}`,
 		SaveState:    `{"grid":"..."}`,
 		Status:       StatusNew,
+		RunKind:      RunKindNormal,
 	}
+}
+
+func newDailyTestRecord(name string, date time.Time) *GameRecord {
+	rec := newTestRecord(name)
+	day := dayOnly(date)
+	rec.RunKind = RunKindDaily
+	rec.RunDate = &day
+	return rec
+}
+
+func newWeeklyTestRecord(name string, year, weekNumber, index int) *GameRecord {
+	rec := newTestRecord(name)
+	rec.RunKind = RunKindWeekly
+	rec.WeekYear = year
+	rec.WeekNumber = weekNumber
+	rec.WeekIndex = index
+	return rec
 }
 
 func TestOpen(t *testing.T) {
@@ -68,6 +87,101 @@ func TestOpen(t *testing.T) {
 			t.Fatal("expected record to persist across reopen")
 		}
 	})
+
+	t.Run("records current schema version", func(t *testing.T) {
+		s := openTestStore(t)
+
+		version, err := schemaVersion(s.db)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got, want := version, currentSchemaVersion; got != want {
+			t.Fatalf("schema version = %d, want %d", got, want)
+		}
+	})
+
+	t.Run("upgrades legacy databases and backfills metadata", func(t *testing.T) {
+		dbPath := filepath.Join(t.TempDir(), "legacy.db")
+
+		raw, err := sql.Open("sqlite", dbPath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { raw.Close() })
+
+		_, err = raw.Exec(`
+CREATE TABLE games (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    name          TEXT    NOT NULL UNIQUE,
+    game_type     TEXT    NOT NULL,
+    mode          TEXT    NOT NULL,
+    initial_state TEXT    NOT NULL,
+    save_state    TEXT,
+    status        TEXT    NOT NULL DEFAULT 'new'
+                  CHECK(status IN ('new','in_progress','completed','abandoned')),
+    created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    completed_at  DATETIME
+);`)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		_, err = raw.Exec(`
+INSERT INTO games (name, game_type, mode, initial_state, save_state, status)
+VALUES (?, ?, ?, ?, ?, ?)`,
+			"Daily Feb 16 26 - amber-fox",
+			"Sudoku",
+			"Easy",
+			`{"grid":"initial"}`,
+			`{"grid":"save"}`,
+			string(StatusNew),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := raw.Close(); err != nil {
+			t.Fatal(err)
+		}
+
+		s, err := Open(dbPath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer s.Close()
+
+		version, err := schemaVersion(s.db)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got, want := version, currentSchemaVersion; got != want {
+			t.Fatalf("schema version = %d, want %d", got, want)
+		}
+
+		rec, err := s.GetGameByName("Daily Feb 16 26 - amber-fox")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if rec == nil {
+			t.Fatal("expected migrated record")
+		}
+		if got, want := rec.GameID, "sudoku"; got != want {
+			t.Fatalf("GameID = %q, want %q", got, want)
+		}
+		if got, want := rec.ModeID, "easy"; got != want {
+			t.Fatalf("ModeID = %q, want %q", got, want)
+		}
+		if got, want := rec.RunKind, RunKindDaily; got != want {
+			t.Fatalf("RunKind = %q, want %q", got, want)
+		}
+		if rec.RunDate == nil {
+			t.Fatal("expected RunDate to be backfilled")
+		}
+
+		if _, err := s.GetCategoryStats(); err != nil {
+			t.Fatalf("GetCategoryStats() error after migration: %v", err)
+		}
+	})
 }
 
 func TestCreateGame(t *testing.T) {
@@ -106,6 +220,7 @@ func TestCreateGame(t *testing.T) {
 			InitialState: `{"init":true}`,
 			SaveState:    `{"save":true}`,
 			Status:       StatusNew,
+			RunKind:      RunKindNormal,
 		}
 		if err := s.CreateGame(rec); err != nil {
 			t.Fatal(err)
@@ -147,6 +262,34 @@ func TestCreateGame(t *testing.T) {
 		r2 := newTestRecord("dup")
 		if err := s.CreateGame(r2); err == nil {
 			t.Fatal("expected error for duplicate name")
+		}
+	})
+
+	t.Run("does not infer deterministic metadata from name", func(t *testing.T) {
+		s := openTestStore(t)
+		rec := newTestRecord("Daily Feb 16 26 - amber-fox")
+		if err := s.CreateGame(rec); err != nil {
+			t.Fatal(err)
+		}
+
+		got, err := s.GetGameByName(rec.Name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got == nil {
+			t.Fatal("expected record")
+		}
+		if got.RunKind != RunKindNormal {
+			t.Fatalf("RunKind = %q, want %q", got.RunKind, RunKindNormal)
+		}
+		if got.RunDate != nil {
+			t.Fatalf("RunDate = %v, want nil", got.RunDate)
+		}
+		if got.SeedText != "" {
+			t.Fatalf("SeedText = %q, want empty", got.SeedText)
+		}
+		if got.WeekYear != 0 || got.WeekNumber != 0 || got.WeekIndex != 0 {
+			t.Fatalf("weekly metadata = (%d, %d, %d), want zero values", got.WeekYear, got.WeekNumber, got.WeekIndex)
 		}
 	})
 }
@@ -511,7 +654,7 @@ func TestGetGameByName(t *testing.T) {
 
 func TestGetDeterministicGame(t *testing.T) {
 	s := openTestStore(t)
-	rec := newTestRecord("Week 01-2026 - #01")
+	rec := newWeeklyTestRecord("Week 01-2026 - #01", 2026, 1, 1)
 	if err := s.CreateGame(rec); err != nil {
 		t.Fatal(err)
 	}
@@ -535,9 +678,9 @@ func TestWeeklyQueries(t *testing.T) {
 	s := openTestStore(t)
 
 	records := []*GameRecord{
-		newTestRecord(weekly.Name(2026, 1, 1)),
-		newTestRecord(weekly.Name(2026, 1, 2)),
-		newTestRecord(weekly.Name(2026, 2, 1)),
+		newWeeklyTestRecord(weekly.Name(2026, 1, 1), 2026, 1, 1),
+		newWeeklyTestRecord(weekly.Name(2026, 1, 2), 2026, 1, 2),
+		newWeeklyTestRecord(weekly.Name(2026, 2, 1), 2026, 2, 1),
 		newTestRecord("Week 1-2026 - #01"),
 	}
 	for _, rec := range records {

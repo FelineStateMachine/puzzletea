@@ -4,11 +4,10 @@ package game
 import (
 	"context"
 	"math/rand/v2"
-	"strings"
 
 	"charm.land/bubbles/v2/key"
-	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
+	"github.com/FelineStateMachine/puzzletea/puzzle"
 )
 
 // Gamer is the interface that an active game instance must implement.
@@ -76,45 +75,16 @@ func (b BaseMode) Title() string       { return b.title }
 func (b BaseMode) Description() string { return b.description }
 func (b BaseMode) FilterValue() string { return b.title + " " + b.description }
 
-// Category groups related game modes under a heading in the menu.
-type Category struct {
-	Name  string
-	Desc  string
-	Modes []list.Item
-	Help  string // embedded help.md content rendered in "How to Play"
-}
-
-func (c Category) Title() string       { return c.Name }
-func (c Category) Description() string { return c.Desc }
-func (c Category) FilterValue() string { return c.Name }
-
-// Definition is the package-level metadata for a puzzle game.
-type Definition struct {
-	Name        string
-	Description string
-	Aliases     []string
-	Modes       []list.Item
-	DailyModes  []list.Item
-	Help        string
-	Import      func([]byte) (Gamer, error)
-}
-
-func (d Definition) Category() Category {
-	return Category{
-		Name:  d.Name,
-		Desc:  d.Description,
-		Modes: d.Modes,
-		Help:  d.Help,
+func AdaptImport[T Gamer](fn func([]byte) (T, error)) func([]byte) (Gamer, error) {
+	return func(data []byte) (Gamer, error) {
+		return fn(data)
 	}
 }
 
 // NormalizeName lowercases and replaces hyphens/underscores with spaces for
 // fuzzy matching of CLI arguments to game names and aliases.
 func NormalizeName(s string) string {
-	s = strings.ToLower(s)
-	s = strings.ReplaceAll(s, "-", " ")
-	s = strings.ReplaceAll(s, "_", " ")
-	return strings.TrimSpace(s)
+	return puzzle.NormalizeName(s)
 }
 
 // SpawnCompleteMsg is sent when an async Spawn() call finishes.

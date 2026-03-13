@@ -22,8 +22,11 @@ func TestRunNewExportRejectsUnsupportedGame(t *testing.T) {
 
 	cmd, _ := newExportTestCmd(t, false)
 	err := runNewExport(cmd, []string{"lights-out"})
-	if err != nil {
-		t.Fatalf("expected silent no-op for unsupported game, got: %v", err)
+	if err == nil {
+		t.Fatal("expected unsupported export error")
+	}
+	if !strings.Contains(err.Error(), "does not support export") {
+		t.Fatalf("unexpected error: %v", err)
 	}
 	if _, statErr := os.Stat(output); !os.IsNotExist(statErr) {
 		t.Fatalf("expected no output file, stat err = %v", statErr)

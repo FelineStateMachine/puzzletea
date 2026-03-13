@@ -81,10 +81,14 @@ func TestGetCategoryStats(t *testing.T) {
 	t.Run("daily games counted", func(t *testing.T) {
 		s := openTestStore(t)
 		games := []*GameRecord{
-			{Name: "Daily Feb 16 26 - amber-fox", GameType: "Sudoku", Mode: "Easy", InitialState: "{}", SaveState: "{}", Status: StatusNew},
-			{Name: "Daily Feb 15 26 - blue-cat", GameType: "Sudoku", Mode: "Medium", InitialState: "{}", SaveState: "{}", Status: StatusNew},
+			newDailyTestRecord("Daily Feb 16 26 - amber-fox", time.Date(2026, time.February, 16, 12, 0, 0, 0, time.Local)),
+			newDailyTestRecord("Daily Feb 15 26 - blue-cat", time.Date(2026, time.February, 15, 12, 0, 0, 0, time.Local)),
 			{Name: "regular-game", GameType: "Sudoku", Mode: "Easy", InitialState: "{}", SaveState: "{}", Status: StatusNew},
 		}
+		games[0].GameType, games[0].Mode = "Sudoku", "Easy"
+		games[0].InitialState, games[0].SaveState, games[0].Status = "{}", "{}", StatusNew
+		games[1].GameType, games[1].Mode = "Sudoku", "Medium"
+		games[1].InitialState, games[1].SaveState, games[1].Status = "{}", "{}", StatusNew
 		for _, g := range games {
 			if err := s.CreateGame(g); err != nil {
 				t.Fatal(err)
@@ -131,8 +135,10 @@ func TestGetModeStats(t *testing.T) {
 			{Name: "a", GameType: "Sudoku", Mode: "Easy", InitialState: "{}", SaveState: "{}", Status: StatusNew},
 			{Name: "b", GameType: "Sudoku", Mode: "Easy", InitialState: "{}", SaveState: "{}", Status: StatusNew},
 			{Name: "c", GameType: "Sudoku", Mode: "Medium", InitialState: "{}", SaveState: "{}", Status: StatusNew},
-			{Name: "Daily Feb 16 26 - x", GameType: "Sudoku", Mode: "Easy", InitialState: "{}", SaveState: "{}", Status: StatusNew},
+			newDailyTestRecord("Daily Feb 16 26 - x", time.Date(2026, time.February, 16, 12, 0, 0, 0, time.Local)),
 		}
+		games[3].GameType, games[3].Mode = "Sudoku", "Easy"
+		games[3].InitialState, games[3].SaveState, games[3].Status = "{}", "{}", StatusNew
 		for _, g := range games {
 			if err := s.CreateGame(g); err != nil {
 				t.Fatal(err)
@@ -176,8 +182,15 @@ func TestGetModeStats(t *testing.T) {
 	t.Run("weekly bonus xp is aggregated by parsed name", func(t *testing.T) {
 		s := openTestStore(t)
 		games := []*GameRecord{
-			{Name: weekly.Name(2026, 1, 10), GameType: "Sudoku", Mode: "Easy", InitialState: "{}", SaveState: "{}", Status: StatusNew},
-			{Name: weekly.Name(2026, 1, 25), GameType: "Sudoku", Mode: "Easy", InitialState: "{}", SaveState: "{}", Status: StatusNew},
+			newWeeklyTestRecord(weekly.Name(2026, 1, 10), 2026, 1, 10),
+			newWeeklyTestRecord(weekly.Name(2026, 1, 25), 2026, 1, 25),
+		}
+		for _, g := range games {
+			g.GameType = "Sudoku"
+			g.Mode = "Easy"
+			g.InitialState = "{}"
+			g.SaveState = "{}"
+			g.Status = StatusNew
 		}
 		for _, g := range games {
 			if err := s.CreateGame(g); err != nil {
@@ -230,10 +243,14 @@ func TestGetDailyStreakDates(t *testing.T) {
 		yesterday := now.AddDate(0, 0, -1)
 
 		games := []*GameRecord{
-			{Name: "Daily Feb 16 26 - a", GameType: "Sudoku", Mode: "Easy", InitialState: "{}", SaveState: "{}", Status: StatusNew},
-			{Name: "Daily Feb 15 26 - b", GameType: "Nonogram", Mode: "Mini", InitialState: "{}", SaveState: "{}", Status: StatusNew},
+			newDailyTestRecord("Daily Feb 16 26 - a", time.Date(2026, time.February, 16, 12, 0, 0, 0, time.Local)),
+			newDailyTestRecord("Daily Feb 15 26 - b", time.Date(2026, time.February, 15, 12, 0, 0, 0, time.Local)),
 			{Name: "regular-game", GameType: "Sudoku", Mode: "Easy", InitialState: "{}", SaveState: "{}", Status: StatusNew},
 		}
+		games[0].GameType, games[0].Mode = "Sudoku", "Easy"
+		games[0].InitialState, games[0].SaveState, games[0].Status = "{}", "{}", StatusNew
+		games[1].GameType, games[1].Mode = "Nonogram", "Mini"
+		games[1].InitialState, games[1].SaveState, games[1].Status = "{}", "{}", StatusNew
 		for _, g := range games {
 			if err := s.CreateGame(g); err != nil {
 				t.Fatal(err)
@@ -268,8 +285,15 @@ func TestGetDailyStreakDates(t *testing.T) {
 	t.Run("excludes non-completed dailies", func(t *testing.T) {
 		s := openTestStore(t)
 		games := []*GameRecord{
-			{Name: "Daily Feb 16 26 - a", GameType: "Sudoku", Mode: "Easy", InitialState: "{}", SaveState: "{}", Status: StatusNew},
-			{Name: "Daily Feb 15 26 - b", GameType: "Sudoku", Mode: "Easy", InitialState: "{}", SaveState: "{}", Status: StatusNew},
+			newDailyTestRecord("Daily Feb 16 26 - a", time.Date(2026, time.February, 16, 12, 0, 0, 0, time.Local)),
+			newDailyTestRecord("Daily Feb 15 26 - b", time.Date(2026, time.February, 15, 12, 0, 0, 0, time.Local)),
+		}
+		for _, g := range games {
+			g.GameType = "Sudoku"
+			g.Mode = "Easy"
+			g.InitialState = "{}"
+			g.SaveState = "{}"
+			g.Status = StatusNew
 		}
 		for _, g := range games {
 			if err := s.CreateGame(g); err != nil {
@@ -295,11 +319,18 @@ func TestGetCompletedWeeklyGauntlets(t *testing.T) {
 	s := openTestStore(t)
 
 	games := []*GameRecord{
-		{Name: weekly.Name(2026, 1, 98), GameType: "Sudoku", Mode: "Easy", InitialState: "{}", SaveState: "{}", Status: StatusNew},
-		{Name: weekly.Name(2026, 1, 99), GameType: "Sudoku", Mode: "Easy", InitialState: "{}", SaveState: "{}", Status: StatusNew},
-		{Name: weekly.Name(2026, 2, 50), GameType: "Sudoku", Mode: "Easy", InitialState: "{}", SaveState: "{}", Status: StatusNew},
-		{Name: weekly.Name(2026, 3, 99), GameType: "Sudoku", Mode: "Easy", InitialState: "{}", SaveState: "{}", Status: StatusNew},
+		newWeeklyTestRecord(weekly.Name(2026, 1, 98), 2026, 1, 98),
+		newWeeklyTestRecord(weekly.Name(2026, 1, 99), 2026, 1, 99),
+		newWeeklyTestRecord(weekly.Name(2026, 2, 50), 2026, 2, 50),
+		newWeeklyTestRecord(weekly.Name(2026, 3, 99), 2026, 3, 99),
 		{Name: "Week 3-2026 - #99", GameType: "Sudoku", Mode: "Easy", InitialState: "{}", SaveState: "{}", Status: StatusNew},
+	}
+	for _, g := range games[:4] {
+		g.GameType = "Sudoku"
+		g.Mode = "Easy"
+		g.InitialState = "{}"
+		g.SaveState = "{}"
+		g.Status = StatusNew
 	}
 	for _, g := range games {
 		if err := s.CreateGame(g); err != nil {
@@ -322,10 +353,17 @@ func TestGetCompletedWeeklyGauntlets(t *testing.T) {
 func TestGetCurrentWeeklyHighestCompletedIndex(t *testing.T) {
 	s := openTestStore(t)
 	games := []*GameRecord{
-		{Name: weekly.Name(2026, 10, 1), GameType: "Sudoku", Mode: "Easy", InitialState: "{}", SaveState: "{}", Status: StatusNew},
-		{Name: weekly.Name(2026, 10, 17), GameType: "Sudoku", Mode: "Easy", InitialState: "{}", SaveState: "{}", Status: StatusNew},
-		{Name: weekly.Name(2026, 10, 9), GameType: "Sudoku", Mode: "Easy", InitialState: "{}", SaveState: "{}", Status: StatusNew},
-		{Name: weekly.Name(2026, 11, 30), GameType: "Sudoku", Mode: "Easy", InitialState: "{}", SaveState: "{}", Status: StatusNew},
+		newWeeklyTestRecord(weekly.Name(2026, 10, 1), 2026, 10, 1),
+		newWeeklyTestRecord(weekly.Name(2026, 10, 17), 2026, 10, 17),
+		newWeeklyTestRecord(weekly.Name(2026, 10, 9), 2026, 10, 9),
+		newWeeklyTestRecord(weekly.Name(2026, 11, 30), 2026, 11, 30),
+	}
+	for _, g := range games {
+		g.GameType = "Sudoku"
+		g.Mode = "Easy"
+		g.InitialState = "{}"
+		g.SaveState = "{}"
+		g.Status = StatusNew
 	}
 	for _, g := range games {
 		if err := s.CreateGame(g); err != nil {

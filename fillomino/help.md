@@ -14,9 +14,10 @@ Fill the board so that each orthogonally connected region contains exactly as ma
 | Key | Action |
 |-----|--------|
 | `Arrows` / `wasd` / `hjkl` | Move cursor |
+| `Mouse left-click` | Focus a cell |
 | `1`-`9` | Place number |
 | `Backspace` / `Delete` | Clear cell |
-| `Ctrl+H` | Toggle help bar |
+| `Ctrl+H` | Toggle full help |
 | `Ctrl+R` | Reset puzzle |
 | `Escape` | Return to main menu |
 

@@ -95,6 +95,39 @@ func TestParseJSONLFileRejectsNonJSONLExtension(t *testing.T) {
 	}
 }
 
+func TestParseJSONLFileRejectsFilesWithoutPrintablePuzzles(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "lights.jsonl")
+	record := JSONLRecord{
+		Schema: ExportSchemaV1,
+		Pack: JSONLPackMeta{
+			Generated:     "2026-02-22T10:00:00Z",
+			Version:       "v-test",
+			Category:      "Lights Out",
+			ModeSelection: "Standard",
+			Count:         1,
+		},
+		Puzzle: JSONLPuzzle{
+			Index: 1,
+			Name:  "glow-shore",
+			Game:  "Lights Out",
+			Mode:  "Standard",
+			Save:  json.RawMessage(`{"size":5}`),
+		},
+	}
+	writeSingleJSONLRecord(t, path, record)
+
+	_, err := ParseJSONLFile(path)
+	if err == nil {
+		t.Fatal("expected no-printable-puzzles error")
+	}
+	if !strings.Contains(err.Error(), "no printable puzzles found") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(err.Error(), "Lights Out") {
+		t.Fatalf("expected unsupported category in error, got: %v", err)
+	}
+}
+
 func TestParseJSONLFileHydratesTakuzuFromSave(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "takuzu-pack.jsonl")
 	record := JSONLRecord{
@@ -398,36 +431,6 @@ func TestParseJSONLFileHydratesHashiFromSave(t *testing.T) {
 	}
 	if got, want := len(payload.Islands), 2; got != want {
 		t.Fatalf("hashi island count = %d, want %d", got, want)
-	}
-}
-
-func TestParseJSONLFileSilentlySkipsUnsupportedGame(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "lights.jsonl")
-	record := JSONLRecord{
-		Schema: ExportSchemaV1,
-		Pack: JSONLPackMeta{
-			Generated:     "2026-02-22T10:00:00Z",
-			Version:       "v-test",
-			Category:      "Lights Out",
-			ModeSelection: "Standard",
-			Count:         1,
-		},
-		Puzzle: JSONLPuzzle{
-			Index: 1,
-			Name:  "glow-shore",
-			Game:  "Lights Out",
-			Mode:  "Standard",
-			Save:  json.RawMessage(`{"size":5}`),
-		},
-	}
-	writeSingleJSONLRecord(t, path, record)
-
-	doc, err := ParseJSONLFile(path)
-	if err != nil {
-		t.Fatalf("expected silent no-op for unsupported game, got: %v", err)
-	}
-	if got := len(doc.Puzzles); got != 0 {
-		t.Fatalf("puzzles = %d, want 0", got)
 	}
 }
 

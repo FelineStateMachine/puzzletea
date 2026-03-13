@@ -163,37 +163,9 @@ func Open(dbPath string) (*Store, error) {
 		return nil, fmt.Errorf("enabling WAL mode: %w", err)
 	}
 
-	if _, err := db.Exec(createTableSQL); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("creating table: %w", err)
-	}
-
-	if err := ensureGameColumns(db); err != nil {
+	if err := runMigrations(db); err != nil {
 		db.Close()
 		return nil, err
-	}
-	if err := backfillGameMetadata(db); err != nil {
-		db.Close()
-		return nil, err
-	}
-
-	if _, err := db.Exec(`DROP VIEW IF EXISTS category_stats`); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("dropping category_stats view: %w", err)
-	}
-	if _, err := db.Exec(`DROP VIEW IF EXISTS mode_stats`); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("dropping mode_stats view: %w", err)
-	}
-
-	if _, err := db.Exec(createCategoryStatsViewSQL); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("creating category_stats view: %w", err)
-	}
-
-	if _, err := db.Exec(createModeStatsViewSQL); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("creating mode_stats view: %w", err)
 	}
 
 	return &Store{db: db}, nil
@@ -208,20 +180,7 @@ func (s *Store) CreateGame(rec *GameRecord) error {
 		rec.ModeID = CanonicalModeID(rec.Mode)
 	}
 	if rec.RunKind == "" {
-		rec.RunKind = RunKindForName(rec.Name)
-	}
-	if rec.RunDate == nil {
-		rec.RunDate = RunDateForName(rec.Name)
-	}
-	if rec.SeedText == "" {
-		rec.SeedText = SeedTextForName(rec.Name)
-	}
-	if rec.WeekYear == 0 || rec.WeekNumber == 0 || rec.WeekIndex == 0 {
-		if year, week, index, ok := WeeklyIdentityForName(rec.Name); ok {
-			rec.WeekYear = year
-			rec.WeekNumber = week
-			rec.WeekIndex = index
-		}
+		rec.RunKind = RunKindNormal
 	}
 
 	result, err := s.db.Exec(

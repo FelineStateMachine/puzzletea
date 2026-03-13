@@ -18,7 +18,7 @@ Fill a 9x9 grid with digits so every row, column, and box is complete.
 | `Mouse left-click` | Focus a cell |
 | `1`-`9` | Fill cell with digit |
 | `Backspace` | Clear cell |
-| `Ctrl+H` | Toggle help bar |
+| `Ctrl+H` | Toggle full help |
 | `Ctrl+R` | Reset puzzle |
 | `Escape` | Return to main menu |
 

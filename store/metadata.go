@@ -11,6 +11,34 @@ import (
 
 var weeklyNamePattern = regexp.MustCompile(`^Week (\d{2})-(\d{4}) - #(\d{2})$`)
 
+func NormalRunMetadata() RunMetadata {
+	return RunMetadata{Kind: RunKindNormal}
+}
+
+func DailyRunMetadata(date time.Time) RunMetadata {
+	day := dayOnly(date)
+	return RunMetadata{
+		Kind: RunKindDaily,
+		Date: &day,
+	}
+}
+
+func WeeklyRunMetadata(year, week, index int) RunMetadata {
+	return RunMetadata{
+		Kind:       RunKindWeekly,
+		WeekYear:   year,
+		WeekNumber: week,
+		WeekIndex:  index,
+	}
+}
+
+func SeededRunMetadata(seed string) RunMetadata {
+	return RunMetadata{
+		Kind:     RunKindSeeded,
+		SeedText: strings.TrimSpace(seed),
+	}
+}
+
 func RunKindForName(name string) RunKind {
 	switch {
 	case RunDateForName(name) != nil:
@@ -36,7 +64,7 @@ func RunDateForName(name string) *time.Time {
 	if err != nil {
 		return nil
 	}
-	day := time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.Local)
+	day := dayOnly(t)
 	return &day
 }
 
@@ -90,4 +118,8 @@ func CanonicalModeID(mode string) string {
 func isWeeklyName(name string) bool {
 	_, _, _, ok := WeeklyIdentityForName(name)
 	return ok
+}
+
+func dayOnly(t time.Time) time.Time {
+	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
 }

@@ -13,6 +13,13 @@ type ModeDef struct {
 	Seeded      bool
 }
 
+type ModeSpec struct {
+	ID          ModeID
+	Title       string
+	Description string
+	Seeded      bool
+}
+
 type Definition struct {
 	ID           GameID
 	Name         string
@@ -20,6 +27,54 @@ type Definition struct {
 	Aliases      []string
 	Modes        []ModeDef
 	DailyModeIDs []ModeID
+}
+
+type DefinitionSpec struct {
+	ID           GameID
+	Name         string
+	Description  string
+	Aliases      []string
+	Modes        []ModeDef
+	DailyModeIDs []ModeID
+}
+
+func NewModeDef(spec ModeSpec) ModeDef {
+	id := spec.ID
+	if id == "" {
+		id = CanonicalModeID(spec.Title)
+	}
+	return ModeDef{
+		ID:          id,
+		Title:       spec.Title,
+		Description: spec.Description,
+		Seeded:      spec.Seeded,
+	}
+}
+
+func NewDefinition(spec DefinitionSpec) Definition {
+	id := spec.ID
+	if id == "" {
+		id = CanonicalGameID(spec.Name)
+	}
+	return Definition{
+		ID:           id,
+		Name:         spec.Name,
+		Description:  spec.Description,
+		Aliases:      append([]string(nil), spec.Aliases...),
+		Modes:        append([]ModeDef(nil), spec.Modes...),
+		DailyModeIDs: append([]ModeID(nil), spec.DailyModeIDs...),
+	}
+}
+
+func SelectModeIDsByIndex(modes []ModeDef, indexes ...int) []ModeID {
+	selected := make([]ModeID, 0, len(indexes))
+	for _, idx := range indexes {
+		if idx < 0 || idx >= len(modes) {
+			continue
+		}
+		selected = append(selected, modes[idx].ID)
+	}
+	return selected
 }
 
 func NormalizeName(s string) string {

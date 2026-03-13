@@ -137,7 +137,7 @@ func TestBuildRenderConfigForPDFCoverColorControlsCoverPages(t *testing.T) {
 	}
 }
 
-func TestRunExportPDFSilentlyNoOpsWhenAllPuzzlesUnsupported(t *testing.T) {
+func TestRunExportPDFRejectsInputsWhenAllPuzzlesUnsupported(t *testing.T) {
 	reset := snapshotExportPDFFlags()
 	defer reset()
 
@@ -177,8 +177,12 @@ func TestRunExportPDFSilentlyNoOpsWhenAllPuzzlesUnsupported(t *testing.T) {
 	cmd := &cobra.Command{}
 	cmd.SetOut(&out)
 
-	if err := runExportPDF(cmd, []string{input}); err != nil {
-		t.Fatalf("expected no-op success, got %v", err)
+	err = runExportPDF(cmd, []string{input})
+	if err == nil {
+		t.Fatal("expected unsupported export error")
+	}
+	if !strings.Contains(err.Error(), "no printable puzzles found") {
+		t.Fatalf("unexpected error: %v", err)
 	}
 	if out.String() != "" {
 		t.Fatalf("expected no stdout output, got %q", out.String())

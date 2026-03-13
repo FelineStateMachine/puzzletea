@@ -10,14 +10,10 @@ import (
 
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/registry"
+	"github.com/FelineStateMachine/puzzletea/schedule"
 )
 
-// Entry pairs a SeededSpawner with metadata for the eligible weekly pool.
-type Entry struct {
-	Spawner  game.SeededSpawner
-	GameType string
-	Mode     string
-}
+type Entry = schedule.Entry
 
 // Info identifies a single weekly gauntlet puzzle.
 type Info struct {
@@ -33,16 +29,7 @@ var (
 )
 
 func buildEligibleModes() []Entry {
-	registryEntries := registry.DailyEntries()
-	entries := make([]Entry, 0, len(registryEntries))
-	for _, entry := range registryEntries {
-		entries = append(entries, Entry{
-			Spawner:  entry.Spawner,
-			GameType: entry.GameType,
-			Mode:     entry.Mode,
-		})
-	}
-	return entries
+	return schedule.BuildEligibleModes(registry.DailyEntries())
 }
 
 // Name returns the canonical persisted name for a weekly puzzle.
@@ -134,23 +121,7 @@ func Mode(year, week, index int) (game.SeededSpawner, string, string) {
 	}
 
 	seedName := Name(year, week, index)
-	var best Entry
-	var bestHash uint64
-	found := false
-	for _, entry := range eligibleModes {
-		h := fnv.New64a()
-		h.Write([]byte(seedName))
-		h.Write([]byte{0})
-		h.Write([]byte(entry.GameType))
-		h.Write([]byte{0})
-		h.Write([]byte(entry.Mode))
-		score := h.Sum64()
-		if !found || score > bestHash {
-			bestHash = score
-			best = entry
-			found = true
-		}
-	}
+	best, found := schedule.SelectBySeed(seedName, eligibleModes)
 	if !found {
 		return nil, "", ""
 	}

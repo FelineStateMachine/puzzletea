@@ -1,3 +1,5 @@
+// Package catalog indexes puzzle definitions, aliases, and daily metadata
+// without importing concrete game implementations.
 package catalog
 
 import (

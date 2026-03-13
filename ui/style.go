@@ -15,6 +15,15 @@ func DebugStyle() lipgloss.Style {
 		BorderForeground(theme.Current().Error)
 }
 
+// ErrorNoticeStyle returns the style for user-visible error notices.
+func ErrorNoticeStyle() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(theme.Current().Error).
+		Foreground(theme.Current().Error).
+		Padding(0, 1)
+}
+
 // LogoStyle returns the style for the ASCII art brand logo.
 func LogoStyle() lipgloss.Style {
 	p := theme.Current()

@@ -66,6 +66,7 @@ func CreateRecord(
 	name string,
 	gameType string,
 	modeTitle string,
+	run store.RunMetadata,
 ) (*store.GameRecord, error) {
 	initialState, err := g.GetSave()
 	if err != nil {
@@ -81,14 +82,12 @@ func CreateRecord(
 		InitialState: string(initialState),
 		SaveState:    string(initialState),
 		Status:       store.StatusNew,
-		RunKind:      store.RunKindForName(name),
-		RunDate:      store.RunDateForName(name),
-		SeedText:     store.SeedTextForName(name),
-	}
-	if year, week, index, ok := store.WeeklyIdentityForName(name); ok {
-		rec.WeekYear = year
-		rec.WeekNumber = week
-		rec.WeekIndex = index
+		RunKind:      run.Kind,
+		RunDate:      run.Date,
+		WeekYear:     run.WeekYear,
+		WeekNumber:   run.WeekNumber,
+		WeekIndex:    run.WeekIndex,
+		SeedText:     run.SeedText,
 	}
 	if err := s.CreateGame(rec); err != nil {
 		return nil, fmt.Errorf("failed to create game record: %w", err)
@@ -117,8 +116,9 @@ func GenerateUniqueName(s *store.Store) string {
 			return name
 		}
 	}
+	base := namegen.Generate()
 	for i := 1; ; i++ {
-		name := namegen.Generate() + "-" + strconv.Itoa(i)
+		name := base + "-" + strconv.Itoa(i)
 		exists, err := s.NameExists(name)
 		if err != nil || !exists {
 			return name

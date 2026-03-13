@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/pdfexport"
 )
 
@@ -95,14 +94,18 @@ func TestPrintAdapterDeduplicatesDuplicatePlacements(t *testing.T) {
 }
 
 func TestSpellPuzzlePrintAdapterRegistration(t *testing.T) {
+	pdfexport.RegisterPrintAdapter(PDFPrintAdapter)
+
 	for _, gameType := range []string{"Spell Puzzle", "spell", "spellpuzzle"} {
-		if !game.HasPrintAdapter(gameType) {
+		if !pdfexport.HasPrintAdapter(gameType) {
 			t.Fatalf("expected print adapter for %q", gameType)
 		}
 	}
 }
 
 func TestSpellPuzzleJSONLHydratesPrintPayload(t *testing.T) {
+	pdfexport.RegisterPrintAdapter(PDFPrintAdapter)
+
 	record := pdfexport.JSONLRecord{
 		Schema: pdfexport.ExportSchemaV1,
 		Pack: pdfexport.JSONLPackMeta{
@@ -151,6 +154,8 @@ func TestSpellPuzzleJSONLHydratesPrintPayload(t *testing.T) {
 }
 
 func TestSpellPuzzlePDFRenderSmokeForAllModes(t *testing.T) {
+	pdfexport.RegisterPrintAdapter(PDFPrintAdapter)
+
 	puzzles := make([]pdfexport.Puzzle, 0, len(Modes))
 	for i, item := range Modes {
 		mode := item.(SpellPuzzleMode)

@@ -3,6 +3,7 @@ package session
 import (
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/FelineStateMachine/puzzletea/lightsout"
 	"github.com/FelineStateMachine/puzzletea/store"
@@ -77,7 +78,7 @@ func TestCreateRecordAndResumeAbandonedDeterministicRecord(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	rec, err := CreateRecord(s, g, "demo", "Lights Out", "Easy")
+	rec, err := CreateRecord(s, g, "demo", "Lights Out", "Easy", store.NormalRunMetadata())
 	if err != nil {
 		t.Fatalf("CreateRecord returned error: %v", err)
 	}
@@ -102,6 +103,30 @@ func TestCreateRecordAndResumeAbandonedDeterministicRecord(t *testing.T) {
 	}
 	if saved.Status != store.StatusInProgress {
 		t.Fatalf("status = %q, want %q", saved.Status, store.StatusInProgress)
+	}
+}
+
+func TestCreateRecordUsesExplicitRunMetadata(t *testing.T) {
+	s := openSessionTestStore(t)
+
+	g, err := lightsout.New(3, 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	day := time.Date(2026, 2, 14, 15, 30, 0, 0, time.Local)
+	rec, err := CreateRecord(s, g, "plain-name", "Lights Out", "Easy", store.DailyRunMetadata(day))
+	if err != nil {
+		t.Fatalf("CreateRecord returned error: %v", err)
+	}
+	if rec.RunKind != store.RunKindDaily {
+		t.Fatalf("RunKind = %q, want %q", rec.RunKind, store.RunKindDaily)
+	}
+	if rec.RunDate == nil {
+		t.Fatal("RunDate = nil, want daily date")
+	}
+	if got, want := rec.RunDate.Format("2006-01-02"), "2026-02-14"; got != want {
+		t.Fatalf("RunDate = %q, want %q", got, want)
 	}
 }
 

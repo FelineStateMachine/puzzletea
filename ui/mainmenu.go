@@ -43,6 +43,10 @@ func (m MainMenu) Selected() MenuItem {
 	return m.items[m.cursor]
 }
 
+func (m MainMenu) SelectedAction() string {
+	return m.Selected().ActionID()
+}
+
 // View renders the main menu as a framed panel with logo and items.
 func (m MainMenu) View() string {
 	styledLogo := LogoStyle().Render(logo)

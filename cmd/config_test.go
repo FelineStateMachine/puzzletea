@@ -82,6 +82,7 @@ func TestListCmdUsesActiveConfig(t *testing.T) {
 		InitialState: "{}",
 		SaveState:    "{}",
 		Status:       store.StatusNew,
+		RunKind:      store.RunKindNormal,
 	}); err != nil {
 		t.Fatal(err)
 	}

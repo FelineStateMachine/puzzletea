@@ -21,7 +21,7 @@ Fill cells to match row and column hints, revealing a hidden pattern.
 | `z` | Fill cell (hold to paint) |
 | `x` | Mark cell (hold to paint) |
 | `Backspace` | Clear cell |
-| `Ctrl+H` | Toggle help bar |
+| `Ctrl+H` | Toggle full help |
 | `Ctrl+R` | Reset puzzle |
 | `Escape` | Return to main menu |
 

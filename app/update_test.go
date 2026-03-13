@@ -128,8 +128,15 @@ func TestGameViewEscapeReturnsToMainMenu(t *testing.T) {
 
 func TestImportAndActivateRecordSuccessFlag(t *testing.T) {
 	unknown := model{state: playMenuView}
-	if _, ok := unknown.importAndActivateRecord(store.GameRecord{GameType: "NoSuchGameType"}); ok {
+	nextUnknown, ok := unknown.importAndActivateRecord(store.GameRecord{
+		Name:     "broken-save",
+		GameType: "NoSuchGameType",
+	})
+	if ok {
 		t.Fatal("expected unknown game type import to fail")
+	}
+	if nextUnknown.notice.message == "" {
+		t.Fatal("expected failed import to surface a user-visible notice")
 	}
 
 	loadedGame, err := lightsout.New(3, 3)
@@ -170,6 +177,9 @@ func TestImportAndActivateRecordSuccessFlag(t *testing.T) {
 	if next.session.game == nil {
 		t.Fatal("expected game to be activated")
 	}
+	if next.notice.message != "" {
+		t.Fatalf("notice = %q, want empty after successful import", next.notice.message)
+	}
 }
 
 func TestHandleSeedConfirmDoesNotResumeStatusWhenImportFails(t *testing.T) {
@@ -183,6 +193,8 @@ func TestHandleSeedConfirmDoesNotResumeStatusWhenImportFails(t *testing.T) {
 		InitialState: "{}",
 		SaveState:    "{}",
 		Status:       store.StatusAbandoned,
+		RunKind:      store.RunKindSeeded,
+		SeedText:     seed,
 	}
 	if err := s.CreateGame(rec); err != nil {
 		t.Fatal(err)
@@ -193,7 +205,7 @@ func TestHandleSeedConfirmDoesNotResumeStatusWhenImportFails(t *testing.T) {
 	m := model{
 		state: seedInputView,
 		store: s,
-		nav:   navigationState{seedInput: ti},
+		seed:  seedState{input: ti},
 	}
 
 	next, _ := m.handleSeedConfirm()
@@ -222,27 +234,25 @@ func TestSeedInputSelectorCyclesAndPersistsDefault(t *testing.T) {
 
 	m := model{
 		state: seedInputView,
-		nav: navigationState{
-			seedModeOptions: options,
-			seedFocus:       seedFocusMode,
+		seed: seedState{
+			modeOptions: options,
+			focus:       seedFocusMode,
 		},
 	}
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyRight})
 	got := next.(model)
 
-	if got.nav.seedModeIndex != 1 {
-		t.Fatalf("seedModeIndex = %d, want 1", got.nav.seedModeIndex)
+	if got.seed.modeIndex != 1 {
+		t.Fatalf("seedModeIndex = %d, want 1", got.seed.modeIndex)
 	}
-	if got.nav.lastSeedModeKey != options[1].key {
-		t.Fatalf("lastSeedModeKey = %q, want %q", got.nav.lastSeedModeKey, options[1].key)
+	if got.seed.lastModeKey != options[1].key {
+		t.Fatalf("lastSeedModeKey = %q, want %q", got.seed.lastModeKey, options[1].key)
 	}
 
 	reopenedModel, _ := (model{
 		state: playMenuView,
-		nav: navigationState{
-			lastSeedModeKey: got.nav.lastSeedModeKey,
-		},
+		seed:  seedState{lastModeKey: got.seed.lastModeKey},
 	}).enterSeedInputView()
 
 	if reopenedModel.state != seedInputView {
@@ -266,10 +276,10 @@ func TestHandleSeedConfirmUsesSelectedSpecificMode(t *testing.T) {
 	m := model{
 		state: seedInputView,
 		store: s,
-		nav: navigationState{
-			seedInput:       ti,
-			seedModeOptions: options,
-			seedModeIndex:   1,
+		seed: seedState{
+			input:       ti,
+			modeOptions: options,
+			modeIndex:   1,
 		},
 	}
 
@@ -309,6 +319,7 @@ func TestHandleDailyPuzzleDoesNotResumeStatusWhenImportFails(t *testing.T) {
 			continue
 		}
 		seen[name] = true
+		day := time.Date(d.Year(), d.Month(), d.Day(), 0, 0, 0, 0, d.Location())
 		rec := &store.GameRecord{
 			Name:         name,
 			GameType:     "NoSuchGameType",
@@ -316,6 +327,8 @@ func TestHandleDailyPuzzleDoesNotResumeStatusWhenImportFails(t *testing.T) {
 			InitialState: "{}",
 			SaveState:    "{}",
 			Status:       store.StatusAbandoned,
+			RunKind:      store.RunKindDaily,
+			RunDate:      &day,
 		}
 		if err := s.CreateGame(rec); err != nil {
 			t.Fatal(err)
@@ -465,6 +478,10 @@ func TestEnterOnSolvedLatestWeeklyCompletesAndQueuesNext(t *testing.T) {
 		InitialState: "{}",
 		SaveState:    "{}",
 		Status:       store.StatusInProgress,
+		RunKind:      store.RunKindWeekly,
+		WeekYear:     year,
+		WeekNumber:   weekNumber,
+		WeekIndex:    1,
 	}
 	if err := s.CreateGame(rec); err != nil {
 		t.Fatal(err)
@@ -481,8 +498,8 @@ func TestEnterOnSolvedLatestWeeklyCompletesAndQueuesNext(t *testing.T) {
 			weeklyAdvance:   &weekly.Info{Year: year, Week: weekNumber, Index: 1},
 			completionSaved: false,
 		},
-		nav: navigationState{
-			weeklyCursor: weekly.StartOfWeek(year, weekNumber, time.Local),
+		weekly: weeklyState{
+			cursor: weekly.StartOfWeek(year, weekNumber, time.Local),
 		},
 	}
 
@@ -518,14 +535,14 @@ func TestMoveWeeklyWeekDoesNotAdvancePastCurrentWeek(t *testing.T) {
 
 	m := model{
 		store: s,
-		nav: navigationState{
-			weeklyCursor: currentCursor,
+		weekly: weeklyState{
+			cursor: currentCursor,
 		},
 	}
 
 	got := m.moveWeeklyWeek(1)
-	if !got.nav.weeklyCursor.Equal(currentCursor) {
-		t.Fatalf("weeklyCursor = %v, want %v", got.nav.weeklyCursor, currentCursor)
+	if !got.weekly.cursor.Equal(currentCursor) {
+		t.Fatalf("weeklyCursor = %v, want %v", got.weekly.cursor, currentCursor)
 	}
 }
 
@@ -541,6 +558,10 @@ func TestCurrentWeeklyMenuIndexTracksNextPlayableSlot(t *testing.T) {
 			InitialState: "{}",
 			SaveState:    "{}",
 			Status:       store.StatusCompleted,
+			RunKind:      store.RunKindWeekly,
+			WeekYear:     year,
+			WeekNumber:   weekNumber,
+			WeekIndex:    index,
 		}
 		if err := s.CreateGame(rec); err != nil {
 			t.Fatal(err)

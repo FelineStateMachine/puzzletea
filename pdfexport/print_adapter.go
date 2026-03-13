@@ -1,10 +1,12 @@
+// Package pdfexport owns the printable export pipeline: adapter registration,
+// JSONL ingestion, payload building, ordering, and PDF rendering.
 package pdfexport
 
 import (
 	"reflect"
-	"strings"
 
 	"codeberg.org/go-pdf/fpdf"
+	"github.com/FelineStateMachine/puzzletea/puzzle"
 )
 
 type PrintAdapter interface {
@@ -57,8 +59,5 @@ func IsNilPrintPayload(payload any) bool {
 }
 
 func normalizeGameTypeToken(s string) string {
-	s = strings.ToLower(strings.TrimSpace(s))
-	s = strings.ReplaceAll(s, "-", " ")
-	s = strings.ReplaceAll(s, "_", " ")
-	return strings.Join(strings.Fields(s), " ")
+	return puzzle.NormalizeName(s)
 }

@@ -8,29 +8,16 @@ import (
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/namegen"
 	"github.com/FelineStateMachine/puzzletea/registry"
+	"github.com/FelineStateMachine/puzzletea/schedule"
 )
 
-// Entry pairs a SeededSpawner with metadata for the eligible daily pool.
-type Entry struct {
-	Spawner  game.SeededSpawner
-	GameType string
-	Mode     string
-}
+type Entry = schedule.Entry
 
 // eligibleModes is the flattened pool built from each package's DailyModes.
 var eligibleModes = buildEligibleModes()
 
 func buildEligibleModes() []Entry {
-	registryEntries := registry.DailyEntries()
-	entries := make([]Entry, 0, len(registryEntries))
-	for _, entry := range registryEntries {
-		entries = append(entries, Entry{
-			Spawner:  entry.Spawner,
-			GameType: entry.GameType,
-			Mode:     entry.Mode,
-		})
-	}
-	return entries
+	return schedule.BuildEligibleModes(registry.DailyEntries())
 }
 
 // Seed returns a deterministic uint64 seed derived from the date.
@@ -73,24 +60,7 @@ func Mode(date time.Time) (game.SeededSpawner, string, string) {
 	}
 
 	dateStr := date.Format("2006-01-02")
-
-	var best Entry
-	var bestHash uint64
-	found := false
-	for _, entry := range eligibleModes {
-		h := fnv.New64a()
-		h.Write([]byte(dateStr))
-		h.Write([]byte{0})
-		h.Write([]byte(entry.GameType))
-		h.Write([]byte{0})
-		h.Write([]byte(entry.Mode))
-		score := h.Sum64()
-		if !found || score > bestHash {
-			bestHash = score
-			best = entry
-			found = true
-		}
-	}
+	best, found := schedule.SelectBySeed(dateStr, eligibleModes)
 	if !found {
 		return nil, "", ""
 	}

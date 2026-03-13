@@ -15,10 +15,10 @@ goal is to turn every light off.
 | Key | Action |
 |-----|--------|
 | Arrow keys / WASD / hjkl | Move cursor |
+| Mouse left-click | Toggle light |
 | `Enter` / `Space` | Toggle light |
 | `Ctrl+R` | Reset puzzle |
 | `Ctrl+H` | Toggle full help |
-| `Ctrl+E` | Toggle debug overlay |
 | `Escape` | Return to main menu |
 
 ## Modes
