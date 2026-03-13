@@ -4,7 +4,6 @@ import (
 	_ "embed"
 	"math/rand/v2"
 
-	"charm.land/bubbles/v2/list"
 	"github.com/FelineStateMachine/puzzletea/game"
 )
 
@@ -49,7 +48,7 @@ func (m Mode) SpawnSeeded(rng *rand.Rand) (game.Gamer, error) {
 	return New(m, puzzle)
 }
 
-var Modes = []list.Item{
+var Modes = []game.Mode{
 	NewMode("Mini 5x5", "Small board with generous clues.", 5, 5, 0.70),
 	NewMode("Easy 6x6", "Compact board with simple regions.", 6, 6, 0.66),
 	NewMode("Medium 8x8", "Balanced deduction and region growth.", 8, 7, 0.60),
@@ -57,7 +56,7 @@ var Modes = []list.Item{
 	NewMode("Expert 12x12", "Wide board with long deduction chains.", 12, 9, 0.52),
 }
 
-var DailyModes = []list.Item{
+var DailyModes = []game.Mode{
 	Modes[1],
 	Modes[2],
 	Modes[3],

@@ -4,7 +4,6 @@ import (
 	_ "embed"
 	"math/rand/v2"
 
-	"charm.land/bubbles/v2/list"
 	"github.com/FelineStateMachine/puzzletea/game"
 )
 
@@ -55,7 +54,7 @@ func (m Mode) SpawnSeeded(rng *rand.Rand) (game.Gamer, error) {
 	return New(m, puzzle)
 }
 
-var Modes = []list.Item{
+var Modes = []game.Mode{
 	NewModeWithProfile(
 		"Mini 5x5",
 		"Compact cages with extra anchors for quick local reads.",
@@ -123,7 +122,7 @@ var Modes = []list.Item{
 	),
 }
 
-var DailyModes = []list.Item{
+var DailyModes = []game.Mode{
 	Modes[1],
 	Modes[2],
 	Modes[3],

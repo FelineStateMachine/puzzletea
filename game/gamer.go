@@ -93,17 +93,21 @@ type Definition struct {
 	Name        string
 	Description string
 	Aliases     []string
-	Modes       []list.Item
-	DailyModes  []list.Item
+	Modes       []Mode
+	DailyModes  []Mode
 	Help        string
 	Import      func([]byte) (Gamer, error)
 }
 
 func (d Definition) Category() Category {
+	modes := make([]list.Item, len(d.Modes))
+	for i, m := range d.Modes {
+		modes[i] = m
+	}
 	return Category{
 		Name:  d.Name,
 		Desc:  d.Description,
-		Modes: d.Modes,
+		Modes: modes,
 		Help:  d.Help,
 	}
 }

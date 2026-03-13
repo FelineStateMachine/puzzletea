@@ -4,7 +4,6 @@ import (
 	_ "embed"
 	"math/rand/v2"
 
-	"charm.land/bubbles/v2/list"
 	"github.com/FelineStateMachine/puzzletea/game"
 )
 
@@ -49,13 +48,13 @@ func (w WordSearchMode) SpawnSeeded(rng *rand.Rand) (game.Gamer, error) {
 	return New(w, grid, words)
 }
 
-var Modes = []list.Item{
+var Modes = []game.Mode{
 	NewMode("Easy 10x10", "Find 6 words in a 10x10 grid.", 10, 10, 6, 3, 5, []Direction{Right, Down, DownRight}),
 	NewMode("Medium 15x15", "Find 10 words in a 15x15 grid.", 15, 15, 10, 4, 7, []Direction{Right, Down, DownRight, DownLeft, Left, Up}),
 	NewMode("Hard 20x20", "Find 15 words in a 20x20 grid.", 20, 20, 15, 5, 10, []Direction{Right, Down, DownRight, DownLeft, Left, Up, UpRight, UpLeft}),
 }
 
-var DailyModes = []list.Item{
+var DailyModes = []game.Mode{
 	Modes[0], // Easy 10x10
 }
 

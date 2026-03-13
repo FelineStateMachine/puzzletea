@@ -69,12 +69,8 @@ var (
 func adaptLegacy(def game.Definition) Entry {
 	gameID := puzzle.CanonicalGameID(def.Name)
 	modes := make([]ModeEntry, 0, len(def.Modes))
-	for _, item := range def.Modes {
-		mode, ok := item.(game.Mode)
-		if !ok {
-			continue
-		}
-		spawner, ok := item.(game.Spawner)
+	for _, mode := range def.Modes {
+		spawner, ok := mode.(game.Spawner)
 		if !ok {
 			continue
 		}
@@ -85,7 +81,7 @@ func adaptLegacy(def game.Definition) Entry {
 			Description: mode.Description(),
 		}
 		var seeded game.SeededSpawner
-		if s, ok := item.(game.SeededSpawner); ok {
+		if s, ok := mode.(game.SeededSpawner); ok {
 			modeDef.Seeded = true
 			seeded = s
 		}
@@ -97,11 +93,7 @@ func adaptLegacy(def game.Definition) Entry {
 	}
 
 	dailyIDs := make([]puzzle.ModeID, 0, len(def.DailyModes))
-	for _, item := range def.DailyModes {
-		mode, ok := item.(game.Mode)
-		if !ok {
-			continue
-		}
+	for _, mode := range def.DailyModes {
 		dailyIDs = append(dailyIDs, puzzle.CanonicalModeID(mode.Title()))
 	}
 

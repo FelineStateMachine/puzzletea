@@ -4,7 +4,6 @@ import (
 	_ "embed"
 	"math/rand/v2"
 
-	"charm.land/bubbles/v2/list"
 	"github.com/FelineStateMachine/puzzletea/game"
 )
 
@@ -47,7 +46,7 @@ func (h HitoriMode) SpawnSeeded(rng *rand.Rand) (game.Gamer, error) {
 	return New(h, puzzle)
 }
 
-var Modes = []list.Item{
+var Modes = []game.Mode{
 	NewMode("Mini", "5\u00d75 grid, gentle introduction.", 5, 0.32),
 	NewMode("Easy", "6\u00d76 grid, straightforward logic.", 6, 0.32),
 	NewMode("Medium", "8\u00d78 grid, moderate challenge.", 8, 0.30),
@@ -56,7 +55,7 @@ var Modes = []list.Item{
 	NewMode("Expert", "12\u00d712 grid, maximum challenge.", 12, 0.28),
 }
 
-var DailyModes = []list.Item{
+var DailyModes = []game.Mode{
 	Modes[1], // Easy 6x6
 	Modes[2], // Medium 8x8
 }

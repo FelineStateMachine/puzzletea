@@ -23,11 +23,12 @@ func splitCoverTextLines(pdf *fpdf.Fpdf, text string, maxW float64) []string {
 	return lines
 }
 
-func splitCoverSubtitleLines(pdf *fpdf.Fpdf, subtitle string, maxW float64, maxLines int) []string {
+func splitClampedTextLines(pdf *fpdf.Fpdf, text string, maxW float64, maxLines int) []string {
 	if maxLines < 1 {
 		maxLines = 1
 	}
-	lines := splitCoverTextLines(pdf, subtitle, maxW)
+
+	lines := splitCoverTextLines(pdf, text, maxW)
 	if len(lines) <= maxLines {
 		return lines
 	}
@@ -36,6 +37,10 @@ func splitCoverSubtitleLines(pdf *fpdf.Fpdf, subtitle string, maxW float64, maxL
 	out = append(out, lines[:maxLines-1]...)
 	out = append(out, strings.Join(lines[maxLines-1:], " "))
 	return out
+}
+
+func splitCoverSubtitleLines(pdf *fpdf.Fpdf, subtitle string, maxW float64, maxLines int) []string {
+	return splitClampedTextLines(pdf, subtitle, maxW, maxLines)
 }
 
 func renderCoverPage(pdf *fpdf.Fpdf, _ []Puzzle, cfg RenderConfig, coverColor RGB) {
@@ -49,9 +54,6 @@ func renderCoverPage(pdf *fpdf.Fpdf, _ []Puzzle, cfg RenderConfig, coverColor RG
 
 	frameInset := 7.5
 	drawCoverFrame(pdf, frameInset, pageW, pageH, ink)
-
-	scene := rectMM{x: frameInset + 4.0, y: frameInset + 10.0, w: pageW - (frameInset+4.0)*2, h: 132.0}
-	drawCoverArtwork(pdf, scene, cfg.ShuffleSeed, coverColor, ink)
 
 	subtitle := strings.TrimSpace(cfg.CoverSubtitle)
 	if subtitle == "" {
@@ -76,7 +78,7 @@ func renderCoverPage(pdf *fpdf.Fpdf, _ []Puzzle, cfg RenderConfig, coverColor RG
 	pdf.SetFont(coverFontFamily, "", fontSize)
 	titleLines := splitCoverSubtitleLines(pdf, subtitle, labelW, 2)
 	lineH := fontSize * 0.45
-	y := scene.y + scene.h + 8.5
+	y := frameInset + 12.0
 	for _, line := range titleLines {
 		pdf.SetXY(frameInset+6.0, y)
 		pdf.CellFormat(labelW, lineH, line, "", 0, "L", false, 0, "")
@@ -98,18 +100,6 @@ func drawCoverFrame(pdf *fpdf.Fpdf, inset, pageW, pageH float64, ink RGB) {
 	pdf.Rect(inner, inner, pageW-2*inner, pageH-2*inner, "D")
 }
 
-func drawCoverArtwork(pdf *fpdf.Fpdf, scene rectMM, seed string, bg, ink RGB) {
-	drawCoverArtworkImage(pdf, scene, seed, "front", bg)
-
-	pdf.SetDrawColor(int(ink.R), int(ink.G), int(ink.B))
-	pdf.SetLineWidth(0.40)
-	pdf.Rect(scene.x, scene.y, scene.w, scene.h, "D")
-
-	pdf.SetLineWidth(0.20)
-	inset := 1.8
-	pdf.Rect(scene.x+inset, scene.y+inset, scene.w-2*inset, scene.h-2*inset, "D")
-}
-
 func renderBackCoverPage(pdf *fpdf.Fpdf, cfg RenderConfig, coverColor RGB) {
 	ink := RGB{R: 8, G: 8, B: 8}
 
@@ -121,9 +111,6 @@ func renderBackCoverPage(pdf *fpdf.Fpdf, cfg RenderConfig, coverColor RGB) {
 	frameInset := 7.5
 	drawCoverFrame(pdf, frameInset, pageW, pageH, ink)
 
-	motif := rectMM{x: frameInset + 5.5, y: frameInset + 14.0, w: pageW - 2*(frameInset+5.5), h: 96.0}
-	drawBackMotif(pdf, motif, cfg.ShuffleSeed, coverColor, ink)
-
 	labelW := pageW - 2*(frameInset+6.0)
 	pdf.SetTextColor(int(ink.R), int(ink.G), int(ink.B))
 	pdf.SetFont(sansFontFamily, "B", 8.4)
@@ -131,18 +118,16 @@ func renderBackCoverPage(pdf *fpdf.Fpdf, cfg RenderConfig, coverColor RGB) {
 	pdf.CellFormat(labelW, 4.2, "PuzzleTea", "", 0, "L", false, 0, "")
 
 	pdf.SetFont(sansFontFamily, "", 8.0)
-	pdf.SetXY(frameInset+6.0, pageH-frameInset-17.0)
-	pdf.CellFormat(labelW, 4.2, cfg.AdvertText, "", 0, "L", false, 0, "")
+	advertLines := splitCoverTextLines(pdf, cfg.AdvertText, labelW)
+	advertLineH := 4.2
+	advertY := pageH - frameInset - 17.0 - float64(len(advertLines)-1)*advertLineH
+	for _, line := range advertLines {
+		pdf.SetXY(frameInset+6.0, advertY)
+		pdf.CellFormat(labelW, advertLineH, line, "", 0, "L", false, 0, "")
+		advertY += advertLineH
+	}
 
 	pdf.SetFont(sansFontFamily, "B", 8.2)
 	pdf.SetXY(frameInset+6.0, pageH-frameInset-10.5)
 	pdf.CellFormat(labelW, 4.2, fmt.Sprintf("VOL. %02d", cfg.VolumeNumber), "", 0, "L", false, 0, "")
-}
-
-func drawBackMotif(pdf *fpdf.Fpdf, scene rectMM, seed string, bg, ink RGB) {
-	drawCoverArtworkImage(pdf, scene, seed, "back", bg)
-
-	pdf.SetDrawColor(int(ink.R), int(ink.G), int(ink.B))
-	pdf.SetLineWidth(0.34)
-	pdf.Rect(scene.x, scene.y, scene.w, scene.h, "D")
 }

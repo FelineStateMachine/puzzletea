@@ -2,10 +2,9 @@ package pdfexport
 
 import (
 	"fmt"
-	"math"
 	"sort"
-	"strconv"
 	"strings"
+	"time"
 
 	"codeberg.org/go-pdf/fpdf"
 )
@@ -15,6 +14,7 @@ func renderTitlePage(pdf *fpdf.Fpdf, docs []PackDocument, puzzles []Puzzle, cfg 
 	pageW, pageH := pdf.GetPageSize()
 	margin := 12.0
 	contentWidth := pageW - 2*margin
+	categoryTotals := summarizeCategoryTotals(puzzles)
 
 	pdf.SetTextColor(20, 20, 20)
 	pdf.SetFont(sansFontFamily, "B", 22)
@@ -26,114 +26,61 @@ func renderTitlePage(pdf *fpdf.Fpdf, docs []PackDocument, puzzles []Puzzle, cfg 
 	pdf.SetXY(0, 35)
 	pdf.CellFormat(pageW, 8, cfg.CoverSubtitle, "", 0, "C", false, 0, "")
 
-	pdf.SetFont(sansFontFamily, "", 11)
-	pdf.SetTextColor(70, 70, 70)
-	pdf.SetXY(0, 44)
-	pdf.CellFormat(pageW, 6, "PuzzleTea Puzzle Pack", "", 0, "C", false, 0, "")
-
-	versionLine := fmt.Sprintf("PuzzleTea Version: %s", strings.Join(summarizeVersions(docs), ", "))
-	pdf.SetFont(sansFontFamily, "", 10)
-	wrappedVersions := pdf.SplitLines([]byte(versionLine), contentWidth)
-	if len(wrappedVersions) == 0 {
-		wrappedVersions = [][]byte{[]byte(versionLine)}
-	}
-
-	headerLineH := 4.8
-	headerGap := 1.2
-	headerStartY := 54.8
-	metaY := 56.0
+	bodyY := 49.0
 	if header := strings.TrimSpace(cfg.HeaderText); header != "" {
 		pdf.SetFont(sansFontFamily, "", 9.2)
 		pdf.SetTextColor(74, 74, 74)
-		wrappedHeader := pdf.SplitLines([]byte(header), contentWidth)
+		wrappedHeader := pdf.SplitLines([]byte(header), contentWidth-20)
 		if len(wrappedHeader) == 0 {
 			wrappedHeader = [][]byte{[]byte(header)}
 		}
-
-		metaY = headerStartY + float64(len(wrappedHeader))*headerLineH + headerGap
-		sourceStartY := titlePageSourceTableStartY(metaY, len(wrappedVersions))
-		sourceMaxY := pageH - 45
-		if spare := titlePageSourceTableWhitespace(sourceMaxY, sourceStartY, len(docs)); spare > 0 {
-			headerGap += spare
-		}
-
-		headerY := headerStartY
 		for _, line := range wrappedHeader {
-			pdf.SetXY(margin, headerY)
-			pdf.CellFormat(contentWidth, headerLineH, string(line), "", 0, "C", false, 0, "")
-			headerY += headerLineH
+			pdf.SetXY(margin, bodyY)
+			pdf.CellFormat(contentWidth, 4.6, string(line), "", 0, "C", false, 0, "")
+			bodyY += 4.6
 		}
-		metaY = headerY + headerGap
+		bodyY += 2.0
 	}
 
-	pdf.SetTextColor(25, 25, 25)
-	pdf.SetFont(sansFontFamily, "", 10)
-	pdf.SetXY(margin, metaY)
-	pdf.CellFormat(contentWidth, 6, fmt.Sprintf("Generated: %s", cfg.GeneratedAt.Format("January 2, 2006")), "", 0, "L", false, 0, "")
-	metaY += 6
-	for _, line := range wrappedVersions {
-		pdf.SetXY(margin, metaY)
-		pdf.CellFormat(contentWidth, 5.2, string(line), "", 0, "L", false, 0, "")
-		metaY += 5.2
+	introLines := splitCoverTextLines(pdf, cfg.AdvertText, contentWidth)
+	if len(introLines) > 0 {
+		pdf.SetTextColor(58, 58, 58)
+		pdf.SetFont(sansFontFamily, "", 9.3)
+		for _, line := range introLines {
+			pdf.SetXY(margin, bodyY)
+			pdf.CellFormat(contentWidth, 4.8, line, "", 0, "C", false, 0, "")
+			bodyY += 4.8
+		}
+		bodyY += 3.8
 	}
-	metaY += 0.8
 
-	pdf.SetXY(margin, metaY)
-	pdf.CellFormat(contentWidth, 6, fmt.Sprintf("Puzzles: %d", len(puzzles)), "", 0, "L", false, 0, "")
-	metaY += 6
-	metaY += 1.8
+	pdf.SetTextColor(40, 40, 40)
+	pdf.SetFont(sansFontFamily, "B", 9.6)
+	pdf.SetXY(margin, bodyY)
+	pdf.CellFormat(contentWidth, 5.4, fmt.Sprintf("%d puzzles across %d categories", len(puzzles), len(categoryTotals)), "", 0, "C", false, 0, "")
+	bodyY += 7.6
 
 	pdf.SetFont(sansFontFamily, "B", 10)
 	pdf.SetTextColor(45, 45, 45)
-	pdf.SetXY(margin, metaY)
-	pdf.CellFormat(contentWidth, 6, "Source Exports", "", 0, "L", false, 0, "")
-	metaY += 7
+	pdf.SetXY(margin, bodyY)
+	pdf.CellFormat(contentWidth, 6, "Inside This Volume", "", 0, "C", false, 0, "")
+	bodyY += 7.0
 
-	renderSourceExportsTable(pdf, docs, margin, metaY, contentWidth, pageH-45)
+	renderCategoryOverview(pdf, categoryTotals, margin, bodyY, contentWidth, pageH-32)
 
 	pdf.SetTextColor(50, 50, 50)
 	pdf.SetFont(sansFontFamily, "B", 12)
-	pdf.SetXY(margin, pageH-30)
+	footerTitleY := pageH - 31.0
+	pdf.SetXY(margin, footerTitleY)
 	pdf.CellFormat(contentWidth, 7, "Made with PuzzleTea", "", 0, "C", false, 0, "")
 
-	pdf.SetFont(sansFontFamily, "", 10)
-	pdf.SetXY(margin, pageH-22)
-	pdf.CellFormat(contentWidth, 6, cfg.AdvertText, "", 0, "C", false, 0, "")
-}
-
-func titlePageSourceTableStartY(metaY float64, versionLineCount int) float64 {
-	y := metaY
-	y += 6
-	y += float64(max(versionLineCount, 1)) * 5.2
-	y += 0.8
-	y += 6
-	y += 1.8
-	y += 7
-	return y
-}
-
-func titlePageSourceTableWhitespace(maxY, sourceStartY float64, docCount int) float64 {
-	const (
-		headerHeight = 5.2
-		rowHeight    = 4.8
-	)
-
-	availableRowsHeight := maxY - sourceStartY - headerHeight
-	if availableRowsHeight < rowHeight {
-		return 0
+	colophon := titlePageColophon(docs, cfg.GeneratedAt)
+	if colophon != "" {
+		pdf.SetFont(sansFontFamily, "", 7.8)
+		pdf.SetTextColor(112, 112, 112)
+		pdf.SetXY(margin, footerTitleY+8.0)
+		pdf.CellFormat(contentWidth, 4.0, colophon, "", 0, "C", false, 0, "")
 	}
-
-	maxRows := int(math.Floor(availableRowsHeight / rowHeight))
-	if maxRows < 1 {
-		return 0
-	}
-
-	rowCount := min(docCount, maxRows)
-	used := headerHeight + float64(rowCount)*rowHeight
-	if spare := maxY - sourceStartY - used; spare > 0 {
-		return spare
-	}
-	return 0
 }
 
 func summarizeVersions(docs []PackDocument) []string {
@@ -167,116 +114,101 @@ func defaultTitle(docs []PackDocument) string {
 	return "PuzzleTea Mixed Puzzle Pack"
 }
 
-func renderSourceExportsTable(
+type namedCount struct {
+	Name  string
+	Count int
+}
+
+func summarizeCategoryTotals(puzzles []Puzzle) []namedCount {
+	m := make(map[string]*namedCount)
+	for _, puzzle := range puzzles {
+		category := strings.TrimSpace(puzzle.Category)
+		if category == "" {
+			category = "Unknown"
+		}
+		key := normalizeToken(category)
+		if entry, ok := m[key]; ok {
+			entry.Count++
+			continue
+		}
+		m[key] = &namedCount{Name: category, Count: 1}
+	}
+	return sortedNamedCounts(m)
+}
+
+func sortedNamedCounts(m map[string]*namedCount) []namedCount {
+	counts := make([]namedCount, 0, len(m))
+	for _, entry := range m {
+		counts = append(counts, *entry)
+	}
+	sort.SliceStable(counts, func(i, j int) bool {
+		return strings.Compare(normalizeToken(counts[i].Name), normalizeToken(counts[j].Name)) < 0
+	})
+	return counts
+}
+
+func renderCategoryOverview(
 	pdf *fpdf.Fpdf,
-	docs []PackDocument,
+	categoryTotals []namedCount,
 	x, y, width, maxY float64,
 ) float64 {
-	if width <= 0 || y >= maxY {
+	const (
+		lineHeight  = 4.8
+		categoryGap = 1.2
+		columnGap   = 6.0
+		maxWidth    = 96.0
+		widthScale  = 0.82
+	)
+
+	if width <= 0 || y >= maxY || len(categoryTotals) == 0 {
 		return y
 	}
 
-	headers := []string{"Source", "Category", "Mode", "Count", "Seed"}
-	columnRatios := []float64{0.33, 0.20, 0.22, 0.10, 0.15}
-	columnWidths := make([]float64, len(columnRatios))
-	usedWidth := 0.0
-	for i := 0; i < len(columnRatios)-1; i++ {
-		columnWidths[i] = width * columnRatios[i]
-		usedWidth += columnWidths[i]
-	}
-	columnWidths[len(columnWidths)-1] = width - usedWidth
-
-	headerHeight := 5.2
-	rowHeight := 4.8
-	availableRowsHeight := maxY - y - headerHeight
-	if availableRowsHeight < rowHeight {
-		return y
-	}
-	maxRows := int(math.Floor(availableRowsHeight / rowHeight))
-	if maxRows < 1 {
-		return y
-	}
-
-	rowCount := len(docs)
-	rowCount = min(rowCount, maxRows)
-
-	pdf.SetDrawColor(125, 125, 125)
-	pdf.SetLineWidth(thinGridLineMM)
-	pdf.SetFillColor(245, 245, 245)
-	pdf.SetTextColor(45, 45, 45)
-	pdf.SetFont(sansFontFamily, "B", 8.9)
-
-	curX := x
-	for i, header := range headers {
-		pdf.SetXY(curX, y)
-		pdf.CellFormat(columnWidths[i], headerHeight, header, "1", 0, "C", true, 0, "")
-		curX += columnWidths[i]
-	}
-
-	pdf.SetFont(sansFontFamily, "", 8.6)
 	pdf.SetTextColor(ruleTextGray, ruleTextGray, ruleTextGray)
-	for i := 0; i < rowCount; i++ {
-		rowY := y + headerHeight + float64(i)*rowHeight
-		mode := ""
-		if !isMixedModes(docs[i].Metadata.ModeSelection) {
-			mode = docs[i].Metadata.ModeSelection
-		}
+	pdf.SetFont(sansFontFamily, "", 9.0)
 
-		values := []string{
-			docs[i].Metadata.SourceFileName,
-			docs[i].Metadata.Category,
-			mode,
-			strconv.Itoa(docs[i].Metadata.Count),
-			emptyAs(docs[i].Metadata.Seed, "none"),
+	containerWidth := min(width, min(maxWidth, width*widthScale))
+	containerX := x + (width-containerWidth)/2
+	colWidth := (containerWidth - columnGap) / 2
+	leftCount := (len(categoryTotals) + 1) / 2
+	maxRows := max(leftCount, len(categoryTotals)-leftCount)
+	curY := y
+	for row := 0; row < maxRows; row++ {
+		rowY := curY + float64(row)*(lineHeight+categoryGap)
+		if rowY+lineHeight > maxY {
+			return rowY
 		}
-
-		curX = x
-		for col := range values {
-			cellText := fitTableCellText(pdf, values[col], columnWidths[col]-1.6)
-			align := "L"
-			if col == 3 {
-				align = "C"
-			}
-			pdf.SetXY(curX, rowY)
-			pdf.CellFormat(columnWidths[col], rowHeight, cellText, "1", 0, align, false, 0, "")
-			curX += columnWidths[col]
+		if row < leftCount {
+			pdf.SetXY(containerX, rowY)
+			pdf.CellFormat(colWidth, lineHeight, formatCountLabel(categoryTotals[row]), "", 0, "R", false, 0, "")
+		}
+		rightIndex := leftCount + row
+		if rightIndex < len(categoryTotals) {
+			pdf.SetXY(containerX+colWidth+columnGap, rowY)
+			pdf.CellFormat(colWidth, lineHeight, formatCountLabel(categoryTotals[rightIndex]), "", 0, "L", false, 0, "")
 		}
 	}
 
-	return y + headerHeight + float64(rowCount)*rowHeight
+	return curY + float64(maxRows)*(lineHeight+categoryGap)
 }
 
-func fitTableCellText(pdf *fpdf.Fpdf, text string, maxWidth float64) string {
-	text = strings.TrimSpace(text)
-	if text == "" {
-		return ""
-	}
-	if maxWidth <= 0 {
-		return ""
-	}
-	if pdf.GetStringWidth(text) <= maxWidth {
-		return text
-	}
-
-	ellipsis := "..."
-	if pdf.GetStringWidth(ellipsis) > maxWidth {
-		return ellipsis
-	}
-
-	runes := []rune(text)
-	for len(runes) > 0 {
-		candidate := string(runes) + ellipsis
-		if pdf.GetStringWidth(candidate) <= maxWidth {
-			return candidate
-		}
-		runes = runes[:len(runes)-1]
-	}
-	return ellipsis
+func formatCountLabel(item namedCount) string {
+	return fmt.Sprintf("%s x%d", item.Name, item.Count)
 }
 
-func emptyAs(v, fallback string) string {
-	if strings.TrimSpace(v) == "" {
-		return fallback
+func titlePageColophon(docs []PackDocument, generatedAt time.Time) string {
+	parts := []string{}
+	versions := summarizeVersions(docs)
+	if len(versions) > 0 && versions[0] != "Unknown" {
+		parts = append(parts, fmt.Sprintf("PuzzleTea %s", strings.Join(versions, ", ")))
 	}
-	return v
+
+	if !generatedAt.IsZero() {
+		parts = append(parts, generatedAt.Format("January 2, 2006"))
+	}
+
+	if len(parts) == 0 {
+		return ""
+	}
+	return strings.Join(parts, " | ")
 }

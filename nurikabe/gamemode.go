@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math/rand/v2"
 
-	"charm.land/bubbles/v2/list"
 	"github.com/FelineStateMachine/puzzletea/game"
 )
 
@@ -66,7 +65,7 @@ func (n NurikabeMode) SpawnSeededContext(ctx context.Context, rng *rand.Rand) (g
 	return New(n, p)
 }
 
-var Modes = []list.Item{
+var Modes = []game.Mode{
 	NewMode("Mini", "5x5 grid, gentle introduction.", 5, 5, 0.28, 5),
 	NewMode("Easy", "7x7 grid, balanced logic.", 7, 7, 0.24, 7),
 	NewMode("Medium", "9x9 grid, moderate deduction.", 9, 9, 0.20, 9),
@@ -74,7 +73,7 @@ var Modes = []list.Item{
 	NewMode("Expert", "12x12 grid, sparse clues and long chains.", 12, 12, 0.14, 12),
 }
 
-var DailyModes = []list.Item{
+var DailyModes = []game.Mode{
 	Modes[1], // Easy
 	Modes[2], // Medium
 }

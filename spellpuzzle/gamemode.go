@@ -4,7 +4,6 @@ import (
 	_ "embed"
 	"math/rand/v2"
 
-	"charm.land/bubbles/v2/list"
 	"github.com/FelineStateMachine/puzzletea/game"
 )
 
@@ -49,14 +48,14 @@ func (m SpellPuzzleMode) SpawnSeeded(rng *rand.Rand) (game.Gamer, error) {
 	return New(m, puzzle)
 }
 
-var Modes = []list.Item{
+var Modes = []game.Mode{
 	NewMode("Beginner", "6 letters, 4 board words, gentle intro.", 6, 4, 3),
 	NewMode("Easy", "7 letters, 6 board words, balanced start.", 7, 6, 4),
 	NewMode("Medium", "8 letters, 8 board words, denser layout.", 8, 8, 6),
 	NewMode("Hard", "9 letters, 9 board words, largest launch board.", 9, 9, 8),
 }
 
-var DailyModes = []list.Item{
+var DailyModes = []game.Mode{
 	Modes[0],
 }
 

@@ -4,7 +4,6 @@ import (
 	_ "embed"
 	"math/rand/v2"
 
-	"charm.land/bubbles/v2/list"
 	"github.com/FelineStateMachine/puzzletea/game"
 )
 
@@ -37,7 +36,7 @@ func (s SudokuRGBMode) SpawnSeeded(rng *rand.Rand) (game.Gamer, error) {
 	return New(s, GenerateProvidedCellsSeeded(s, rng))
 }
 
-var Modes = []list.Item{
+var Modes = []game.Mode{
 	NewMode("Beginner", "60 clues. Gentle intro to RGB quota logic.", 60),
 	NewMode("Easy", "54 clues. Early rows and boxes resolve quickly.", 54),
 	NewMode("Medium", "48 clues. Mixed row, column, and box pressure.", 48),
@@ -46,7 +45,7 @@ var Modes = []list.Item{
 	NewMode("Diabolical", "30 clues. Tightest clue budget in the launch set.", 30),
 }
 
-var DailyModes = []list.Item{
+var DailyModes = []game.Mode{
 	Modes[1], // Easy
 	Modes[2], // Medium
 }

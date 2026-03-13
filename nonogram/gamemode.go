@@ -4,7 +4,6 @@ import (
 	_ "embed"
 	"math/rand/v2"
 
-	"charm.land/bubbles/v2/list"
 	"github.com/FelineStateMachine/puzzletea/game"
 )
 
@@ -42,7 +41,7 @@ func (n NonogramMode) SpawnSeeded(rng *rand.Rand) (game.Gamer, error) {
 	return New(n, hints)
 }
 
-var Modes = []list.Item{
+var Modes = []game.Mode{
 	// 5x5
 	NewMode("Mini", "5x5 grid, ~65% filled. Quick puzzle, straightforward hints.", 5, 5, 0.65),
 	NewMode("Pocket", "5x5 grid, ~50% filled. Compact but balanced.", 5, 5, 0.50),
@@ -59,7 +58,7 @@ var Modes = []list.Item{
 	NewMode("Massive", "20x20 grid, ~56% filled. Truly massive puzzle.", 20, 20, 0.56),
 }
 
-var DailyModes = []list.Item{
+var DailyModes = []game.Mode{
 	Modes[3], // Standard 10x10
 	Modes[4], // Classic 10x10
 }

@@ -4,7 +4,6 @@ import (
 	_ "embed"
 	"math/rand/v2"
 
-	"charm.land/bubbles/v2/list"
 	"github.com/FelineStateMachine/puzzletea/game"
 )
 
@@ -49,7 +48,7 @@ func (s ShikakuMode) SpawnSeeded(rng *rand.Rand) (game.Gamer, error) {
 	return New(s, puzzle), nil
 }
 
-var Modes = []list.Item{
+var Modes = []game.Mode{
 	NewMode("Mini 5x5", "5x5 grid, gentle introduction.", 5, 5, 5),
 	NewMode("Easy 7x7", "7x7 grid, straightforward puzzles.", 7, 7, 8),
 	NewMode("Medium 8x8", "8x8 grid, moderate challenge.", 8, 8, 12),
@@ -57,7 +56,7 @@ var Modes = []list.Item{
 	NewMode("Expert 12x12", "12x12 grid, maximum challenge.", 12, 12, 20),
 }
 
-var DailyModes = []list.Item{
+var DailyModes = []game.Mode{
 	Modes[1], // Easy 7x7
 	Modes[2], // Medium 8x8
 }

@@ -4,7 +4,6 @@ import (
 	_ "embed"
 	"math/rand/v2"
 
-	"charm.land/bubbles/v2/list"
 	"github.com/FelineStateMachine/puzzletea/game"
 )
 
@@ -43,7 +42,7 @@ func (t TakuzuMode) SpawnSeeded(rng *rand.Rand) (game.Gamer, error) {
 	return New(t, puzzle, provided)
 }
 
-var Modes = []list.Item{
+var Modes = []game.Mode{
 	NewMode("Beginner", "6×6 grid, ~50% clues. Doubles and sandwich patterns.", 6, 0.50),
 	NewMode("Easy", "6×6 grid, ~40% clues. Counting required.", 6, 0.40),
 	NewMode("Medium", "8×8 grid, ~40% clues. Larger grid, moderate deduction.", 8, 0.40),
@@ -53,7 +52,7 @@ var Modes = []list.Item{
 	NewMode("Extreme", "14×14 grid, ~28% clues. Maximum challenge.", 14, 0.28),
 }
 
-var DailyModes = []list.Item{
+var DailyModes = []game.Mode{
 	Modes[2], // Medium 8x8
 	Modes[3], // Tricky 10x10
 }

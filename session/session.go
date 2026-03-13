@@ -117,8 +117,9 @@ func GenerateUniqueName(s *store.Store) string {
 			return name
 		}
 	}
+	base := namegen.Generate()
 	for i := 1; ; i++ {
-		name := namegen.Generate() + "-" + strconv.Itoa(i)
+		name := base + "-" + strconv.Itoa(i)
 		exists, err := s.NameExists(name)
 		if err != nil || !exists {
 			return name
