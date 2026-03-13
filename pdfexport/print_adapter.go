@@ -1,3 +1,5 @@
+// Package pdfexport owns the printable export pipeline: adapter registration,
+// JSONL ingestion, payload building, ordering, and PDF rendering.
 package pdfexport
 
 import (

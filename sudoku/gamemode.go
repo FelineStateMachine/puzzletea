@@ -5,7 +5,7 @@ import (
 	"math/rand/v2"
 
 	"github.com/FelineStateMachine/puzzletea/game"
-	"github.com/FelineStateMachine/puzzletea/gamereg"
+	"github.com/FelineStateMachine/puzzletea/gameentry"
 	"github.com/FelineStateMachine/puzzletea/puzzle"
 )
 
@@ -47,7 +47,7 @@ var Modes = []game.Mode{
 	NewMode("Diabolical", "17–21 clues. Swordfish / XY-Chains.", 17),
 }
 
-var ModeDefinitions = gamereg.BuildModeDefs(Modes)
+var ModeDefinitions = gameentry.BuildModeDefs(Modes)
 
 var Definition = puzzle.NewDefinition(puzzle.DefinitionSpec{
 	Name:         "Sudoku",
@@ -56,7 +56,7 @@ var Definition = puzzle.NewDefinition(puzzle.DefinitionSpec{
 	DailyModeIDs: puzzle.SelectModeIDsByIndex(ModeDefinitions, 1, 2),
 })
 
-var Entry = gamereg.NewEntry(gamereg.EntrySpec{
+var Entry = gameentry.NewEntry(gameentry.EntrySpec{
 	Definition: Definition,
 	Help:       HelpContent,
 	Import:     game.AdaptImport(ImportModel),

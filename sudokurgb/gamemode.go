@@ -5,7 +5,7 @@ import (
 	"math/rand/v2"
 
 	"github.com/FelineStateMachine/puzzletea/game"
-	"github.com/FelineStateMachine/puzzletea/gamereg"
+	"github.com/FelineStateMachine/puzzletea/gameentry"
 	"github.com/FelineStateMachine/puzzletea/puzzle"
 )
 
@@ -47,7 +47,7 @@ var Modes = []game.Mode{
 	NewMode("Diabolical", "30 clues. Tightest clue budget in the launch set.", 30),
 }
 
-var ModeDefinitions = gamereg.BuildModeDefs(Modes)
+var ModeDefinitions = gameentry.BuildModeDefs(Modes)
 
 var Definition = puzzle.NewDefinition(puzzle.DefinitionSpec{
 	Name:         "Sudoku RGB",
@@ -57,7 +57,7 @@ var Definition = puzzle.NewDefinition(puzzle.DefinitionSpec{
 	DailyModeIDs: puzzle.SelectModeIDsByIndex(ModeDefinitions, 1, 2),
 })
 
-var Entry = gamereg.NewEntry(gamereg.EntrySpec{
+var Entry = gameentry.NewEntry(gameentry.EntrySpec{
 	Definition: Definition,
 	Help:       HelpContent,
 	Import:     game.AdaptImport(ImportModel),

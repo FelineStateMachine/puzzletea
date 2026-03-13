@@ -1,3 +1,5 @@
+// Package builtinprint registers the built-in print adapters exposed by the
+// game registry into the export pipeline.
 package builtinprint
 
 import (

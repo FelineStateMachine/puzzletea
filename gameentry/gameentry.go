@@ -1,9 +1,12 @@
-package gamereg
+// Package gameentry builds concrete runtime game entries from puzzle definitions
+// and runtime mode implementations.
+package gameentry
 
 import (
 	"fmt"
 
 	"github.com/FelineStateMachine/puzzletea/game"
+	"github.com/FelineStateMachine/puzzletea/pdfexport"
 	"github.com/FelineStateMachine/puzzletea/puzzle"
 )
 
@@ -18,7 +21,7 @@ type Entry struct {
 	Help       string
 	Import     func([]byte) (game.Gamer, error)
 	Modes      []ModeEntry
-	Print      game.PrintAdapter
+	Print      pdfexport.PrintAdapter
 }
 
 type EntrySpec struct {
@@ -26,7 +29,7 @@ type EntrySpec struct {
 	Help       string
 	Import     func([]byte) (game.Gamer, error)
 	Modes      []game.Mode
-	Print      game.PrintAdapter
+	Print      pdfexport.PrintAdapter
 }
 
 func BuildModeDefs(modes []game.Mode) []puzzle.ModeDef {
@@ -47,7 +50,7 @@ func BuildModeDefs(modes []game.Mode) []puzzle.ModeDef {
 func NewEntry(spec EntrySpec) Entry {
 	if len(spec.Definition.Modes) != len(spec.Modes) {
 		panic(fmt.Sprintf(
-			"gamereg: definition %q has %d mode definitions but %d runtime modes",
+			"gameentry: definition %q has %d mode definitions but %d runtime modes",
 			spec.Definition.Name,
 			len(spec.Definition.Modes),
 			len(spec.Modes),
@@ -59,7 +62,7 @@ func NewEntry(spec EntrySpec) Entry {
 		spawner, ok := mode.(game.Spawner)
 		if !ok {
 			panic(fmt.Sprintf(
-				"gamereg: definition %q mode %q does not implement game.Spawner",
+				"gameentry: definition %q mode %q does not implement game.Spawner",
 				spec.Definition.Name,
 				mode.Title(),
 			))
@@ -68,7 +71,7 @@ func NewEntry(spec EntrySpec) Entry {
 		modeDef := spec.Definition.Modes[i]
 		if modeDef.Title != mode.Title() || modeDef.Description != mode.Description() {
 			panic(fmt.Sprintf(
-				"gamereg: definition %q mode %d metadata does not match runtime mode %q",
+				"gameentry: definition %q mode %d metadata does not match runtime mode %q",
 				spec.Definition.Name,
 				i,
 				mode.Title(),
@@ -84,7 +87,7 @@ func NewEntry(spec EntrySpec) Entry {
 		}
 		if entry.Definition.Seeded != (entry.Seeded != nil) {
 			panic(fmt.Sprintf(
-				"gamereg: definition %q mode %q seeded flag does not match runtime mode",
+				"gameentry: definition %q mode %q seeded flag does not match runtime mode",
 				spec.Definition.Name,
 				modeDef.Title,
 			))

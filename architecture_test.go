@@ -36,6 +36,12 @@ func TestStorePackageDoesNotImportSchedulePackages(t *testing.T) {
 	})
 }
 
+func TestGamePackageDoesNotImportPDFExport(t *testing.T) {
+	assertPackageDoesNotImport(t, "game", []string{
+		"github.com/FelineStateMachine/puzzletea/pdfexport",
+	})
+}
+
 func TestCatalogPackageDoesNotImportConcreteGames(t *testing.T) {
 	assertPackageDoesNotImport(t, "catalog", []string{
 		"github.com/FelineStateMachine/puzzletea/fillomino",
@@ -90,6 +96,14 @@ func TestPDFExportPackageDoesNotContainMarkdownParseEntrypoints(t *testing.T) {
 		"func ParseFiles(",
 		"func lookupMarkdownBodyParser(",
 	})
+}
+
+func TestGamePackageDoesNotExposeLegacyPrintFacade(t *testing.T) {
+	if _, err := os.Stat(filepath.Join("game", "print_adapter.go")); err == nil {
+		t.Fatal("game/print_adapter.go should not exist")
+	} else if !os.IsNotExist(err) {
+		t.Fatalf("stat game/print_adapter.go: %v", err)
+	}
 }
 
 func assertPackageDoesNotImport(t *testing.T, dir string, forbidden []string) {

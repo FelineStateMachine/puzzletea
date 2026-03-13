@@ -1,4 +1,4 @@
-package gamereg
+package gameentry
 
 import (
 	"errors"

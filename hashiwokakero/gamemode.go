@@ -5,7 +5,7 @@ import (
 	"math/rand/v2"
 
 	"github.com/FelineStateMachine/puzzletea/game"
-	"github.com/FelineStateMachine/puzzletea/gamereg"
+	"github.com/FelineStateMachine/puzzletea/gameentry"
 	"github.com/FelineStateMachine/puzzletea/puzzle"
 )
 
@@ -67,7 +67,7 @@ var Modes = []game.Mode{
 	NewMode("Hard 13x13", "13x13 grid with 59-68 islands.", 13, 13, 59, 68),
 }
 
-var ModeDefinitions = gamereg.BuildModeDefs(Modes)
+var ModeDefinitions = gameentry.BuildModeDefs(Modes)
 
 var Definition = puzzle.NewDefinition(puzzle.DefinitionSpec{
 	Name:         "Hashiwokakero",
@@ -77,7 +77,7 @@ var Definition = puzzle.NewDefinition(puzzle.DefinitionSpec{
 	DailyModeIDs: puzzle.SelectModeIDsByIndex(ModeDefinitions, 3, 1),
 })
 
-var Entry = gamereg.NewEntry(gamereg.EntrySpec{
+var Entry = gameentry.NewEntry(gameentry.EntrySpec{
 	Definition: Definition,
 	Help:       HelpContent,
 	Import:     game.AdaptImport(ImportModel),

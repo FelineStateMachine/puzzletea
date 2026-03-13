@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/pdfexport"
 )
 
@@ -98,7 +97,7 @@ func TestSpellPuzzlePrintAdapterRegistration(t *testing.T) {
 	pdfexport.RegisterPrintAdapter(PDFPrintAdapter)
 
 	for _, gameType := range []string{"Spell Puzzle", "spell", "spellpuzzle"} {
-		if !game.HasPrintAdapter(gameType) {
+		if !pdfexport.HasPrintAdapter(gameType) {
 			t.Fatalf("expected print adapter for %q", gameType)
 		}
 	}

@@ -1,3 +1,5 @@
+// Package registry is the concrete runtime composition root for built-in games,
+// imports, help text, and daily-capable modes.
 package registry
 
 import (
@@ -6,7 +8,7 @@ import (
 	"github.com/FelineStateMachine/puzzletea/catalog"
 	"github.com/FelineStateMachine/puzzletea/fillomino"
 	"github.com/FelineStateMachine/puzzletea/game"
-	"github.com/FelineStateMachine/puzzletea/gamereg"
+	"github.com/FelineStateMachine/puzzletea/gameentry"
 	"github.com/FelineStateMachine/puzzletea/hashiwokakero"
 	"github.com/FelineStateMachine/puzzletea/hitori"
 	"github.com/FelineStateMachine/puzzletea/lightsout"
@@ -24,8 +26,8 @@ import (
 )
 
 type (
-	ModeEntry = gamereg.ModeEntry
-	Entry     = gamereg.Entry
+	ModeEntry = gameentry.ModeEntry
+	Entry     = gameentry.Entry
 )
 
 type DailyEntry struct {

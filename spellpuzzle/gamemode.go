@@ -5,7 +5,7 @@ import (
 	"math/rand/v2"
 
 	"github.com/FelineStateMachine/puzzletea/game"
-	"github.com/FelineStateMachine/puzzletea/gamereg"
+	"github.com/FelineStateMachine/puzzletea/gameentry"
 	"github.com/FelineStateMachine/puzzletea/puzzle"
 )
 
@@ -57,7 +57,7 @@ var Modes = []game.Mode{
 	NewMode("Hard", "9 letters, 9 board words, largest launch board.", 9, 9, 8),
 }
 
-var ModeDefinitions = gamereg.BuildModeDefs(Modes)
+var ModeDefinitions = gameentry.BuildModeDefs(Modes)
 
 var Definition = puzzle.NewDefinition(puzzle.DefinitionSpec{
 	Name:         "Spell Puzzle",
@@ -67,7 +67,7 @@ var Definition = puzzle.NewDefinition(puzzle.DefinitionSpec{
 	DailyModeIDs: puzzle.SelectModeIDsByIndex(ModeDefinitions, 0),
 })
 
-var Entry = gamereg.NewEntry(gamereg.EntrySpec{
+var Entry = gameentry.NewEntry(gameentry.EntrySpec{
 	Definition: Definition,
 	Help:       HelpContent,
 	Import:     game.AdaptImport(ImportModel),
