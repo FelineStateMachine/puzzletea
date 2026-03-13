@@ -35,8 +35,7 @@ func (m model) handleDailyPuzzle() (tea.Model, tea.Cmd) {
 	}
 
 	rng := daily.RNG(today)
-	ctx, jobID := m.beginSpawnContext()
-	m.session.spawn = &spawnRequest{
+	cmd := newSessionController(&m).startSeededSpawn(spawner, rng, spawnRequest{
 		source:      spawnSourceDaily,
 		name:        name,
 		gameType:    gameType,
@@ -44,8 +43,6 @@ func (m model) handleDailyPuzzle() (tea.Model, tea.Cmd) {
 		run:         store.DailyRunMetadata(today),
 		returnState: playMenuView,
 		exitState:   mainMenuView,
-	}
-	m.state = generatingView
-	m = m.clearNotice()
-	return m, tea.Batch(m.spinner.Tick, spawnSeededCmd(spawner, rng, ctx, jobID))
+	})
+	return m, cmd
 }

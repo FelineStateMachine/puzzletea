@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/FelineStateMachine/puzzletea/game"
-	sessionflow "github.com/FelineStateMachine/puzzletea/session"
 	"github.com/FelineStateMachine/puzzletea/store"
 
 	tea "charm.land/bubbletea/v2"
@@ -59,109 +58,17 @@ func spawnSeededCmd(spawner game.SeededSpawner, rng *rand.Rand, ctx context.Cont
 	}
 }
 
-func (m *model) beginSpawnContext() (context.Context, int64) {
-	m.cancelActiveSpawn()
-	m.session.spawnJobID++
-	jobID := m.session.spawnJobID
-	ctx, cancel := context.WithTimeout(context.Background(), spawnTimeout)
-	m.session.spawnCancel = cancel
-	m.session.generating = true
-	return ctx, jobID
-}
-
 func (m *model) cancelActiveSpawn() {
-	if m.session.spawnCancel != nil {
-		m.session.spawnCancel()
-		m.session.spawnCancel = nil
-	}
-	if m.session.generating {
-		// Invalidate late completion messages from a canceled job.
-		m.session.spawnJobID++
-	}
-	m.session.generating = false
-	m.session.spawn = nil
+	newSessionController(m).cancelActiveSpawn()
 }
 
 func (m model) handleSpawnComplete(jobID int64, msg game.SpawnCompleteMsg) (tea.Model, tea.Cmd) {
-	if jobID != m.session.spawnJobID {
-		return m, nil
-	}
-
-	m.session.generating = false
-	if m.session.spawnCancel != nil {
-		m.session.spawnCancel()
-		m.session.spawnCancel = nil
-	}
-	request := m.session.spawn
-	m.session.spawn = nil
-
-	// If the user navigated away while generating, discard the result.
-	if m.state != generatingView {
-		return m, nil
-	}
-
-	if msg.Err != nil {
-		m = m.setErrorf("Could not generate puzzle: %v", msg.Err)
-		if request != nil {
-			m.state = request.returnState
-		}
-		return m, nil
-	}
-
-	if request == nil {
-		return m.setErrorf("Internal error: missing spawn request metadata"), nil
-	}
-	m = m.activateGame(msg.Game.SetTitle(request.name), 0, false, gameOpenOptions{
-		returnState: request.exitState,
-		weeklyInfo:  request.weeklyInfo,
-	}).clearNotice()
-
-	// Capture initial state and create DB record.
-	rec, err := sessionflow.CreateRecord(
-		m.store,
-		m.session.game,
-		request.name,
-		request.gameType,
-		request.modeTitle,
-		request.run,
-	)
-	if err != nil {
-		m = m.setErrorf("Started puzzle, but could not create a save record: %v", err)
-	} else {
-		m.session.activeGameID = rec.ID
-	}
-	return m, nil
+	cmd := newSessionController(&m).handleSpawnComplete(jobID, msg)
+	return m, cmd
 }
 
 // saveCurrentGame saves the current game state to the DB if a game is active.
 func saveCurrentGame(m model, status store.GameStatus) model {
-	if m.session.game == nil {
-		return m
-	}
-	if m.session.activeGameID == 0 {
-		return clearActiveGame(m)
-	}
-	saveData, err := m.session.game.GetSave()
-	if err != nil {
-		return m.setErrorf("Could not save puzzle progress: %v", err)
-	}
-	if err := m.store.UpdateSaveState(m.session.activeGameID, string(saveData)); err != nil {
-		m = m.setErrorf("Could not save puzzle progress: %v", err)
-	}
-	// Don't overwrite a completed status when navigating away.
-	if !(m.session.completionSaved && status != store.StatusCompleted) {
-		if err := m.store.UpdateStatus(m.session.activeGameID, status); err != nil {
-			m = m.setErrorf("Could not update puzzle status: %v", err)
-		}
-	}
-	return clearActiveGame(m)
-}
-
-func clearActiveGame(m model) model {
-	m.session.activeGameID = 0
-	m.session.game = nil
-	m.session.completionSaved = false
-	m.session.returnState = mainMenuView
-	m.session.weeklyAdvance = nil
+	newSessionController(&m).saveCurrentGame(status)
 	return m
 }

@@ -34,14 +34,18 @@ func (m model) setErrorf(format string, args ...any) model {
 }
 
 func (m model) appendNotice(content string) string {
-	if m.notice.message == "" {
+	return appendNoticeContent(m.width, m.notice, content)
+}
+
+func appendNoticeContent(width int, notice noticeState, content string) string {
+	if notice.message == "" {
 		return content
 	}
 
 	style := ui.ErrorNoticeStyle()
 	block := style.
-		MaxWidth(max(m.width-8, 24)).
-		Render(m.notice.message)
+		MaxWidth(max(width-8, 24)).
+		Render(notice.message)
 	if content == "" {
 		return block
 	}
@@ -49,6 +53,14 @@ func (m model) appendNotice(content string) string {
 }
 
 func (m model) renderPanel(title, content, footer string) string {
-	panel := ui.Panel(title, m.appendNotice(content), footer)
-	return ui.CenterView(m.width, m.height, panel)
+	return renderPanelView(m.width, m.height, m.notice, title, content, footer)
+}
+
+func centerContentWithNotice(width, height int, notice noticeState, content string) string {
+	return ui.CenterView(width, height, appendNoticeContent(width, notice, content))
+}
+
+func renderPanelView(width, height int, notice noticeState, title, content, footer string) string {
+	panel := ui.Panel(title, appendNoticeContent(width, notice, content), footer)
+	return ui.CenterView(width, height, panel)
 }

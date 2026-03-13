@@ -53,8 +53,7 @@ func (m model) handleSeedConfirm() (tea.Model, tea.Cmd) {
 	}
 
 	rng := resolve.RNGFromString(seed)
-	ctx, jobID := m.beginSpawnContext()
-	m.session.spawn = &spawnRequest{
+	cmd := newSessionController(&m).startSeededSpawn(spawner, rng, spawnRequest{
 		source:      spawnSourceSeed,
 		name:        name,
 		gameType:    gameType,
@@ -62,8 +61,6 @@ func (m model) handleSeedConfirm() (tea.Model, tea.Cmd) {
 		run:         store.SeededRunMetadata(seed),
 		returnState: playMenuView,
 		exitState:   mainMenuView,
-	}
-	m.state = generatingView
-	m = m.clearNotice()
-	return m, tea.Batch(m.spinner.Tick, spawnSeededCmd(spawner, rng, ctx, jobID))
+	})
+	return m, cmd
 }

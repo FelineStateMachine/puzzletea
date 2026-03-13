@@ -158,9 +158,8 @@ func (m model) openWeeklyRow(row weeklyRow) (tea.Model, tea.Cmd) {
 	}
 
 	rng := weekly.RNG(info.Year, info.Week, info.Index)
-	ctx, jobID := m.beginSpawnContext()
 	infoCopy := info
-	m.session.spawn = &spawnRequest{
+	cmd := newSessionController(&m).startSeededSpawn(spawner, rng, spawnRequest{
 		source:      spawnSourceWeekly,
 		name:        row.Name,
 		gameType:    gameType,
@@ -169,10 +168,8 @@ func (m model) openWeeklyRow(row weeklyRow) (tea.Model, tea.Cmd) {
 		returnState: weeklyView,
 		exitState:   weeklyView,
 		weeklyInfo:  &infoCopy,
-	}
-	m.state = generatingView
-	m = m.clearNotice()
-	return m, tea.Batch(m.spinner.Tick, spawnSeededCmd(spawner, rng, ctx, jobID))
+	})
+	return m, cmd
 }
 
 func (m model) advanceSolvedWeekly() (model, tea.Cmd, bool) {

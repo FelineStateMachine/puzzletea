@@ -22,6 +22,18 @@ func (m model) View() tea.View {
 	return v
 }
 
+func (m model) viewContent() string {
+	if m.state == gameView {
+		return m.renderGameView()
+	}
+
+	screen := m.activeScreen()
+	if screen == nil {
+		return fmt.Sprintf("unknown state: %d", m.state)
+	}
+	return screen.View(m.notice)
+}
+
 func (m model) gameSelectViewContent() string {
 	metrics := categoryPickerSize(m.width, m.height)
 
@@ -167,27 +179,20 @@ func renderModeList(entry registry.Entry, width int) string {
 	return strings.Join(lines, "\n")
 }
 
-// themeSelectViewContent renders the theme picker as a side-by-side layout:
-// theme list on the left, color preview panel on the right.
 func (m model) themeSelectViewContent() string {
 	p := theme.Current()
 
-	// Determine selected theme name for the preview.
 	themeName := theme.DefaultThemeName
 	if item, ok := m.theme.list.SelectedItem().(ui.MenuItem); ok {
 		themeName = item.ItemTitle
 	}
 
-	// Compute available inner height for the panel content.
-	// Panel chrome: border (2) + padding (2) + title (1) + blank (1) + footer (1) + blank (1) = 8
 	const panelChrome = 8
 	innerH := m.height - panelChrome
 	innerH = max(innerH, 10)
 
-	// Left side: theme list.
 	listView := m.theme.list.View()
 
-	// Right side: color preview.
 	previewBorder := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(p.Border).
@@ -196,9 +201,7 @@ func (m model) themeSelectViewContent() string {
 	preview := theme.PreviewPanel(themeName, innerH-4)
 	previewBox := previewBorder.Render(preview)
 
-	// Join side by side with a gap.
-	spacer := "  "
-	body := lipgloss.JoinHorizontal(lipgloss.Top, listView, spacer, previewBox)
+	body := lipgloss.JoinHorizontal(lipgloss.Top, listView, "  ", previewBox)
 
 	panel := ui.Panel(
 		"Select Theme",

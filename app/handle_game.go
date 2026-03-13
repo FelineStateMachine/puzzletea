@@ -28,8 +28,7 @@ func (m model) handleModeSelectEnter() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	m.nav.selectedModeTitle = mode.Definition.Title
-	ctx, jobID := m.beginSpawnContext()
-	m.session.spawn = &spawnRequest{
+	cmd := newSessionController(&m).startSpawn(mode.Spawner, spawnRequest{
 		source:      spawnSourceNormal,
 		name:        sessionflow.GenerateUniqueName(m.store),
 		gameType:    m.nav.selectedCategory.Definition.Name,
@@ -37,9 +36,8 @@ func (m model) handleModeSelectEnter() (tea.Model, tea.Cmd) {
 		run:         store.NormalRunMetadata(),
 		returnState: modeSelectView,
 		exitState:   mainMenuView,
-	}
-	m.state = generatingView
-	return m, tea.Batch(m.spinner.Tick, spawnCmd(mode.Spawner, ctx, jobID))
+	})
+	return m, cmd
 }
 
 func (m model) handleContinueEnter() (tea.Model, tea.Cmd) {
@@ -53,22 +51,6 @@ func (m model) handleContinueEnter() (tea.Model, tea.Cmd) {
 }
 
 func (m model) persistCompletionIfSolved() model {
-	if m.session.game == nil || m.session.activeGameID == 0 ||
-		m.session.completionSaved || !m.session.game.IsSolved() {
-		return m
-	}
-
-	m.session.completionSaved = true
-	saveData, err := m.session.game.GetSave()
-	if err == nil {
-		if err := m.store.UpdateSaveState(m.session.activeGameID, string(saveData)); err != nil {
-			m = m.setErrorf("Puzzle completed, but saving the final state failed: %v", err)
-		}
-	} else {
-		m = m.setErrorf("Puzzle completed, but reading the final state failed: %v", err)
-	}
-	if err := m.store.UpdateStatus(m.session.activeGameID, store.StatusCompleted); err != nil {
-		m = m.setErrorf("Puzzle completed, but updating completion status failed: %v", err)
-	}
+	newSessionController(&m).persistCompletionIfSolved()
 	return m
 }

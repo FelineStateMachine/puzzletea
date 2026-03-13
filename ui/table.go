@@ -13,6 +13,21 @@ import (
 // MaxTableRows is the maximum number of rows visible in the continue table.
 const MaxTableRows = 20
 
+const (
+	continueTableWidth = 104
+	weeklyTableWidth   = 71
+)
+
+// ContinueTableWidth is the natural width of the saved-games table.
+func ContinueTableWidth() int {
+	return continueTableWidth
+}
+
+// WeeklyTableWidth is the natural width of the weekly browser table.
+func WeeklyTableWidth() int {
+	return weeklyTableWidth
+}
+
 // FormatStatus converts a GameStatus enum to a human-readable display string.
 func FormatStatus(s store.GameStatus) string {
 	switch s {
@@ -55,19 +70,12 @@ func InitContinueTable(s *store.Store, height int) (table.Model, []store.GameRec
 		}
 	}
 
-	tableWidth := 0
-	for _, c := range columns {
-		tableWidth += c.Width
-	}
-	// Account for column gaps (2 chars between each column).
-	tableWidth += (len(columns) - 1) * 2
-
 	visibleRows := min(len(rows), MaxTableRows)
 	t := table.New(
 		table.WithColumns(columns),
 		table.WithRows(rows),
 		table.WithFocused(true),
-		table.WithWidth(tableWidth),
+		table.WithWidth(continueTableWidth),
 		table.WithHeight(min(max(height-2, 1), visibleRows)),
 	)
 	t.SetStyles(defaultTableStyles())
@@ -85,18 +93,12 @@ func InitWeeklyTable(rows []table.Row, height int) table.Model {
 		{Title: "Status", Width: 12},
 	}
 
-	tableWidth := 0
-	for _, c := range columns {
-		tableWidth += c.Width
-	}
-	tableWidth += (len(columns) - 1) * 2
-
 	tableHeight := min(max(height-2, 1), MaxTableRows)
 	t := table.New(
 		table.WithColumns(columns),
 		table.WithRows(rows),
 		table.WithFocused(true),
-		table.WithWidth(tableWidth),
+		table.WithWidth(weeklyTableWidth),
 		table.WithHeight(tableHeight),
 	)
 	t.SetStyles(defaultTableStyles())
