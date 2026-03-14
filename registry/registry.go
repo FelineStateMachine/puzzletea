@@ -12,6 +12,7 @@ import (
 	"github.com/FelineStateMachine/puzzletea/hashiwokakero"
 	"github.com/FelineStateMachine/puzzletea/hitori"
 	"github.com/FelineStateMachine/puzzletea/lightsout"
+	"github.com/FelineStateMachine/puzzletea/netwalk"
 	"github.com/FelineStateMachine/puzzletea/nonogram"
 	"github.com/FelineStateMachine/puzzletea/nurikabe"
 	"github.com/FelineStateMachine/puzzletea/puzzle"
@@ -43,6 +44,7 @@ var all = []Entry{
 	hashiwokakero.Entry,
 	hitori.Entry,
 	lightsout.Entry,
+	netwalk.Entry,
 	nonogram.Entry,
 	nurikabe.Entry,
 	rippleeffect.Entry,

@@ -2,19 +2,19 @@
 
 A terminal-based puzzle game collection built with [Bubble Tea](https://github.com/charmbracelet/bubbletea).
 
-Fourteen puzzle games, multiple difficulty modes, daily and weekly deterministic challenges, XP progression, 365 theme options, and an explicit built-in registry plus metadata catalog for adding new games.
+Fifteen puzzle games, multiple difficulty modes, daily and weekly deterministic challenges, XP progression, 365 theme options, and an explicit built-in registry plus metadata catalog for adding new games.
 
 ![PuzzleTea menu](vhs/menu.gif)
 
 ## Features
 
-- **14 puzzle games** -- Fillomino, Nonogram, Nurikabe, Ripple Effect, Shikaku, Sudoku, Sudoku RGB, Spell Puzzle, Word Search, Hashiwokakero, Hitori, Lights Out, Takuzu, Takuzu+
+- **15 puzzle games** -- Fillomino, Netwalk, Nonogram, Nurikabe, Ripple Effect, Shikaku, Sudoku, Sudoku RGB, Spell Puzzle, Word Search, Hashiwokakero, Hitori, Lights Out, Takuzu, Takuzu+
 - **Daily puzzles** -- A unique puzzle generated each day using deterministic seeding. Same date, same puzzle for everyone. Streak tracking rewards consecutive daily completions.
 - **Weekly gauntlet** -- Each ISO calendar week has a shared 99-puzzle ladder. The current week unlocks sequentially from `#01` to `#99`; past weeks can be reviewed from completed saves only.
 - **XP and leveling** -- Per-category levels based on victories. Harder modes yield more XP. Daily puzzles grant 2x XP, and weekly puzzles add slot-based bonus XP.
 - **Stats dashboard** -- Profile level, daily streak status, weekly completion progress, victory counts, and XP progress bars per category.
 - **365 color themes** -- Live-preview theme picker with WCAG-compliant contrast enforcement. Dark and light themes included.
-- **Mouse support** -- Drag interactions in Nonogram, Nurikabe, Shikaku, Spell Puzzle, and Word Search; click-to-focus in Fillomino, Hashiwokakero, Hitori, Sudoku, Sudoku RGB, Takuzu, and Takuzu+; click-to-toggle in Lights Out.
+- **Mouse support** -- Drag interactions in Nonogram, Nurikabe, Shikaku, Spell Puzzle, and Word Search; click-to-focus in Fillomino, Hashiwokakero, Hitori, Sudoku, Sudoku RGB, Takuzu, and Takuzu+; click-to-rotate in Netwalk; click-to-toggle in Lights Out.
 - **Seeded puzzles** -- Share a seed string to generate identical puzzles across sessions and machines.
 - **Save/load persistence** -- Games auto-save to SQLite. Resume any in-progress game by name.
 
@@ -34,6 +34,7 @@ Fourteen puzzle games, multiple difficulty modes, daily and weekly deterministic
 | **Hashiwokakero** | Connect islands with bridges | 12 modes across 7x7 to 13x13 grids |
 | **Hitori** | Shade cells to eliminate duplicates | 6 modes from 5x5 to 12x12 |
 | **Lights Out** | Toggle lights to turn all off | Easy (3x3) to Extreme (9x9) |
+| **Netwalk** | Rotate network tiles until every computer reaches the server | Mini 5x5 through Expert 13x13 |
 | **Takuzu** | Fill grid with two symbols | 7 modes from 6x6 to 14x14 |
 | **Takuzu+** | Fill grid with symbols plus `=` and `x` relation clues | 7 modes from 6x6 to 14x14 |
 
@@ -107,6 +108,7 @@ puzzletea new sudoku hard
 puzzletea new ripeto expert
 puzzletea new spell beginner
 puzzletea new lights-out
+puzzletea new netwalk "Easy 7x7"
 puzzletea new hashi "Easy 7x7"
 ```
 
@@ -178,7 +180,7 @@ puzzletea --continue amber-falcon
 
 ### CLI Aliases
 
-Several shorthand names are accepted for games: `polyomino`/`regions` for Fillomino, `hashi`/`bridges` for Hashiwokakero, `lights` for Lights Out, `islands`/`sea` for Nurikabe, `ripple` for Ripple Effect, `spell`/`spellpuzzle` for Spell Puzzle, `rgb sudoku`/`ripeto`/`sudoku ripeto` for Sudoku RGB, `binairo`/`binary` for Takuzu, `takuzu plus`/`binario+`/`binario plus` for Takuzu+, `words`/`wordsearch`/`ws` for Word Search, and `rectangles` for Shikaku.
+Several shorthand names are accepted for games: `polyomino`/`regions` for Fillomino, `hashi`/`bridges` for Hashiwokakero, `lights` for Lights Out, `network` for Netwalk, `islands`/`sea` for Nurikabe, `ripple` for Ripple Effect, `spell`/`spellpuzzle` for Spell Puzzle, `rgb sudoku`/`ripeto`/`sudoku ripeto` for Sudoku RGB, `binairo`/`binary` for Takuzu, `takuzu plus`/`binario+`/`binario plus` for Takuzu+, `words`/`wordsearch`/`ws` for Word Search, and `rectangles` for Shikaku.
 
 ## Controls
 
@@ -198,7 +200,7 @@ Arrow keys, WASD, and Vim bindings (`hjkl`) are supported for grid movement acro
 
 ### Mouse
 
-Nonogram, Nurikabe, Shikaku, Spell Puzzle, and Word Search support drag interactions. Fillomino, Hashiwokakero, Hitori, Sudoku, Sudoku RGB, Takuzu, and Takuzu+ support mouse focus or click-to-cycle interactions. Lights Out supports click to toggle. See each game's help for details.
+Nonogram, Nurikabe, Shikaku, Spell Puzzle, and Word Search support drag interactions. Fillomino, Hashiwokakero, Hitori, Sudoku, Sudoku RGB, Takuzu, and Takuzu+ support mouse focus or click-to-cycle interactions. Netwalk supports click-to-rotate and right-click lock toggles. Lights Out supports click to toggle. See each game's help for details.
 
 ## Game Persistence
 

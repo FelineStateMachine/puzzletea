@@ -81,7 +81,7 @@ func init() {
 	RootCmd.PersistentFlags().StringVar(&flagConfigPath, "config", "", "path to config file (default: ~/.puzzletea/config.json)")
 	RootCmd.PersistentFlags().StringVar(&flagTheme, "theme", "", "color theme name (overrides config)")
 
-	RootCmd.AddCommand(newCmd, continueCmd, listCmd, exportPDFCmd)
+	RootCmd.AddCommand(newCmd, continueCmd, listCmd, exportPDFCmd, testCmd)
 }
 
 func loadActiveConfig() *config.Config {

@@ -97,6 +97,14 @@ type FillominoData struct {
 	Givens [][]int
 }
 
+type NetwalkData struct {
+	Size      int
+	Masks     [][]uint8
+	Rotations [][]uint8
+	RootX     int
+	RootY     int
+}
+
 type RippleEffectCell struct {
 	X int `json:"x"`
 	Y int `json:"y"`
