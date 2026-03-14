@@ -100,7 +100,7 @@ func TestOpen(t *testing.T) {
 		}
 	})
 
-	t.Run("upgrades legacy databases and backfills metadata", func(t *testing.T) {
+	t.Run("upgrades databases missing run metadata and backfills it", func(t *testing.T) {
 		dbPath := filepath.Join(t.TempDir(), "legacy.db")
 
 		raw, err := sql.Open("sqlite", dbPath)
