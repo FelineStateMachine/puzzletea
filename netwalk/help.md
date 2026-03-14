@@ -14,9 +14,9 @@ Rotate network tiles until every active tile connects back to the server in one 
 | Key | Action |
 |-----|--------|
 | `Arrows` / `wasd` / `hjkl` | Move cursor |
-| `Enter` / `Space` | Rotate current tile clockwise |
+| `Space` | Rotate current tile clockwise |
 | `Backspace` | Rotate current tile counter-clockwise |
-| `l` | Toggle lock on current tile |
+| `Enter` | Toggle lock on current tile |
 | `Mouse left-click` | Rotate clicked tile |
 | `Mouse right-click` | Toggle lock on clicked tile |
 | `Ctrl+R` | Reset puzzle |

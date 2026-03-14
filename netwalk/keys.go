@@ -15,16 +15,16 @@ type KeyMap struct {
 var DefaultKeyMap = KeyMap{
 	CursorKeyMap: game.DefaultCursorKeyMap,
 	Rotate: key.NewBinding(
-		key.WithKeys("enter", "space"),
-		key.WithHelp("enter/space", "Rotate"),
+		key.WithKeys("space"),
+		key.WithHelp("space", "Rotate"),
 	),
 	RotateBack: key.NewBinding(
 		key.WithKeys("backspace", "shift+space"),
 		key.WithHelp("bkspc", "Rotate back"),
 	),
 	Lock: key.NewBinding(
-		key.WithKeys("l"),
-		key.WithHelp("l", "Toggle lock"),
+		key.WithKeys("enter"),
+		key.WithHelp("enter", "Toggle lock"),
 	),
 }
 

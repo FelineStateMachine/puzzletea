@@ -22,9 +22,9 @@ puzzletea new network medium
 | Key | Action |
 |-----|--------|
 | `Arrows` / `wasd` / `hjkl` | Move cursor |
-| `Enter` / `Space` | Rotate clockwise |
+| `Space` | Rotate clockwise |
 | `Backspace` | Rotate counter-clockwise |
-| `l` | Toggle lock |
+| `Enter` | Toggle lock |
 
 ## Modes
 

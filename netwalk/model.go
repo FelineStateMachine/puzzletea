@@ -169,18 +169,18 @@ func (m Model) handleMouseClick(msg tea.MouseClickMsg) Model {
 
 func (m *Model) screenToGrid(screenX, screenY int) (col, row int, ok bool) {
 	ox, oy := m.cachedGridOrigin()
-	return game.DynamicGridScreenToCell(
-		game.DynamicGridMetrics{
-			Width:     m.puzzle.Size,
-			Height:    m.puzzle.Size,
-			CellWidth: cellWidth,
-		},
-		ox,
-		oy,
-		screenX,
-		screenY,
-		false,
-	)
+	lx := screenX - ox
+	ly := screenY - oy
+	if lx < 0 || ly < 0 {
+		return 0, 0, false
+	}
+
+	col = lx / cellWidth
+	row = ly / cellHeight
+	if col < 0 || col >= m.puzzle.Size || row < 0 || row >= m.puzzle.Size {
+		return 0, 0, false
+	}
+	return col, row, true
 }
 
 func (m *Model) cachedGridOrigin() (x, y int) {

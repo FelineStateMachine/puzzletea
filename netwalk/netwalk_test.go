@@ -5,6 +5,9 @@ import (
 	"strings"
 	"testing"
 
+	"charm.land/bubbles/v2/key"
+	tea "charm.land/bubbletea/v2"
+	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/charmbracelet/x/ansi"
 )
 
@@ -94,70 +97,234 @@ func TestGenerateSeededDeterministic(t *testing.T) {
 	}
 }
 
-func TestCellTextUsesStarAndDot(t *testing.T) {
+func TestDefaultKeyMapUsesEnterForLockAndSpaceForRotate(t *testing.T) {
+	if !key.Matches(
+		keyPress("space"),
+		DefaultKeyMap.Rotate,
+	) {
+		t.Fatal("space should match rotate binding")
+	}
+	if key.Matches(
+		keyPress("enter"),
+		DefaultKeyMap.Rotate,
+	) {
+		t.Fatal("enter should not match rotate binding")
+	}
+	if !key.Matches(
+		keyPress("enter"),
+		DefaultKeyMap.Lock,
+	) {
+		t.Fatal("enter should match lock binding")
+	}
+	if key.Matches(
+		keyPress("l"),
+		DefaultKeyMap.Lock,
+	) {
+		t.Fatal("l should not match lock binding")
+	}
+}
+
+func TestFrontierWeightPrefersPackedCandidatesOnHardProfiles(t *testing.T) {
+	active := map[point]struct{}{
+		{X: 2, Y: 2}: {},
+		{X: 1, Y: 1}: {},
+		{X: 3, Y: 1}: {},
+	}
+	adjacency := map[point]directionMask{
+		{X: 2, Y: 2}: 0,
+		{X: 1, Y: 1}: 0,
+		{X: 3, Y: 1}: 0,
+	}
+	bounds := activeBounds{minX: 0, maxX: 4, minY: 0, maxY: 4}
+
+	packed := frontierWeight(
+		5,
+		frontierEdge{from: point{X: 2, Y: 2}, to: point{X: 2, Y: 1}},
+		active,
+		adjacency,
+		bounds,
+		hardProfile,
+	)
+	isolated := frontierWeight(
+		5,
+		frontierEdge{from: point{X: 2, Y: 2}, to: point{X: 2, Y: 3}},
+		active,
+		adjacency,
+		bounds,
+		hardProfile,
+	)
+	if packed <= isolated {
+		t.Fatalf("packed frontier weight = %d, want > isolated %d", packed, isolated)
+	}
+}
+
+func TestSpanGrowthScoreRewardsExpansionBeforeTarget(t *testing.T) {
+	bounds := activeBounds{minX: 2, maxX: 4, minY: 2, maxY: 4}
+
+	growing := spanGrowthScore(9, point{X: 1, Y: 4}, bounds, mediumProfile)
+	stable := spanGrowthScore(9, point{X: 3, Y: 3}, bounds, mediumProfile)
+	if growing <= stable {
+		t.Fatalf("expanding span score = %d, want > stable %d", growing, stable)
+	}
+}
+
+func TestNetwalkModeDensityProgression(t *testing.T) {
+	modes := netwalkModesFromRegistry(t)
+	fill := make([]float64, len(modes))
+	junctions := make([]float64, len(modes))
+
+	for i, mode := range modes {
+		fill[i], junctions[i] = sampleModeMetrics(t, mode, 12)
+	}
+
+	for i := 1; i < len(fill); i++ {
+		if fill[i] <= fill[i-1] {
+			t.Fatalf("fill ratio[%d] = %.3f, want > %.3f", i, fill[i], fill[i-1])
+		}
+	}
+	for i := 2; i < len(junctions); i++ {
+		if junctions[i] <= junctions[i-1] {
+			t.Fatalf("junction avg[%d] = %.3f, want > %.3f", i, junctions[i], junctions[i-1])
+		}
+	}
+
+	if fill[3] < 0.57 || fill[3] > 0.67 {
+		t.Fatalf("hard fill ratio = %.3f, want within [0.57, 0.67]", fill[3])
+	}
+	if fill[4] < 0.63 || fill[4] > 0.73 {
+		t.Fatalf("expert fill ratio = %.3f, want within [0.63, 0.73]", fill[4])
+	}
+}
+
+func TestCellRowsShowDirectionalRootsAndLeaves(t *testing.T) {
 	m := Model{}
 
-	rootTile := tile{Kind: serverCell}
-	leafTile := tile{Kind: nodeCell}
-	junctionTile := tile{Kind: nodeCell}
-
 	m.puzzle = newPuzzle(3)
-	m.puzzle.Tiles[1][1] = rootTile
-	m.puzzle.Tiles[1][2] = leafTile
-	m.puzzle.Tiles[0][1] = junctionTile
+	m.puzzle.Tiles[1][1] = tile{Kind: serverCell}
+	m.puzzle.Tiles[1][2] = tile{Kind: nodeCell}
+	m.puzzle.Tiles[0][1] = tile{Kind: nodeCell}
 	m.state.rotatedMasks = make([][]directionMask, 3)
 	for y := range 3 {
 		m.state.rotatedMasks[y] = make([]directionMask, 3)
 	}
-	m.state.rotatedMasks[1][1] = east | west
-	m.state.rotatedMasks[1][2] = west
-	m.state.rotatedMasks[0][1] = east | south | west
+	m.state.rotatedMasks[1][1] = south
+	m.state.rotatedMasks[1][2] = north
+	m.state.rotatedMasks[0][1] = north | east | south
 
-	if got := cellText(m, 1, 1); got != "──★──" {
-		t.Fatalf("root cellText = %q, want %q", got, "──★──")
+	if got := cellRows(m, 1, 1); got != [cellHeight]string{"     ", "  ◆  ", "  │  "} {
+		t.Fatalf("south root rows = %#v", got)
 	}
-	if got := cellText(m, 2, 1); got != "──•  " {
-		t.Fatalf("leaf cellText = %q, want %q", got, "──•  ")
+	if got := cellRows(m, 2, 1); got != [cellHeight]string{"  │  ", "  ●  ", "     "} {
+		t.Fatalf("north leaf rows = %#v", got)
 	}
-	if got := cellText(m, 1, 0); got != "──┬──" {
-		t.Fatalf("junction cellText = %q, want %q", got, "──┬──")
+	if got := cellRows(m, 1, 0); got != [cellHeight]string{"  │  ", "  ├──", "  │  "} {
+		t.Fatalf("tee rows = %#v", got)
 	}
 }
 
-func TestBridgeTextSpansSeparators(t *testing.T) {
-	m := Model{}
-	m.puzzle = newPuzzle(2)
-	m.state.rotatedMasks = [][]directionMask{
-		{east, west},
-		{south, north},
-	}
-
-	if got := verticalBridgeText(m, 1, 0); got != "─" {
-		t.Fatalf("verticalBridgeText = %q, want %q", got, "─")
-	}
-
-	m.state.rotatedMasks = [][]directionMask{
-		{south, 0},
-		{north, 0},
-	}
-	if got := horizontalBridgeText(m, 0, 1); got != "  │  " {
-		t.Fatalf("horizontalBridgeText = %q, want %q", got, "  │  ")
-	}
-}
-
-func TestGridViewUsesMinimalFrameWithoutInteriorBoxes(t *testing.T) {
+func TestGridViewUsesTallerFrameWithoutInteriorBoxes(t *testing.T) {
 	m := Model{
 		puzzle: newPuzzle(2),
 	}
 	m.recompute()
 
 	lines := strings.Split(ansi.Strip(gridView(m)), "\n")
-	if len(lines) != 5 {
-		t.Fatalf("rendered line count = %d, want 5", len(lines))
+	if len(lines) != 8 {
+		t.Fatalf("rendered line count = %d, want 8", len(lines))
 	}
-	for _, idx := range []int{1, 2, 3} {
+	for _, idx := range []int{1, 2, 3, 4, 5, 6} {
 		if got := strings.Count(lines[idx], "│"); got != 2 {
 			t.Fatalf("line %d has %d vertical borders, want outer frame only", idx, got)
 		}
+	}
+}
+
+func TestGridViewShowsCursorGlyphsOnBlankCells(t *testing.T) {
+	m := Model{
+		puzzle: newPuzzle(2),
+		cursor: game.Cursor{X: 1, Y: 1},
+	}
+	m.recompute()
+
+	view := ansi.Strip(gridView(m))
+	if !strings.Contains(view, "▸   ◂") {
+		t.Fatalf("blank cursor markers missing from view:\n%s", view)
+	}
+}
+
+func netwalkModesFromRegistry(t *testing.T) []NetwalkMode {
+	t.Helper()
+
+	modes := make([]NetwalkMode, 0, len(Modes))
+	for i, mode := range Modes {
+		netwalkMode, ok := mode.(NetwalkMode)
+		if !ok {
+			t.Fatalf("mode %d has type %T, want NetwalkMode", i, mode)
+		}
+		modes = append(modes, netwalkMode)
+	}
+	return modes
+}
+
+func sampleModeMetrics(
+	t *testing.T,
+	mode NetwalkMode,
+	samples int,
+) (float64, float64) {
+	t.Helper()
+
+	var totalFill float64
+	var totalJunctions float64
+	for i := range samples {
+		rng := rand.New(rand.NewPCG(uint64(1000+i), uint64(7000+i)))
+		puzzle, err := GenerateSeededWithDensity(mode.Size, mode.FillRatio, mode.Profile, rng)
+		if err != nil {
+			t.Fatalf("GenerateSeededWithDensity(%q) error = %v", mode.Title(), err)
+		}
+		totalFill += puzzleFillRatio(puzzle)
+		totalJunctions += float64(puzzleJunctionCount(puzzle))
+	}
+	return totalFill / float64(samples), totalJunctions / float64(samples)
+}
+
+func puzzleFillRatio(p Puzzle) float64 {
+	if p.Size <= 0 {
+		return 0
+	}
+	active := 0
+	for y := range p.Size {
+		for x := range p.Size {
+			if isActive(p.Tiles[y][x]) {
+				active++
+			}
+		}
+	}
+	return float64(active) / float64(p.Size*p.Size)
+}
+
+func puzzleJunctionCount(p Puzzle) int {
+	count := 0
+	for y := range p.Size {
+		for x := range p.Size {
+			if !isActive(p.Tiles[y][x]) {
+				continue
+			}
+			if degree(p.Tiles[y][x].BaseMask) >= 3 {
+				count++
+			}
+		}
+	}
+	return count
+}
+
+func keyPress(value string) tea.KeyPressMsg {
+	switch value {
+	case "enter":
+		return tea.KeyPressMsg{Code: tea.KeyEnter}
+	case "space":
+		return tea.KeyPressMsg{Code: tea.KeySpace, Text: " "}
+	default:
+		r := []rune(value)
+		return tea.KeyPressMsg{Code: r[0], Text: value}
 	}
 }

@@ -2,16 +2,37 @@ package netwalk
 
 import (
 	"errors"
+	"math"
 	"math/rand/v2"
 )
 
 const maxGenerateAttempts = 64
+
+type generateProfile struct {
+	ParentDegreeWeights    [5]int
+	OrthogonalPackedWeight int
+	DiagonalPackedWeight   int
+	SpanGrowthWeight       int
+	MinSpanRatio           float64
+}
+
+var legacyGenerateProfile = generateProfile{
+	ParentDegreeWeights: [5]int{16, 16, 8, -2, -4},
+}
 
 func Generate(size, targetActive int) (Puzzle, error) {
 	return GenerateSeeded(size, targetActive, rand.New(rand.NewPCG(rand.Uint64(), rand.Uint64())))
 }
 
 func GenerateSeeded(size, targetActive int, rng *rand.Rand) (Puzzle, error) {
+	return generateSeededWithProfile(size, targetActive, legacyGenerateProfile, rng)
+}
+
+func GenerateSeededWithDensity(size int, fillRatio float64, profile generateProfile, rng *rand.Rand) (Puzzle, error) {
+	return generateSeededWithProfile(size, targetActiveFromFillRatio(size, fillRatio), profile, rng)
+}
+
+func generateSeededWithProfile(size, targetActive int, profile generateProfile, rng *rand.Rand) (Puzzle, error) {
 	if size <= 1 {
 		return Puzzle{}, errors.New("netwalk size must be at least 2")
 	}
@@ -23,7 +44,7 @@ func GenerateSeeded(size, targetActive int, rng *rand.Rand) (Puzzle, error) {
 	}
 
 	for attempt := 0; attempt < maxGenerateAttempts; attempt++ {
-		puzzle := buildTreePuzzle(size, targetActive, rng)
+		puzzle := buildTreePuzzle(size, targetActive, profile, rng)
 		scramblePuzzle(&puzzle, rng)
 		if !analyzePuzzle(puzzle).solved {
 			return puzzle, nil
@@ -38,7 +59,14 @@ type frontierEdge struct {
 	to   point
 }
 
-func buildTreePuzzle(size, targetActive int, rng *rand.Rand) Puzzle {
+type activeBounds struct {
+	minX int
+	maxX int
+	minY int
+	maxY int
+}
+
+func buildTreePuzzle(size, targetActive int, profile generateProfile, rng *rand.Rand) Puzzle {
 	puzzle := newPuzzle(size)
 	root := point{X: size / 2, Y: size / 2}
 	puzzle.Root = root
@@ -47,12 +75,13 @@ func buildTreePuzzle(size, targetActive int, rng *rand.Rand) Puzzle {
 	adjacency := map[point]directionMask{root: 0}
 
 	for len(active) < targetActive {
+		bounds := measureActiveBounds(active)
 		frontier := collectFrontier(size, active)
 		if len(frontier) == 0 {
 			break
 		}
 
-		edge := frontier[weightedFrontierIndex(frontier, adjacency, root, rng)]
+		edge := frontier[weightedFrontierIndex(size, frontier, active, adjacency, bounds, profile, rng)]
 		active[edge.to] = struct{}{}
 		adjacency[edge.to] = 0
 
@@ -98,10 +127,60 @@ func collectFrontier(size int, active map[point]struct{}) []frontierEdge {
 	return frontier
 }
 
+func targetActiveFromFillRatio(size int, fillRatio float64) int {
+	if size <= 1 {
+		return 2
+	}
+	target := int(math.Round(float64(size*size) * fillRatio))
+	if target < 2 {
+		return 2
+	}
+	if target > size*size {
+		return size * size
+	}
+	return target
+}
+
+func measureActiveBounds(active map[point]struct{}) activeBounds {
+	first := true
+	bounds := activeBounds{}
+	for p := range active {
+		if first {
+			bounds = activeBounds{minX: p.X, maxX: p.X, minY: p.Y, maxY: p.Y}
+			first = false
+			continue
+		}
+		if p.X < bounds.minX {
+			bounds.minX = p.X
+		}
+		if p.X > bounds.maxX {
+			bounds.maxX = p.X
+		}
+		if p.Y < bounds.minY {
+			bounds.minY = p.Y
+		}
+		if p.Y > bounds.maxY {
+			bounds.maxY = p.Y
+		}
+	}
+	return bounds
+}
+
+func (b activeBounds) spanX() int {
+	return b.maxX - b.minX + 1
+}
+
+func (b activeBounds) spanY() int {
+	return b.maxY - b.minY + 1
+}
+
 func weightedFrontierIndex(
+	size int,
 	frontier []frontierEdge,
+	active map[point]struct{},
 	adjacency map[point]directionMask,
-	root point,
+	bounds activeBounds,
+	profile generateProfile,
 	rng *rand.Rand,
 ) int {
 	if len(frontier) == 1 {
@@ -111,29 +190,7 @@ func weightedFrontierIndex(
 	weights := make([]int, len(frontier))
 	total := 0
 	for i, edge := range frontier {
-		weight := 10
-		deg := degree(adjacency[edge.from])
-		switch {
-		case deg <= 1:
-			weight += 6
-		case deg == 2:
-			weight += 3
-		case deg >= 3:
-			weight -= 2
-		}
-
-		dx := edge.to.X - root.X
-		if dx < 0 {
-			dx = -dx
-		}
-		dy := edge.to.Y - root.Y
-		if dy < 0 {
-			dy = -dy
-		}
-		weight += max(0, 6-(dx+dy))
-		if weight < 1 {
-			weight = 1
-		}
+		weight := frontierWeight(size, edge, active, adjacency, bounds, profile)
 		weights[i] = weight
 		total += weight
 	}
@@ -147,6 +204,93 @@ func weightedFrontierIndex(
 		}
 	}
 	return len(frontier) - 1
+}
+
+func frontierWeight(
+	size int,
+	edge frontierEdge,
+	active map[point]struct{},
+	adjacency map[point]directionMask,
+	bounds activeBounds,
+	profile generateProfile,
+) int {
+	deg := degree(adjacency[edge.from])
+	if deg >= len(profile.ParentDegreeWeights) {
+		deg = len(profile.ParentDegreeWeights) - 1
+	}
+
+	weight := 64 + profile.ParentDegreeWeights[deg]
+	orthogonal, diagonal := packedNeighborCounts(size, edge, active)
+	weight += orthogonal * profile.OrthogonalPackedWeight
+	weight += diagonal * profile.DiagonalPackedWeight
+	weight += spanGrowthScore(size, edge.to, bounds, profile)
+	if weight < 1 {
+		return 1
+	}
+	return weight
+}
+
+func packedNeighborCounts(
+	size int,
+	edge frontierEdge,
+	active map[point]struct{},
+) (int, int) {
+	orthogonal := 0
+	diagonal := 0
+	for _, dir := range directions {
+		next := point{X: edge.to.X + dir.dx, Y: edge.to.Y + dir.dy}
+		if next == edge.from || !inBounds(size, next) {
+			continue
+		}
+		if _, ok := active[next]; ok {
+			orthogonal++
+		}
+	}
+
+	for _, delta := range [][2]int{{-1, -1}, {1, -1}, {1, 1}, {-1, 1}} {
+		next := point{X: edge.to.X + delta[0], Y: edge.to.Y + delta[1]}
+		if !inBounds(size, next) {
+			continue
+		}
+		if _, ok := active[next]; ok {
+			diagonal++
+		}
+	}
+	return orthogonal, diagonal
+}
+
+func spanGrowthScore(size int, candidate point, bounds activeBounds, profile generateProfile) int {
+	target := minSpanTarget(size, profile.MinSpanRatio)
+	if target == 0 || profile.SpanGrowthWeight == 0 {
+		return 0
+	}
+
+	score := 0
+	if bounds.spanX() < target && (candidate.X < bounds.minX || candidate.X > bounds.maxX) {
+		score += profile.SpanGrowthWeight
+	}
+	if bounds.spanY() < target && (candidate.Y < bounds.minY || candidate.Y > bounds.maxY) {
+		score += profile.SpanGrowthWeight
+	}
+	return score
+}
+
+func minSpanTarget(size int, ratio float64) int {
+	if size <= 0 || ratio <= 0 {
+		return 0
+	}
+	target := int(math.Ceil(float64(size) * ratio))
+	if target < 1 {
+		return 1
+	}
+	if target > size {
+		return size
+	}
+	return target
+}
+
+func inBounds(size int, p point) bool {
+	return p.X >= 0 && p.X < size && p.Y >= 0 && p.Y < size
 }
 
 func scramblePuzzle(puzzle *Puzzle, rng *rand.Rand) {

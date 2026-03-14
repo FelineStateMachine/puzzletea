@@ -14,8 +14,9 @@ var HelpContent string
 
 type NetwalkMode struct {
 	game.BaseMode
-	Size         int
-	TargetActive int
+	Size      int
+	FillRatio float64
+	Profile   generateProfile
 }
 
 var (
@@ -24,16 +25,22 @@ var (
 	_ game.SeededSpawner = NetwalkMode{}
 )
 
-func NewMode(title, desc string, size, targetActive int) NetwalkMode {
+func NewMode(title, desc string, size int, fillRatio float64, profile generateProfile) NetwalkMode {
 	return NetwalkMode{
-		BaseMode:     game.NewBaseMode(title, desc),
-		Size:         size,
-		TargetActive: targetActive,
+		BaseMode:  game.NewBaseMode(title, desc),
+		Size:      size,
+		FillRatio: fillRatio,
+		Profile:   profile,
 	}
 }
 
 func (m NetwalkMode) Spawn() (game.Gamer, error) {
-	p, err := Generate(m.Size, m.TargetActive)
+	p, err := GenerateSeededWithDensity(
+		m.Size,
+		m.FillRatio,
+		m.Profile,
+		rand.New(rand.NewPCG(rand.Uint64(), rand.Uint64())),
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -41,19 +48,57 @@ func (m NetwalkMode) Spawn() (game.Gamer, error) {
 }
 
 func (m NetwalkMode) SpawnSeeded(rng *rand.Rand) (game.Gamer, error) {
-	p, err := GenerateSeeded(m.Size, m.TargetActive, rng)
+	p, err := GenerateSeededWithDensity(m.Size, m.FillRatio, m.Profile, rng)
 	if err != nil {
 		return nil, err
 	}
 	return New(m, p)
 }
 
+var (
+	miniProfile = generateProfile{
+		ParentDegreeWeights:    [5]int{16, 16, 6, -8, -12},
+		OrthogonalPackedWeight: 2,
+		DiagonalPackedWeight:   1,
+		SpanGrowthWeight:       12,
+		MinSpanRatio:           0.55,
+	}
+	easyProfile = generateProfile{
+		ParentDegreeWeights:    [5]int{14, 14, 8, -4, -8},
+		OrthogonalPackedWeight: 4,
+		DiagonalPackedWeight:   2,
+		SpanGrowthWeight:       14,
+		MinSpanRatio:           0.62,
+	}
+	mediumProfile = generateProfile{
+		ParentDegreeWeights:    [5]int{10, 10, 12, 2, -4},
+		OrthogonalPackedWeight: 6,
+		DiagonalPackedWeight:   3,
+		SpanGrowthWeight:       14,
+		MinSpanRatio:           0.70,
+	}
+	hardProfile = generateProfile{
+		ParentDegreeWeights:    [5]int{6, 6, 16, 8, 0},
+		OrthogonalPackedWeight: 8,
+		DiagonalPackedWeight:   4,
+		SpanGrowthWeight:       16,
+		MinSpanRatio:           0.78,
+	}
+	expertProfile = generateProfile{
+		ParentDegreeWeights:    [5]int{4, 4, 18, 10, 2},
+		OrthogonalPackedWeight: 10,
+		DiagonalPackedWeight:   5,
+		SpanGrowthWeight:       18,
+		MinSpanRatio:           0.84,
+	}
+)
+
 var Modes = []game.Mode{
-	NewMode("Mini 5x5", "Compact 5×5 network. Good first deduction pass.", 5, 8),
-	NewMode("Easy 7x7", "7×7 board with a modest tree and clear local constraints.", 7, 14),
-	NewMode("Medium 9x9", "Larger network with more branches and ambiguous elbows.", 9, 22),
-	NewMode("Hard 11x11", "Dense mid-size network that rewards global checking.", 11, 30),
-	NewMode("Expert 13x13", "Longer branch interactions and more disconnected-looking scrambles.", 13, 40),
+	NewMode("Mini 5x5", "Compact 5×5 network with a denser starter tree.", 5, 0.40, miniProfile),
+	NewMode("Easy 7x7", "7×7 board with fuller coverage and gentle local tangles.", 7, 0.47, easyProfile),
+	NewMode("Medium 9x9", "Balanced 9×9 network with tighter clusters and more branching.", 9, 0.54, mediumProfile),
+	NewMode("Hard 11x11", "Dense 11×11 board that packs branches into close local interactions.", 11, 0.62, hardProfile),
+	NewMode("Expert 13x13", "Large, crowded network with heavy branching and frequent near-miss tangles.", 13, 0.68, expertProfile),
 }
 
 var ModeDefinitions = gameentry.BuildModeDefs(Modes)
