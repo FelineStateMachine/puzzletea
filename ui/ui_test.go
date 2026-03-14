@@ -44,7 +44,7 @@ func TestMenuItemActionID(t *testing.T) {
 		}
 	})
 
-	t.Run("falls back to title for legacy callers", func(t *testing.T) {
+	t.Run("falls back to title when action is unset", func(t *testing.T) {
 		item := MenuItem{ItemTitle: "Generate"}
 		if got := item.ActionID(); got != "Generate" {
 			t.Fatalf("ActionID() = %q, want %q", got, "Generate")

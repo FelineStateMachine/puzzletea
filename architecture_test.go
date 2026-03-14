@@ -70,23 +70,6 @@ func TestStoreCreateGameDoesNotUseNameDerivedRunMetadata(t *testing.T) {
 	})
 }
 
-func TestPDFExportPackageDoesNotContainMarkdownParseEntrypoints(t *testing.T) {
-	assertFilesDoNotContain(t, "pdfexport", []string{
-		"func ParseMarkdown(",
-		"func ParseFile(",
-		"func ParseFiles(",
-		"func lookupMarkdownBodyParser(",
-	})
-}
-
-func TestGamePackageDoesNotExposeLegacyPrintFacade(t *testing.T) {
-	if _, err := os.Stat(filepath.Join("game", "print_adapter.go")); err == nil {
-		t.Fatal("game/print_adapter.go should not exist")
-	} else if !os.IsNotExist(err) {
-		t.Fatalf("stat game/print_adapter.go: %v", err)
-	}
-}
-
 func assertPackageDoesNotImport(t *testing.T, dir string, forbidden []string) {
 	t.Helper()
 

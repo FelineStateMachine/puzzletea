@@ -68,13 +68,13 @@ func TestGridStringAndParse(t *testing.T) {
 	}
 }
 
-func TestParseGridLegacyRequiredLand(t *testing.T) {
+func TestParseGridMapsRequiredLandMarkerToIsland(t *testing.T) {
 	g, err := parseGrid("?!\n~o", 2, 2)
 	if err != nil {
 		t.Fatalf("parseGrid error: %v", err)
 	}
 	if g[0][1] != islandCell {
-		t.Fatalf("legacy required-land marker should load as island, got %q", rune(g[0][1]))
+		t.Fatalf("required-land marker should load as island, got %q", rune(g[0][1]))
 	}
 }
 
