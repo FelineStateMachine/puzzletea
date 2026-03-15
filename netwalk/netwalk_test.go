@@ -1,6 +1,7 @@
 package netwalk
 
 import (
+	"math"
 	"math/rand/v2"
 	"strings"
 	"testing"
@@ -188,11 +189,11 @@ func TestNetwalkModeDensityProgression(t *testing.T) {
 		}
 	}
 
-	if fill[3] < 0.57 || fill[3] > 0.67 {
-		t.Fatalf("hard fill ratio = %.3f, want within [0.57, 0.67]", fill[3])
-	}
-	if fill[4] < 0.63 || fill[4] > 0.73 {
-		t.Fatalf("expert fill ratio = %.3f, want within [0.63, 0.73]", fill[4])
+	for i, mode := range modes {
+		target := float64(targetActiveFromFillRatio(mode.Size, mode.FillRatio)) / float64(mode.Size*mode.Size)
+		if math.Abs(fill[i]-target) > 1e-9 {
+			t.Fatalf("%s fill ratio = %.3f, want %.3f", mode.Title(), fill[i], target)
+		}
 	}
 }
 

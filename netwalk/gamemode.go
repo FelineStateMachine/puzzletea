@@ -94,11 +94,11 @@ var (
 )
 
 var Modes = []game.Mode{
-	NewMode("Mini 5x5", "Compact 5×5 network with a denser starter tree.", 5, 0.40, miniProfile),
-	NewMode("Easy 7x7", "7×7 board with fuller coverage and gentle local tangles.", 7, 0.47, easyProfile),
-	NewMode("Medium 9x9", "Balanced 9×9 network with tighter clusters and more branching.", 9, 0.54, mediumProfile),
-	NewMode("Hard 11x11", "Dense 11×11 board that packs branches into close local interactions.", 11, 0.62, hardProfile),
-	NewMode("Expert 13x13", "Large, crowded network with heavy branching and frequent near-miss tangles.", 13, 0.68, expertProfile),
+	NewMode("Mini 5x5", "Compact 5×5 network with a denser starter tree.", 5, 0.50, miniProfile),
+	NewMode("Easy 7x7", "7×7 board with fuller coverage and gentle local tangles.", 7, 0.57, easyProfile),
+	NewMode("Medium 9x9", "Balanced 9×9 network with tighter clusters and more branching.", 9, 0.64, mediumProfile),
+	NewMode("Hard 11x11", "Dense 11×11 board that packs branches into close local interactions.", 11, 0.72, hardProfile),
+	NewMode("Expert 13x13", "Large, crowded network with heavy branching and frequent near-miss tangles.", 13, 0.78, expertProfile),
 }
 
 var ModeDefinitions = gameentry.BuildModeDefs(Modes)
