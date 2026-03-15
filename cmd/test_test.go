@@ -3,6 +3,7 @@ package cmd
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"math/rand/v2"
 	"os"
 	"path/filepath"
@@ -13,6 +14,7 @@ import (
 	"github.com/FelineStateMachine/puzzletea/netwalk"
 	"github.com/FelineStateMachine/puzzletea/pdfexport"
 	"github.com/FelineStateMachine/puzzletea/sudoku"
+	"github.com/FelineStateMachine/puzzletea/theme"
 	"github.com/spf13/cobra"
 )
 
@@ -125,11 +127,78 @@ func TestRunTestRendersMixedGamesInInputOrder(t *testing.T) {
 	}
 }
 
+func TestRunTestIgnoresPersistedThemeWithoutFlag(t *testing.T) {
+	reset := snapshotTestFlags()
+	defer reset()
+	t.Cleanup(func() { _ = theme.Apply("") })
+
+	configPath, _ := writeCommandConfig(t)
+	flagConfigPath = configPath
+	if err := theme.Apply(""); err != nil {
+		t.Fatalf("theme.Apply() error = %v", err)
+	}
+	defaultFG := fmt.Sprint(theme.Current().FG)
+	if err := theme.Apply("Dracula"); err != nil {
+		t.Fatalf("theme.Apply() error = %v", err)
+	}
+
+	input := filepath.Join(t.TempDir(), "visual.jsonl")
+	data, err := netwalk.VisualFixtureJSONL()
+	if err != nil {
+		t.Fatalf("VisualFixtureJSONL() error = %v", err)
+	}
+	if err := os.WriteFile(input, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd, _ := newTestCmd()
+	if err := runTest(cmd, []string{input}); err != nil {
+		t.Fatalf("runTest() error = %v", err)
+	}
+
+	if got, want := fmt.Sprint(theme.Current().FG), defaultFG; got != want {
+		t.Fatalf("test command theme FG = %v, want default %v", got, want)
+	}
+}
+
+func TestRunTestUsesExplicitThemeFlag(t *testing.T) {
+	reset := snapshotTestFlags()
+	defer reset()
+	t.Cleanup(func() { _ = theme.Apply("") })
+
+	configPath, _ := writeCommandConfig(t)
+	flagConfigPath = configPath
+	flagTheme = "Dracula"
+
+	input := filepath.Join(t.TempDir(), "visual.jsonl")
+	data, err := netwalk.VisualFixtureJSONL()
+	if err != nil {
+		t.Fatalf("VisualFixtureJSONL() error = %v", err)
+	}
+	if err := os.WriteFile(input, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd, _ := newTestCmd()
+	if err := runTest(cmd, []string{input}); err != nil {
+		t.Fatalf("runTest() error = %v", err)
+	}
+
+	want := theme.LookupTheme(flagTheme).Palette()
+	if got := fmt.Sprint(theme.Current().FG); got != fmt.Sprint(want.FG) {
+		t.Fatalf("theme override FG = %v, want %v", theme.Current().FG, want.FG)
+	}
+}
+
 func snapshotTestFlags() func() {
 	prevOutput := testOutput
+	prevTheme := flagTheme
+	prevConfigPath := flagConfigPath
 	testOutput = ""
 	return func() {
 		testOutput = prevOutput
+		flagTheme = prevTheme
+		flagConfigPath = prevConfigPath
 	}
 }
 

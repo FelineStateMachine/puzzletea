@@ -40,7 +40,7 @@ func init() {
 }
 
 func runTest(cmd *cobra.Command, args []string) error {
-	loadActiveConfig()
+	applyTheme(flagTheme)
 
 	records, err := loadTestRecords(args[0])
 	if err != nil {

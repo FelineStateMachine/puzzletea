@@ -105,8 +105,12 @@ func loadConfig(configPath string) *config.Config {
 	if flagTheme != "" {
 		themeName = flagTheme
 	}
+	applyTheme(themeName)
+	return cfg
+}
+
+func applyTheme(themeName string) {
 	if err := theme.Apply(themeName); err != nil {
 		log.Printf("warning: %v (using default theme)", err)
 	}
-	return cfg
 }
