@@ -76,7 +76,7 @@ func renderGrid(m Model, solved bool) string {
 func cellView(m Model, x, y int, solved bool) string {
 	c := m.grid[y][x]
 	style := cellStyle(m, c, x, y, m.conflicts[y][x], solved)
-	text := cellContent(c)
+	text := cellContent(c, m.conflicts[y][x])
 
 	if x == m.cursor.X && y == m.cursor.Y {
 		if c.v == 0 {
@@ -180,9 +180,12 @@ func digitColor(value int) color.Color {
 	return colors[(value-1)%len(colors)]
 }
 
-func cellContent(c cell) string {
+func cellContent(c cell, conflict bool) string {
 	if c.v == 0 {
 		return "·"
+	}
+	if conflict {
+		return "!" + strconv.Itoa(c.v) + "!"
 	}
 	return strconv.Itoa(c.v)
 }

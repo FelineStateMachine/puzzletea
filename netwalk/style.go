@@ -66,7 +66,7 @@ func cellRows(m Model, x, y int) [cellHeight]string {
 	}
 
 	mask := m.state.rotatedMasks[y][x]
-	center := centerGlyph(t.Kind, mask)
+	center := centerGlyph(m, x, y, t.Kind, mask)
 
 	return [cellHeight]string{
 		verticalCellRow(mask&north != 0),
@@ -75,7 +75,7 @@ func cellRows(m Model, x, y int) [cellHeight]string {
 	}
 }
 
-func centerGlyph(kind cellKind, mask directionMask) string {
+func centerGlyph(m Model, x, y int, kind cellKind, mask directionMask) string {
 	switch {
 	case kind == serverCell:
 		return "◆"
@@ -148,10 +148,10 @@ func pipeForeground(m Model, cells ...point) color.Color {
 		if tile.Kind == serverCell {
 			return theme.Current().AccentSoft
 		}
-		if m.state.tileHasDangling[cell.Y][cell.X] {
+		if stateBoolAt(m.state.tileHasDangling, cell.X, cell.Y) {
 			return theme.Current().Error
 		}
-		if m.state.connectedToRoot[cell.Y][cell.X] {
+		if stateBoolAt(m.state.connectedToRoot, cell.X, cell.Y) {
 			hasConnected = true
 		}
 	}
@@ -161,12 +161,20 @@ func pipeForeground(m Model, cells ...point) color.Color {
 	return theme.Current().FG
 }
 
+func hasStateCell(cells [][]bool, x, y int) bool {
+	return y >= 0 && y < len(cells) && x >= 0 && x < len(cells[y])
+}
+
+func stateBoolAt(cells [][]bool, x, y int) bool {
+	return hasStateCell(cells, x, y) && cells[y][x]
+}
+
 func statusBarView(m Model, full bool) string {
 	info := "connected " + strconv.Itoa(m.state.connected) + "/" + strconv.Itoa(m.state.nonEmpty) +
 		"  dangling " + strconv.Itoa(m.state.dangling) +
 		"  locks " + strconv.Itoa(m.state.locked)
 	if !full {
-		return game.StatusBarStyle().Render(info + "  space rotate  enter lock")
+		return game.StatusBarStyle().Render(info + "\nspace: rotate  enter: lock")
 	}
-	return game.StatusBarStyle().Render(info + "  space rotate  backspace reverse  enter toggle lock  ctrl+r reset")
+	return game.StatusBarStyle().Render(info + "\nspace: rotate  backspace: reverse\nenter: toggle lock  ctrl+r: reset")
 }

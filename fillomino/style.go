@@ -44,6 +44,9 @@ func cellView(
 	} else {
 		text = lipgloss.NewStyle().Width(cellWidth).AlignHorizontal(lipgloss.Center).Render(strconv.Itoa(value))
 	}
+	if conflict && !cursor {
+		text = conflictText(text)
+	}
 
 	if provided && value != 0 {
 		style = style.Bold(true)
@@ -93,6 +96,14 @@ func conflictedCursorStyle() lipgloss.Style {
 		Bold(true).
 		Foreground(game.CursorFG()).
 		Background(game.ConflictBG())
+}
+
+func conflictText(text string) string {
+	runes := []rune(text)
+	if len(runes) != cellWidth {
+		return text
+	}
+	return "!" + string(runes[1]) + "!"
 }
 
 func gridView(m Model) string {

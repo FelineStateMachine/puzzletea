@@ -155,7 +155,7 @@ func (m Model) GetDebugInfo() string {
 	s := game.DebugHeader("Sudoku", [][2]string{
 		{"Status", status},
 		{"Cursor", fmt.Sprintf("(%d, %d)", m.cursor.X, m.cursor.Y)},
-		{"Cell Value", cellContent(cursorCell)},
+		{"Cell Value", cellContent(cursorCell, conflict)},
 		{"Is Provided", fmt.Sprintf("%v", isProvided)},
 		{"Has Conflict", fmt.Sprintf("%v", conflict)},
 		{"Cells Filled", fmt.Sprintf("%d / 81", filledCount)},

@@ -54,6 +54,7 @@ func resolveCellVisual(
 		visual.bridgeBG = p.SuccessBG
 		visual.state = cellVisualStateSolved
 	case conflict:
+		visual.text = conflictDisplay(mark, num)
 		visual.fg = game.ConflictFG()
 		visual.bg = game.ConflictBG()
 		visual.bridgeBG = game.ConflictBG()
@@ -81,7 +82,7 @@ func hitoriBaseVisual(mark cellMark, num rune) cellVisual {
 		}
 	case circled:
 		return cellVisual{
-			text:     fmt.Sprintf(" %c ", num),
+			text:     fmt.Sprintf("(%c)", num),
 			fg:       p.Info,
 			bg:       p.BG,
 			bridgeBG: p.BG,
@@ -121,6 +122,7 @@ func hitoriCursorVisual(num rune, mark cellMark, solved, conflict bool) cellVisu
 			visual.fg = p.SolvedFG
 		}
 	case conflict:
+		visual.text = conflictDisplay(mark, num)
 		visual.bg = game.ConflictBG()
 		visual.bridgeBG = game.ConflictBG()
 		visual.state = cellVisualStateConflict
@@ -131,6 +133,15 @@ func hitoriCursorVisual(num rune, mark cellMark, solved, conflict bool) cellVisu
 	}
 
 	return visual
+}
+
+func conflictDisplay(mark cellMark, num rune) string {
+	switch mark {
+	case shaded:
+		return "!█!"
+	default:
+		return fmt.Sprintf("!%c!", num)
+	}
 }
 
 func renderCellVisual(visual cellVisual) string {

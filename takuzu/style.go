@@ -74,7 +74,8 @@ func cellView(val rune, isProvided, isCursor, inCursorRow, inCursorCol, solved, 
 		style = style.Bold(true).Background(theme.GivenTint(p.BG))
 	}
 	if (inDuplicateRow || inDuplicateCol) && !solved {
-		style = style.Background(game.ConflictBG())
+		style = style.Foreground(game.ConflictFG()).Background(game.ConflictBG())
+		text = conflictText(text)
 	}
 	if isCursor {
 		text = cursorText(text)
@@ -99,6 +100,14 @@ func cursorText(text string) string {
 	default:
 		return text
 	}
+}
+
+func conflictText(text string) string {
+	runes := []rune(text)
+	if len(runes) != cellWidth {
+		return text
+	}
+	return "!" + string(runes[1]) + "!"
 }
 
 func lineComplete(row []rune) bool {

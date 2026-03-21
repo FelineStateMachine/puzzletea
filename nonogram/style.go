@@ -311,7 +311,7 @@ func statusBarView(showFullHelp bool) string {
 	if showFullHelp {
 		return game.StatusBarStyle().Render("arrows/wasd: move  z: fill (hold+move)  x: mark (hold+move)  bkspc: clear  LMB: fill  RMB: mark  esc: menu  ctrl+r: reset  ctrl+h: help")
 	}
-	return game.StatusBarStyle().Render("z: fill  x: mark  bkspc: clear  mouse: click/drag")
+	return game.StatusBarStyle().Render("z: fill  x: mark  mouse: drag  bkspc clear")
 }
 
 func intSliceEqual(a, b []int) bool {

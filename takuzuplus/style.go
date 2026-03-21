@@ -74,7 +74,8 @@ func cellView(val rune, isProvided, isCursor, inCursorRow, inCursorCol, solved, 
 		style = style.Bold(true).Background(theme.GivenTint(p.BG))
 	}
 	if (inDuplicateRow || inDuplicateCol) && !solved {
-		style = style.Background(game.ConflictBG())
+		style = style.Foreground(game.ConflictFG()).Background(game.ConflictBG())
+		text = conflictText(text)
 	}
 	if isCursor {
 		text = cursorText(text)
@@ -99,6 +100,14 @@ func cursorText(text string) string {
 	default:
 		return text
 	}
+}
+
+func conflictText(text string) string {
+	runes := []rune(text)
+	if len(runes) != cellWidth {
+		return text
+	}
+	return "!" + string(runes[1]) + "!"
 }
 
 func rowComplete(row []rune) bool {
@@ -197,6 +206,9 @@ func gridView(m Model) string {
 		BridgeFill: func(bridge game.DynamicGridBridge) color.Color {
 			return bridgeFill(m, bridge)
 		},
+		BridgeBold: func(bridge game.DynamicGridBridge) bool {
+			return relationBridgeState(m, bridge) != 0
+		},
 		VerticalBridgeText: func(x, y int) string {
 			if x <= 0 || x >= m.size {
 				return ""
@@ -205,7 +217,7 @@ func gridView(m Model) string {
 			if rel == relationNone {
 				return ""
 			}
-			return string(rel)
+			return relationBridgeText(rel, m.grid[y][x-1], m.grid[y][x])
 		},
 		HorizontalBridgeText: func(x, y int) string {
 			if y <= 0 || y >= m.size {
@@ -215,7 +227,7 @@ func gridView(m Model) string {
 			if rel == relationNone {
 				return ""
 			}
-			return string(rel)
+			return relationBridgeText(rel, m.grid[y-1][x], m.grid[y][x])
 		},
 	})
 }
@@ -263,6 +275,37 @@ func relationStateBackground(state int) color.Color {
 	default:
 		return nil
 	}
+}
+
+func relationBridgeState(m Model, bridge game.DynamicGridBridge) int {
+	switch bridge.Kind {
+	case game.DynamicGridBridgeVertical:
+		if bridge.X <= 0 || bridge.X >= m.size || bridge.Y < 0 || bridge.Y >= m.size {
+			return 0
+		}
+		return relationState(
+			m.relations.horizontal[bridge.Y][bridge.X-1],
+			m.grid[bridge.Y][bridge.X-1],
+			m.grid[bridge.Y][bridge.X],
+		)
+	case game.DynamicGridBridgeHorizontal:
+		if bridge.Y <= 0 || bridge.Y >= m.size || bridge.X < 0 || bridge.X >= m.size {
+			return 0
+		}
+		return relationState(
+			m.relations.vertical[bridge.Y-1][bridge.X],
+			m.grid[bridge.Y-1][bridge.X],
+			m.grid[bridge.Y][bridge.X],
+		)
+	default:
+		return 0
+	}
+}
+
+func relationBridgeText(rel, left, right rune) string {
+	_ = left
+	_ = right
+	return string(rel)
 }
 
 func countContextView(m Model) string {
