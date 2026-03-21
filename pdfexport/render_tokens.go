@@ -9,6 +9,8 @@ import (
 const (
 	halfLetterWidthMM  = 139.7
 	halfLetterHeightMM = 215.9
+	letterWidthMM      = 279.4
+	letterHeightMM     = 215.9
 
 	footerTextGray    = 78
 	secondaryTextGray = 60
@@ -29,12 +31,18 @@ const (
 	outerBorderLineMM = 0.62
 )
 
+var logicalPageNumberOverride int
+
 const (
-	puzzleTitleFontSize       = 13.0
-	puzzleSubtitleFontSize    = 9.0
-	puzzleInstructionFontSize = 8.2
-	puzzleWordBankFontSize    = 8.8
-	puzzleWordBankHeadSize    = 9.2
+	puzzleTitleFontSize        = 13.0 + pdfFontSizeDelta
+	puzzleSubtitleFontSize     = 9.0 + pdfFontSizeDelta
+	puzzleInstructionFontSize  = 7.0 + pdfFontSizeDelta
+	puzzleWordBankFontSize     = 8.8 + pdfFontSizeDelta
+	puzzleWordBankHeadSize     = 9.2 + pdfFontSizeDelta
+	difficultyStarSizeMM       = 3.5
+	difficultyStarGapMM        = 0.9
+	difficultyTextToStarsGapMM = 2.1
+	difficultyStarOutlineMM    = 0.26
 )
 
 type (
@@ -84,6 +92,7 @@ func puzzleBoardRect(pageW, pageH float64, pageNo, ruleLines int) rectMM {
 }
 
 func puzzleHorizontalMargins(pageNo int) (left, right float64) {
+	pageNo = effectiveLogicalPageNumber(pageNo)
 	left = pageMarginXMM
 	right = pageMarginXMM
 	if pageNo <= 1 {
@@ -97,6 +106,22 @@ func puzzleHorizontalMargins(pageNo int) (left, right float64) {
 	// Odd pages sit on the right side in a spread, so inside edge is left.
 	left += bindingGutterExtraMM
 	return left, right
+}
+
+func effectiveLogicalPageNumber(pageNo int) int {
+	if logicalPageNumberOverride > 0 {
+		return logicalPageNumberOverride
+	}
+	return pageNo
+}
+
+func withLogicalPageNumber(pageNo int, fn func() error) error {
+	previous := logicalPageNumberOverride
+	logicalPageNumberOverride = pageNo
+	defer func() {
+		logicalPageNumberOverride = previous
+	}()
+	return fn()
 }
 
 func centeredOrigin(area rectMM, cols, rows int, cellSize float64) (float64, float64) {

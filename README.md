@@ -146,15 +146,25 @@ puzzletea new nonogram mini -e 6 -o nonogram-mini-set.jsonl
 puzzletea new sudoku --export 10 -o sudoku-mixed.jsonl --with-seed zine-issue-01
 ```
 
-Render one or more JSONL packs into a half-letter print PDF:
+Render one or more JSONL packs into a print PDF:
 
 ```bash
 puzzletea export-pdf nonogram-mini-set.jsonl -o issue-01.pdf --shuffle-seed issue-01 --volume 1 --title "Catacombs & Pines"
 ```
 
-`--title` sets the pack subtitle (title page, and cover pages when enabled), and `--volume` sets the volume number.
-By default, covers are not included. Use `--cover-color` to include front/back cover pages.
-Page count is always auto-padded to a multiple of 4 for half-letter booklet printing.
+`--title` sets the pack subtitle (title page, and outside cover when enabled), and `--volume` sets the volume number.
+`half-letter` renders a plain booklet interior with no cover block.
+`duplex-booklet` automatically includes the 4-page black-ink cover block with blank inside covers, and the actual cover color comes from the physical stock you print on.
+When `duplex-booklet` is enabled, the title page shifts to logical page 3 so the first two and last two pages stay on cover stock.
+Page count is always auto-padded to a multiple of 4 for booklet printing.
+
+Use `--sheet-layout duplex-booklet` to emit a landscape US Letter PDF with two portrait half-letter booklet pages per sheet side:
+
+```bash
+puzzletea export-pdf nonogram-mini-set.jsonl -o issue-01-duplex.pdf --shuffle-seed issue-01 --volume 1 --title "Catacombs & Pines" --sheet-layout duplex-booklet
+```
+
+`duplex-booklet` is meant for duplex printing without printer-side booklet mode. Print landscape on short edge.
 
 Font license note (Atkinson Hyperlegible Next):
 

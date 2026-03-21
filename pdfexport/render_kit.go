@@ -10,7 +10,8 @@ type Rect struct {
 }
 
 const (
-	SansFontFamily = sansFontFamily
+	SansFontFamily   = sansFontFamily
+	PDFFontSizeDelta = pdfFontSizeDelta
 
 	PrimaryTextGray   = primaryTextGray
 	SecondaryTextGray = secondaryTextGray

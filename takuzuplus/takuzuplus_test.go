@@ -494,7 +494,7 @@ func TestRelationBridgeBackgroundIncompleteIsNeutral(t *testing.T) {
 func TestCellViewUsesGivenTintForProvidedCells(t *testing.T) {
 	p := theme.Current()
 
-	gotZero := cellView(zeroCell, true, false, false, false, false)
+	gotZero := cellView(zeroCell, true, false, false, false, false, false, false)
 	wantZero := lipgloss.NewStyle().
 		Bold(true).
 		Foreground(p.Accent).
@@ -506,7 +506,7 @@ func TestCellViewUsesGivenTintForProvidedCells(t *testing.T) {
 		t.Fatalf("provided zero cellView() = %q, want %q", gotZero, wantZero)
 	}
 
-	gotOne := cellView(oneCell, true, false, false, false, false)
+	gotOne := cellView(oneCell, true, false, false, false, false, false, false)
 	wantOne := lipgloss.NewStyle().
 		Bold(true).
 		Foreground(p.Secondary).
@@ -522,7 +522,7 @@ func TestCellViewUsesGivenTintForProvidedCells(t *testing.T) {
 func TestCellViewCursorUsesGlyphsWithoutChangingEmptyCellColors(t *testing.T) {
 	p := theme.Current()
 
-	got := cellView(emptyCell, false, true, false, false, false)
+	got := cellView(emptyCell, false, true, false, false, false, false, false)
 	want := lipgloss.NewStyle().
 		Foreground(p.TextDim).
 		Background(p.BG).
@@ -538,7 +538,7 @@ func TestCellViewCursorUsesGlyphsWithoutChangingEmptyCellColors(t *testing.T) {
 func TestCellViewCursorPreservesProvidedCellColors(t *testing.T) {
 	p := theme.Current()
 
-	got := cellView(zeroCell, true, true, true, false, false)
+	got := cellView(zeroCell, true, true, true, false, false, false, false)
 	want := lipgloss.NewStyle().
 		Bold(true).
 		Foreground(p.Accent).

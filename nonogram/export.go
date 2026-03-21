@@ -6,20 +6,22 @@ import (
 )
 
 type Save struct {
-	State    string               `json:"state"`
-	Width    int                  `json:"width"`
-	Height   int                  `json:"height"`
-	RowHints TomographyDefinition `json:"row-hints"`
-	ColHints TomographyDefinition `json:"col-hints"`
+	State     string               `json:"state"`
+	Width     int                  `json:"width"`
+	Height    int                  `json:"height"`
+	RowHints  TomographyDefinition `json:"row-hints"`
+	ColHints  TomographyDefinition `json:"col-hints"`
+	ModeTitle string               `json:"mode_title,omitempty"`
 }
 
 func (m Model) GetSave() ([]byte, error) {
 	save := Save{
-		RowHints: m.rowHints,
-		ColHints: m.colHints,
-		State:    m.grid.String(),
-		Width:    m.width,
-		Height:   m.height,
+		RowHints:  m.rowHints,
+		ColHints:  m.colHints,
+		State:     m.grid.String(),
+		Width:     m.width,
+		Height:    m.height,
+		ModeTitle: m.modeTitle,
 	}
 	jsonData, err := json.Marshal(save)
 	if err != nil {
@@ -42,6 +44,7 @@ func ImportModel(data []byte) (*Model, error) {
 		colHints:     save.ColHints,
 		grid:         g,
 		keys:         DefaultKeyMap,
+		modeTitle:    save.ModeTitle,
 		currentHints: curr,
 		solved:       curr.rows.equal(save.RowHints) && curr.cols.equal(save.ColHints),
 	}, nil

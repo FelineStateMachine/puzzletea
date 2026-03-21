@@ -35,7 +35,10 @@ func renderSudokuRGBPage(pdf *fpdf.Fpdf, data *pdfexport.SudokuData) {
 
 	pageW, pageH := pdf.GetPageSize()
 	pageNo := pdf.PageNo()
-	area := pdfexport.PuzzleBoardRect(pageW, pageH, pageNo, 1)
+	body := pdfexport.PuzzleBodyRect(pageW, pageH, pageNo)
+	rules := []string{"Fill rows, columns, and 3x3 boxes with three 1s, three 2s, and three 3s"}
+	ruleLines := pdfexport.InstructionLineCount(pdf, body.W, rules)
+	area := pdfexport.PuzzleBoardRect(pageW, pageH, pageNo, ruleLines)
 	cellSize := pdfexport.FitSudokuCellSize(9, 9, area)
 	if cellSize <= 0 {
 		return
@@ -47,20 +50,8 @@ func renderSudokuRGBPage(pdf *fpdf.Fpdf, data *pdfexport.SudokuData) {
 	drawSudokuGridLines(pdf, startX, startY, cellSize)
 	drawSudokuRGBGivens(pdf, startX, startY, cellSize, data.Givens)
 
-	ruleY := pdfexport.InstructionY(startY+boardH, pageH, 1)
-	pdfexport.SetInstructionStyle(pdf)
-	pdf.SetXY(area.X, ruleY)
-	pdf.CellFormat(
-		area.W,
-		pdfexport.InstructionLineHMM,
-		"Fill rows, columns, and 3x3 boxes with three 1s, three 2s, and three 3s",
-		"",
-		0,
-		"C",
-		false,
-		0,
-		"",
-	)
+	ruleY := pdfexport.InstructionY(startY+boardH, pageH, ruleLines)
+	pdfexport.RenderInstructions(pdf, body.X, ruleY, body.W, rules)
 }
 
 func drawSudokuGridLines(pdf *fpdf.Fpdf, startX, startY, cellSize float64) {

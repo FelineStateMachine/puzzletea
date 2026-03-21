@@ -2,6 +2,13 @@ package pdfexport
 
 import "time"
 
+type SheetLayout int
+
+const (
+	SheetLayoutHalfLetter SheetLayout = iota
+	SheetLayoutDuplexBooklet
+)
+
 type PackMetadata struct {
 	GeneratedRaw   string
 	GeneratedAt    time.Time
@@ -135,8 +142,6 @@ type GridTable struct {
 	HasHeaderCol bool
 }
 
-type RGB struct{ R, G, B uint8 }
-
 type RenderConfig struct {
 	Title         string
 	CoverSubtitle string
@@ -145,5 +150,5 @@ type RenderConfig struct {
 	AdvertText    string
 	GeneratedAt   time.Time
 	ShuffleSeed   string
-	CoverColor    *RGB // nil = omit front/back covers
+	SheetLayout   SheetLayout
 }

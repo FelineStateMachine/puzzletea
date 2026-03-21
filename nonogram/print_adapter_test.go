@@ -97,6 +97,7 @@ func TestLayoutNonogramCentersGrid(t *testing.T) {
 				pageW,
 				pageH,
 				pageNo,
+				1,
 				10,
 				10,
 				tt.rowHintCol,

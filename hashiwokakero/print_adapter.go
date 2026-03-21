@@ -40,7 +40,10 @@ func renderHashiPage(pdf *fpdf.Fpdf, data *pdfexport.HashiData) {
 
 	spanX := max(data.Width-1, 1)
 	spanY := max(data.Height-1, 1)
-	area := pdfexport.PuzzleBoardRect(pageW, pageH, pageNo, 1)
+	body := pdfexport.PuzzleBodyRect(pageW, pageH, pageNo)
+	rules := []string{"Connect islands horizontally/vertically with up to two bridges and no crossings."}
+	ruleLines := pdfexport.InstructionLineCount(pdf, body.W, rules)
+	area := pdfexport.PuzzleBoardRect(pageW, pageH, pageNo, ruleLines)
 	step := pdfexport.FitHashiCellSize(spanX, spanY, area)
 	if step <= 0 {
 		return
@@ -55,24 +58,12 @@ func renderHashiPage(pdf *fpdf.Fpdf, data *pdfexport.HashiData) {
 	drawHashiBoardBorder(pdf, originX, originY, boardW, boardH, islandRadius)
 	drawHashiIslands(pdf, originX, originY, step, islandRadius, data.Islands)
 
-	ruleY := pdfexport.InstructionY(originY+boardH+pdfexport.InstructionLineHMM, pageH, 1)
-	pdfexport.SetInstructionStyle(pdf)
-	pdf.SetXY(area.X, ruleY)
-	pdf.CellFormat(
-		area.W,
-		pdfexport.InstructionLineHMM,
-		"Connect islands horizontally/vertically with up to two bridges and no crossings.",
-		"",
-		0,
-		"C",
-		false,
-		0,
-		"",
-	)
+	ruleY := pdfexport.InstructionY(originY+boardH+pdfexport.InstructionLineHMM, pageH, ruleLines)
+	pdfexport.RenderInstructions(pdf, body.X, ruleY, body.W, rules)
 }
 
 func drawHashiGuideDots(pdf *fpdf.Fpdf, originX, originY float64, width, height int, step float64) {
-	pdf.SetFillColor(230, 230, 230)
+	pdf.SetFillColor(180, 180, 180)
 	r := math.Max(0.20, math.Min(0.55, step*0.035))
 	for y := range height {
 		for x := range width {

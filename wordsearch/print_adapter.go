@@ -11,6 +11,11 @@ type printAdapter struct{}
 
 var PDFPrintAdapter = printAdapter{}
 
+const (
+	wordBankHeaderHeight = 9.0
+	wordBankListTopGap   = 2.2
+)
+
 func (printAdapter) CanonicalGameType() string { return "Word Search" }
 func (printAdapter) Aliases() []string {
 	return []string{"word search", "wordsearch"}
@@ -45,7 +50,7 @@ func renderWordSearchPage(pdf *fpdf.Fpdf, data *pdfexport.WordSearchData) {
 	gridListGap := pdfexport.WordSearchGridGapMM
 
 	estimatedWordLines := estimateWordBankLineCount(pdf, data.Words, columnCount, availW, wordFontSize)
-	wordBankHeight := 7.0 + float64(estimatedWordLines)*wordLineHeight
+	wordBankHeight := wordBankHeaderHeight + wordBankListTopGap + float64(estimatedWordLines)*wordLineHeight
 	maxWordBankHeight := availH * 0.42
 	if wordBankHeight > maxWordBankHeight {
 		wordBankHeight = maxWordBankHeight
@@ -127,7 +132,7 @@ func drawWordBank(pdf *fpdf.Fpdf, words []string, x, y, width, height float64, c
 	pdf.SetXY(x, y+4.8)
 	pdf.CellFormat(width, 4.2, "Words may run in all 8 directions", "", 0, "L", false, 0, "")
 
-	listY := y + 9.0
+	listY := y + wordBankHeaderHeight + wordBankListTopGap
 	if len(words) == 0 {
 		pdf.SetFont(pdfexport.SansFontFamily, "", pdfexport.PuzzleWordBankHeadSize)
 		pdf.SetTextColor(pdfexport.SecondaryTextGray, pdfexport.SecondaryTextGray, pdfexport.SecondaryTextGray)
@@ -148,7 +153,7 @@ func drawWordBank(pdf *fpdf.Fpdf, words []string, x, y, width, height float64, c
 
 	colLines := layoutWordBankColumns(pdf, words, columns, colWidth)
 	lineHeight := 4.1
-	maxLines := int(height / lineHeight)
+	maxLines := int((height - (listY - y)) / lineHeight)
 	if maxLines <= 0 {
 		return
 	}

@@ -32,6 +32,18 @@ diagnostic:
 fmt:
     gofumpt -w .
 
+# Render visual fixture output for one game or the whole suite.
+render game="all":
+    @if [ "{{game}}" = "all" ]; then \
+        find . -path '*/testdata/visual_states.jsonl' | sort | while read -r file; do \
+            printf '== %s ==\n' "$file"; \
+            go run . test "$file"; \
+            printf '\n'; \
+        done; \
+    else \
+        go run . test "{{game}}/testdata/visual_states.jsonl"; \
+    fi
+
 # Tidy module dependencies.
 tidy:
     go mod tidy

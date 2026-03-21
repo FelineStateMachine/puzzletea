@@ -1,6 +1,10 @@
 package takuzu
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/FelineStateMachine/puzzletea/pdfexport"
+)
 
 func TestTakuzuGivenFontSize(t *testing.T) {
 	tests := []struct {
@@ -14,22 +18,22 @@ func TestTakuzuGivenFontSize(t *testing.T) {
 			name:     "small cell keeps readable minimum",
 			cellSize: 3.0,
 			size:     14,
-			wantMin:  5.2,
-			wantMax:  5.2,
+			wantMin:  8.2,
+			wantMax:  8.2,
 		},
 		{
 			name:     "12x12 remains comfortably readable",
 			cellSize: 10.0,
 			size:     12,
-			wantMin:  6.3,
-			wantMax:  6.7,
+			wantMin:  9.5,
+			wantMax:  9.6,
 		},
 		{
 			name:     "14x14 remains comfortably readable",
 			cellSize: 9.0,
 			size:     14,
-			wantMin:  5.7,
-			wantMax:  6.0,
+			wantMin:  8.5,
+			wantMax:  8.6,
 		},
 	}
 
@@ -43,7 +47,7 @@ func TestTakuzuGivenFontSize(t *testing.T) {
 	}
 }
 
-func TestTakuzuRelationFontSize(t *testing.T) {
+func TestTakuzuRelationSizing_FontSize(t *testing.T) {
 	tests := []struct {
 		name     string
 		cellSize float64
@@ -52,68 +56,81 @@ func TestTakuzuRelationFontSize(t *testing.T) {
 		wantMax  float64
 	}{
 		{
-			name:     "small cells keep a larger minimum for relation clues",
+			name:     "14x14 scales below the old 9 point floor",
 			cellSize: 8.0,
 			size:     14,
-			wantMin:  6.0,
-			wantMax:  6.0,
+			wantMin:  6.2,
+			wantMax:  6.2,
 		},
 		{
-			name:     "10x10 clues scale above the old minimum",
+			name:     "12x12 scales below the old 9 point floor",
 			cellSize: 11.0,
-			size:     10,
-			wantMin:  6.3,
-			wantMax:  6.5,
+			size:     12,
+			wantMin:  6.2,
+			wantMax:  6.2,
 		},
 		{
-			name:     "large cells still respect the shared cap",
+			name:     "larger cells still respect the new cap",
 			cellSize: 16.0,
 			size:     6,
-			wantMin:  8.2,
-			wantMax:  8.2,
+			wantMin:  7.6,
+			wantMax:  7.7,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := takuzuRelationFontSize(tt.cellSize, tt.size)
-			if got < tt.wantMin || got > tt.wantMax {
-				t.Fatalf("font size = %.3f, want %.3f..%.3f", got, tt.wantMin, tt.wantMax)
+			got := takuzuRelationSizingFor(tt.cellSize, tt.size)
+			if got.fontSize < tt.wantMin || got.fontSize > tt.wantMax {
+				t.Fatalf("font size = %.3f, want %.3f..%.3f", got.fontSize, tt.wantMin, tt.wantMax)
 			}
 		})
 	}
 }
 
-func TestTakuzuRelationBackdropSize(t *testing.T) {
+func TestTakuzuRelationSizing_BackdropSize(t *testing.T) {
 	tests := []struct {
 		name     string
 		cellSize float64
-		fontSize float64
+		size     int
 		wantMin  float64
 		wantMax  float64
 	}{
 		{
-			name:     "adds padding beyond the glyph size",
+			name:     "caps the knockout on denser 12x12 boards",
 			cellSize: 11.0,
-			fontSize: 6.4,
-			wantMin:  7.7,
-			wantMax:  7.8,
+			size:     12,
+			wantMin:  6.3,
+			wantMax:  6.4,
 		},
 		{
-			name:     "still provides a readable knockout on tighter boards",
-			cellSize: 8.0,
-			fontSize: 6.0,
-			wantMin:  6.9,
-			wantMax:  7.0,
+			name:     "allows slightly larger knockouts when space is available",
+			cellSize: 16.0,
+			size:     6,
+			wantMin:  8.2,
+			wantMax:  8.4,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := takuzuRelationBackdropSize(tt.cellSize, tt.fontSize)
-			if got < tt.wantMin || got > tt.wantMax {
-				t.Fatalf("backdrop size = %.3f, want %.3f..%.3f", got, tt.wantMin, tt.wantMax)
+			got := takuzuRelationSizingFor(tt.cellSize, tt.size)
+			if got.backdropSize < tt.wantMin || got.backdropSize > tt.wantMax {
+				t.Fatalf("backdrop size = %.3f, want %.3f..%.3f", got.backdropSize, tt.wantMin, tt.wantMax)
 			}
 		})
+	}
+}
+
+func TestTakuzuRelationSizing_BackdropStaysWithin12x12Cap(t *testing.T) {
+	area := pdfexport.PuzzleBoardRect(139.7, 215.9, 2, 3)
+	cellSize := pdfexport.FitCompactCellSize(12, 12, area)
+	if cellSize <= 0 {
+		t.Fatal("expected positive cell size")
+	}
+
+	got := takuzuRelationSizingFor(cellSize, 12)
+	if got.backdropSize > cellSize*0.58+0.001 {
+		t.Fatalf("backdrop size = %.3f, want <= %.3f", got.backdropSize, cellSize*0.58)
 	}
 }

@@ -62,7 +62,7 @@ func TestBuildRenderConfigForPDFUsesTitleAsCoverSubtitle(t *testing.T) {
 	flagPDFHeader = "Custom heading paragraph"
 	flagPDFVolume = 7
 	flagPDFAdvert = "Custom advert"
-	flagPDFCoverColor = ""
+	flagPDFSheetLayout = "half-letter"
 
 	now := time.Date(2026, 2, 22, 11, 0, 0, 0, time.UTC)
 	docs := []pdfexport.PackDocument{{Metadata: pdfexport.PackMetadata{Category: "Nonogram"}}}
@@ -94,7 +94,7 @@ func TestBuildRenderConfigForPDFDefaultsSubtitleFromDocs(t *testing.T) {
 	flagPDFTitle = ""
 	flagPDFVolume = 1
 	flagPDFAdvert = "Find more puzzles"
-	flagPDFCoverColor = ""
+	flagPDFSheetLayout = "half-letter"
 
 	docs := []pdfexport.PackDocument{{Metadata: pdfexport.PackMetadata{Category: "Sudoku"}}}
 	cfg, err := buildRenderConfigForPDF(docs, "seed-2", time.Now())
@@ -106,34 +106,47 @@ func TestBuildRenderConfigForPDFDefaultsSubtitleFromDocs(t *testing.T) {
 	}
 }
 
-func TestBuildRenderConfigForPDFCoverColorControlsCoverPages(t *testing.T) {
+func TestSheetLayoutControlsCoverPages(t *testing.T) {
 	reset := snapshotExportPDFFlags()
 	defer reset()
 
 	flagPDFTitle = "Issue 01"
 	flagPDFVolume = 1
 	flagPDFAdvert = "Find more puzzles"
-	docs := []pdfexport.PackDocument{{Metadata: pdfexport.PackMetadata{Category: "Sudoku"}}}
+	if pdfexport.SheetLayoutHalfLetter == pdfexport.SheetLayoutDuplexBooklet {
+		t.Fatal("expected distinct sheet layout values")
+	}
+}
 
-	flagPDFCoverColor = ""
-	cfgNoCover, err := buildRenderConfigForPDF(docs, "seed-3", time.Now())
-	if err != nil {
-		t.Fatalf("buildRenderConfigForPDF (no cover color) error = %v", err)
-	}
-	if cfgNoCover.CoverColor != nil {
-		t.Fatalf("CoverColor = %+v, want nil when --cover-color is omitted", cfgNoCover.CoverColor)
-	}
+func TestBuildRenderConfigForPDFParsesSheetLayout(t *testing.T) {
+	reset := snapshotExportPDFFlags()
+	defer reset()
 
-	flagPDFCoverColor = "#112233"
-	cfgWithCover, err := buildRenderConfigForPDF(docs, "seed-4", time.Now())
+	flagPDFVolume = 1
+	flagPDFSheetLayout = "duplex-booklet"
+
+	cfg, err := buildRenderConfigForPDF(nil, "seed-5", time.Now())
 	if err != nil {
-		t.Fatalf("buildRenderConfigForPDF (with cover color) error = %v", err)
+		t.Fatalf("buildRenderConfigForPDF error = %v", err)
 	}
-	if cfgWithCover.CoverColor == nil {
-		t.Fatal("CoverColor = nil, want parsed color when --cover-color is set")
+	if cfg.SheetLayout != pdfexport.SheetLayoutDuplexBooklet {
+		t.Fatalf("SheetLayout = %d, want duplex booklet", cfg.SheetLayout)
 	}
-	if *cfgWithCover.CoverColor != (pdfexport.RGB{R: 0x11, G: 0x22, B: 0x33}) {
-		t.Fatalf("CoverColor = %+v, want {R:17 G:34 B:51}", *cfgWithCover.CoverColor)
+}
+
+func TestBuildRenderConfigForPDFRejectsInvalidSheetLayout(t *testing.T) {
+	reset := snapshotExportPDFFlags()
+	defer reset()
+
+	flagPDFVolume = 1
+	flagPDFSheetLayout = "brochure"
+
+	_, err := buildRenderConfigForPDF(nil, "seed-6", time.Now())
+	if err == nil {
+		t.Fatal("expected invalid --sheet-layout error")
+	}
+	if !strings.Contains(err.Error(), "--sheet-layout") {
+		t.Fatalf("error = %q, want mention of --sheet-layout", err.Error())
 	}
 }
 
@@ -272,17 +285,17 @@ func snapshotExportPDFFlags() func() {
 	oldHeader := flagPDFHeader
 	oldVolume := flagPDFVolume
 	oldAdvert := flagPDFAdvert
-	oldCoverColor := flagPDFCoverColor
 	oldOutput := flagPDFOutput
 	oldShuffle := flagPDFShuffleSeed
+	oldSheetLayout := flagPDFSheetLayout
 
 	return func() {
 		flagPDFTitle = oldTitle
 		flagPDFHeader = oldHeader
 		flagPDFVolume = oldVolume
 		flagPDFAdvert = oldAdvert
-		flagPDFCoverColor = oldCoverColor
 		flagPDFOutput = oldOutput
 		flagPDFShuffleSeed = oldShuffle
+		flagPDFSheetLayout = oldSheetLayout
 	}
 }

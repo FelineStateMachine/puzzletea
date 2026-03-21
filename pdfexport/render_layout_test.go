@@ -98,14 +98,14 @@ func TestSaddleStitchPadCountForStandardPackLayout(t *testing.T) {
 		puzzleRows int
 		wantPad    int
 	}{
-		{name: "single puzzle", puzzleRows: 1, wantPad: 0},
-		{name: "two puzzles", puzzleRows: 2, wantPad: 3},
-		{name: "thirty-two puzzles", puzzleRows: 32, wantPad: 1},
+		{name: "single puzzle", puzzleRows: 1, wantPad: 2},
+		{name: "two puzzles", puzzleRows: 2, wantPad: 1},
+		{name: "thirty-two puzzles", puzzleRows: 32, wantPad: 3},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			totalWithoutPad := tt.puzzleRows + 3 // cover + title + back cover
+			totalWithoutPad := tt.puzzleRows + 5 // outside front + inside front + title + inside back + outside back
 			got := saddleStitchPadCount(totalWithoutPad)
 			if got != tt.wantPad {
 				t.Fatalf("pad pages = %d, want %d", got, tt.wantPad)
@@ -114,6 +114,153 @@ func TestSaddleStitchPadCountForStandardPackLayout(t *testing.T) {
 				t.Fatalf("total pages = %d, want multiple of 4", totalWithoutPad+got)
 			}
 		})
+	}
+}
+
+func TestBookletRenderPlanWithCoverUsesFirstTwoAndLastTwoPages(t *testing.T) {
+	plan := newBookletRenderPlan(32, true)
+
+	if got, want := plan.titlePageNumber(), 3; got != want {
+		t.Fatalf("title page = %d, want %d", got, want)
+	}
+	if got, want := plan.totalPages(), 40; got != want {
+		t.Fatalf("total pages = %d, want %d", got, want)
+	}
+	if got, want := plan.padPages, 3; got != want {
+		t.Fatalf("pad pages = %d, want %d", got, want)
+	}
+
+	frontOutside, frontInside, backInside, backOutside, ok := plan.coverPageNumbers()
+	if !ok {
+		t.Fatal("expected cover page numbers")
+	}
+	if frontOutside != 1 || frontInside != 2 || backInside != 39 || backOutside != 40 {
+		t.Fatalf("cover pages = (%d,%d,%d,%d), want (1,2,39,40)", frontOutside, frontInside, backInside, backOutside)
+	}
+
+	excluded := plan.footerExcludedPages()
+	for _, page := range []int{1, 2, 3, 36, 37, 38, 39, 40} {
+		if _, ok := excluded[page]; !ok {
+			t.Fatalf("expected page %d to be footer-excluded", page)
+		}
+	}
+	for _, page := range []int{4, 20, 35} {
+		if _, ok := excluded[page]; ok {
+			t.Fatalf("did not expect puzzle page %d to be footer-excluded", page)
+		}
+	}
+}
+
+func TestBookletRenderPlanWithoutCoverKeepsTitleFirst(t *testing.T) {
+	plan := newBookletRenderPlan(2, false)
+
+	if got, want := plan.titlePageNumber(), 1; got != want {
+		t.Fatalf("title page = %d, want %d", got, want)
+	}
+	if got, want := plan.totalPages(), 4; got != want {
+		t.Fatalf("total pages = %d, want %d", got, want)
+	}
+
+	excluded := plan.footerExcludedPages()
+	for _, page := range []int{1, 4} {
+		if _, ok := excluded[page]; !ok {
+			t.Fatalf("expected page %d to be footer-excluded", page)
+		}
+	}
+	if _, ok := excluded[2]; ok {
+		t.Fatal("did not expect first puzzle page to be footer-excluded")
+	}
+}
+
+func TestBuildLogicalPagesWithCoverUsesExpectedSequence(t *testing.T) {
+	pages := buildLogicalPages(32, true)
+	if got, want := len(pages), 40; got != want {
+		t.Fatalf("logical pages = %d, want %d", got, want)
+	}
+
+	if pages[0].Kind != logicalPageCoverOutside || pages[0].OutsideSlice != coverOutsideFront {
+		t.Fatal("page 1 should be front outside cover")
+	}
+	if pages[1].Kind != logicalPageCoverBlank {
+		t.Fatal("page 2 should be inside front blank")
+	}
+	if pages[2].Kind != logicalPageTitle {
+		t.Fatal("page 3 should be title")
+	}
+	if pages[len(pages)-2].Kind != logicalPageCoverBlank {
+		t.Fatal("second-last page should be inside back blank")
+	}
+	if pages[len(pages)-1].Kind != logicalPageCoverOutside || pages[len(pages)-1].OutsideSlice != coverOutsideBack {
+		t.Fatal("last page should be back outside cover")
+	}
+}
+
+func TestDuplexBookletSheetsForFourPageBooklet(t *testing.T) {
+	sheets := duplexBookletSheets(4)
+	if got, want := len(sheets), 1; got != want {
+		t.Fatalf("sheet count = %d, want %d", got, want)
+	}
+	if sheets[0].Front.LeftPage != 4 || sheets[0].Front.RightPage != 1 {
+		t.Fatalf("front pair = (%d,%d), want (4,1)", sheets[0].Front.LeftPage, sheets[0].Front.RightPage)
+	}
+	if sheets[0].Back.LeftPage != 2 || sheets[0].Back.RightPage != 3 {
+		t.Fatalf("back pair = (%d,%d), want (2,3)", sheets[0].Back.LeftPage, sheets[0].Back.RightPage)
+	}
+}
+
+func TestDuplexBookletSheetsForEightPageBooklet(t *testing.T) {
+	sheets := duplexBookletSheets(8)
+	if got, want := len(sheets), 2; got != want {
+		t.Fatalf("sheet count = %d, want %d", got, want)
+	}
+	if sheets[0].Front.LeftPage != 8 || sheets[0].Front.RightPage != 1 {
+		t.Fatalf("outer front pair = (%d,%d), want (8,1)", sheets[0].Front.LeftPage, sheets[0].Front.RightPage)
+	}
+	if sheets[1].Back.LeftPage != 4 || sheets[1].Back.RightPage != 5 {
+		t.Fatalf("inner back pair = (%d,%d), want (4,5)", sheets[1].Back.LeftPage, sheets[1].Back.RightPage)
+	}
+}
+
+func TestDuplexBookletSheetsWithCoverOuterSheetPairs(t *testing.T) {
+	pages := buildLogicalPages(32, true)
+	sheets := duplexBookletSheets(len(pages))
+	if got, want := len(sheets), 10; got != want {
+		t.Fatalf("sheet count = %d, want %d", got, want)
+	}
+	if sheets[0].Front.LeftPage != 40 || sheets[0].Front.RightPage != 1 {
+		t.Fatalf("outer front pair = (%d,%d), want (40,1)", sheets[0].Front.LeftPage, sheets[0].Front.RightPage)
+	}
+	if sheets[0].Back.LeftPage != 2 || sheets[0].Back.RightPage != 39 {
+		t.Fatalf("outer back pair = (%d,%d), want (2,39)", sheets[0].Back.LeftPage, sheets[0].Back.RightPage)
+	}
+}
+
+func TestDuplexBookletPhysicalPageCountIsHalfLogicalPages(t *testing.T) {
+	for _, total := range []int{4, 8, 40} {
+		sheets := duplexBookletSheets(total)
+		got := len(sheets) * 2
+		want := total / 2
+		if got != want {
+			t.Fatalf("physical pages for %d logical pages = %d, want %d", total, got, want)
+		}
+	}
+}
+
+func TestNewRenderPDFDuplexBookletUsesLandscapeLetterCanvas(t *testing.T) {
+	pdf := newRenderPDF(SheetLayoutDuplexBooklet)
+	pageW, pageH := pdf.GetPageSize()
+
+	if pageW <= pageH {
+		t.Fatalf("duplex-booklet canvas = %.1fx%.1f, want landscape", pageW, pageH)
+	}
+	if math.Abs(pageW-letterWidthMM) > 0.01 || math.Abs(pageH-letterHeightMM) > 0.01 {
+		t.Fatalf(
+			"duplex-booklet canvas = %.1fx%.1f, want %.1fx%.1f",
+			pageW,
+			pageH,
+			letterWidthMM,
+			letterHeightMM,
+		)
 	}
 }
 

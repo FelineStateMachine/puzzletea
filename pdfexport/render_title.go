@@ -10,25 +10,24 @@ import (
 )
 
 func renderTitlePage(pdf *fpdf.Fpdf, docs []PackDocument, puzzles []Puzzle, cfg RenderConfig) {
-	pdf.AddPage()
 	pageW, pageH := pdf.GetPageSize()
 	margin := 12.0
 	contentWidth := pageW - 2*margin
 	categoryTotals := summarizeCategoryTotals(puzzles)
 
 	pdf.SetTextColor(20, 20, 20)
-	pdf.SetFont(sansFontFamily, "B", 22)
+	pdf.SetFont(sansFontFamily, "B", 22+pdfFontSizeDelta)
 	pdf.SetXY(0, 24)
 	pdf.CellFormat(pageW, 10, fmt.Sprintf("PuzzleTea Volume %02d", cfg.VolumeNumber), "", 0, "C", false, 0, "")
 
 	pdf.SetTextColor(50, 50, 50)
-	pdf.SetFont(coverFontFamily, "", 16)
+	pdf.SetFont(coverFontFamily, "", 16+pdfFontSizeDelta)
 	pdf.SetXY(0, 35)
 	pdf.CellFormat(pageW, 8, cfg.CoverSubtitle, "", 0, "C", false, 0, "")
 
 	bodyY := 49.0
 	if header := strings.TrimSpace(cfg.HeaderText); header != "" {
-		pdf.SetFont(sansFontFamily, "", 9.2)
+		pdf.SetFont(sansFontFamily, "", 9.2+pdfFontSizeDelta)
 		pdf.SetTextColor(74, 74, 74)
 		wrappedHeader := pdf.SplitLines([]byte(header), contentWidth-20)
 		if len(wrappedHeader) == 0 {
@@ -45,7 +44,7 @@ func renderTitlePage(pdf *fpdf.Fpdf, docs []PackDocument, puzzles []Puzzle, cfg 
 	introLines := splitCoverTextLines(pdf, cfg.AdvertText, contentWidth)
 	if len(introLines) > 0 {
 		pdf.SetTextColor(58, 58, 58)
-		pdf.SetFont(sansFontFamily, "", 9.3)
+		pdf.SetFont(sansFontFamily, "", 9.3+pdfFontSizeDelta)
 		for _, line := range introLines {
 			pdf.SetXY(margin, bodyY)
 			pdf.CellFormat(contentWidth, 4.8, line, "", 0, "C", false, 0, "")
@@ -55,12 +54,12 @@ func renderTitlePage(pdf *fpdf.Fpdf, docs []PackDocument, puzzles []Puzzle, cfg 
 	}
 
 	pdf.SetTextColor(40, 40, 40)
-	pdf.SetFont(sansFontFamily, "B", 9.6)
+	pdf.SetFont(sansFontFamily, "B", 9.6+pdfFontSizeDelta)
 	pdf.SetXY(margin, bodyY)
 	pdf.CellFormat(contentWidth, 5.4, fmt.Sprintf("%d puzzles across %d categories", len(puzzles), len(categoryTotals)), "", 0, "C", false, 0, "")
 	bodyY += 7.6
 
-	pdf.SetFont(sansFontFamily, "B", 10)
+	pdf.SetFont(sansFontFamily, "B", 10+pdfFontSizeDelta)
 	pdf.SetTextColor(45, 45, 45)
 	pdf.SetXY(margin, bodyY)
 	pdf.CellFormat(contentWidth, 6, "Inside This Volume", "", 0, "C", false, 0, "")
@@ -69,14 +68,14 @@ func renderTitlePage(pdf *fpdf.Fpdf, docs []PackDocument, puzzles []Puzzle, cfg 
 	renderCategoryOverview(pdf, categoryTotals, margin, bodyY, contentWidth, pageH-32)
 
 	pdf.SetTextColor(50, 50, 50)
-	pdf.SetFont(sansFontFamily, "B", 12)
+	pdf.SetFont(sansFontFamily, "B", 12+pdfFontSizeDelta)
 	footerTitleY := pageH - 31.0
 	pdf.SetXY(margin, footerTitleY)
 	pdf.CellFormat(contentWidth, 7, "Made with PuzzleTea", "", 0, "C", false, 0, "")
 
 	colophon := titlePageColophon(docs, cfg.GeneratedAt)
 	if colophon != "" {
-		pdf.SetFont(sansFontFamily, "", 7.8)
+		pdf.SetFont(sansFontFamily, "", 7.8+pdfFontSizeDelta)
 		pdf.SetTextColor(112, 112, 112)
 		pdf.SetXY(margin, footerTitleY+8.0)
 		pdf.CellFormat(contentWidth, 4.0, colophon, "", 0, "C", false, 0, "")
@@ -165,7 +164,7 @@ func renderCategoryOverview(
 	}
 
 	pdf.SetTextColor(ruleTextGray, ruleTextGray, ruleTextGray)
-	pdf.SetFont(sansFontFamily, "", 9.0)
+	pdf.SetFont(sansFontFamily, "", 9.0+pdfFontSizeDelta)
 
 	containerWidth := min(width, min(maxWidth, width*widthScale))
 	containerX := x + (width-containerWidth)/2

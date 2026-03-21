@@ -13,19 +13,19 @@ func TestStandardCellFontSizeBounds(t *testing.T) {
 			name:     "clamps low",
 			cellSize: 3.0,
 			scale:    0.6,
-			want:     5.2,
+			want:     8.2,
 		},
 		{
 			name:     "keeps in range",
 			cellSize: 10.0,
 			scale:    0.6,
-			want:     6.0,
+			want:     9.0,
 		},
 		{
 			name:     "clamps high",
 			cellSize: 20.0,
 			scale:    0.7,
-			want:     8.2,
+			want:     11.2,
 		},
 	}
 
@@ -48,17 +48,17 @@ func TestClampStandardCellFontSizeBounds(t *testing.T) {
 		{
 			name: "below min",
 			in:   3.9,
-			want: 5.2,
+			want: 8.2,
 		},
 		{
 			name: "in range",
 			in:   6.5,
-			want: 6.5,
+			want: 8.2,
 		},
 		{
 			name: "above max",
 			in:   9.1,
-			want: 8.2,
+			want: 9.1,
 		},
 	}
 
