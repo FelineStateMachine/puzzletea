@@ -253,6 +253,25 @@ func TestGridViewShowsCursorGlyphsOnBlankCells(t *testing.T) {
 	}
 }
 
+func TestRecomputeInvalidatesCachedGridOrigin(t *testing.T) {
+	m := Model{
+		puzzle:       newPuzzle(2),
+		modeTitle:    "Origin Check",
+		termWidth:    120,
+		termHeight:   40,
+		originX:      17,
+		originY:      9,
+		originValid:  true,
+		showFullHelp: true,
+	}
+
+	m.recompute()
+
+	if m.originValid {
+		t.Fatal("expected recompute to invalidate cached grid origin")
+	}
+}
+
 func netwalkModesFromRegistry(t *testing.T) []NetwalkMode {
 	t.Helper()
 

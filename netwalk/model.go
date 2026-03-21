@@ -148,6 +148,7 @@ func (m *Model) toggleCurrentLock() {
 
 func (m *Model) recompute() {
 	m.state = analyzePuzzle(m.puzzle)
+	m.originValid = false
 }
 
 func (m Model) handleMouseClick(msg tea.MouseClickMsg) Model {
