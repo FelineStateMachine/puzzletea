@@ -19,6 +19,7 @@ func TestResolveNormalizesSpacingAndAliases(t *testing.T) {
 	}{
 		{name: "word   search", want: "Word Search"},
 		{name: "hashi", want: "Hashiwokakero"},
+		{name: "network", want: "Netwalk"},
 		{name: "polyomino", want: "Fillomino"},
 	}
 

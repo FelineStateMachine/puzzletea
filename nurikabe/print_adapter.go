@@ -34,7 +34,10 @@ func renderNurikabePage(pdf *fpdf.Fpdf, data *pdfexport.NurikabeData) {
 
 	pageW, pageH := pdf.GetPageSize()
 	pageNo := pdf.PageNo()
-	area := pdfexport.PuzzleBoardRect(pageW, pageH, pageNo, 1)
+	body := pdfexport.PuzzleBodyRect(pageW, pageH, pageNo)
+	rules := []string{"Expand each numbered island to its size; connect all sea cells into one wall."}
+	ruleLines := pdfexport.InstructionLineCount(pdf, body.W, rules)
+	area := pdfexport.PuzzleBoardRect(pageW, pageH, pageNo, ruleLines)
 	cellSize := pdfexport.FitCompactCellSize(data.Width, data.Height, area)
 	if cellSize <= 0 {
 		return
@@ -63,20 +66,8 @@ func renderNurikabePage(pdf *fpdf.Fpdf, data *pdfexport.NurikabeData) {
 	pdf.SetLineWidth(pdfexport.OuterBorderLineMM)
 	pdf.Rect(startX, startY, blockW, blockH, "D")
 
-	ruleY := pdfexport.InstructionY(startY+blockH, pageH, 1)
-	pdfexport.SetInstructionStyle(pdf)
-	pdf.SetXY(area.X, ruleY)
-	pdf.CellFormat(
-		area.W,
-		pdfexport.InstructionLineHMM,
-		"Expand each numbered island to its size; connect all sea cells into one wall.",
-		"",
-		0,
-		"C",
-		false,
-		0,
-		"",
-	)
+	ruleY := pdfexport.InstructionY(startY+blockH, pageH, ruleLines)
+	pdfexport.RenderInstructions(pdf, body.X, ruleY, body.W, rules)
 }
 
 func drawNurikabeClue(pdf *fpdf.Fpdf, x, y, cellSize float64, value int) {

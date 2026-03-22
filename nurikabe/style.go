@@ -121,7 +121,7 @@ func resolveCellVisualWithState(m Model, renderState renderGridState, x, y int) 
 	case c == seaCell:
 		visual.text = " ~ "
 		if inSeaSquare {
-			visual.text = " @ "
+			visual.text = " ! "
 		}
 		visual.bg = seaBg
 		visual.bridgeBG = seaBg

@@ -33,7 +33,10 @@ func renderRippleEffectPage(pdf *fpdf.Fpdf, data *pdfexport.RippleEffectData) {
 
 	pageW, pageH := pdf.GetPageSize()
 	pageNo := pdf.PageNo()
-	area := pdfexport.PuzzleBoardRect(pageW, pageH, pageNo, 2)
+	body := pdfexport.PuzzleBodyRect(pageW, pageH, pageNo)
+	rules := []string{"Each cage uses 1..n once; equal digits must be at least their value apart in rows and columns."}
+	ruleLines := pdfexport.InstructionLineCount(pdf, body.W, rules)
+	area := pdfexport.PuzzleBoardRect(pageW, pageH, pageNo, ruleLines)
 	cellSize := pdfexport.FitCompactCellSize(data.Width, data.Height, area)
 	if cellSize <= 0 {
 		return
@@ -97,20 +100,8 @@ func renderRippleEffectPage(pdf *fpdf.Fpdf, data *pdfexport.RippleEffectData) {
 		}
 	}
 
-	ruleY := pdfexport.InstructionY(startY+blockH, pageH, 2)
-	pdfexport.SetInstructionStyle(pdf)
-	pdf.SetXY(area.X, ruleY)
-	pdf.CellFormat(
-		area.W,
-		pdfexport.InstructionLineHMM,
-		"Each cage uses 1..n once; equal digits must be at least their value apart in rows and columns.",
-		"",
-		0,
-		"C",
-		false,
-		0,
-		"",
-	)
+	ruleY := pdfexport.InstructionY(startY+blockH, pageH, ruleLines)
+	pdfexport.RenderInstructions(pdf, body.X, ruleY, body.W, rules)
 }
 
 func drawRippleEffectGiven(pdf *fpdf.Fpdf, x, y, cellSize float64, text string) {

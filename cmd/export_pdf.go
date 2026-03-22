@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
@@ -22,25 +21,25 @@ var (
 	flagPDFVolume      int
 	flagPDFAdvert      string
 	flagPDFShuffleSeed string
-	flagPDFCoverColor  string
+	flagPDFSheetLayout string
 )
 
 var exportPDFCmd = &cobra.Command{
 	Use:   "export-pdf <input.jsonl> [more.jsonl ...]",
-	Short: "Convert one or more PuzzleTea JSONL exports into a half-letter printable PDF",
-	Long:  "Parse one or more JSONL export files, order puzzles by progressive difficulty with seeded mixing, and render a half-letter PDF with a title page, one puzzle per page, optional covers (when --cover-color is set), and automatic page-count padding to a multiple of 4 for booklet printing.",
+	Short: "Convert one or more PuzzleTea JSONL exports into a printable PDF",
+	Long:  "Parse one or more JSONL export files, order puzzles by progressive difficulty with seeded mixing, and render either a half-letter PDF or an imposed duplex-booklet PDF with a title page, one puzzle per logical half-letter page, and automatic page-count padding to a multiple of 4 for booklet printing. The duplex-booklet layout includes the 4-page black-ink cover block automatically.",
 	Args:  cobra.MinimumNArgs(1),
 	RunE:  runExportPDF,
 }
 
 func init() {
 	exportPDFCmd.Flags().StringVarP(&flagPDFOutput, "output", "o", "", "write output PDF path (defaults to <first-input>-print.pdf)")
-	exportPDFCmd.Flags().StringVar(&flagPDFTitle, "title", "", "subtitle shown on the title page (and on covers when enabled)")
+	exportPDFCmd.Flags().StringVar(&flagPDFTitle, "title", "", "subtitle shown on the title page (and on the outside cover when enabled)")
 	exportPDFCmd.Flags().StringVar(&flagPDFHeader, "header", "", "optional intro paragraph shown on the title page under 'PuzzleTea Puzzle Pack'")
-	exportPDFCmd.Flags().IntVar(&flagPDFVolume, "volume", 1, "volume number shown on the title page (and on covers when enabled) (must be >= 1)")
+	exportPDFCmd.Flags().IntVar(&flagPDFVolume, "volume", 1, "volume number shown on the title page (and on the outside cover when enabled) (must be >= 1)")
 	exportPDFCmd.Flags().StringVar(&flagPDFAdvert, "advert", "Find more puzzles at github.com/FelineStateMachine/puzzletea", "advert text shown on the title page")
 	exportPDFCmd.Flags().StringVar(&flagPDFShuffleSeed, "shuffle-seed", "", "seed for deterministic within-band difficulty mixing")
-	exportPDFCmd.Flags().StringVar(&flagPDFCoverColor, "cover-color", "", `accent color for optional front/back covers: hex "#RRGGBB" or decimal "R,G,B" (omit for no covers)`)
+	exportPDFCmd.Flags().StringVar(&flagPDFSheetLayout, "sheet-layout", "half-letter", "physical PDF layout: half-letter or duplex-booklet (landscape US Letter with two half-letter pages per sheet side; print duplex on short edge). duplex-booklet automatically includes the 4-page cover block")
 }
 
 func runExportPDF(cmd *cobra.Command, args []string) error {
@@ -115,15 +114,14 @@ func buildRenderConfigForPDF(docs []pdfexport.PackDocument, shuffleSeed string, 
 	if err := validatePDFVolume(flagPDFVolume); err != nil {
 		return pdfexport.RenderConfig{}, err
 	}
+	sheetLayout, err := parsePDFSheetLayout(flagPDFSheetLayout)
+	if err != nil {
+		return pdfexport.RenderConfig{}, err
+	}
 
 	subtitle := strings.TrimSpace(flagPDFTitle)
 	if subtitle == "" {
 		subtitle = defaultPDFTitle(docs)
-	}
-
-	coverColor, err := parseCoverColor(flagPDFCoverColor)
-	if err != nil {
-		return pdfexport.RenderConfig{}, fmt.Errorf("--cover-color: %w", err)
 	}
 
 	cfg := pdfexport.RenderConfig{
@@ -133,9 +131,20 @@ func buildRenderConfigForPDF(docs []pdfexport.PackDocument, shuffleSeed string, 
 		AdvertText:    flagPDFAdvert,
 		GeneratedAt:   now,
 		ShuffleSeed:   shuffleSeed,
-		CoverColor:    coverColor,
+		SheetLayout:   sheetLayout,
 	}
 	return cfg, nil
+}
+
+func parsePDFSheetLayout(raw string) (pdfexport.SheetLayout, error) {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "", "half-letter":
+		return pdfexport.SheetLayoutHalfLetter, nil
+	case "duplex-booklet":
+		return pdfexport.SheetLayoutDuplexBooklet, nil
+	default:
+		return pdfexport.SheetLayoutHalfLetter, fmt.Errorf("--sheet-layout must be half-letter or duplex-booklet")
+	}
 }
 
 func buildModeDifficultyLookup(definitions []puzzle.Definition) map[string]map[string]float64 {
@@ -205,37 +214,4 @@ func annotateDifficulty(puzzles []pdfexport.Puzzle, lookup map[string]map[string
 
 func normalizeDifficultyToken(s string) string {
 	return puzzle.NormalizeName(s)
-}
-
-// parseCoverColor parses a cover color string in hex ("#RRGGBB") or
-// decimal ("R,G,B") format. Returns nil if s is empty (no cover pages).
-func parseCoverColor(s string) (*pdfexport.RGB, error) {
-	s = strings.TrimSpace(s)
-	if s == "" {
-		return nil, nil
-	}
-
-	// Hex format: #RRGGBB or RRGGBB
-	hex := strings.TrimPrefix(s, "#")
-	if len(hex) == 6 {
-		r, errR := strconv.ParseUint(hex[0:2], 16, 8)
-		g, errG := strconv.ParseUint(hex[2:4], 16, 8)
-		b, errB := strconv.ParseUint(hex[4:6], 16, 8)
-		if errR == nil && errG == nil && errB == nil {
-			return &pdfexport.RGB{R: uint8(r), G: uint8(g), B: uint8(b)}, nil
-		}
-	}
-
-	// Decimal format: R,G,B
-	parts := strings.Split(s, ",")
-	if len(parts) == 3 {
-		r, errR := strconv.ParseUint(strings.TrimSpace(parts[0]), 10, 8)
-		g, errG := strconv.ParseUint(strings.TrimSpace(parts[1]), 10, 8)
-		b, errB := strconv.ParseUint(strings.TrimSpace(parts[2]), 10, 8)
-		if errR == nil && errG == nil && errB == nil {
-			return &pdfexport.RGB{R: uint8(r), G: uint8(g), B: uint8(b)}, nil
-		}
-	}
-
-	return nil, fmt.Errorf("invalid color %q — use hex \"#RRGGBB\" or decimal \"R,G,B\"", s)
 }

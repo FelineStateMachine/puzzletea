@@ -47,10 +47,14 @@ func renderNonogramPage(pdf *fpdf.Fpdf, data *pdfexport.NonogramData) {
 		colHintRows = 1
 	}
 
+	body := pdfexport.PuzzleBodyRect(pageW, pageH, pageNo)
+	rules := []string{"Use row/column hints to fill blocks in order; groups are separated by at least one blank cell."}
+	ruleLines := pdfexport.InstructionLineCount(pdf, body.W, rules)
 	layout := layoutNonogram(
 		pageW,
 		pageH,
 		pageNo,
+		ruleLines,
 		data.Width,
 		data.Height,
 		rowHintCols,
@@ -94,22 +98,8 @@ func renderNonogramPage(pdf *fpdf.Fpdf, data *pdfexport.NonogramData) {
 	pdf.SetLineWidth(pdfexport.OuterBorderLineMM)
 	pdf.Rect(xSep, ySep, gridW, gridH, "D")
 
-	ruleY := ySep + gridH + 3.5
-	ruleY = pdfexport.InstructionY(ruleY-3.5, pageH, 1)
-	body := pdfexport.PuzzleBodyRect(pageW, pageH, pageNo)
-	pdfexport.SetInstructionStyle(pdf)
-	pdf.SetXY(body.X, ruleY)
-	pdf.CellFormat(
-		body.W,
-		pdfexport.InstructionLineHMM,
-		"Use row/column hints to fill blocks in order; groups are separated by at least one blank cell.",
-		"",
-		0,
-		"C",
-		false,
-		0,
-		"",
-	)
+	ruleY := pdfexport.InstructionY(ySep+gridH, pageH, ruleLines)
+	pdfexport.RenderInstructions(pdf, body.X, ruleY, body.W, rules)
 }
 
 func drawNonogramPuzzleGrid(
@@ -164,6 +154,7 @@ func layoutNonogram(
 	pageW,
 	pageH float64,
 	pageNo,
+	ruleLines,
 	gridCols,
 	gridRows,
 	rowHintCols,
@@ -171,7 +162,7 @@ func layoutNonogram(
 ) nonogramLayout {
 	totalCols := rowHintCols + gridCols
 	totalRows := colHintRows + gridRows
-	area := pdfexport.PuzzleBoardRect(pageW, pageH, pageNo, 1)
+	area := pdfexport.PuzzleBoardRect(pageW, pageH, pageNo, ruleLines)
 	cellSize := pdfexport.FitNonogramCellSize(totalCols, totalRows, area)
 	if cellSize <= 0 {
 		return nonogramLayout{}

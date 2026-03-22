@@ -35,7 +35,10 @@ func renderHitoriPage(pdf *fpdf.Fpdf, data *pdfexport.HitoriData) {
 	size := data.Size
 	pageW, pageH := pdf.GetPageSize()
 	pageNo := pdf.PageNo()
-	area := pdfexport.PuzzleBoardRect(pageW, pageH, pageNo, 1)
+	body := pdfexport.PuzzleBodyRect(pageW, pageH, pageNo)
+	rules := []string{"Shade duplicates; shaded cells cannot touch orthogonally; unshaded cells stay connected."}
+	ruleLines := pdfexport.InstructionLineCount(pdf, body.W, rules)
+	area := pdfexport.PuzzleBoardRect(pageW, pageH, pageNo, ruleLines)
 	cellSize := pdfexport.FitCompactCellSize(size, size, area)
 	if cellSize <= 0 {
 		return
@@ -68,20 +71,8 @@ func renderHitoriPage(pdf *fpdf.Fpdf, data *pdfexport.HitoriData) {
 	pdf.SetLineWidth(pdfexport.OuterBorderLineMM)
 	pdf.Rect(startX, startY, blockW, blockH, "D")
 
-	ruleY := pdfexport.InstructionY(startY+blockH, pageH, 1)
-	pdfexport.SetInstructionStyle(pdf)
-	pdf.SetXY(area.X, ruleY)
-	pdf.CellFormat(
-		area.W,
-		pdfexport.InstructionLineHMM,
-		"Shade duplicates; shaded cells cannot touch orthogonally; unshaded cells stay connected.",
-		"",
-		0,
-		"C",
-		false,
-		0,
-		"",
-	)
+	ruleY := pdfexport.InstructionY(startY+blockH, pageH, ruleLines)
+	pdfexport.RenderInstructions(pdf, body.X, ruleY, body.W, rules)
 }
 
 func drawHitoriCellNumber(pdf *fpdf.Fpdf, x, y, cellSize float64, text string) {

@@ -12,8 +12,8 @@ var PDFPrintAdapter = printAdapter{}
 
 var takuzuPlusRules = []string{
 	"No three equal adjacent in any row or column.",
-	"Each row/column has equal 0 and 1 counts, and rows/columns are unique.",
-	"= means equal neighbors; x means opposite neighbors.",
+	"Rows/columns have equal 0s and 1s, and all rows/columns are unique.",
+	"= means same; x means different.",
 }
 
 func (printAdapter) CanonicalGameType() string { return "Takuzu+" }

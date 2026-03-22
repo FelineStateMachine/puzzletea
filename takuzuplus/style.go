@@ -52,7 +52,7 @@ type countContext struct {
 	target int
 }
 
-func cellView(val rune, isProvided, isCursor, inCursorRow, inCursorCol, solved bool) string {
+func cellView(val rune, isProvided, isCursor, inCursorRow, inCursorCol, solved, inDuplicateRow, inDuplicateCol bool) string {
 	p := theme.Current()
 	styles := renderStyleMap()
 	style, ok := styles[val]
@@ -72,6 +72,10 @@ func cellView(val rune, isProvided, isCursor, inCursorRow, inCursorCol, solved b
 
 	if isProvided && val != emptyCell && !solved {
 		style = style.Bold(true).Background(theme.GivenTint(p.BG))
+	}
+	if (inDuplicateRow || inDuplicateCol) && !solved {
+		style = style.Foreground(game.ConflictFG()).Background(game.ConflictBG())
+		text = conflictText(text)
 	}
 	if isCursor {
 		text = cursorText(text)
@@ -98,7 +102,88 @@ func cursorText(text string) string {
 	}
 }
 
+func conflictText(text string) string {
+	runes := []rune(text)
+	if len(runes) != cellWidth {
+		return text
+	}
+	return "!" + string(runes[1]) + "!"
+}
+
+func rowComplete(row []rune) bool {
+	for _, r := range row {
+		if r == emptyCell {
+			return false
+		}
+	}
+	return true
+}
+
+func colComplete(g grid, size, col int) bool {
+	for y := range size {
+		if col >= len(g[y]) || g[y][col] == emptyCell {
+			return false
+		}
+	}
+	return true
+}
+
+func rowsEqual(a, b []rune) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func colsEqual(g grid, size, c1, c2 int) bool {
+	for r := range size {
+		if g[r][c1] != g[r][c2] {
+			return false
+		}
+	}
+	return true
+}
+
+func duplicateRowSet(g grid, size int) map[int]bool {
+	dup := map[int]bool{}
+	for i := range size {
+		if !rowComplete(g[i]) {
+			continue
+		}
+		for j := i + 1; j < size; j++ {
+			if rowComplete(g[j]) && rowsEqual(g[i], g[j]) {
+				dup[i] = true
+				dup[j] = true
+			}
+		}
+	}
+	return dup
+}
+
+func duplicateColSet(g grid, size int) map[int]bool {
+	dup := map[int]bool{}
+	for i := range size {
+		if !colComplete(g, size, i) {
+			continue
+		}
+		for j := i + 1; j < size; j++ {
+			if colComplete(g, size, j) && colsEqual(g, size, i, j) {
+				dup[i] = true
+				dup[j] = true
+			}
+		}
+	}
+	return dup
+}
+
 func gridView(m Model) string {
+	dupRows := duplicateRowSet(m.grid, m.size)
+	dupCols := duplicateColSet(m.grid, m.size)
 	return game.RenderDynamicGrid(game.DynamicGridSpec{
 		Width:  m.size,
 		Height: m.size,
@@ -111,6 +196,8 @@ func gridView(m Model) string {
 				y == m.cursor.Y,
 				x == m.cursor.X,
 				m.solved,
+				dupRows[y],
+				dupCols[x],
 			)
 		},
 		ZoneAt: func(_, _ int) int {
@@ -118,6 +205,9 @@ func gridView(m Model) string {
 		},
 		BridgeFill: func(bridge game.DynamicGridBridge) color.Color {
 			return bridgeFill(m, bridge)
+		},
+		BridgeBold: func(bridge game.DynamicGridBridge) bool {
+			return relationBridgeState(m, bridge) != 0
 		},
 		VerticalBridgeText: func(x, y int) string {
 			if x <= 0 || x >= m.size {
@@ -127,7 +217,7 @@ func gridView(m Model) string {
 			if rel == relationNone {
 				return ""
 			}
-			return string(rel)
+			return relationBridgeText(rel, m.grid[y][x-1], m.grid[y][x])
 		},
 		HorizontalBridgeText: func(x, y int) string {
 			if y <= 0 || y >= m.size {
@@ -137,15 +227,12 @@ func gridView(m Model) string {
 			if rel == relationNone {
 				return ""
 			}
-			return string(rel)
+			return relationBridgeText(rel, m.grid[y-1][x], m.grid[y][x])
 		},
 	})
 }
 
 func bridgeFill(m Model, bridge game.DynamicGridBridge) color.Color {
-	if m.solved {
-		return theme.Current().SuccessBG
-	}
 	if bg := relationBridgeBackground(m, bridge); bg != nil {
 		return bg
 	}
@@ -188,6 +275,37 @@ func relationStateBackground(state int) color.Color {
 	default:
 		return nil
 	}
+}
+
+func relationBridgeState(m Model, bridge game.DynamicGridBridge) int {
+	switch bridge.Kind {
+	case game.DynamicGridBridgeVertical:
+		if bridge.X <= 0 || bridge.X >= m.size || bridge.Y < 0 || bridge.Y >= m.size {
+			return 0
+		}
+		return relationState(
+			m.relations.horizontal[bridge.Y][bridge.X-1],
+			m.grid[bridge.Y][bridge.X-1],
+			m.grid[bridge.Y][bridge.X],
+		)
+	case game.DynamicGridBridgeHorizontal:
+		if bridge.Y <= 0 || bridge.Y >= m.size || bridge.X < 0 || bridge.X >= m.size {
+			return 0
+		}
+		return relationState(
+			m.relations.vertical[bridge.Y-1][bridge.X],
+			m.grid[bridge.Y-1][bridge.X],
+			m.grid[bridge.Y][bridge.X],
+		)
+	default:
+		return 0
+	}
+}
+
+func relationBridgeText(rel, left, right rune) string {
+	_ = left
+	_ = right
+	return string(rel)
 }
 
 func countContextView(m Model) string {

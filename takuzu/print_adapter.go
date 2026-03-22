@@ -16,6 +16,11 @@ var defaultTakuzuRules = []string{
 	"Each row/column has equal 0 and 1 counts, and rows/columns are unique.",
 }
 
+type takuzuRelationSizing struct {
+	fontSize     float64
+	backdropSize float64
+}
+
 func (printAdapter) CanonicalGameType() string { return "Takuzu" }
 func (printAdapter) Aliases() []string         { return []string{"takuzu"} }
 
@@ -46,7 +51,9 @@ func RenderTakuzuPDFBodyWithRules(pdf *fpdf.Fpdf, data *pdfexport.TakuzuData, ru
 	size := data.Size
 	pageW, pageH := pdf.GetPageSize()
 	pageNo := pdf.PageNo()
-	area := pdfexport.PuzzleBoardRect(pageW, pageH, pageNo, len(rules))
+	body := pdfexport.PuzzleBodyRect(pageW, pageH, pageNo)
+	ruleLines := pdfexport.InstructionLineCount(pdf, body.W, rules)
+	area := pdfexport.PuzzleBoardRect(pageW, pageH, pageNo, ruleLines)
 	cellSize := pdfexport.FitCompactCellSize(size, size, area)
 	if cellSize <= 0 {
 		return
@@ -99,22 +106,8 @@ func RenderTakuzuPDFBodyWithRules(pdf *fpdf.Fpdf, data *pdfexport.TakuzuData, ru
 	pdf.SetLineWidth(pdfexport.OuterBorderLineMM)
 	pdf.Rect(startX, startY, blockW, blockH, "D")
 
-	ruleY := pdfexport.InstructionY(startY+blockH, pageH, len(rules))
-	pdfexport.SetInstructionStyle(pdf)
-	for i, rule := range rules {
-		pdf.SetXY(area.X, ruleY+float64(i)*pdfexport.InstructionLineHMM)
-		pdf.CellFormat(
-			area.W,
-			pdfexport.InstructionLineHMM,
-			rule,
-			"",
-			0,
-			"C",
-			false,
-			0,
-			"",
-		)
-	}
+	ruleY := pdfexport.InstructionY(startY+blockH, pageH, ruleLines)
+	pdfexport.RenderInstructions(pdf, body.X, ruleY, body.W, rules)
 }
 
 func drawTakuzuRelations(pdf *fpdf.Fpdf, data *pdfexport.TakuzuData, startX, startY, cellSize float64) {
@@ -123,8 +116,8 @@ func drawTakuzuRelations(pdf *fpdf.Fpdf, data *pdfexport.TakuzuData, startX, sta
 	}
 
 	pdf.SetTextColor(95, 95, 95)
-	fontSize := takuzuRelationFontSize(cellSize, data.Size)
-	pdf.SetFont(pdfexport.SansFontFamily, "B", fontSize)
+	sizing := takuzuRelationSizingFor(cellSize, data.Size)
+	pdf.SetFont(pdfexport.SansFontFamily, "B", sizing.fontSize)
 	pdf.SetFillColor(255, 255, 255)
 
 	for y, row := range data.HorizontalRelations {
@@ -135,7 +128,7 @@ func drawTakuzuRelations(pdf *fpdf.Fpdf, data *pdfexport.TakuzuData, startX, sta
 
 			centerX := startX + float64(x+1)*cellSize
 			centerY := startY + float64(y)*cellSize + cellSize/2
-			drawTakuzuRelation(pdf, centerX, centerY, cellSize, fontSize, value)
+			drawTakuzuRelation(pdf, centerX, centerY, sizing, value)
 		}
 	}
 
@@ -147,20 +140,19 @@ func drawTakuzuRelations(pdf *fpdf.Fpdf, data *pdfexport.TakuzuData, startX, sta
 
 			centerX := startX + float64(x)*cellSize + cellSize/2
 			centerY := startY + float64(y+1)*cellSize
-			drawTakuzuRelation(pdf, centerX, centerY, cellSize, fontSize, value)
+			drawTakuzuRelation(pdf, centerX, centerY, sizing, value)
 		}
 	}
 }
 
-func drawTakuzuRelation(pdf *fpdf.Fpdf, centerX, centerY, cellSize, fontSize float64, value string) {
-	boxSize := takuzuRelationBackdropSize(cellSize, fontSize)
-	left := centerX - boxSize/2
-	top := centerY - boxSize/2
-	lineH := fontSize * 0.9
+func drawTakuzuRelation(pdf *fpdf.Fpdf, centerX, centerY float64, sizing takuzuRelationSizing, value string) {
+	left := centerX - sizing.backdropSize/2
+	top := centerY - sizing.backdropSize/2
+	lineH := sizing.fontSize * 0.9
 
-	pdf.Rect(left, top, boxSize, boxSize, "F")
+	pdf.Rect(left, top, sizing.backdropSize, sizing.backdropSize, "F")
 	pdf.SetXY(left, centerY-lineH/2)
-	pdf.CellFormat(boxSize, lineH, value, "", 0, "C", false, 0, "")
+	pdf.CellFormat(sizing.backdropSize, lineH, value, "", 0, "C", false, 0, "")
 }
 
 func drawTakuzuGiven(pdf *fpdf.Fpdf, x, y, cellSize float64, size int, text string) {
@@ -184,17 +176,29 @@ func takuzuGivenFontSize(cellSize float64, size int) float64 {
 	return pdfexport.ClampStandardCellFontSize(fontSize)
 }
 
-func takuzuRelationFontSize(cellSize float64, size int) float64 {
-	fontSize := cellSize * 0.58
+func takuzuRelationSizingFor(cellSize float64, size int) takuzuRelationSizing {
+	fontSize := cellSize * 0.48
 	if size >= 12 {
-		fontSize *= 0.97
+		fontSize *= 0.94
 	}
-	if fontSize < 6.0 {
-		return 6.0
+	if size >= 14 {
+		fontSize *= 0.90
 	}
-	return pdfexport.ClampStandardCellFontSize(fontSize)
-}
 
-func takuzuRelationBackdropSize(cellSize, fontSize float64) float64 {
-	return fontSize + cellSize*0.12
+	if fontSize < 6.2 {
+		fontSize = 6.2
+	}
+	if fontSize > 8.4 {
+		fontSize = 8.4
+	}
+
+	backdropSize := fontSize + max(0.25, cellSize*0.04)
+	if maxSize := cellSize * 0.58; backdropSize > maxSize {
+		backdropSize = maxSize
+	}
+
+	return takuzuRelationSizing{
+		fontSize:     fontSize,
+		backdropSize: backdropSize,
+	}
 }

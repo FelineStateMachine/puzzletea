@@ -80,7 +80,10 @@ func renderSpellPuzzlePage(pdf *fpdf.Fpdf, data *printPayload) {
 
 	pageW, pageH := pdf.GetPageSize()
 	pageNo := pdf.PageNo()
-	area := pdfexport.PuzzleBoardRect(pageW, pageH, pageNo, 1)
+	body := pdfexport.PuzzleBodyRect(pageW, pageH, pageNo)
+	rules := []string{"Form words from the letter bank to fill the crossword"}
+	ruleLines := pdfexport.InstructionLineCount(pdf, body.W, rules)
+	area := pdfexport.PuzzleBoardRect(pageW, pageH, pageNo, ruleLines)
 	layout, ok := computePrintLayout(area, data)
 	if !ok {
 		return
@@ -90,20 +93,8 @@ func renderSpellPuzzlePage(pdf *fpdf.Fpdf, data *printPayload) {
 	drawSpellPuzzleBank(pdf, data.Bank, layout)
 
 	contentBottom := layout.bankY + layout.tileSize
-	ruleY := pdfexport.InstructionY(contentBottom, pageH, 1)
-	pdfexport.SetInstructionStyle(pdf)
-	pdf.SetXY(area.X, ruleY)
-	pdf.CellFormat(
-		area.W,
-		pdfexport.InstructionLineHMM,
-		"Form words from the letter bank to fill the crossword",
-		"",
-		0,
-		"C",
-		false,
-		0,
-		"",
-	)
+	ruleY := pdfexport.InstructionY(contentBottom, pageH, ruleLines)
+	pdfexport.RenderInstructions(pdf, body.X, ruleY, body.W, rules)
 }
 
 func computePrintLayout(area pdfexport.Rect, data *printPayload) (printLayout, bool) {

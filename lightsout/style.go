@@ -116,8 +116,17 @@ func cellView(isOn, isCursor, solved bool) string {
 		s = cursorOffStyle()
 	}
 
-	content := strings.Repeat(" ", cellWidth)
-	return s.Width(cellWidth).Height(cellHeight).Render(content)
+	content := " · "
+	if isOn {
+		content = " ● "
+	}
+	if isCursor && isOn {
+		content = "▸●◂"
+	} else if isCursor {
+		content = "▸·◂"
+	}
+
+	return s.Width(cellWidth).Height(cellHeight).AlignHorizontal(lipgloss.Center).Render(content)
 }
 
 func gridView(g [][]bool, c game.Cursor, solved bool) string {
@@ -140,7 +149,7 @@ func gridView(g [][]bool, c game.Cursor, solved bool) string {
 
 func statusBarView(showFullHelp bool) string {
 	if showFullHelp {
-		return game.StatusBarStyle().Render("arrows/wasd: move  enter/space/click: toggle  esc: menu  ctrl+r: reset  ctrl+h: help")
+		return game.StatusBarStyle().Render("arrows/wasd: move  click/enter: toggle  esc: menu  ctrl+r: reset  ctrl+h: help")
 	}
-	return game.StatusBarStyle().Render("enter/space/click: toggle")
+	return game.StatusBarStyle().Render("click/enter: toggle")
 }

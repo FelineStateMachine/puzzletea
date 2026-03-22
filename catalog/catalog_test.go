@@ -25,6 +25,7 @@ func TestResolveSupportsCanonicalNamesAndAliases(t *testing.T) {
 		{input: "fillomino", want: "Fillomino"},
 		{input: "hashi", want: "Hashiwokakero"},
 		{input: "lights", want: "Lights Out"},
+		{input: "network", want: "Netwalk"},
 		{input: "ripple", want: "Ripple Effect"},
 		{input: "spell", want: "Spell Puzzle"},
 		{input: "wordsearch", want: "Word Search"},

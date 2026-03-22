@@ -188,9 +188,9 @@ func statusBarView(selected, showFullHelp bool) string {
 		return game.StatusBarStyle().Render("arrows: expand  shift+arrows: shrink  enter: confirm  bkspc: cancel  mouse: drag")
 	}
 	if showFullHelp {
-		return game.StatusBarStyle().Render("arrows/wasd: move  enter/space: select clue  bkspc: cancel/delete  mouse: click clue & drag  esc: menu  ctrl+r: reset  ctrl+h: help")
+		return game.StatusBarStyle().Render("arrows/wasd: move  enter/space: select clue  bkspc: cancel/delete  mouse: click+drag clue  esc: menu  ctrl+r: reset  ctrl+h: help")
 	}
-	return game.StatusBarStyle().Render("enter/space: select clue  bkspc: cancel/delete  mouse: click & drag")
+	return game.StatusBarStyle().Render("enter/space: select clue  bkspc: cancel/delete  mouse: click+drag clue")
 }
 
 func statusBarVariants() []string {

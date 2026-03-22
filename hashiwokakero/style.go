@@ -95,9 +95,13 @@ func resolveCellVisual(m Model, x, y int, solved bool) cellVisual {
 	if solved {
 		cellBG = solvedBoardBackground()
 	}
+	text := "     "
+	if !solved {
+		text = "  ·  "
+	}
 	visual := cellVisual{
-		text:    "   ",
-		fg:      theme.TextOnBG(cellBG),
+		text:    text,
+		fg:      theme.Current().TextDim,
 		bg:      cellBG,
 		outerBG: cellBG,
 	}
@@ -392,6 +396,8 @@ func infoView(p *Puzzle) string {
 	var sb strings.Builder
 	sb.WriteString(infoStyle.Render("Islands: "))
 	sb.WriteString(satisfiedStyle.Render(fmt.Sprintf("%d", satisfied)))
-	sb.WriteString(infoStyle.Render(fmt.Sprintf("/%d satisfied  Bridges: %d", total, len(p.Bridges))))
+	sb.WriteString(infoStyle.Render(fmt.Sprintf("/%d satisfied", total)))
+	sb.WriteString("\n")
+	sb.WriteString(infoStyle.Render(fmt.Sprintf("Bridges: %d", len(p.Bridges))))
 	return sb.String()
 }

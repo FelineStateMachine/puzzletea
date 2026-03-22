@@ -52,7 +52,7 @@ type countContext struct {
 	target int
 }
 
-func cellView(val rune, isProvided, isCursor, inCursorRow, inCursorCol, solved bool) string {
+func cellView(val rune, isProvided, isCursor, inCursorRow, inCursorCol, solved, inDuplicateRow, inDuplicateCol bool) string {
 	p := theme.Current()
 	styles := renderStyleMap()
 	style, ok := styles[val]
@@ -72,6 +72,10 @@ func cellView(val rune, isProvided, isCursor, inCursorRow, inCursorCol, solved b
 
 	if isProvided && val != emptyCell && !solved {
 		style = style.Bold(true).Background(theme.GivenTint(p.BG))
+	}
+	if (inDuplicateRow || inDuplicateCol) && !solved {
+		style = style.Foreground(game.ConflictFG()).Background(game.ConflictBG())
+		text = conflictText(text)
 	}
 	if isCursor {
 		text = cursorText(text)
@@ -98,7 +102,67 @@ func cursorText(text string) string {
 	}
 }
 
+func conflictText(text string) string {
+	runes := []rune(text)
+	if len(runes) != cellWidth {
+		return text
+	}
+	return "!" + string(runes[1]) + "!"
+}
+
+func lineComplete(row []rune) bool {
+	for _, r := range row {
+		if r == emptyCell {
+			return false
+		}
+	}
+	return true
+}
+
+func colComplete(g grid, size, col int) bool {
+	for y := range size {
+		if col >= len(g[y]) || g[y][col] == emptyCell {
+			return false
+		}
+	}
+	return true
+}
+
+func duplicateRowSet(g grid, size int) map[int]bool {
+	dup := map[int]bool{}
+	for i := range size {
+		if !lineComplete(g[i]) {
+			continue
+		}
+		for j := i + 1; j < size; j++ {
+			if lineComplete(g[j]) && rowEqual(g[i], g[j]) {
+				dup[i] = true
+				dup[j] = true
+			}
+		}
+	}
+	return dup
+}
+
+func duplicateColSet(g grid, size int) map[int]bool {
+	dup := map[int]bool{}
+	for i := range size {
+		if !colComplete(g, size, i) {
+			continue
+		}
+		for j := i + 1; j < size; j++ {
+			if colComplete(g, size, j) && colEqual(g, size, i, j) {
+				dup[i] = true
+				dup[j] = true
+			}
+		}
+	}
+	return dup
+}
+
 func gridView(m Model) string {
+	dupRows := duplicateRowSet(m.grid, m.size)
+	dupCols := duplicateColSet(m.grid, m.size)
 	return game.RenderDynamicGrid(game.DynamicGridSpec{
 		Width:  m.size,
 		Height: m.size,
@@ -111,6 +175,8 @@ func gridView(m Model) string {
 				y == m.cursor.Y,
 				x == m.cursor.X,
 				m.solved,
+				dupRows[y],
+				dupCols[x],
 			)
 		},
 		ZoneAt: func(_, _ int) int {

@@ -2,6 +2,13 @@ package pdfexport
 
 import "time"
 
+type SheetLayout int
+
+const (
+	SheetLayoutHalfLetter SheetLayout = iota
+	SheetLayoutDuplexBooklet
+)
+
 type PackMetadata struct {
 	GeneratedRaw   string
 	GeneratedAt    time.Time
@@ -97,6 +104,14 @@ type FillominoData struct {
 	Givens [][]int
 }
 
+type NetwalkData struct {
+	Size      int
+	Masks     [][]uint8
+	Rotations [][]uint8
+	RootX     int
+	RootY     int
+}
+
 type RippleEffectCell struct {
 	X int `json:"x"`
 	Y int `json:"y"`
@@ -127,8 +142,6 @@ type GridTable struct {
 	HasHeaderCol bool
 }
 
-type RGB struct{ R, G, B uint8 }
-
 type RenderConfig struct {
 	Title         string
 	CoverSubtitle string
@@ -137,5 +150,5 @@ type RenderConfig struct {
 	AdvertText    string
 	GeneratedAt   time.Time
 	ShuffleSeed   string
-	CoverColor    *RGB // nil = omit front/back covers
+	SheetLayout   SheetLayout
 }
