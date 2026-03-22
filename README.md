@@ -302,6 +302,13 @@ Toggle lights to turn all off.
 
 [Game details and controls](lightsout/README.md)
 
+### Netwalk
+Rotate network tiles until every computer reaches the server in one loop-free tree.
+
+![Netwalk](vhs/netwalk.gif)
+
+[Game details and controls](netwalk/README.md)
+
 ### Takuzu
 Fill the grid with two symbols following three simple rules.
 

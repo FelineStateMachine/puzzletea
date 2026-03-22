@@ -2,6 +2,8 @@
 
 Rotate network tiles until every active connection reaches the server in one loop-free tree.
 
+![Netwalk gameplay](../vhs/netwalk.gif)
+
 ## Quick Start
 
 ```bash
