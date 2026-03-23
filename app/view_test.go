@@ -34,6 +34,7 @@ func TestPlayMenuViewIncludesNotice(t *testing.T) {
 		},
 		notice: noticeState{level: noticeLevelError, message: "Could not load puzzle"},
 	}
+	m = m.initScreen(playMenuView)
 
 	if got := m.viewContent(); !strings.Contains(got, "Could not load puzzle") {
 		t.Fatalf("viewContent() missing notice, got %q", got)

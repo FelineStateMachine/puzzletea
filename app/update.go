@@ -46,7 +46,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	nextScreen, screenCmd, action := screen.Update(msg)
-	m = nextScreen.Apply(m)
+	if m.screens == nil {
+		m.screens = make(map[viewState]screenModel)
+	}
+	m.screens[m.state] = nextScreen
 	if action == nil {
 		return m, screenCmd
 	}
@@ -56,11 +59,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) resizeActiveScreen() model {
-	screen := m.activeScreen()
+	screen := m.screens[m.state] // nil map read is safe; returns nil
 	if screen == nil {
 		return m
 	}
-	return screen.Resize(m.width, m.height).Apply(m)
+	m.screens[m.state] = screen.Resize(m.width, m.height)
+	return m
 }
 
 func (m model) handleWindowSize(msg tea.WindowSizeMsg) model {
@@ -116,6 +120,7 @@ func (m model) handleGlobalKey(msg tea.Msg) (model, tea.Cmd, bool) {
 			m.state = returnState
 			if returnState == weeklyView {
 				m = m.refreshWeeklyBrowser()
+				m = m.initScreen(weeklyView)
 			}
 			m.debug.enabled = false
 			return m, nil, true

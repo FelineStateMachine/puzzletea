@@ -42,6 +42,7 @@ func (m model) enterWeeklyView() (tea.Model, tea.Cmd) {
 	m.weekly.cursor = weekly.StartOfWeek(current.Year, current.Week, time.Local)
 	m = m.refreshWeeklyBrowser()
 	m.state = weeklyView
+	m = m.initScreen(weeklyView)
 	return m, nil
 }
 
@@ -182,6 +183,7 @@ func (m model) advanceSolvedWeekly() (model, tea.Cmd, bool) {
 	m.weekly.cursor = weekly.StartOfWeek(info.Year, info.Week, time.Local)
 	m = m.refreshWeeklyBrowser()
 	m.state = weeklyView
+	m = m.initScreen(weeklyView)
 	if len(m.weekly.rows) == 0 || !m.weekly.rows[0].Playable {
 		return m, nil, true
 	}

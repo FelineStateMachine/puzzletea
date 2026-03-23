@@ -40,6 +40,7 @@ func (m model) handleThemeEnter() (tea.Model, tea.Cmd) {
 
 	m.state = themeSelectView
 	m = m.clearNotice()
+	m = m.initScreen(themeSelectView)
 	return m, nil
 }
 

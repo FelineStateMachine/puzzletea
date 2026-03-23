@@ -16,8 +16,6 @@ type helpSelectScreen struct {
 	help   helpState
 }
 
-func (s helpSelectScreen) State() viewState { return helpSelectView }
-
 func (s helpSelectScreen) Resize(width, height int) screenModel {
 	s.width = width
 	s.height = height
@@ -56,19 +54,11 @@ func (s helpSelectScreen) View(notice noticeState) string {
 	)
 }
 
-func (s helpSelectScreen) Apply(m model) model {
-	m.state = helpSelectView
-	m.help.selectList = s.help.selectList
-	return m
-}
-
 type helpDetailScreen struct {
 	width  int
 	height int
 	help   helpState
 }
-
-func (s helpDetailScreen) State() viewState { return helpDetailView }
 
 func (s helpDetailScreen) Resize(width, height int) screenModel {
 	m := model{
@@ -108,19 +98,11 @@ func (s helpDetailScreen) View(notice noticeState) string {
 	)
 }
 
-func (s helpDetailScreen) Apply(m model) model {
-	m.state = helpDetailView
-	m.help = s.help
-	return m
-}
-
 type statsScreen struct {
 	width  int
 	height int
 	stats  statsState
 }
-
-func (s statsScreen) State() viewState { return statsView }
 
 func (s statsScreen) Resize(width, height int) screenModel {
 	m := model{
@@ -156,19 +138,11 @@ func (s statsScreen) View(notice noticeState) string {
 	return m.renderStatsView()
 }
 
-func (s statsScreen) Apply(m model) model {
-	m.state = statsView
-	m.stats = s.stats
-	return m
-}
-
 type themeSelectScreen struct {
 	width  int
 	height int
 	theme  themeState
 }
-
-func (s themeSelectScreen) State() viewState { return themeSelectView }
 
 func (s themeSelectScreen) Resize(width, height int) screenModel {
 	const maxVisibleItems = 8
@@ -217,19 +191,11 @@ func (s themeSelectScreen) View(notice noticeState) string {
 	return m.themeSelectViewContent()
 }
 
-func (s themeSelectScreen) Apply(m model) model {
-	m.state = themeSelectView
-	m.theme = s.theme
-	return m
-}
-
 type generatingScreen struct {
 	width   int
 	height  int
 	spinner spinner.Model
 }
-
-func (s generatingScreen) State() viewState { return generatingView }
 
 func (s generatingScreen) Resize(width, height int) screenModel {
 	s.width = width
@@ -247,10 +213,4 @@ func (s generatingScreen) View(notice noticeState) string {
 	content := s.spinner.View() + " Generating puzzle..."
 	box := ui.GeneratingFrame().Render(appendNoticeContent(s.width, notice, content))
 	return ui.CenterView(s.width, s.height, box)
-}
-
-func (s generatingScreen) Apply(m model) model {
-	m.state = generatingView
-	m.spinner = s.spinner
-	return m
 }

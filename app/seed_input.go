@@ -82,6 +82,7 @@ func (m model) enterSeedInputView() (model, tea.Cmd) {
 	m.seed.modeIndex = index
 	m.seed.focus = seedFocusText
 	m.state = seedInputView
+	m = m.initScreen(seedInputView)
 	return m, m.seed.input.Focus()
 }
 

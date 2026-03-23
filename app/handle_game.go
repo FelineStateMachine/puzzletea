@@ -18,6 +18,7 @@ func (m model) handleGameSelectEnter() (tea.Model, tea.Cmd) {
 	m.nav.modeSelectList = ui.InitList(buildModeDisplayItems(entry), entry.Definition.Name+" - Select Mode")
 	m.nav.modeSelectList.SetSize(min(m.width, 64), min(m.height, ui.ListHeight(m.nav.modeSelectList)))
 	m.state = modeSelectView
+	m = m.initScreen(modeSelectView)
 	return m, nil
 }
 

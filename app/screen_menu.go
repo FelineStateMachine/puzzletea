@@ -13,8 +13,6 @@ type mainMenuScreen struct {
 	menu   ui.MainMenu
 }
 
-func (s mainMenuScreen) State() viewState { return mainMenuView }
-
 func (s mainMenuScreen) Resize(width, height int) screenModel {
 	s.width = width
 	s.height = height
@@ -48,19 +46,11 @@ func (s mainMenuScreen) View(notice noticeState) string {
 	return centerContentWithNotice(s.width, s.height, notice, s.menu.View())
 }
 
-func (s mainMenuScreen) Apply(m model) model {
-	m.state = mainMenuView
-	m.nav.mainMenu = s.menu
-	return m
-}
-
 type playMenuScreen struct {
 	width  int
 	height int
 	menu   ui.MainMenu
 }
-
-func (s playMenuScreen) State() viewState { return playMenuView }
 
 func (s playMenuScreen) Resize(width, height int) screenModel {
 	s.width = width
@@ -100,19 +90,11 @@ func (s playMenuScreen) View(notice noticeState) string {
 	return centerContentWithNotice(s.width, s.height, notice, s.menu.ViewAsPanel("Play"))
 }
 
-func (s playMenuScreen) Apply(m model) model {
-	m.state = playMenuView
-	m.nav.playMenu = s.menu
-	return m
-}
-
 type optionsMenuScreen struct {
 	width  int
 	height int
 	menu   ui.MainMenu
 }
-
-func (s optionsMenuScreen) State() viewState { return optionsMenuView }
 
 func (s optionsMenuScreen) Resize(width, height int) screenModel {
 	s.width = width
@@ -145,10 +127,4 @@ func (s optionsMenuScreen) Update(msg tea.Msg) (screenModel, tea.Cmd, screenActi
 func (s optionsMenuScreen) View(notice noticeState) string {
 	items := s.menu.RenderItems() + "\n\n" + ui.DimItemStyle().Render("- Dami")
 	return renderPanelView(s.width, s.height, notice, "Options", items, "↑/↓ navigate • enter select • esc back")
-}
-
-func (s optionsMenuScreen) Apply(m model) model {
-	m.state = optionsMenuView
-	m.nav.optionsMenu = s.menu
-	return m
 }

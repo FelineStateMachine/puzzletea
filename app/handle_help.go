@@ -12,5 +12,6 @@ func (m model) handleHelpSelectEnter() (tea.Model, tea.Cmd) {
 	m.help.category = entry
 	m = m.updateHelpDetailViewport()
 	m.state = helpDetailView
+	m = m.initScreen(helpDetailView)
 	return m, nil
 }

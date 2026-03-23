@@ -201,8 +201,6 @@ type exportScreen struct {
 	export exportModel
 }
 
-func (s exportScreen) State() viewState { return exportView }
-
 func (s exportScreen) Resize(width, height int) screenModel {
 	s.width = width
 	s.height = height
@@ -232,19 +230,11 @@ func (s exportScreen) View(notice noticeState) string {
 	)
 }
 
-func (s exportScreen) Apply(m model) model {
-	m.state = exportView
-	m.export = s.export
-	return m
-}
-
 type exportRunningScreen struct {
 	width   int
 	height  int
 	spinner spinner.Model
 }
-
-func (s exportRunningScreen) State() viewState { return exportRunningView }
 
 func (s exportRunningScreen) Resize(width, height int) screenModel {
 	s.width = width
@@ -264,12 +254,6 @@ func (s exportRunningScreen) View(notice noticeState) string {
 	return ui.CenterView(s.width, s.height, box)
 }
 
-func (s exportRunningScreen) Apply(m model) model {
-	m.state = exportRunningView
-	m.spinner = s.spinner
-	return m
-}
-
 func (m model) handleExportEnter() (tea.Model, tea.Cmd) {
 	if !m.export.initialized {
 		spec := m.initialExportSpec()
@@ -279,7 +263,7 @@ func (m model) handleExportEnter() (tea.Model, tea.Cmd) {
 	}
 	m.state = exportView
 	m = m.clearNotice()
-	return m.resizeActiveScreen(), nil
+	return m.initScreen(exportView), nil
 }
 
 func (m model) handleExportSubmit() (tea.Model, tea.Cmd) {
@@ -341,6 +325,7 @@ func (m *model) startExport(spec packexport.Spec) tea.Cmd {
 	m.export.running = true
 	m.state = exportRunningView
 	*m = m.clearNotice()
+	*m = m.initScreen(exportRunningView)
 	return tea.Batch(m.spinner.Tick, exportCmd(ctx, jobID, spec))
 }
 

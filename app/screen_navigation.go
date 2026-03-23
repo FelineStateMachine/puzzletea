@@ -17,8 +17,6 @@ type seedInputScreen struct {
 	seed   seedState
 }
 
-func (s seedInputScreen) State() viewState { return seedInputView }
-
 func (s seedInputScreen) Resize(width, height int) screenModel {
 	s.width = width
 	s.height = height
@@ -60,20 +58,12 @@ func (s seedInputScreen) View(notice noticeState) string {
 	)
 }
 
-func (s seedInputScreen) Apply(m model) model {
-	m.state = seedInputView
-	m.seed = s.seed
-	return m
-}
-
 type gameSelectScreen struct {
 	width  int
 	height int
 	list   list.Model
 	detail viewport.Model
 }
-
-func (s gameSelectScreen) State() viewState { return gameSelectView }
 
 func (s gameSelectScreen) Resize(width, height int) screenModel {
 	m := model{
@@ -139,13 +129,6 @@ func (s gameSelectScreen) View(notice noticeState) string {
 	return m.gameSelectViewContent()
 }
 
-func (s gameSelectScreen) Apply(m model) model {
-	m.state = gameSelectView
-	m.nav.gameSelectList = s.list
-	m.nav.categoryDetail = s.detail
-	return m
-}
-
 func (s gameSelectScreen) resizeSelf() gameSelectScreen {
 	return s.Resize(s.width, s.height).(gameSelectScreen)
 }
@@ -156,8 +139,6 @@ type modeSelectScreen struct {
 	entry  registry.Entry
 	list   list.Model
 }
-
-func (s modeSelectScreen) State() viewState { return modeSelectView }
 
 func (s modeSelectScreen) Resize(width, height int) screenModel {
 	s.width = width
@@ -199,20 +180,11 @@ func (s modeSelectScreen) View(notice noticeState) string {
 	)
 }
 
-func (s modeSelectScreen) Apply(m model) model {
-	m.state = modeSelectView
-	m.nav.selectedCategory = s.entry
-	m.nav.modeSelectList = s.list
-	return m
-}
-
 type continueScreen struct {
 	width  int
 	height int
 	cont   continueState
 }
-
-func (s continueScreen) State() viewState { return continueView }
 
 func (s continueScreen) Resize(width, height int) screenModel {
 	s.width = width
@@ -249,19 +221,11 @@ func (s continueScreen) View(notice noticeState) string {
 	return m.renderContinueView()
 }
 
-func (s continueScreen) Apply(m model) model {
-	m.state = continueView
-	m.cont = s.cont
-	return m
-}
-
 type weeklyScreen struct {
 	width  int
 	height int
 	weekly weeklyState
 }
-
-func (s weeklyScreen) State() viewState { return weeklyView }
 
 func (s weeklyScreen) Resize(width, height int) screenModel {
 	s.width = width
@@ -300,10 +264,4 @@ func (s weeklyScreen) View(notice noticeState) string {
 		weekly: s.weekly,
 	}
 	return centerContentWithNotice(s.width, s.height, notice, m.weeklyViewContent())
-}
-
-func (s weeklyScreen) Apply(m model) model {
-	m.state = weeklyView
-	m.weekly = s.weekly
-	return m
 }

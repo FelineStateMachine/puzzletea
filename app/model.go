@@ -185,7 +185,8 @@ type seedModeOption struct {
 }
 
 type model struct {
-	state viewState
+	state   viewState
+	screens map[viewState]screenModel // persistent screen instances
 
 	nav     navigationState
 	cont    continueState
@@ -224,8 +225,9 @@ func InitialModel(s *store.Store, cfg *config.Config, configPath string) model {
 	r := initDebugRenderer()
 	l := ui.InitCategoryList(gameCategoryItems, "Select Category")
 	mm := ui.NewMainMenu(mainMenuItems)
-	return model{
+	m := model{
 		state:      mainMenuView,
+		screens:    make(map[viewState]screenModel),
 		debug:      debugState{renderer: r},
 		nav:        navigationState{gameSelectList: l, mainMenu: mm},
 		spinner:    newSpinner(),
@@ -233,6 +235,7 @@ func InitialModel(s *store.Store, cfg *config.Config, configPath string) model {
 		cfg:        cfg,
 		configPath: configPath,
 	}
+	return m.initScreen(mainMenuView)
 }
 
 // InitialModelWithGame creates a model that starts directly in gameView,
@@ -241,8 +244,9 @@ func InitialModelWithGame(s *store.Store, cfg *config.Config, configPath string,
 	r := initDebugRenderer()
 	l := ui.InitCategoryList(gameCategoryItems, "Select Category")
 	mm := ui.NewMainMenu(mainMenuItems)
-	return model{
+	m := model{
 		state:      gameView,
+		screens:    make(map[viewState]screenModel),
 		debug:      debugState{renderer: r},
 		nav:        navigationState{gameSelectList: l, mainMenu: mm},
 		spinner:    newSpinner(),
@@ -256,6 +260,8 @@ func InitialModelWithGame(s *store.Store, cfg *config.Config, configPath string,
 			returnState:     mainMenuView,
 		},
 	}
+	// Pre-cache the main menu screen so back-navigation from game works.
+	return m.initScreen(mainMenuView)
 }
 
 func (m model) Init() tea.Cmd {
