@@ -11,7 +11,10 @@ import (
 
 type noticeLevel string
 
-const noticeLevelError noticeLevel = "error"
+const (
+	noticeLevelError   noticeLevel = "error"
+	noticeLevelSuccess noticeLevel = "success"
+)
 
 type noticeState struct {
 	level   noticeLevel
@@ -33,6 +36,15 @@ func (m model) setErrorf(format string, args ...any) model {
 	return m
 }
 
+func (m model) setSuccessf(format string, args ...any) model {
+	message := fmt.Sprintf(format, args...)
+	m.notice = noticeState{
+		level:   noticeLevelSuccess,
+		message: message,
+	}
+	return m
+}
+
 func (m model) appendNotice(content string) string {
 	return appendNoticeContent(m.width, m.notice, content)
 }
@@ -43,6 +55,9 @@ func appendNoticeContent(width int, notice noticeState, content string) string {
 	}
 
 	style := ui.ErrorNoticeStyle()
+	if notice.level == noticeLevelSuccess {
+		style = ui.SuccessNoticeStyle()
+	}
 	block := style.
 		MaxWidth(max(width-8, 24)).
 		Render(notice.message)

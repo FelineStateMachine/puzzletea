@@ -129,6 +129,7 @@ func snapshotCommandGlobals(t *testing.T) func() {
 	prevWithSeed := flagWithSeed
 	prevExport := flagExport
 	prevOutput := flagOutput
+	prevExportSpecPath := exportSpecPath
 	prevListAll := listAll
 	prevLaunchNew := launchNewGameFn
 	prevLaunchSeeded := launchSeededGameFn
@@ -144,6 +145,7 @@ func snapshotCommandGlobals(t *testing.T) func() {
 		flagWithSeed = prevWithSeed
 		flagExport = prevExport
 		flagOutput = prevOutput
+		exportSpecPath = prevExportSpecPath
 		listAll = prevListAll
 		launchNewGameFn = prevLaunchNew
 		launchSeededGameFn = prevLaunchSeeded

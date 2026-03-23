@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/FelineStateMachine/puzzletea/builtinprint"
+	"github.com/FelineStateMachine/puzzletea/packexport"
 	"github.com/FelineStateMachine/puzzletea/pdfexport"
-	"github.com/FelineStateMachine/puzzletea/puzzle"
 	"github.com/FelineStateMachine/puzzletea/registry"
 
 	"github.com/spf13/cobra"
@@ -55,8 +55,7 @@ func runExportPDF(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	lookup := buildModeDifficultyLookup(registry.Definitions())
-	annotateDifficulty(puzzles, lookup)
+	packexport.AnnotatePuzzlesForPrint(puzzles, registry.Definitions())
 
 	shuffleSeed := strings.TrimSpace(flagPDFShuffleSeed)
 	if shuffleSeed == "" {
@@ -114,104 +113,21 @@ func buildRenderConfigForPDF(docs []pdfexport.PackDocument, shuffleSeed string, 
 	if err := validatePDFVolume(flagPDFVolume); err != nil {
 		return pdfexport.RenderConfig{}, err
 	}
-	sheetLayout, err := parsePDFSheetLayout(flagPDFSheetLayout)
-	if err != nil {
-		return pdfexport.RenderConfig{}, err
-	}
-
-	subtitle := strings.TrimSpace(flagPDFTitle)
-	if subtitle == "" {
-		subtitle = defaultPDFTitle(docs)
-	}
-
-	cfg := pdfexport.RenderConfig{
-		CoverSubtitle: subtitle,
-		HeaderText:    strings.TrimSpace(flagPDFHeader),
-		VolumeNumber:  flagPDFVolume,
-		AdvertText:    flagPDFAdvert,
-		GeneratedAt:   now,
-		ShuffleSeed:   shuffleSeed,
-		SheetLayout:   sheetLayout,
-	}
-	return cfg, nil
+	return packexport.BuildRenderConfig(packexport.RenderOptions{
+		Title:       defaultIfBlank(flagPDFTitle, defaultPDFTitle(docs)),
+		Header:      flagPDFHeader,
+		Advert:      flagPDFAdvert,
+		Volume:      flagPDFVolume,
+		SheetLayout: flagPDFSheetLayout,
+		ShuffleSeed: shuffleSeed,
+		GeneratedAt: now,
+	}, docs)
 }
 
-func parsePDFSheetLayout(raw string) (pdfexport.SheetLayout, error) {
-	switch strings.ToLower(strings.TrimSpace(raw)) {
-	case "", "half-letter":
-		return pdfexport.SheetLayoutHalfLetter, nil
-	case "duplex-booklet":
-		return pdfexport.SheetLayoutDuplexBooklet, nil
-	default:
-		return pdfexport.SheetLayoutHalfLetter, fmt.Errorf("--sheet-layout must be half-letter or duplex-booklet")
+func defaultIfBlank(value, fallback string) string {
+	value = strings.TrimSpace(value)
+	if value != "" {
+		return value
 	}
-}
-
-func buildModeDifficultyLookup(definitions []puzzle.Definition) map[string]map[string]float64 {
-	lookup := make(map[string]map[string]float64, len(definitions))
-
-	for _, def := range definitions {
-		titles := []string{}
-		for _, mode := range def.Modes {
-			title := strings.TrimSpace(mode.Title)
-			if title == "" {
-				continue
-			}
-			titles = append(titles, title)
-		}
-
-		if len(titles) == 0 {
-			continue
-		}
-
-		scores := make(map[string]float64, len(titles))
-		if len(titles) == 1 {
-			scores[normalizeDifficultyToken(titles[0])] = 0.5
-		} else {
-			for i, title := range titles {
-				scores[normalizeDifficultyToken(title)] = float64(i) / float64(len(titles)-1)
-			}
-		}
-
-		lookup[normalizeDifficultyToken(def.Name)] = scores
-	}
-
-	return lookup
-}
-
-func annotateDifficulty(puzzles []pdfexport.Puzzle, lookup map[string]map[string]float64) {
-	for i := range puzzles {
-		mode := normalizeDifficultyToken(puzzles[i].ModeSelection)
-		if mode == "" || strings.Contains(mode, "mixed modes") {
-			puzzles[i].DifficultyScore = 0.5
-			puzzles[i].DifficultyConfidence = pdfexport.DifficultyConfidenceMedium
-			puzzles[i].DifficultySource = "mixed-mode fallback"
-			continue
-		}
-
-		category := normalizeDifficultyToken(puzzles[i].Category)
-		modes, ok := lookup[category]
-		if !ok {
-			puzzles[i].DifficultyScore = 0.5
-			puzzles[i].DifficultyConfidence = pdfexport.DifficultyConfidenceMedium
-			puzzles[i].DifficultySource = "category lookup fallback"
-			continue
-		}
-
-		score, ok := modes[mode]
-		if !ok {
-			puzzles[i].DifficultyScore = 0.5
-			puzzles[i].DifficultyConfidence = pdfexport.DifficultyConfidenceMedium
-			puzzles[i].DifficultySource = "mode lookup fallback"
-			continue
-		}
-
-		puzzles[i].DifficultyScore = score
-		puzzles[i].DifficultyConfidence = pdfexport.DifficultyConfidenceHigh
-		puzzles[i].DifficultySource = "mode-order"
-	}
-}
-
-func normalizeDifficultyToken(s string) string {
-	return puzzle.NormalizeName(s)
+	return fallback
 }

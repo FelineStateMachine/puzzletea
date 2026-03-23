@@ -20,6 +20,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case game.SpawnCompleteMsg:
 		next, cmd := m.handleSpawnComplete(m.session.spawnJobID, msg)
 		return next, cmd
+	case exportCompleteMsg:
+		return m.handleExportComplete(msg)
 	case tea.WindowSizeMsg:
 		m = m.handleWindowSize(msg)
 		if m.state != gameView {
@@ -82,6 +84,18 @@ func (m model) handleGlobalKey(msg tea.Msg) (model, tea.Cmd, bool) {
 			returnState := m.activeSpawnReturnState()
 			m.cancelActiveSpawn()
 			m.state = returnState
+			return m.resizeActiveScreen(), nil, true
+		case key.Matches(keyMsg, rootKeys.Quit):
+			return m, tea.Quit, true
+		}
+		return m, nil, true
+	}
+
+	if m.state == exportRunningView {
+		switch {
+		case key.Matches(keyMsg, rootKeys.Escape):
+			m.cancelActiveExport()
+			m.state = exportView
 			return m.resizeActiveScreen(), nil, true
 		case key.Matches(keyMsg, rootKeys.Quit):
 			return m, tea.Quit, true
@@ -175,6 +189,8 @@ func (m model) handleScreenAction(action screenAction) (model, tea.Cmd) {
 		return m.resizeActiveScreen(), nil
 	case openDailyAction:
 		return asModel(m.handleDailyPuzzle())
+	case openExportAction:
+		return asModel(m.handleExportEnter())
 	case openWeeklyAction:
 		return asModel(m.enterWeeklyView())
 	case openSeedInputAction:
@@ -215,6 +231,8 @@ func (m model) handleScreenAction(action screenAction) (model, tea.Cmd) {
 		return asModel(m.handleThemeConfirm())
 	case seedConfirmAction:
 		return asModel(m.handleSeedConfirm())
+	case exportSubmitAction:
+		return asModel(m.handleExportSubmit())
 	default:
 		return m, nil
 	}

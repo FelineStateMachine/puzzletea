@@ -15,7 +15,7 @@ import (
 func (m model) View() tea.View {
 	v := tea.NewView(m.viewContent())
 	v.AltScreen = true
-	if m.state == gameView {
+	if m.state == gameView || m.state == exportView {
 		v.MouseMode = tea.MouseModeCellMotion
 		v.KeyboardEnhancements.ReportEventTypes = true
 	}

@@ -2,6 +2,7 @@ package pdfexport
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -59,9 +60,30 @@ func ParseJSONLFile(path string) (PackDocument, error) {
 	defer f.Close()
 
 	scanner := bufio.NewScanner(f)
-	buf := make([]byte, 0, 64*1024)
-	scanner.Buffer(buf, 16*1024*1024)
+	scanner.Buffer(make([]byte, 0, 64*1024), 16*1024*1024)
+	return parseJSONLScanner(path, scanner)
+}
 
+func ParseJSONLData(sourceName string, data []byte) (PackDocument, error) {
+	scanner := bufio.NewScanner(bytes.NewReader(data))
+	scanner.Buffer(make([]byte, 0, 64*1024), 16*1024*1024)
+	return parseJSONLScanner(sourceName, scanner)
+}
+
+func ParseJSONLRecords(sourceName string, records []JSONLRecord) (PackDocument, error) {
+	var b strings.Builder
+	for _, record := range records {
+		line, err := json.Marshal(record)
+		if err != nil {
+			return PackDocument{}, fmt.Errorf("encode jsonl record: %w", err)
+		}
+		b.Write(line)
+		b.WriteByte('\n')
+	}
+	return ParseJSONLData(sourceName, []byte(b.String()))
+}
+
+func parseJSONLScanner(path string, scanner *bufio.Scanner) (PackDocument, error) {
 	doc := PackDocument{SourcePath: path}
 	doc.Metadata.SourceFileName = filepath.Base(path)
 	puzzles := []Puzzle{}
@@ -120,14 +142,11 @@ func ParseJSONLFile(path string) (PackDocument, error) {
 		}
 		p.PrintPayload = payload
 
-		// Metadata should reflect the first printable record, not merely the
-		// first syntactically valid line in the file.
 		if doc.Metadata.GeneratedRaw == "" {
 			doc.Metadata.GeneratedRaw = record.Pack.Generated
 			doc.Metadata.Version = record.Pack.Version
 			doc.Metadata.Count = record.Pack.Count
 			doc.Metadata.Seed = record.Pack.Seed
-
 			doc.Metadata.Category = strings.TrimSpace(p.Category)
 			if doc.Metadata.Category == "" {
 				doc.Metadata.Category = record.Pack.Category
@@ -149,11 +168,7 @@ func ParseJSONLFile(path string) (PackDocument, error) {
 	}
 	if len(puzzles) == 0 {
 		if len(unsupportedCategories) > 0 {
-			return PackDocument{}, fmt.Errorf(
-				"%s: no printable puzzles found; unsupported categories: %s",
-				path,
-				strings.Join(unsupportedCategories, ", "),
-			)
+			return PackDocument{}, fmt.Errorf("%s: no printable puzzles found; unsupported categories: %s", path, strings.Join(unsupportedCategories, ", "))
 		}
 		return PackDocument{}, fmt.Errorf("%s: no printable puzzles found", path)
 	}

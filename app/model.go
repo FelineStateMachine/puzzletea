@@ -19,6 +19,7 @@ import (
 	"charm.land/bubbles/v2/list"
 	"charm.land/bubbles/v2/spinner"
 	"charm.land/bubbles/v2/table"
+	"charm.land/bubbles/v2/textarea"
 	"charm.land/bubbles/v2/textinput"
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
@@ -35,6 +36,7 @@ type viewState int
 
 const (
 	mainMenuActionPlay    = "play"
+	mainMenuActionExport  = "export"
 	mainMenuActionStats   = "stats"
 	mainMenuActionOptions = "options"
 	mainMenuActionQuit    = "quit"
@@ -51,6 +53,7 @@ const (
 
 var mainMenuItems = []ui.MenuItem{
 	{Action: mainMenuActionPlay, ItemTitle: "Play", Desc: "start or continue a puzzle"},
+	{Action: mainMenuActionExport, ItemTitle: "Export", Desc: "build a printable puzzle pack"},
 	{Action: mainMenuActionStats, ItemTitle: "Stats", Desc: "your progress"},
 	{Action: mainMenuActionOptions, ItemTitle: "Options", Desc: "configure and learn"},
 	{Action: mainMenuActionQuit, ItemTitle: "Quit", Desc: "exit puzzletea"},
@@ -68,7 +71,9 @@ const (
 	seedInputView
 	gameSelectView
 	modeSelectView
+	exportView
 	generatingView
+	exportRunningView
 	gameView
 	continueView
 	weeklyView
@@ -141,6 +146,26 @@ type themeState struct {
 	previous string
 }
 
+type exportState struct {
+	initialized    bool
+	focus          exportFocus
+	values         exportFormValues
+	titleInput     textinput.Model
+	headerInput    textarea.Model
+	advertInput    textinput.Model
+	volumeInput    textinput.Model
+	seedInput      textinput.Model
+	pdfPathInput   textinput.Model
+	jsonlPathInput textinput.Model
+	cards          []exportGameCard
+	cardIndex      int
+	bucketIndex    int
+	cardRowOffset  int
+	running        bool
+	jobID          int64
+	cancel         context.CancelFunc
+}
+
 type debugState struct {
 	enabled  bool
 	renderer *glamour.TermRenderer
@@ -191,6 +216,7 @@ type model struct {
 	help    helpState
 	stats   statsState
 	theme   themeState
+	export  exportState
 	debug   debugState
 	notice  noticeState
 
@@ -202,7 +228,8 @@ type model struct {
 	store *store.Store
 
 	// Config
-	cfg *config.Config
+	cfg        *config.Config
+	configPath string
 }
 
 func newSpinner() spinner.Model {
@@ -214,33 +241,35 @@ func newSpinner() spinner.Model {
 }
 
 // InitialModel creates the root TUI model for the main menu.
-func InitialModel(s *store.Store, cfg *config.Config) model {
+func InitialModel(s *store.Store, cfg *config.Config, configPath string) model {
 	r := initDebugRenderer()
 	l := ui.InitCategoryList(gameCategoryItems, "Select Category")
 	mm := ui.NewMainMenu(mainMenuItems)
 	return model{
-		state:   mainMenuView,
-		debug:   debugState{renderer: r},
-		nav:     navigationState{gameSelectList: l, mainMenu: mm},
-		spinner: newSpinner(),
-		store:   s,
-		cfg:     cfg,
+		state:      mainMenuView,
+		debug:      debugState{renderer: r},
+		nav:        navigationState{gameSelectList: l, mainMenu: mm},
+		spinner:    newSpinner(),
+		store:      s,
+		cfg:        cfg,
+		configPath: configPath,
 	}
 }
 
 // InitialModelWithGame creates a model that starts directly in gameView,
 // bypassing the menu. Used by CLI flags (--new, --continue).
-func InitialModelWithGame(s *store.Store, cfg *config.Config, g game.Gamer, activeGameID int64, completionSaved bool) model {
+func InitialModelWithGame(s *store.Store, cfg *config.Config, configPath string, g game.Gamer, activeGameID int64, completionSaved bool) model {
 	r := initDebugRenderer()
 	l := ui.InitCategoryList(gameCategoryItems, "Select Category")
 	mm := ui.NewMainMenu(mainMenuItems)
 	return model{
-		state:   gameView,
-		debug:   debugState{renderer: r},
-		nav:     navigationState{gameSelectList: l, mainMenu: mm},
-		spinner: newSpinner(),
-		store:   s,
-		cfg:     cfg,
+		state:      gameView,
+		debug:      debugState{renderer: r},
+		nav:        navigationState{gameSelectList: l, mainMenu: mm},
+		spinner:    newSpinner(),
+		store:      s,
+		cfg:        cfg,
+		configPath: configPath,
 		session: sessionState{
 			game:            g,
 			activeGameID:    activeGameID,

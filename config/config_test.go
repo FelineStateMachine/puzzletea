@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/FelineStateMachine/puzzletea/puzzle"
 )
 
 // --- Load / Save round-trip (P0) ---
@@ -33,6 +35,45 @@ func TestSaveAndLoad(t *testing.T) {
 	}
 	if loaded.Theme != "Dracula" {
 		t.Errorf("expected theme Dracula, got %q", loaded.Theme)
+	}
+}
+
+func TestSaveAndLoadExportConfig(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.json")
+
+	cfg := &Config{
+		Theme: "Dracula",
+		Export: ExportConfig{
+			Title:           "Sampler",
+			Volume:          2,
+			SheetLayout:     "duplex-booklet",
+			PDFOutputPath:   filepath.Join(dir, "sample.pdf"),
+			JSONLEnabled:    true,
+			JSONLOutputPath: filepath.Join(dir, "sample.jsonl"),
+			Counts: map[puzzle.GameID]map[puzzle.ModeID]int{
+				puzzle.CanonicalGameID("Sudoku"): {
+					puzzle.CanonicalModeID("Easy"): 2,
+				},
+			},
+		},
+	}
+	if err := cfg.Save(path); err != nil {
+		t.Fatalf("Save failed: %v", err)
+	}
+
+	loaded, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+	if loaded.Export.Title != cfg.Export.Title {
+		t.Fatalf("loaded export title = %q, want %q", loaded.Export.Title, cfg.Export.Title)
+	}
+	if !loaded.Export.JSONLEnabled {
+		t.Fatal("expected jsonl toggle to round-trip")
+	}
+	if got := loaded.Export.Counts[puzzle.CanonicalGameID("Sudoku")][puzzle.CanonicalModeID("Easy")]; got != 2 {
+		t.Fatalf("loaded export count = %d, want 2", got)
 	}
 }
 

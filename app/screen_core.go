@@ -40,6 +40,10 @@ type openSeedInputAction struct{}
 
 func (openSeedInputAction) isScreenAction() {}
 
+type openExportAction struct{}
+
+func (openExportAction) isScreenAction() {}
+
 type backAction struct {
 	target viewState
 }
@@ -94,6 +98,10 @@ type seedConfirmAction struct{}
 
 func (seedConfirmAction) isScreenAction() {}
 
+type exportSubmitAction struct{}
+
+func (exportSubmitAction) isScreenAction() {}
+
 type screenModel interface {
 	State() viewState
 	Resize(width, height int) screenModel
@@ -142,6 +150,12 @@ func (m model) activeScreen() screenModel {
 			entry:  m.nav.selectedCategory,
 			list:   m.nav.modeSelectList,
 		}
+	case exportView:
+		return exportScreen{
+			width:  m.width,
+			height: m.height,
+			export: m.export,
+		}
 	case continueView:
 		return continueScreen{
 			width:  m.width,
@@ -180,6 +194,12 @@ func (m model) activeScreen() screenModel {
 		}
 	case generatingView:
 		return generatingScreen{
+			width:   m.width,
+			height:  m.height,
+			spinner: m.spinner,
+		}
+	case exportRunningView:
+		return exportRunningScreen{
 			width:   m.width,
 			height:  m.height,
 			spinner: m.spinner,

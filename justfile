@@ -1,5 +1,5 @@
 version := `git describe --tags --always --dirty 2>/dev/null || echo "dev"`
-ldflags := "-X github.com/FelineStateMachine/puzzletea/cmd.Version=" + version
+ldflags := "-X github.com/FelineStateMachine/puzzletea/cmd.Version=" + version + " -X github.com/FelineStateMachine/puzzletea/packexport.Version=" + version
 
 # Build the binary (default recipe).
 build:

@@ -68,7 +68,7 @@ var RootCmd = &cobra.Command{
 			return err
 		}
 		defer s.Close()
-		p := tea.NewProgram(app.InitialModel(s, cfg))
+		p := tea.NewProgram(app.InitialModel(s, cfg, activeConfigPath()))
 		_, err = p.Run()
 		return err
 	},
@@ -81,20 +81,23 @@ func init() {
 	RootCmd.PersistentFlags().StringVar(&flagConfigPath, "config", "", "path to config file (default: ~/.puzzletea/config.json)")
 	RootCmd.PersistentFlags().StringVar(&flagTheme, "theme", "", "color theme name (overrides config)")
 
-	RootCmd.AddCommand(newCmd, continueCmd, listCmd, exportPDFCmd, testCmd)
+	RootCmd.AddCommand(newCmd, continueCmd, listCmd, exportCmd, exportPDFCmd, testCmd)
 }
 
 func loadActiveConfig() *config.Config {
-	return loadConfig(flagConfigPath)
+	return loadConfig(activeConfigPath())
+}
+
+func activeConfigPath() string {
+	if flagConfigPath == "" {
+		return config.DefaultPath()
+	}
+	return flagConfigPath
 }
 
 // loadConfig reads the config file and applies the active theme. The --theme
 // flag takes precedence over the persisted setting.
 func loadConfig(configPath string) *config.Config {
-	if configPath == "" {
-		configPath = config.DefaultPath()
-	}
-
 	cfg, err := config.Load(configPath)
 	if err != nil {
 		log.Printf("warning: %v (using defaults)", err)

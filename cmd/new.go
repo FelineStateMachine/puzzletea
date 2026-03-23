@@ -92,7 +92,7 @@ func launchNewGame(gameArg, modeArg, seed string, cfg *config.Config) error {
 		return err
 	}
 
-	return runGameProgramFn(s, cfg, g, rec.ID, false)
+	return runGameProgramFn(s, cfg, activeConfigPath(), g, rec.ID, false)
 }
 
 func spawnFromMode(spawner game.Spawner, seed string) (game.Gamer, error) {
@@ -138,7 +138,7 @@ func launchSeededGame(seed string, cfg *config.Config) error {
 			return err
 		}
 
-		return runGameProgramFn(s, cfg, g, rec.ID, completed)
+		return runGameProgramFn(s, cfg, activeConfigPath(), g, rec.ID, completed)
 	}
 
 	// Mode selection uses rendezvous hashing (independent of RNG).
@@ -160,5 +160,5 @@ func launchSeededGame(seed string, cfg *config.Config) error {
 		return err
 	}
 
-	return runGameProgramFn(s, cfg, g, rec.ID, false)
+	return runGameProgramFn(s, cfg, activeConfigPath(), g, rec.ID, false)
 }

@@ -3,9 +3,7 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"math/rand/v2"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -13,6 +11,7 @@ import (
 	"github.com/FelineStateMachine/puzzletea/builtinprint"
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/namegen"
+	"github.com/FelineStateMachine/puzzletea/packexport"
 	"github.com/FelineStateMachine/puzzletea/pdfexport"
 	"github.com/FelineStateMachine/puzzletea/registry"
 	"github.com/FelineStateMachine/puzzletea/resolve"
@@ -187,33 +186,15 @@ func spawnExportPuzzle(spawner game.Spawner, rng *rand.Rand) (game.Gamer, error)
 }
 
 func writeExportJSONL(cmd *cobra.Command, path string, records []pdfexport.JSONLRecord) error {
-	var b strings.Builder
-	for _, record := range records {
-		data, err := json.Marshal(record)
-		if err != nil {
-			return fmt.Errorf("encode jsonl record: %w", err)
-		}
-		b.Write(data)
-		b.WriteByte('\n')
+	content, err := packexport.EncodeJSONL(records)
+	if err != nil {
+		return err
 	}
-
-	content := b.String()
 	if strings.TrimSpace(path) == "" {
-		if _, err := io.WriteString(cmd.OutOrStdout(), content); err != nil {
+		if _, err := cmd.OutOrStdout().Write(content); err != nil {
 			return fmt.Errorf("write export jsonl to stdout: %w", err)
 		}
 		return nil
 	}
-
-	dir := filepath.Dir(path)
-	if dir != "" && dir != "." {
-		if err := os.MkdirAll(dir, 0o755); err != nil {
-			return fmt.Errorf("create output directory: %w", err)
-		}
-	}
-
-	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
-		return fmt.Errorf("write output jsonl: %w", err)
-	}
-	return nil
+	return packexport.WriteJSONL(path, records)
 }

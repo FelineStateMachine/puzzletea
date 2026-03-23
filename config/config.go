@@ -9,12 +9,29 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/FelineStateMachine/puzzletea/puzzle"
 )
 
 // Config holds all user-configurable settings.
 type Config struct {
-	Theme  string `json:"theme,omitempty"`   // theme name; empty = default
-	DBPath string `json:"db_path,omitempty"` // database path; empty = ~/.puzzletea/history.db
+	Theme  string       `json:"theme,omitempty"`   // theme name; empty = default
+	DBPath string       `json:"db_path,omitempty"` // database path; empty = ~/.puzzletea/history.db
+	Export ExportConfig `json:"export,omitempty"`  // last-used export settings
+}
+
+// ExportConfig stores the app's last-used export form values.
+type ExportConfig struct {
+	Title           string                                  `json:"title,omitempty"`
+	Header          string                                  `json:"header,omitempty"`
+	Advert          string                                  `json:"advert,omitempty"`
+	Volume          int                                     `json:"volume,omitempty"`
+	SheetLayout     string                                  `json:"sheet_layout,omitempty"`
+	Seed            string                                  `json:"seed,omitempty"`
+	PDFOutputPath   string                                  `json:"pdf_output_path,omitempty"`
+	JSONLEnabled    bool                                    `json:"jsonl_enabled,omitempty"`
+	JSONLOutputPath string                                  `json:"jsonl_output_path,omitempty"`
+	Counts          map[puzzle.GameID]map[puzzle.ModeID]int `json:"counts,omitempty"`
 }
 
 // Default returns a Config with all settings at their zero values (the

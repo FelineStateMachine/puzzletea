@@ -1,7 +1,6 @@
 package app
 
 import (
-	"github.com/FelineStateMachine/puzzletea/config"
 	"github.com/FelineStateMachine/puzzletea/theme"
 	"github.com/FelineStateMachine/puzzletea/ui"
 
@@ -57,7 +56,7 @@ func (m model) handleThemeConfirm() (tea.Model, tea.Cmd) {
 
 	_ = theme.Apply(item.ItemTitle)
 	m.cfg.Theme = themeName
-	if err := m.cfg.Save(config.DefaultPath()); err != nil {
+	if err := m.cfg.Save(m.configPath); err != nil {
 		m = m.setErrorf("Theme changed, but saving config failed: %v", err)
 	}
 

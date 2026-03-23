@@ -42,5 +42,5 @@ func continueGame(name string, cfg *config.Config) error {
 	}
 
 	completed := rec.Status == store.StatusCompleted
-	return runGameProgramFn(s, cfg, g, rec.ID, completed)
+	return runGameProgramFn(s, cfg, activeConfigPath(), g, rec.ID, completed)
 }

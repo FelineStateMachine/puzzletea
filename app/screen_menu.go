@@ -31,6 +31,8 @@ func (s mainMenuScreen) Update(msg tea.Msg) (screenModel, tea.Cmd, screenAction)
 	switch s.menu.SelectedAction() {
 	case mainMenuActionPlay:
 		return s, nil, openPlayMenuAction{}
+	case mainMenuActionExport:
+		return s, nil, openExportAction{}
 	case mainMenuActionStats:
 		return s, nil, openStatsAction{}
 	case mainMenuActionOptions:

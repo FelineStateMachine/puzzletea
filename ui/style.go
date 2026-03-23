@@ -24,6 +24,15 @@ func ErrorNoticeStyle() lipgloss.Style {
 		Padding(0, 1)
 }
 
+// SuccessNoticeStyle returns the style for user-visible success notices.
+func SuccessNoticeStyle() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(theme.Current().SuccessBorder).
+		Foreground(theme.Current().Success).
+		Padding(0, 1)
+}
+
 // LogoStyle returns the style for the ASCII art brand logo.
 func LogoStyle() lipgloss.Style {
 	p := theme.Current()
