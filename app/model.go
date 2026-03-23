@@ -19,7 +19,6 @@ import (
 	"charm.land/bubbles/v2/list"
 	"charm.land/bubbles/v2/spinner"
 	"charm.land/bubbles/v2/table"
-	"charm.land/bubbles/v2/textarea"
 	"charm.land/bubbles/v2/textinput"
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
@@ -146,26 +145,6 @@ type themeState struct {
 	previous string
 }
 
-type exportState struct {
-	initialized    bool
-	focus          exportFocus
-	values         exportFormValues
-	titleInput     textinput.Model
-	headerInput    textarea.Model
-	advertInput    textinput.Model
-	volumeInput    textinput.Model
-	seedInput      textinput.Model
-	pdfPathInput   textinput.Model
-	jsonlPathInput textinput.Model
-	cards          []exportGameCard
-	cardIndex      int
-	bucketIndex    int
-	cardRowOffset  int
-	running        bool
-	jobID          int64
-	cancel         context.CancelFunc
-}
-
 type debugState struct {
 	enabled  bool
 	renderer *glamour.TermRenderer
@@ -216,7 +195,7 @@ type model struct {
 	help    helpState
 	stats   statsState
 	theme   themeState
-	export  exportState
+	export  exportModel
 	debug   debugState
 	notice  noticeState
 

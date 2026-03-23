@@ -62,7 +62,7 @@ func TestHandleExportCompleteSuccessShowsSuccessNotice(t *testing.T) {
 		state:  exportRunningView,
 		width:  100,
 		height: 30,
-		export: exportState{
+		export: exportModel{
 			jobID:       7,
 			initialized: true,
 			values:      exportValuesFromSpec(packexport.DefaultSpec(tmp)),
@@ -102,7 +102,7 @@ func TestHandleExportCompleteSuccessIncludesJSONLWhenPresent(t *testing.T) {
 		state:  exportRunningView,
 		width:  100,
 		height: 30,
-		export: exportState{
+		export: exportModel{
 			jobID:       8,
 			initialized: true,
 			values:      exportValuesFromSpec(packexport.DefaultSpec(tmp)),
@@ -133,7 +133,7 @@ func TestHandleExportCompleteFailureShowsErrorNotice(t *testing.T) {
 		state:  exportRunningView,
 		width:  100,
 		height: 30,
-		export: exportState{
+		export: exportModel{
 			jobID:       9,
 			initialized: true,
 			values:      exportValuesFromSpec(packexport.DefaultSpec(tmp)),
@@ -311,12 +311,15 @@ func TestExportMouseClickOnSummaryButtonSubmits(t *testing.T) {
 		X: contentX + metrics.Width - buttonWidth + 1,
 		Y: contentY + metrics.SettingsHeight,
 	}
-	_, action, handled := state.handleMouseClick(click, screenWidth, screenHeight, contentWidth, contentHeight)
+	cmd, handled := state.handleMouseClick(click, screenWidth, screenHeight, contentWidth, contentHeight)
 	if !handled {
 		t.Fatal("expected export button click to be handled")
 	}
-	if _, ok := action.(exportSubmitAction); !ok {
-		t.Fatalf("action = %T, want exportSubmitAction", action)
+	if state.focus != exportFocusSubmit {
+		t.Fatalf("focus = %v, want exportFocusSubmit after submit button click", state.focus)
+	}
+	if cmd == nil {
+		t.Fatal("expected submit button click to return a non-nil command")
 	}
 }
 
@@ -350,7 +353,7 @@ func TestExportMouseClickFocusesTextFields(t *testing.T) {
 			X: contentX + tt.rect.X + min(tt.rect.W-2, 14),
 			Y: contentY + tt.rect.Y + 1,
 		}
-		_, _, handled := state.handleMouseClick(click, screenWidth, screenHeight, contentWidth, contentHeight)
+		_, handled := state.handleMouseClick(click, screenWidth, screenHeight, contentWidth, contentHeight)
 		if !handled {
 			t.Fatalf("%s click was not handled", tt.name)
 		}
@@ -381,12 +384,12 @@ func TestExportMouseClickRepositionsTextCursor(t *testing.T) {
 		X: contentX + metrics.Settings.Title.X + 20,
 		Y: contentY + metrics.Settings.Title.Y + 1,
 	}
-	_, _, handled := state.handleMouseClick(first, screenWidth, screenHeight, contentWidth, contentHeight)
+	_, handled := state.handleMouseClick(first, screenWidth, screenHeight, contentWidth, contentHeight)
 	if !handled {
 		t.Fatal("expected first title click to be handled")
 	}
 	firstPos := state.titleInput.Position()
-	_, _, handled = state.handleMouseClick(second, screenWidth, screenHeight, contentWidth, contentHeight)
+	_, handled = state.handleMouseClick(second, screenWidth, screenHeight, contentWidth, contentHeight)
 	if !handled {
 		t.Fatal("expected second title click to be handled")
 	}
@@ -410,7 +413,7 @@ func TestExportMouseClickFocusesHeaderTextarea(t *testing.T) {
 		X: contentX + metrics.Settings.Header.X + 18,
 		Y: contentY + metrics.Settings.Header.Y + 4,
 	}
-	_, _, handled := state.handleMouseClick(click, screenWidth, screenHeight, contentWidth, contentHeight)
+	_, handled := state.handleMouseClick(click, screenWidth, screenHeight, contentWidth, contentHeight)
 	if !handled {
 		t.Fatal("expected header click to be handled")
 	}
@@ -439,7 +442,7 @@ func TestExportMouseClickTogglesJSONLImmediately(t *testing.T) {
 		X: contentX + metrics.Settings.JSONL.X + 4,
 		Y: contentY + metrics.Settings.JSONL.Y + 1,
 	}
-	_, _, handled := state.handleMouseClick(click, screenWidth, screenHeight, contentWidth, contentHeight)
+	_, handled := state.handleMouseClick(click, screenWidth, screenHeight, contentWidth, contentHeight)
 	if !handled {
 		t.Fatal("expected JSONL click to be handled")
 	}
@@ -465,7 +468,7 @@ func TestExportMouseClickCyclesLayoutImmediately(t *testing.T) {
 		X: contentX + metrics.Settings.Layout.X + 5,
 		Y: contentY + metrics.Settings.Layout.Y + 1,
 	}
-	_, _, handled := state.handleMouseClick(click, screenWidth, screenHeight, contentWidth, contentHeight)
+	_, handled := state.handleMouseClick(click, screenWidth, screenHeight, contentWidth, contentHeight)
 	if !handled {
 		t.Fatal("expected layout click to be handled")
 	}
@@ -490,7 +493,7 @@ func TestExportMouseClickSelectsCardBucketWithoutChangingCount(t *testing.T) {
 		X: contentX + target.Buckets[1].X + 1,
 		Y: contentY + target.Buckets[1].Y,
 	}
-	_, _, handled := state.handleMouseClick(click, screenWidth, screenHeight, contentWidth, contentHeight)
+	_, handled := state.handleMouseClick(click, screenWidth, screenHeight, contentWidth, contentHeight)
 	if !handled {
 		t.Fatal("expected card bucket click to be handled")
 	}

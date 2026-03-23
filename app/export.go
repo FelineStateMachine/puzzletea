@@ -24,6 +24,28 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
+type exportModel struct {
+	initialized    bool
+	focus          exportFocus
+	values         exportFormValues
+	titleInput     textinput.Model
+	headerInput    textarea.Model
+	advertInput    textinput.Model
+	volumeInput    textinput.Model
+	seedInput      textinput.Model
+	pdfPathInput   textinput.Model
+	jsonlPathInput textinput.Model
+	cards          []exportGameCard
+	cardIndex      int
+	bucketIndex    int
+	cardRowOffset  int
+	running        bool
+	jobID          int64
+	cancel         context.CancelFunc
+	width          int
+	height         int
+}
+
 type exportFocus int
 
 const (
@@ -109,35 +131,27 @@ type exportCompleteMsg struct {
 	err    error
 }
 
-type exportScreen struct {
-	width  int
-	height int
-	export exportState
-}
+// exportSubmitCmd and exportBackCmd are sentinel commands emitted by
+// exportModel.Update to communicate submit/cancel to the root model.
+var (
+	exportSubmitCmd = func() tea.Msg { return exportSubmitAction{} }
+	exportBackCmd   = func() tea.Msg { return backAction{target: mainMenuView} }
+)
 
-func (s exportScreen) State() viewState { return exportView }
-
-func (s exportScreen) Resize(width, height int) screenModel {
-	s.width = width
-	s.height = height
-	contentWidth, contentHeight := exportContentBounds(width, height)
-	s.export.resize(contentWidth)
-	s.export.ensureCardSelectionVisible(contentWidth, contentHeight)
-	return s
-}
-
-func (s exportScreen) Update(msg tea.Msg) (screenModel, tea.Cmd, screenAction) {
+// Update handles all export form input and returns sentinel commands for
+// submit (exportSubmitCmd) and cancel (exportBackCmd).
+func (s *exportModel) Update(msg tea.Msg) (exportModel, tea.Cmd) {
 	if clickMsg, ok := msg.(tea.MouseClickMsg); ok {
 		contentWidth, contentHeight := exportContentBounds(s.width, s.height)
-		if cmd, action, handled := s.export.handleMouseClick(clickMsg, s.width, s.height, contentWidth, contentHeight); handled {
-			return s, cmd, action
+		if cmd, handled := s.handleMouseClick(clickMsg, s.width, s.height, contentWidth, contentHeight); handled {
+			return *s, cmd
 		}
-		return s, nil, nil
+		return *s, nil
 	}
 	if wheelMsg, ok := msg.(tea.MouseWheelMsg); ok {
 		contentWidth, contentHeight := exportContentBounds(s.width, s.height)
-		if handled := s.export.handleMouseWheel(wheelMsg, s.width, s.height, contentWidth, contentHeight); handled {
-			return s, nil, nil
+		if handled := s.handleMouseWheel(wheelMsg, s.width, s.height, contentWidth, contentHeight); handled {
+			return *s, nil
 		}
 	}
 
@@ -145,39 +159,64 @@ func (s exportScreen) Update(msg tea.Msg) (screenModel, tea.Cmd, screenAction) {
 	if ok {
 		switch {
 		case key.Matches(keyMsg, rootKeys.Escape):
-			return s, nil, backAction{target: mainMenuView}
+			return *s, exportBackCmd
 		case keyMsg.String() == "tab":
-			cmd := s.export.moveFocus(1)
-			return s, cmd, nil
+			cmd := s.moveFocus(1)
+			return *s, cmd
 		case keyMsg.String() == "shift+tab":
-			cmd := s.export.moveFocus(-1)
-			return s, cmd, nil
+			cmd := s.moveFocus(-1)
+			return *s, cmd
 		case key.Matches(keyMsg, rootKeys.Enter):
-			if s.export.focus == exportFocusSubmit {
-				return s, nil, exportSubmitAction{}
+			if s.focus == exportFocusSubmit {
+				return *s, exportSubmitCmd
 			}
-			if s.export.focus == exportFocusHeader {
+			if s.focus == exportFocusHeader {
 				break
 			}
-			if s.export.focus == exportFocusLayout {
-				s.export.cycleLayout(1)
-				return s, nil, nil
+			if s.focus == exportFocusLayout {
+				s.cycleLayout(1)
+				return *s, nil
 			}
-			if s.export.focus == exportFocusJSONLToggle {
-				s.export.toggleJSONL()
-				return s, nil, nil
+			if s.focus == exportFocusJSONLToggle {
+				s.toggleJSONL()
+				return *s, nil
 			}
-			cmd := s.export.moveFocus(1)
-			return s, cmd, nil
+			cmd := s.moveFocus(1)
+			return *s, cmd
 		}
 
 		contentWidth, contentHeight := exportContentBounds(s.width, s.height)
-		if handled := s.export.handleNavigationKey(keyMsg, contentWidth, contentHeight); handled {
-			return s, nil, nil
+		if handled := s.handleNavigationKey(keyMsg, contentWidth, contentHeight); handled {
+			return *s, nil
 		}
 	}
 
-	cmd := s.export.updateFocusedInput(msg)
+	cmd := s.updateFocusedInput(msg)
+	return *s, cmd
+}
+
+type exportScreen struct {
+	width  int
+	height int
+	export exportModel
+}
+
+func (s exportScreen) State() viewState { return exportView }
+
+func (s exportScreen) Resize(width, height int) screenModel {
+	s.width = width
+	s.height = height
+	s.export.width = width
+	s.export.height = height
+	contentWidth, contentHeight := exportContentBounds(width, height)
+	s.export.resize(contentWidth)
+	s.export.ensureCardSelectionVisible(contentWidth, contentHeight)
+	return s
+}
+
+func (s exportScreen) Update(msg tea.Msg) (screenModel, tea.Cmd, screenAction) {
+	next, cmd := s.export.Update(msg)
+	s.export = next
 	return s, cmd, nil
 }
 
@@ -312,13 +351,14 @@ func exportCmd(ctx context.Context, jobID int64, spec packexport.Spec) tea.Cmd {
 	}
 }
 
-func buildInitialExportState(values exportFormValues, cards []exportGameCard, width int) exportState {
+func buildInitialExportState(values exportFormValues, cards []exportGameCard, width int) exportModel {
 	contentWidth, _ := exportContentBounds(width, 0)
-	state := exportState{
+	state := exportModel{
 		initialized: true,
 		focus:       exportFocusCards,
 		values:      values,
 		cards:       cards,
+		width:       width,
 	}
 	state.initInputs(contentWidth)
 	return state
@@ -444,7 +484,7 @@ func bucketIndexForMode(index, total int) int {
 	return index * 3 / total
 }
 
-func (s *exportState) initInputs(width int) {
+func (s *exportModel) initInputs(width int) {
 	s.titleInput = newExportInput(s.values.Title, "Sampler title")
 	s.headerInput = newExportTextarea(s.values.Header, "Short intro")
 	s.advertInput = newExportInput(s.values.Advert, "Footer copy")
@@ -511,7 +551,7 @@ func styleExportTextarea(input *textarea.Model) {
 	input.SetStyles(styles)
 }
 
-func (s *exportState) resize(width int) {
+func (s *exportModel) resize(width int) {
 	styleExportInput(&s.titleInput)
 	styleExportTextarea(&s.headerInput)
 	styleExportInput(&s.advertInput)
@@ -531,7 +571,7 @@ func (s *exportState) resize(width int) {
 	s.jsonlPathInput.SetWidth(max(26, min(width-20, 72)))
 }
 
-func (s *exportState) visibleFocuses() []exportFocus {
+func (s *exportModel) visibleFocuses() []exportFocus {
 	focuses := []exportFocus{
 		exportFocusTitle,
 		exportFocusAdvert,
@@ -549,7 +589,7 @@ func (s *exportState) visibleFocuses() []exportFocus {
 	return focuses
 }
 
-func (s *exportState) moveFocus(delta int) tea.Cmd {
+func (s *exportModel) moveFocus(delta int) tea.Cmd {
 	focuses := s.visibleFocuses()
 	current := 0
 	for i, focus := range focuses {
@@ -566,7 +606,7 @@ func (s *exportState) moveFocus(delta int) tea.Cmd {
 	return s.applyFocus()
 }
 
-func (s *exportState) applyFocus() tea.Cmd {
+func (s *exportModel) applyFocus() tea.Cmd {
 	s.titleInput.Blur()
 	s.headerInput.Blur()
 	s.advertInput.Blur()
@@ -595,7 +635,7 @@ func (s *exportState) applyFocus() tea.Cmd {
 	}
 }
 
-func (s *exportState) updateFocusedInput(msg tea.Msg) tea.Cmd {
+func (s *exportModel) updateFocusedInput(msg tea.Msg) tea.Cmd {
 	var cmd tea.Cmd
 	switch s.focus {
 	case exportFocusTitle:
@@ -623,7 +663,7 @@ func (s *exportState) updateFocusedInput(msg tea.Msg) tea.Cmd {
 	return cmd
 }
 
-func (s *exportState) handleNavigationKey(msg tea.KeyPressMsg, width, height int) bool {
+func (s *exportModel) handleNavigationKey(msg tea.KeyPressMsg, width, height int) bool {
 	switch s.focus {
 	case exportFocusLayout:
 		switch msg.String() {
@@ -692,7 +732,7 @@ func (s *exportState) handleNavigationKey(msg tea.KeyPressMsg, width, height int
 	return false
 }
 
-func (s *exportState) moveBucketSelection(delta, width, height int) {
+func (s *exportModel) moveBucketSelection(delta, width, height int) {
 	if len(s.cards) == 0 || delta == 0 {
 		return
 	}
@@ -704,7 +744,7 @@ func (s *exportState) moveBucketSelection(delta, width, height int) {
 	s.ensureCardSelectionVisible(width, height)
 }
 
-func (s *exportState) appendSelectedBucketDigit(raw string) {
+func (s *exportModel) appendSelectedBucketDigit(raw string) {
 	if len(s.cards) == 0 {
 		return
 	}
@@ -719,7 +759,7 @@ func (s *exportState) appendSelectedBucketDigit(raw string) {
 	card.Buckets[s.bucketIndex] = card.Buckets[s.bucketIndex]*10 + digit
 }
 
-func (s *exportState) backspaceSelectedBucket() {
+func (s *exportModel) backspaceSelectedBucket() {
 	if len(s.cards) == 0 {
 		return
 	}
@@ -727,7 +767,7 @@ func (s *exportState) backspaceSelectedBucket() {
 	card.Buckets[s.bucketIndex] /= 10
 }
 
-func (s *exportState) cycleLayout(delta int) {
+func (s *exportModel) cycleLayout(delta int) {
 	index := 0
 	for i, layout := range exportSheetLayouts {
 		if layout == s.values.SheetLayout {
@@ -742,14 +782,14 @@ func (s *exportState) cycleLayout(delta int) {
 	s.values.SheetLayout = exportSheetLayouts[index]
 }
 
-func (s *exportState) toggleJSONL() {
+func (s *exportModel) toggleJSONL() {
 	s.values.JSONLEnabled = !s.values.JSONLEnabled
 	if !s.values.JSONLEnabled && s.focus == exportFocusJSONLPath {
 		s.focus = exportFocusCards
 	}
 }
 
-func (s *exportState) adjustSelectedBucket(delta int) {
+func (s *exportModel) adjustSelectedBucket(delta int) {
 	if len(s.cards) == 0 {
 		return
 	}
@@ -775,7 +815,7 @@ func (c exportGameCard) bucketSeeded(index int) bool {
 	return true
 }
 
-func (s *exportState) cardColumns(width int) int {
+func (s *exportModel) cardColumns(width int) int {
 	for cols := exportCardMaxColumns; cols >= 1; cols-- {
 		if exportCardWidth(width, cols) >= exportCardMinWidth {
 			return cols
@@ -784,7 +824,7 @@ func (s *exportState) cardColumns(width int) int {
 	return 1
 }
 
-func (s *exportState) ensureCardSelectionVisible(width, height int) {
+func (s *exportModel) ensureCardSelectionVisible(width, height int) {
 	cols := s.cardColumns(width)
 	if cols <= 0 {
 		return
@@ -801,7 +841,7 @@ func (s *exportState) ensureCardSelectionVisible(width, height int) {
 	s.cardRowOffset = min(max(s.cardRowOffset, 0), maxRows-1)
 }
 
-func (s *exportState) visibleCardRows(width, height int) int {
+func (s *exportModel) visibleCardRows(width, height int) int {
 	if len(s.cards) == 0 {
 		return 1
 	}
@@ -838,14 +878,14 @@ func canFitCardRows(available, cardHeight, rows int) bool {
 	return available >= required
 }
 
-func (s *exportState) view(width, height int) string {
+func (s *exportModel) view(width, height int) string {
 	settings := s.renderSettings(width)
 	summary := s.renderSummary(width)
 	cards := s.renderCards(width, height)
 	return lipgloss.JoinVertical(lipgloss.Left, settings, summary, cards)
 }
 
-func (s *exportState) contentMetrics(width, height int) exportContentMetrics {
+func (s *exportModel) contentMetrics(width, height int) exportContentMetrics {
 	settings := s.settingsRects(width)
 	settingsHeight := settings.TotalHeight
 	summaryHeight := lipgloss.Height(s.renderSummary(width))
@@ -887,7 +927,7 @@ func (s *exportState) contentMetrics(width, height int) exportContentMetrics {
 	}
 }
 
-func (s *exportState) settingsRects(width int) exportSettingsRects {
+func (s *exportModel) settingsRects(width int) exportSettingsRects {
 	if width < 72 {
 		return s.stackedSettingsRects(width)
 	}
@@ -929,7 +969,7 @@ func (s *exportState) settingsRects(width int) exportSettingsRects {
 	return row1
 }
 
-func (s *exportState) stackedSettingsRects(width int) exportSettingsRects {
+func (s *exportModel) stackedSettingsRects(width int) exportSettingsRects {
 	y := 0
 	inlineHeight := s.inlineFieldHeight(width)
 	headerHeight := s.headerFieldHeight(width)
@@ -972,17 +1012,17 @@ func (s *exportState) stackedSettingsRects(width int) exportSettingsRects {
 	return rects
 }
 
-func (s *exportState) inlineFieldHeight(width int) int {
+func (s *exportModel) inlineFieldHeight(width int) int {
 	input := s.titleInput
 	return lipgloss.Height(s.renderInlineInputField("Title", &input, false, max(width, 14)))
 }
 
-func (s *exportState) headerFieldHeight(width int) int {
+func (s *exportModel) headerFieldHeight(width int) int {
 	input := s.headerInput
 	return lipgloss.Height(s.renderTextareaField("Header", &input, false, max(width, 24)))
 }
 
-func (s *exportState) cardRects(width, cardsY, cardWidth, cardHeight, visibleRows int) []exportCardRects {
+func (s *exportModel) cardRects(width, cardsY, cardWidth, cardHeight, visibleRows int) []exportCardRects {
 	if len(s.cards) == 0 || cardHeight <= 0 {
 		return nil
 	}
@@ -1009,7 +1049,7 @@ func (s *exportState) cardRects(width, cardsY, cardWidth, cardHeight, visibleRow
 	return layouts
 }
 
-func (s *exportState) bucketRectsForCard(index int, rect exportRect) [3]exportRect {
+func (s *exportModel) bucketRectsForCard(index int, rect exportRect) [3]exportRect {
 	var rects [3]exportRect
 	card := s.cards[index]
 	selected := index == s.cardIndex
@@ -1024,7 +1064,7 @@ func (s *exportState) bucketRectsForCard(index int, rect exportRect) [3]exportRe
 	return rects
 }
 
-func (s *exportState) renderSettings(width int) string {
+func (s *exportModel) renderSettings(width int) string {
 	if width < 72 {
 		return s.renderStackedSettings(width)
 	}
@@ -1065,7 +1105,7 @@ func (s *exportState) renderSettings(width int) string {
 	return lipgloss.JoinVertical(lipgloss.Left, rows...)
 }
 
-func (s *exportState) renderStackedSettings(width int) string {
+func (s *exportModel) renderStackedSettings(width int) string {
 	rows := []string{
 		s.renderInlineInputField("Title", &s.titleInput, s.focus == exportFocusTitle, width),
 		s.renderInlineInputField("Advert", &s.advertInput, s.focus == exportFocusAdvert, width),
@@ -1100,7 +1140,7 @@ func (s *exportState) renderStackedSettings(width int) string {
 	return lipgloss.JoinVertical(lipgloss.Left, rows...)
 }
 
-func (s *exportState) renderTextareaField(label string, input *textarea.Model, focused bool, width int) string {
+func (s *exportModel) renderTextareaField(label string, input *textarea.Model, focused bool, width int) string {
 	border := theme.Current().Border
 	if focused {
 		border = theme.Current().Accent
@@ -1123,7 +1163,7 @@ func (s *exportState) renderTextareaField(label string, input *textarea.Model, f
 		Render(body)
 }
 
-func (s *exportState) renderInlineInputField(label string, input *textinput.Model, focused bool, width int) string {
+func (s *exportModel) renderInlineInputField(label string, input *textinput.Model, focused bool, width int) string {
 	border := theme.Current().Border
 	if focused {
 		border = theme.Current().Accent
@@ -1148,7 +1188,7 @@ func (s *exportState) renderInlineInputField(label string, input *textinput.Mode
 		Render(body)
 }
 
-func (s *exportState) renderInlineChoiceField(label, value string, focused bool, width int) string {
+func (s *exportModel) renderInlineChoiceField(label, value string, focused bool, width int) string {
 	border := theme.Current().Border
 	if focused {
 		border = theme.Current().Accent
@@ -1217,7 +1257,7 @@ func onOffLabel(enabled bool) string {
 	return "Off"
 }
 
-func (s *exportState) renderSummary(width int) string {
+func (s *exportModel) renderSummary(width int) string {
 	total := 0
 	for _, card := range s.cards {
 		for _, count := range card.Buckets {
@@ -1245,7 +1285,7 @@ func (s *exportState) renderSummary(width int) string {
 
 var bucketNames = [3]string{"Easy", "Medium", "Hard"}
 
-func (s *exportState) renderCards(width, height int) string {
+func (s *exportModel) renderCards(width, height int) string {
 	if len(s.cards) == 0 {
 		return ui.DimItemStyle().Render("No exportable games found.")
 	}
@@ -1278,7 +1318,7 @@ func (s *exportState) renderCards(width, height int) string {
 	return content
 }
 
-func (s *exportState) renderCard(index, width int) string {
+func (s *exportModel) renderCard(index, width int) string {
 	card := s.cards[index]
 	selected := index == s.cardIndex
 
@@ -1321,7 +1361,7 @@ func (s *exportState) renderCard(index, width int) string {
 		Render(body)
 }
 
-func (s *exportState) renderDifficultyPair(card exportGameCard, cardSelected bool, bucketIndex int, bucketName string) string {
+func (s *exportModel) renderDifficultyPair(card exportGameCard, cardSelected bool, bucketIndex int, bucketName string) string {
 	palette := theme.Current()
 	bg, fg := exportDifficultyColors(bucketIndex, palette)
 	pairStyle := lipgloss.NewStyle().
@@ -1340,28 +1380,28 @@ func (s *exportState) renderDifficultyPair(card exportGameCard, cardSelected boo
 	return pair
 }
 
-func (s *exportState) handleMouseClick(msg tea.MouseClickMsg, screenWidth, screenHeight, contentWidth, contentHeight int) (tea.Cmd, screenAction, bool) {
+func (s *exportModel) handleMouseClick(msg tea.MouseClickMsg, screenWidth, screenHeight, contentWidth, contentHeight int) (tea.Cmd, bool) {
 	mouse := msg.Mouse()
 	content := s.view(contentWidth, contentHeight)
 	_, _, contentX, contentY := exportPanelContentOrigin(screenWidth, screenHeight, content)
 	localX := mouse.X - contentX
 	localY := mouse.Y - contentY
 	if localX < 0 || localY < 0 {
-		return nil, nil, false
+		return nil, false
 	}
 
 	metrics := s.contentMetrics(contentWidth, contentHeight)
 	if cmd, handled := s.handleSettingsClick(localX, localY, metrics); handled {
-		return cmd, nil, true
+		return cmd, true
 	}
 	if metrics.SummaryButton.contains(localX, localY) {
 		s.focus = exportFocusSubmit
-		return s.applyFocus(), exportSubmitAction{}, true
+		return tea.Batch(s.applyFocus(), exportSubmitCmd), true
 	}
 	if cmd, handled := s.handleCardClick(localX, localY, metrics); handled {
-		return cmd, nil, true
+		return cmd, true
 	}
-	return nil, nil, false
+	return nil, false
 }
 
 func exportPanelContentOrigin(screenWidth, screenHeight int, content string) (panelX, panelY, contentX, contentY int) {
@@ -1377,7 +1417,7 @@ func exportPanelContentOrigin(screenWidth, screenHeight int, content string) (pa
 	return panelX, panelY, contentX, contentY
 }
 
-func (s *exportState) handleMouseWheel(msg tea.MouseWheelMsg, screenWidth, screenHeight, contentWidth, contentHeight int) bool {
+func (s *exportModel) handleMouseWheel(msg tea.MouseWheelMsg, screenWidth, screenHeight, contentWidth, contentHeight int) bool {
 	mouse := msg.Mouse()
 	content := s.view(contentWidth, contentHeight)
 	_, _, contentX, contentY := exportPanelContentOrigin(screenWidth, screenHeight, content)
@@ -1406,7 +1446,7 @@ func (s *exportState) handleMouseWheel(msg tea.MouseWheelMsg, screenWidth, scree
 	return true
 }
 
-func (s *exportState) clampSelectionToVisibleRows(cols, visibleRows int) {
+func (s *exportModel) clampSelectionToVisibleRows(cols, visibleRows int) {
 	if len(s.cards) == 0 || cols <= 0 || visibleRows <= 0 {
 		return
 	}
@@ -1426,7 +1466,7 @@ func (s *exportState) clampSelectionToVisibleRows(cols, visibleRows int) {
 	s.cardIndex = max(index, 0)
 }
 
-func (s *exportState) handleSettingsClick(localX, localY int, metrics exportContentMetrics) (tea.Cmd, bool) {
+func (s *exportModel) handleSettingsClick(localX, localY int, metrics exportContentMetrics) (tea.Cmd, bool) {
 	settings := metrics.Settings
 	switch {
 	case settings.Title.contains(localX, localY):
@@ -1456,7 +1496,7 @@ func (s *exportState) handleSettingsClick(localX, localY int, metrics exportCont
 	}
 }
 
-func (s *exportState) focusTextInput(focus exportFocus, input *textinput.Model, rect exportRect, label string, localX int) tea.Cmd {
+func (s *exportModel) focusTextInput(focus exportFocus, input *textinput.Model, rect exportRect, label string, localX int) tea.Cmd {
 	s.focus = focus
 	labelWidth := lipgloss.Width(label) + 1
 	cursorPos := max(localX-rect.X-2-labelWidth, 0)
@@ -1464,7 +1504,7 @@ func (s *exportState) focusTextInput(focus exportFocus, input *textinput.Model, 
 	return s.applyFocus()
 }
 
-func (s *exportState) focusTextarea(rect exportRect, localX, localY int) tea.Cmd {
+func (s *exportModel) focusTextarea(rect exportRect, localX, localY int) tea.Cmd {
 	s.focus = exportFocusHeader
 	line := max(localY-rect.Y-2, 0)
 	col := max(localX-rect.X-2, 0)
@@ -1478,7 +1518,7 @@ func (s *exportState) focusTextarea(rect exportRect, localX, localY int) tea.Cmd
 	return s.applyFocus()
 }
 
-func (s *exportState) handleCardClick(localX, localY int, metrics exportContentMetrics) (tea.Cmd, bool) {
+func (s *exportModel) handleCardClick(localX, localY int, metrics exportContentMetrics) (tea.Cmd, bool) {
 	if len(s.cards) == 0 {
 		return nil, false
 	}
@@ -1496,7 +1536,7 @@ func (s *exportState) handleCardClick(localX, localY int, metrics exportContentM
 	return nil, false
 }
 
-func (s *exportState) selectCardBucket(cardIndex, bucketIndex int, metrics exportContentMetrics) tea.Cmd {
+func (s *exportModel) selectCardBucket(cardIndex, bucketIndex int, metrics exportContentMetrics) tea.Cmd {
 	s.focus = exportFocusCards
 	s.cardIndex = cardIndex
 	s.bucketIndex = min(max(bucketIndex, 0), len(bucketNames)-1)
@@ -1569,7 +1609,7 @@ func truncateLabel(s string, width int) string {
 	return string(runes[:width-1]) + "…"
 }
 
-func (s exportState) toSpecAndConfig() (packexport.Spec, config.ExportConfig) {
+func (s exportModel) toSpecAndConfig() (packexport.Spec, config.ExportConfig) {
 	sync := s
 	sync.syncValuesFromInputs()
 
@@ -1594,7 +1634,7 @@ func (s exportState) toSpecAndConfig() (packexport.Spec, config.ExportConfig) {
 	return spec, cfg
 }
 
-func (s *exportState) syncValuesFromInputs() {
+func (s *exportModel) syncValuesFromInputs() {
 	s.values.Title = s.titleInput.Value()
 	s.values.Header = s.headerInput.Value()
 	s.values.Advert = s.advertInput.Value()
