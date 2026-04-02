@@ -17,7 +17,7 @@ func TestPuzzlePackageStaysPure(t *testing.T) {
 		"charm.land/bubbles",
 		"charm.land/lipgloss",
 		"github.com/FelineStateMachine/puzzletea/theme",
-		"github.com/FelineStateMachine/puzzletea/pdfexport",
+		"github.com/FelineStateMachine/puzzletea/export/pdf",
 	})
 }
 
@@ -40,7 +40,7 @@ func TestStorePackageDoesNotImportSchedulePackages(t *testing.T) {
 
 func TestGamePackageDoesNotImportPDFExport(t *testing.T) {
 	assertPackageDoesNotImport(t, "game", []string{
-		"github.com/FelineStateMachine/puzzletea/pdfexport",
+		"github.com/FelineStateMachine/puzzletea/export/pdf",
 	})
 }
 
@@ -49,7 +49,7 @@ func TestCatalogPackageDoesNotImportConcreteGames(t *testing.T) {
 }
 
 func TestBuiltinPrintDoesNotImportConcreteGames(t *testing.T) {
-	assertPackageDoesNotImport(t, "builtinprint", concreteGameImportPaths(t))
+	assertPackageDoesNotImport(t, "export/builtinprint", concreteGameImportPaths(t))
 }
 
 func TestSessionPackageDoesNotUseNameDerivedRunMetadata(t *testing.T) {
@@ -101,7 +101,7 @@ func assertPackageDoesNotImport(t *testing.T, dir string, forbidden []string) {
 func concreteGameImportPaths(t testing.TB) []string {
 	t.Helper()
 
-	pattern := filepath.Join(repoRoot(t), "*", "gamemode.go")
+	pattern := filepath.Join(repoRoot(t), "games", "*", "gamemode.go")
 	matches, err := filepath.Glob(pattern)
 	if err != nil {
 		t.Fatalf("glob concrete game packages: %v", err)
@@ -110,7 +110,7 @@ func concreteGameImportPaths(t testing.TB) []string {
 	importPaths := make([]string, 0, len(matches))
 	for _, match := range matches {
 		dir := filepath.Base(filepath.Dir(match))
-		importPaths = append(importPaths, "github.com/FelineStateMachine/puzzletea/"+dir)
+		importPaths = append(importPaths, "github.com/FelineStateMachine/puzzletea/games/"+dir)
 	}
 	slices.Sort(importPaths)
 	return importPaths

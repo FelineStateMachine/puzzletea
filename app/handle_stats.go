@@ -12,7 +12,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
-func (m model) handleStatsEnter() (tea.Model, tea.Cmd) {
+func (m model) handleStatsEnter() (model, tea.Cmd) {
 	m = m.clearNotice()
 
 	catStats, err := m.store.GetCategoryStats()

@@ -3,6 +3,9 @@ package app
 import (
 	"time"
 
+	"github.com/FelineStateMachine/puzzletea/registry"
+	sessionflow "github.com/FelineStateMachine/puzzletea/session"
+	"github.com/FelineStateMachine/puzzletea/store"
 	"github.com/FelineStateMachine/puzzletea/theme"
 	"github.com/FelineStateMachine/puzzletea/ui"
 
@@ -25,7 +28,7 @@ func (a openPlayMenuAction) applyToModel(m model) (model, tea.Cmd) {
 type openStatsAction struct{}
 
 func (a openStatsAction) applyToModel(m model) (model, tea.Cmd) {
-	return asModel(m.handleStatsEnter())
+	return m.handleStatsEnter()
 }
 
 type openOptionsMenuAction struct{}
@@ -64,19 +67,19 @@ func (a openContinueAction) applyToModel(m model) (model, tea.Cmd) {
 type openDailyAction struct{}
 
 func (a openDailyAction) applyToModel(m model) (model, tea.Cmd) {
-	return asModel(m.handleDailyPuzzle())
+	return m.handleDailyPuzzle()
 }
 
 type openExportAction struct{}
 
 func (a openExportAction) applyToModel(m model) (model, tea.Cmd) {
-	return asModel(m.handleExportEnter())
+	return m.handleExportEnter()
 }
 
 type openWeeklyAction struct{}
 
 func (a openWeeklyAction) applyToModel(m model) (model, tea.Cmd) {
-	return asModel(m.enterWeeklyView())
+	return m.enterWeeklyView()
 }
 
 type openSeedInputAction struct{}
@@ -101,70 +104,82 @@ func (a backAction) applyToModel(m model) (model, tea.Cmd) {
 	return m.resizeActiveScreen(), nil
 }
 
-type gameSelectEnterAction struct{}
+type gameSelectEnterAction struct {
+	entry registry.Entry
+}
 
 func (a gameSelectEnterAction) applyToModel(m model) (model, tea.Cmd) {
-	if gs, ok := m.screens[gameSelectView].(gameSelectScreen); ok {
-		m.nav.gameSelectList = gs.list
-		m.nav.categoryDetail = gs.detail
-	}
-	return asModel(m.handleGameSelectEnter())
+	m.nav.selectedCategory = a.entry
+	m.nav.modeSelectList = ui.InitList(buildModeDisplayItems(a.entry), a.entry.Definition.Name+" - Select Mode")
+	m.nav.modeSelectList.SetSize(min(m.width, 64), min(m.height, ui.ListHeight(m.nav.modeSelectList)))
+	m.state = modeSelectView
+	m = m.initScreen(modeSelectView)
+	return m, nil
 }
 
-type modeSelectEnterAction struct{}
+type modeSelectEnterAction struct {
+	entry registry.Entry
+	mode  registry.ModeEntry
+}
 
 func (a modeSelectEnterAction) applyToModel(m model) (model, tea.Cmd) {
-	if ms, ok := m.screens[modeSelectView].(modeSelectScreen); ok {
-		m.nav.modeSelectList = ms.list
-		m.nav.selectedCategory = ms.entry
-	}
-	return asModel(m.handleModeSelectEnter())
+	m.nav.selectedCategory = a.entry
+	m.nav.selectedModeTitle = a.mode.Definition.Title
+	cmd := newSessionController(&m).startSpawn(a.mode.Spawner, spawnRequest{
+		source:      spawnSourceNormal,
+		name:        sessionflow.GenerateUniqueName(m.store),
+		gameType:    a.entry.Definition.Name,
+		modeTitle:   a.mode.Definition.Title,
+		run:         store.NormalRunMetadata(),
+		returnState: modeSelectView,
+		exitState:   mainMenuView,
+	})
+	return m, cmd
 }
 
-type continueEnterAction struct{}
+type continueEnterAction struct {
+	record store.GameRecord
+}
 
 func (a continueEnterAction) applyToModel(m model) (model, tea.Cmd) {
-	if cs, ok := m.screens[continueView].(continueScreen); ok {
-		m.cont = cs.cont
-	}
-	return asModel(m.handleContinueEnter())
+	m, _ = m.importAndActivateRecord(a.record)
+	return m, nil
 }
 
 type weeklyShiftAction struct {
-	delta int
+	delta  int
+	weekly weeklyState
 }
 
 func (a weeklyShiftAction) applyToModel(m model) (model, tea.Cmd) {
-	if ws, ok := m.screens[weeklyView].(weeklyScreen); ok {
-		m.weekly = ws.weekly
-	}
+	m.weekly = a.weekly
 	m = m.moveWeeklyWeek(a.delta)
 	m = m.initScreen(weeklyView)
 	return m, nil
 }
 
-type weeklyEnterAction struct{}
-
-func (a weeklyEnterAction) applyToModel(m model) (model, tea.Cmd) {
-	if ws, ok := m.screens[weeklyView].(weeklyScreen); ok {
-		m.weekly = ws.weekly
-	}
-	return asModel(m.handleWeeklyEnter())
+type weeklyEnterAction struct {
+	weekly weeklyState
 }
 
-type helpSelectEnterAction struct{}
+func (a weeklyEnterAction) applyToModel(m model) (model, tea.Cmd) {
+	m.weekly = a.weekly
+	return m.handleWeeklyEnter()
+}
+
+type helpSelectEnterAction struct {
+	entry registry.Entry
+}
 
 func (a helpSelectEnterAction) applyToModel(m model) (model, tea.Cmd) {
-	if hs, ok := m.screens[helpSelectView].(helpSelectScreen); ok {
-		m.help.selectList = hs.help.selectList
-	}
-	return asModel(m.handleHelpSelectEnter())
+	m.help.category = a.entry
+	return m.handleHelpSelectEnter()
 }
 
 type openThemeSelectAction struct{}
 
 func (a openThemeSelectAction) applyToModel(m model) (model, tea.Cmd) {
-	return asModel(m.handleThemeEnter())
+	return m.handleThemeEnter()
 }
 
 type openHelpSelectAction struct{}
@@ -189,22 +204,22 @@ func (a previewThemeAction) applyToModel(m model) (model, tea.Cmd) {
 	return m, nil
 }
 
-type confirmThemeAction struct{}
-
-func (a confirmThemeAction) applyToModel(m model) (model, tea.Cmd) {
-	if ts, ok := m.screens[themeSelectView].(themeSelectScreen); ok {
-		m.theme = ts.theme
-	}
-	return asModel(m.handleThemeConfirm())
+type confirmThemeAction struct {
+	theme themeState
 }
 
-type seedConfirmAction struct{}
+func (a confirmThemeAction) applyToModel(m model) (model, tea.Cmd) {
+	m.theme = a.theme
+	return m.handleThemeConfirm()
+}
+
+type seedConfirmAction struct {
+	seed seedState
+}
 
 func (a seedConfirmAction) applyToModel(m model) (model, tea.Cmd) {
-	if si, ok := m.screens[seedInputView].(seedInputScreen); ok {
-		m.seed = si.seed
-	}
-	return asModel(m.handleSeedConfirm())
+	m.seed = a.seed
+	return m.handleSeedConfirm()
 }
 
 // exportSubmitAction is a pure tea.Msg emitted by exportSubmitCmd.
@@ -237,9 +252,6 @@ var screenRegistry = map[viewState]screenFactory{
 	},
 	modeSelectView: func(m model) screenModel {
 		return modeSelectScreen{width: m.width, height: m.height, entry: m.nav.selectedCategory, list: m.nav.modeSelectList}
-	},
-	exportView: func(m model) screenModel {
-		return exportScreen{width: m.width, height: m.height, export: m.export}
 	},
 	continueView: func(m model) screenModel {
 		return continueScreen{width: m.width, height: m.height, cont: m.cont}

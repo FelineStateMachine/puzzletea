@@ -6,16 +6,16 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
-func (m model) renderContinueView() string {
-	if len(m.cont.games) == 0 {
-		return m.renderPanel("Saved Games", "No saved games yet.", "esc back")
+func renderContinueView(cont continueState, width, height int, notice noticeState) string {
+	if len(cont.games) == 0 {
+		return renderPanelView(width, height, notice, "Saved Games", "No saved games yet.", "esc back")
 	}
 
 	footer := "↑/↓ navigate • enter resume • esc back"
-	if pg := ui.TablePagination(m.cont.table); pg != "" {
+	if pg := ui.TablePagination(cont.table); pg != "" {
 		footer = pg + "  " + footer
 	}
-	return m.renderPanel("Saved Games", m.cont.table.View(), footer)
+	return renderPanelView(width, height, notice, "Saved Games", cont.table.View(), footer)
 }
 
 func (m model) renderGameView() string {
@@ -34,19 +34,19 @@ func (m model) renderGameView() string {
 	return ui.CenterView(m.width, m.height, m.appendNotice(centered))
 }
 
-func (m model) renderStatsView() string {
-	statsWidth, _ := statsViewportSize(m.width, m.height, m.stats.cards)
+func renderStatsView(stats statsState, width, height int, notice noticeState) string {
+	statsWidth, _ := statsViewportSize(width, height, stats.cards)
 	var statsBody string
-	if len(m.stats.cards) == 0 {
-		statsBody = m.stats.viewport.View()
+	if len(stats.cards) == 0 {
+		statsBody = stats.viewport.View()
 	} else {
-		banner := ui.RenderStatsBanner(m.stats.profile, statsWidth)
+		banner := ui.RenderStatsBanner(stats.profile, statsWidth)
 		statsBody = lipgloss.JoinVertical(lipgloss.Left,
 			banner,
 			"",
-			m.stats.viewport.View(),
+			stats.viewport.View(),
 		)
 	}
 	statsBody = lipgloss.NewStyle().Width(statsWidth).Render(statsBody)
-	return m.renderPanel("Stats", statsBody, "↑/↓ scroll • esc back")
+	return renderPanelView(width, height, notice, "Stats", statsBody, "↑/↓ scroll • esc back")
 }

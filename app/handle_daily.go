@@ -10,7 +10,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
-func (m model) handleDailyPuzzle() (tea.Model, tea.Cmd) {
+func (m model) handleDailyPuzzle() (model, tea.Cmd) {
 	today := time.Now()
 	name := daily.Name(today)
 

@@ -196,7 +196,6 @@ type model struct {
 	help    helpState
 	stats   statsState
 	theme   themeState
-	export  exportModel
 	debug   debugState
 	notice  noticeState
 

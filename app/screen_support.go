@@ -29,7 +29,8 @@ func (s helpSelectScreen) Update(msg tea.Msg) (screenModel, tea.Cmd, screenActio
 	if ok {
 		switch {
 		case key.Matches(keyMsg, rootKeys.Enter):
-			return s, nil, helpSelectEnterAction{}
+			entry, _ := selectedCategoryEntry(s.help.selectList.SelectedItem())
+			return s, nil, helpSelectEnterAction{entry: entry}
 		case key.Matches(keyMsg, rootKeys.Escape):
 			return s, nil, backAction{target: optionsMenuView}
 		}
@@ -41,15 +42,9 @@ func (s helpSelectScreen) Update(msg tea.Msg) (screenModel, tea.Cmd, screenActio
 }
 
 func (s helpSelectScreen) View(notice noticeState) string {
-	m := model{
-		width:  s.width,
-		height: s.height,
-		notice: notice,
-		help:   s.help,
-	}
-	return m.renderPanel(
+	return renderPanelView(s.width, s.height, notice,
 		"How to Play",
-		m.help.selectList.View(),
+		s.help.selectList.View(),
 		"↑/↓ navigate • enter select • esc back",
 	)
 }
@@ -85,15 +80,9 @@ func (s helpDetailScreen) Update(msg tea.Msg) (screenModel, tea.Cmd, screenActio
 }
 
 func (s helpDetailScreen) View(notice noticeState) string {
-	m := model{
-		width:  s.width,
-		height: s.height,
-		notice: notice,
-		help:   s.help,
-	}
-	return m.renderPanel(
-		m.help.category.Definition.Name+" — Guide",
-		m.help.viewport.View(),
+	return renderPanelView(s.width, s.height, notice,
+		s.help.category.Definition.Name+" — Guide",
+		s.help.viewport.View(),
 		"↑/↓ scroll • esc back",
 	)
 }
@@ -129,13 +118,7 @@ func (s statsScreen) Update(msg tea.Msg) (screenModel, tea.Cmd, screenAction) {
 }
 
 func (s statsScreen) View(notice noticeState) string {
-	m := model{
-		width:  s.width,
-		height: s.height,
-		notice: notice,
-		stats:  s.stats,
-	}
-	return m.renderStatsView()
+	return renderStatsView(s.stats, s.width, s.height, notice)
 }
 
 type themeSelectScreen struct {
@@ -164,7 +147,7 @@ func (s themeSelectScreen) Update(msg tea.Msg) (screenModel, tea.Cmd, screenActi
 		case s.theme.list.SettingFilter() && key.Matches(keyMsg, rootKeys.Enter):
 		case s.theme.list.FilterState() != list.Unfiltered && key.Matches(keyMsg, rootKeys.Escape):
 		case key.Matches(keyMsg, rootKeys.Enter):
-			return s, nil, confirmThemeAction{}
+			return s, nil, confirmThemeAction{theme: s.theme}
 		case key.Matches(keyMsg, rootKeys.Escape):
 			return s, nil, backAction{target: optionsMenuView}
 		}
@@ -182,13 +165,7 @@ func (s themeSelectScreen) Update(msg tea.Msg) (screenModel, tea.Cmd, screenActi
 }
 
 func (s themeSelectScreen) View(notice noticeState) string {
-	m := model{
-		width:  s.width,
-		height: s.height,
-		notice: notice,
-		theme:  s.theme,
-	}
-	return m.themeSelectViewContent()
+	return themeSelectViewContent(s.width, s.height, s.theme, notice)
 }
 
 type generatingScreen struct {

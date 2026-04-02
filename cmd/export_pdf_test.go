@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/FelineStateMachine/puzzletea/pdfexport"
+	"github.com/FelineStateMachine/puzzletea/export/pdf"
 
 	"github.com/spf13/cobra"
 )

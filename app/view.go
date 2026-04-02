@@ -8,6 +8,8 @@ import (
 	"github.com/FelineStateMachine/puzzletea/theme"
 	"github.com/FelineStateMachine/puzzletea/ui"
 
+	"charm.land/bubbles/v2/list"
+	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 )
@@ -34,21 +36,21 @@ func (m model) viewContent() string {
 	return screen.View(m.notice)
 }
 
-func (m model) gameSelectViewContent() string {
-	metrics := categoryPickerSize(m.width, m.height)
+func gameSelectViewContent(width, height int, gameList list.Model, detail viewport.Model, notice noticeState) string {
+	metrics := categoryPickerSize(width, height)
 
 	listView := lipgloss.NewStyle().
 		Width(metrics.listWidth).
 		Height(metrics.listHeight).
 		Border(lipgloss.NormalBorder(), false, true, false, false).
 		BorderForeground(theme.Current().Border).
-		Render(m.nav.gameSelectList.View())
+		Render(gameList.View())
 
 	detailBox := lipgloss.NewStyle().
 		Width(metrics.detailWidth).
 		Height(metrics.detailHeight).
 		Padding(2, 3).
-		Render(m.nav.categoryDetail.View())
+		Render(detail.View())
 
 	body := lipgloss.JoinHorizontal(lipgloss.Top, listView, strings.Repeat(" ", categoryGapWidth), detailBox)
 	if metrics.stacked {
@@ -61,17 +63,17 @@ func (m model) gameSelectViewContent() string {
 
 	panel := ui.Panel(
 		"Select Category",
-		m.appendNotice(body),
+		appendNoticeContent(width, notice, body),
 		"↑/↓ navigate • / filter • enter select • esc back",
 	)
-	return ui.CenterView(m.width, m.height, panel)
+	return ui.CenterView(width, height, panel)
 }
 
-func (m model) weeklyViewContent() string {
-	title := "Weekly Gauntlet — " + m.weeklyPanelTitle()
-	if len(m.weekly.rows) == 0 {
+func weeklyViewContent(w weeklyState) string {
+	title := "Weekly Gauntlet — " + weeklyPanelTitle(w.cursor)
+	if len(w.rows) == 0 {
 		body := "No completed puzzles for this week yet."
-		if m.isCurrentWeeklySelection() {
+		if isCurrentWeeklySelection(w.cursor) {
 			body = "No weekly puzzles are available."
 		}
 		return ui.Panel(
@@ -82,15 +84,15 @@ func (m model) weeklyViewContent() string {
 	}
 
 	footer := "←/→ week • enter open • esc back"
-	if !m.isCurrentWeeklySelection() {
+	if !isCurrentWeeklySelection(w.cursor) {
 		footer = "←/→ week • enter review • esc back"
 	}
-	if pg := ui.TablePagination(m.weekly.table); pg != "" {
+	if pg := ui.TablePagination(w.table); pg != "" {
 		footer = pg + "  " + footer
 	}
 
-	description := m.weekly.table.View()
-	if !m.isCurrentWeeklySelection() {
+	description := w.table.View()
+	if !isCurrentWeeklySelection(w.cursor) {
 		description = lipgloss.JoinVertical(
 			lipgloss.Left,
 			ui.DimItemStyle().Render("Review only: completed puzzles from this week."),
@@ -179,19 +181,19 @@ func renderModeList(entry registry.Entry, width int) string {
 	return strings.Join(lines, "\n")
 }
 
-func (m model) themeSelectViewContent() string {
+func themeSelectViewContent(width, height int, thm themeState, notice noticeState) string {
 	p := theme.Current()
 
 	themeName := theme.DefaultThemeName
-	if item, ok := m.theme.list.SelectedItem().(ui.MenuItem); ok {
+	if item, ok := thm.list.SelectedItem().(ui.MenuItem); ok {
 		themeName = item.ItemTitle
 	}
 
 	const panelChrome = 8
-	innerH := m.height - panelChrome
+	innerH := height - panelChrome
 	innerH = max(innerH, 10)
 
-	listView := m.theme.list.View()
+	listView := thm.list.View()
 
 	previewBorder := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
@@ -205,8 +207,8 @@ func (m model) themeSelectViewContent() string {
 
 	panel := ui.Panel(
 		"Select Theme",
-		m.appendNotice(body),
+		appendNoticeContent(width, notice, body),
 		"↑/↓ navigate • / filter • enter select • esc back",
 	)
-	return ui.CenterView(m.width, m.height, panel)
+	return ui.CenterView(width, height, panel)
 }

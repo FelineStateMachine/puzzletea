@@ -17,9 +17,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		next, cmd := m.handleSpawnComplete(m.session.spawnJobID, msg)
 		return next, cmd
 	case exportCompleteMsg:
-		return m.handleExportComplete(msg)
+		next, cmd := m.handleExportComplete(msg)
+		return next, cmd
 	case exportSubmitAction:
-		return asModel(m.handleExportSubmit())
+		next, cmd := m.handleExportSubmit()
+		return next, cmd
 	case backAction:
 		return msg.applyToModel(m)
 	case tea.WindowSizeMsg:
@@ -43,6 +45,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	screen := m.activeScreen()
 	if screen == nil {
 		return m, nil
+	}
+
+	// Clear stale notices when the user interacts with the export form.
+	if m.state == exportView {
+		switch msg.(type) {
+		case tea.KeyPressMsg, tea.MouseClickMsg:
+			m = m.clearNotice()
+		}
 	}
 
 	nextScreen, screenCmd, action := screen.Update(msg)
@@ -168,8 +178,4 @@ func (m model) activeSpawnReturnState() viewState {
 
 func (m model) handleScreenAction(action screenAction) (model, tea.Cmd) {
 	return action.applyToModel(m)
-}
-
-func asModel(next tea.Model, cmd tea.Cmd) (model, tea.Cmd) {
-	return next.(model), cmd
 }

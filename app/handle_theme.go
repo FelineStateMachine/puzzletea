@@ -8,7 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
-func (m model) handleThemeEnter() (tea.Model, tea.Cmd) {
+func (m model) handleThemeEnter() (model, tea.Cmd) {
 	m.theme.previous = m.cfg.Theme
 
 	names := theme.ThemeNames()
@@ -44,7 +44,7 @@ func (m model) handleThemeEnter() (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m model) handleThemeConfirm() (tea.Model, tea.Cmd) {
+func (m model) handleThemeConfirm() (model, tea.Cmd) {
 	item, ok := m.theme.list.SelectedItem().(ui.MenuItem)
 	if !ok {
 		return m, nil

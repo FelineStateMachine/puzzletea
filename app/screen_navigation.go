@@ -30,7 +30,7 @@ func (s seedInputScreen) Update(msg tea.Msg) (screenModel, tea.Cmd, screenAction
 		switch {
 		case key.Matches(keyMsg, rootKeys.Enter):
 			if sessionflow.NormalizeSeed(s.seed.input.Value()) != "" {
-				return s, nil, seedConfirmAction{}
+				return s, nil, seedConfirmAction{seed: s.seed}
 			}
 			return s, nil, nil
 		case key.Matches(keyMsg, rootKeys.Escape):
@@ -45,15 +45,9 @@ func (s seedInputScreen) Update(msg tea.Msg) (screenModel, tea.Cmd, screenAction
 }
 
 func (s seedInputScreen) View(notice noticeState) string {
-	m := model{
-		width:  s.width,
-		height: s.height,
-		seed:   s.seed,
-		notice: notice,
-	}
-	return m.renderPanel(
+	return renderPanelView(s.width, s.height, notice,
 		"Enter Seed",
-		m.seedInputBody(),
+		seedInputBody(s.seed),
 		"↑/↓ change field • ←/→ game • enter confirm • esc back",
 	)
 }
@@ -95,7 +89,11 @@ func (s gameSelectScreen) Update(msg tea.Msg) (screenModel, tea.Cmd, screenActio
 		case s.list.SettingFilter() && key.Matches(keyMsg, rootKeys.Enter):
 		case s.list.FilterState() != list.Unfiltered && key.Matches(keyMsg, rootKeys.Escape):
 		case key.Matches(keyMsg, rootKeys.Enter):
-			return s, nil, gameSelectEnterAction{}
+			entry, ok := selectedCategoryEntry(s.list.SelectedItem())
+			if !ok {
+				return s, nil, nil
+			}
+			return s, nil, gameSelectEnterAction{entry: entry}
 		case key.Matches(keyMsg, rootKeys.Escape):
 			return s, nil, backAction{target: playMenuView}
 		case keyMsg.String() == "pgup":
@@ -117,16 +115,7 @@ func (s gameSelectScreen) Update(msg tea.Msg) (screenModel, tea.Cmd, screenActio
 }
 
 func (s gameSelectScreen) View(notice noticeState) string {
-	m := model{
-		width:  s.width,
-		height: s.height,
-		notice: notice,
-		nav: navigationState{
-			gameSelectList: s.list,
-			categoryDetail: s.detail,
-		},
-	}
-	return m.gameSelectViewContent()
+	return gameSelectViewContent(s.width, s.height, s.list, s.detail, notice)
 }
 
 func (s gameSelectScreen) resizeSelf() gameSelectScreen {
@@ -152,7 +141,12 @@ func (s modeSelectScreen) Update(msg tea.Msg) (screenModel, tea.Cmd, screenActio
 	if ok {
 		switch {
 		case key.Matches(keyMsg, rootKeys.Enter):
-			return s, nil, modeSelectEnterAction{}
+			item := unwrapModeDisplayItem(s.list.SelectedItem())
+			mode, ok := item.(registry.ModeEntry)
+			if !ok {
+				return s, nil, nil
+			}
+			return s, nil, modeSelectEnterAction{entry: s.entry, mode: mode}
 		case key.Matches(keyMsg, rootKeys.Escape):
 			return s, nil, backAction{target: gameSelectView}
 		}
@@ -164,18 +158,9 @@ func (s modeSelectScreen) Update(msg tea.Msg) (screenModel, tea.Cmd, screenActio
 }
 
 func (s modeSelectScreen) View(notice noticeState) string {
-	m := model{
-		width:  s.width,
-		height: s.height,
-		notice: notice,
-		nav: navigationState{
-			selectedCategory: s.entry,
-			modeSelectList:   s.list,
-		},
-	}
-	return m.renderPanel(
-		m.nav.selectedCategory.Definition.Name+" — Select Mode",
-		m.nav.modeSelectList.View(),
+	return renderPanelView(s.width, s.height, notice,
+		s.entry.Definition.Name+" — Select Mode",
+		s.list.View(),
 		"↑/↓ navigate • enter select • esc back",
 	)
 }
@@ -200,7 +185,11 @@ func (s continueScreen) Update(msg tea.Msg) (screenModel, tea.Cmd, screenAction)
 	if ok {
 		switch {
 		case key.Matches(keyMsg, rootKeys.Enter):
-			return s, nil, continueEnterAction{}
+			idx := s.cont.table.Cursor()
+			if idx >= 0 && idx < len(s.cont.games) {
+				return s, nil, continueEnterAction{record: s.cont.games[idx]}
+			}
+			return s, nil, nil
 		case key.Matches(keyMsg, rootKeys.Escape):
 			return s, nil, backAction{target: playMenuView}
 		}
@@ -212,13 +201,7 @@ func (s continueScreen) Update(msg tea.Msg) (screenModel, tea.Cmd, screenAction)
 }
 
 func (s continueScreen) View(notice noticeState) string {
-	m := model{
-		width:  s.width,
-		height: s.height,
-		notice: notice,
-		cont:   s.cont,
-	}
-	return m.renderContinueView()
+	return renderContinueView(s.cont, s.width, s.height, notice)
 }
 
 type weeklyScreen struct {
@@ -243,11 +226,11 @@ func (s weeklyScreen) Update(msg tea.Msg) (screenModel, tea.Cmd, screenAction) {
 		case key.Matches(keyMsg, rootKeys.Escape):
 			return s, nil, backAction{target: playMenuView}
 		case key.Matches(keyMsg, rootKeys.Enter):
-			return s, nil, weeklyEnterAction{}
+			return s, nil, weeklyEnterAction{weekly: s.weekly}
 		case keyMsg.String() == "left" || keyMsg.String() == "h":
-			return s, nil, weeklyShiftAction{delta: -1}
+			return s, nil, weeklyShiftAction{delta: -1, weekly: s.weekly}
 		case keyMsg.String() == "right" || keyMsg.String() == "l":
-			return s, nil, weeklyShiftAction{delta: 1}
+			return s, nil, weeklyShiftAction{delta: 1, weekly: s.weekly}
 		}
 	}
 
@@ -257,11 +240,5 @@ func (s weeklyScreen) Update(msg tea.Msg) (screenModel, tea.Cmd, screenAction) {
 }
 
 func (s weeklyScreen) View(notice noticeState) string {
-	m := model{
-		width:  s.width,
-		height: s.height,
-		notice: notice,
-		weekly: s.weekly,
-	}
-	return centerContentWithNotice(s.width, s.height, notice, m.weeklyViewContent())
+	return centerContentWithNotice(s.width, s.height, notice, weeklyViewContent(s.weekly))
 }

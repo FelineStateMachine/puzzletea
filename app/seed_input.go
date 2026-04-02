@@ -87,13 +87,17 @@ func (m model) enterSeedInputView() (model, tea.Cmd) {
 }
 
 func (m model) currentSeedMode() seedModeOption {
-	if len(m.seed.modeOptions) == 0 {
+	return currentSeedMode(m.seed)
+}
+
+func currentSeedMode(seed seedState) seedModeOption {
+	if len(seed.modeOptions) == 0 {
 		return seedModeOption{label: randomSeedModeLabel}
 	}
-	if m.seed.modeIndex < 0 || m.seed.modeIndex >= len(m.seed.modeOptions) {
-		return m.seed.modeOptions[0]
+	if seed.modeIndex < 0 || seed.modeIndex >= len(seed.modeOptions) {
+		return seed.modeOptions[0]
 	}
-	return m.seed.modeOptions[m.seed.modeIndex]
+	return seed.modeOptions[seed.modeIndex]
 }
 
 func (m model) moveSeedMode(step int) model {
@@ -147,21 +151,21 @@ func (m model) handleSeedInputUpdate(msg tea.Msg) (model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m model) seedInputBody() string {
-	selector := renderSeedModeTitle(m.currentSeedMode().label, m.seed.modeIndex)
+func seedInputBody(seed seedState) string {
+	selector := renderSeedModeTitle(currentSeedMode(seed).label, seed.modeIndex)
 	modePrefix := "  "
-	if m.seed.focus == seedFocusMode {
+	if seed.focus == seedFocusMode {
 		modePrefix = ui.CursorStyle().Render("> ")
 	}
 
-	seedInputView := m.seed.input.View()
-	if m.seed.focus != seedFocusText {
-		seedInputView = strings.Replace(seedInputView, ">", " ", 1)
+	inputView := seed.input.View()
+	if seed.focus != seedFocusText {
+		inputView = strings.Replace(inputView, ">", " ", 1)
 	}
 
 	return lipgloss.JoinVertical(
 		lipgloss.Left,
-		seedInputView,
+		inputView,
 		"",
 		modePrefix+selector,
 	)

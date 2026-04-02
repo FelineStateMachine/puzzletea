@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/FelineStateMachine/puzzletea/packexport"
+	"github.com/FelineStateMachine/puzzletea/export/pack"
 	"github.com/spf13/cobra"
 )
 

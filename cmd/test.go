@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/FelineStateMachine/puzzletea/pdfexport"
+	"github.com/FelineStateMachine/puzzletea/export/pdf"
 	"github.com/FelineStateMachine/puzzletea/registry"
 	"github.com/spf13/cobra"
 )

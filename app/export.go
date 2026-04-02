@@ -10,8 +10,8 @@ import (
 	"strings"
 
 	"github.com/FelineStateMachine/puzzletea/config"
+	"github.com/FelineStateMachine/puzzletea/export/pack"
 	puzzlegame "github.com/FelineStateMachine/puzzletea/game"
-	"github.com/FelineStateMachine/puzzletea/packexport"
 	"github.com/FelineStateMachine/puzzletea/puzzle"
 	"github.com/FelineStateMachine/puzzletea/theme"
 	"github.com/FelineStateMachine/puzzletea/ui"
@@ -25,7 +25,6 @@ import (
 )
 
 type exportModel struct {
-	initialized    bool
 	focus          exportFocus
 	values         exportFormValues
 	titleInput     textinput.Model
@@ -39,9 +38,6 @@ type exportModel struct {
 	cardIndex      int
 	bucketIndex    int
 	cardRowOffset  int
-	running        bool
-	jobID          int64
-	cancel         context.CancelFunc
 	width          int
 	height         int
 }
@@ -199,6 +195,10 @@ type exportScreen struct {
 	width  int
 	height int
 	export exportModel
+	// job lifecycle — kept here so exportModel is pure form state
+	running bool
+	jobID   int64
+	cancel  context.CancelFunc
 }
 
 func (s exportScreen) Resize(width, height int) screenModel {
@@ -254,20 +254,37 @@ func (s exportRunningScreen) View(notice noticeState) string {
 	return ui.CenterView(s.width, s.height, box)
 }
 
-func (m model) handleExportEnter() (tea.Model, tea.Cmd) {
-	if !m.export.initialized {
+func (m model) activeExportScreen() (exportScreen, bool) {
+	s, ok := m.screens[exportView].(exportScreen)
+	return s, ok
+}
+
+func (m model) handleExportEnter() (model, tea.Cmd) {
+	if m.screens == nil {
+		m.screens = make(map[viewState]screenModel)
+	}
+	if _, exists := m.screens[exportView]; !exists {
 		spec := m.initialExportSpec()
-		m.export = buildInitialExportState(exportValuesFromSpec(spec), buildExportCardsFromSpec(spec), m.width)
+		es := exportScreen{
+			width:  m.width,
+			height: m.height,
+			export: buildInitialExportState(exportValuesFromSpec(spec), buildExportCardsFromSpec(spec), m.width),
+		}
+		m.screens[exportView] = es.Resize(m.width, m.height)
 	} else {
-		m.export.resize(m.width)
+		m.screens[exportView] = m.screens[exportView].Resize(m.width, m.height)
 	}
 	m.state = exportView
 	m = m.clearNotice()
-	return m.initScreen(exportView), nil
+	return m, nil
 }
 
-func (m model) handleExportSubmit() (tea.Model, tea.Cmd) {
-	spec, cfg := m.export.toSpecAndConfig()
+func (m model) handleExportSubmit() (model, tea.Cmd) {
+	es, ok := m.activeExportScreen()
+	if !ok {
+		return m, nil
+	}
+	spec, cfg := es.export.toSpecAndConfig()
 	if err := packexport.ValidateSpec(spec); err != nil {
 		return m.setErrorf("Could not start export: %v", err), nil
 	}
@@ -281,17 +298,18 @@ func (m model) handleExportSubmit() (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m model) handleExportComplete(msg exportCompleteMsg) (tea.Model, tea.Cmd) {
-	if msg.jobID != m.export.jobID {
+func (m model) handleExportComplete(msg exportCompleteMsg) (model, tea.Cmd) {
+	es, ok := m.activeExportScreen()
+	if !ok || msg.jobID != es.jobID {
 		return m, nil
 	}
 
-	m.export.running = false
-	if m.export.cancel != nil {
-		m.export.cancel()
-		m.export.cancel = nil
+	if es.cancel != nil {
+		es.cancel()
+		es.cancel = nil
 	}
-
+	es.running = false
+	m.screens[exportView] = es
 	m.state = exportView
 
 	if msg.err != nil {
@@ -306,23 +324,30 @@ func (m model) handleExportComplete(msg exportCompleteMsg) (tea.Model, tea.Cmd) 
 }
 
 func (m *model) cancelActiveExport() {
-	if m.export.cancel != nil {
-		m.export.cancel()
-		m.export.cancel = nil
+	es, ok := m.screens[exportView].(exportScreen)
+	if !ok {
+		return
 	}
-	if m.export.running {
-		m.export.jobID++
+	if es.cancel != nil {
+		es.cancel()
+		es.cancel = nil
 	}
-	m.export.running = false
+	if es.running {
+		es.jobID++
+	}
+	es.running = false
+	m.screens[exportView] = es
 }
 
 func (m *model) startExport(spec packexport.Spec) tea.Cmd {
 	m.cancelActiveExport()
-	m.export.jobID++
-	jobID := m.export.jobID
+	es, _ := m.screens[exportView].(exportScreen)
+	es.jobID++
+	jobID := es.jobID
 	ctx, cancel := context.WithCancel(context.Background())
-	m.export.cancel = cancel
-	m.export.running = true
+	es.cancel = cancel
+	es.running = true
+	m.screens[exportView] = es
 	m.state = exportRunningView
 	*m = m.clearNotice()
 	*m = m.initScreen(exportRunningView)
@@ -339,11 +364,10 @@ func exportCmd(ctx context.Context, jobID int64, spec packexport.Spec) tea.Cmd {
 func buildInitialExportState(values exportFormValues, cards []exportGameCard, width int) exportModel {
 	contentWidth, _ := exportContentBounds(width, 0)
 	state := exportModel{
-		initialized: true,
-		focus:       exportFocusCards,
-		values:      values,
-		cards:       cards,
-		width:       width,
+		focus:  exportFocusCards,
+		values: values,
+		cards:  cards,
+		width:  width,
 	}
 	state.initInputs(contentWidth)
 	return state
@@ -588,6 +612,12 @@ func (s *exportModel) moveFocus(delta int) tea.Cmd {
 		next += len(focuses)
 	}
 	s.focus = focuses[next]
+	switch s.focus {
+	case exportFocusPDFPath:
+		s.pdfPathInput.SetCursor(runeIdxBeforeExt(s.values.PDFOutputPath))
+	case exportFocusJSONLPath:
+		s.jsonlPathInput.SetCursor(runeIdxBeforeExt(s.values.JSONLOutputPath))
+	}
 	return s.applyFocus()
 }
 
@@ -1674,4 +1704,17 @@ func expandCardCounts(cards []exportGameCard) map[puzzle.GameID]map[puzzle.ModeI
 		}
 	}
 	return counts
+}
+
+// runeIdxBeforeExt returns the rune index just before the file extension so
+// that focusing a path field via tab lands the cursor there. This lets users
+// type a new base-name suffix (e.g. "2") without overwriting ".pdf"/".jsonl".
+func runeIdxBeforeExt(path string) int {
+	ext := filepath.Ext(path)
+	runes := []rune(path)
+	extRunes := len([]rune(ext))
+	if extRunes == 0 || extRunes >= len(runes) {
+		return len(runes)
+	}
+	return len(runes) - extRunes
 }

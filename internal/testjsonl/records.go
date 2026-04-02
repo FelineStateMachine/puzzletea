@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/FelineStateMachine/puzzletea/pdfexport"
+	"github.com/FelineStateMachine/puzzletea/export/pdf"
 )
 
 func LoadRecords(path string) ([]pdfexport.JSONLRecord, error) {

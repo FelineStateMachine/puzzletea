@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/FelineStateMachine/puzzletea/packexport"
+	"github.com/FelineStateMachine/puzzletea/export/pack"
 	"github.com/FelineStateMachine/puzzletea/puzzle"
 	"github.com/spf13/cobra"
 )
