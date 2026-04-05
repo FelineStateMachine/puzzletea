@@ -58,6 +58,12 @@ func generatePuzzleSeededWithProfile(width, height, maxCage int, givenRatio floa
 		if countSolutions(geo, givens, 2) != 1 {
 			continue
 		}
+		if hasOversizeCage(cages, maxCage) {
+			continue
+		}
+		if profile.maxSingletonCages >= 0 && countSingletonCages(cages) > profile.maxSingletonCages {
+			continue
+		}
 
 		return Puzzle{
 			Width:    width,
@@ -126,7 +132,6 @@ func normalizeSingletonCages(width, height, maxCage int, cages []Cage, profile g
 		if len(singletons) == 0 {
 			break
 		}
-
 		singletonIdx := singletons[rng.IntN(len(singletons))]
 		targetIdx, ok := chooseSingletonMergeTarget(width, height, maxCage, normalized, singletonIdx, rng)
 		if !ok {
@@ -140,6 +145,15 @@ func normalizeSingletonCages(width, height, maxCage int, cages []Cage, profile g
 	}
 
 	return renumberCages(normalized)
+}
+
+func hasOversizeCage(cages []Cage, maxCage int) bool {
+	for _, cage := range cages {
+		if len(cage.Cells) > maxCage {
+			return true
+		}
+	}
+	return false
 }
 
 func countSingletonCages(cages []Cage) int {

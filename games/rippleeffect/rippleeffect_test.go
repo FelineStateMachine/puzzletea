@@ -248,6 +248,9 @@ func TestSparseModesGenerateUniquePuzzlesWithLimitedSingletons(t *testing.T) {
 			if got := countSingletonCages(puzzle.Cages); got > 1 {
 				t.Fatalf("%s singleton cages = %d, want <= 1", mode.Title(), got)
 			}
+			if hasOversizeCage(puzzle.Cages, mode.MaxCage) {
+				t.Fatalf("%s generated a cage larger than max size %d", mode.Title(), mode.MaxCage)
+			}
 
 			if countZeroGivenCages(puzzle) > 0 {
 				sawZeroGivenCage = true
