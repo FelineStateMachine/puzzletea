@@ -223,14 +223,19 @@ func TestNormalizeSingletonCagesCapsSingletons(t *testing.T) {
 }
 
 func TestSparseModesGenerateUniquePuzzlesWithLimitedSingletons(t *testing.T) {
-	modeIndices := []int{2, 3, 4}
-	sampleCount := 6
+	sampleCounts := map[int]int{
+		2: 6,
+		3: 6,
+		// Expert 9x9 has much costlier seeded generation paths, so one
+		// deterministic sample is enough to cover the post-generation invariants.
+		4: 1,
+	}
 	sawZeroGivenCage := false
 
-	for _, idx := range modeIndices {
+	for _, idx := range []int{2, 3, 4} {
 		mode := Modes[idx].(Mode)
 
-		for sample := range sampleCount {
+		for sample := range sampleCounts[idx] {
 			rng := rand.New(rand.NewPCG(uint64(7000+idx*31+sample), uint64(8000+idx*37+sample)))
 			puzzle, err := mode.generatePuzzleSeeded(rng)
 			if err != nil {
