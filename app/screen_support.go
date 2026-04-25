@@ -16,8 +16,6 @@ type helpSelectScreen struct {
 	help   helpState
 }
 
-func (s helpSelectScreen) State() viewState { return helpSelectView }
-
 func (s helpSelectScreen) Resize(width, height int) screenModel {
 	s.width = width
 	s.height = height
@@ -31,7 +29,8 @@ func (s helpSelectScreen) Update(msg tea.Msg) (screenModel, tea.Cmd, screenActio
 	if ok {
 		switch {
 		case key.Matches(keyMsg, rootKeys.Enter):
-			return s, nil, helpSelectEnterAction{}
+			entry, _ := selectedCategoryEntry(s.help.selectList.SelectedItem())
+			return s, nil, helpSelectEnterAction{entry: entry}
 		case key.Matches(keyMsg, rootKeys.Escape):
 			return s, nil, backAction{target: optionsMenuView}
 		}
@@ -43,23 +42,11 @@ func (s helpSelectScreen) Update(msg tea.Msg) (screenModel, tea.Cmd, screenActio
 }
 
 func (s helpSelectScreen) View(notice noticeState) string {
-	m := model{
-		width:  s.width,
-		height: s.height,
-		notice: notice,
-		help:   s.help,
-	}
-	return m.renderPanel(
+	return renderPanelView(s.width, s.height, notice,
 		"How to Play",
-		m.help.selectList.View(),
+		s.help.selectList.View(),
 		"↑/↓ navigate • enter select • esc back",
 	)
-}
-
-func (s helpSelectScreen) Apply(m model) model {
-	m.state = helpSelectView
-	m.help.selectList = s.help.selectList
-	return m
 }
 
 type helpDetailScreen struct {
@@ -67,8 +54,6 @@ type helpDetailScreen struct {
 	height int
 	help   helpState
 }
-
-func (s helpDetailScreen) State() viewState { return helpDetailView }
 
 func (s helpDetailScreen) Resize(width, height int) screenModel {
 	m := model{
@@ -95,23 +80,11 @@ func (s helpDetailScreen) Update(msg tea.Msg) (screenModel, tea.Cmd, screenActio
 }
 
 func (s helpDetailScreen) View(notice noticeState) string {
-	m := model{
-		width:  s.width,
-		height: s.height,
-		notice: notice,
-		help:   s.help,
-	}
-	return m.renderPanel(
-		m.help.category.Definition.Name+" — Guide",
-		m.help.viewport.View(),
+	return renderPanelView(s.width, s.height, notice,
+		s.help.category.Definition.Name+" — Guide",
+		s.help.viewport.View(),
 		"↑/↓ scroll • esc back",
 	)
-}
-
-func (s helpDetailScreen) Apply(m model) model {
-	m.state = helpDetailView
-	m.help = s.help
-	return m
 }
 
 type statsScreen struct {
@@ -119,8 +92,6 @@ type statsScreen struct {
 	height int
 	stats  statsState
 }
-
-func (s statsScreen) State() viewState { return statsView }
 
 func (s statsScreen) Resize(width, height int) screenModel {
 	m := model{
@@ -147,19 +118,7 @@ func (s statsScreen) Update(msg tea.Msg) (screenModel, tea.Cmd, screenAction) {
 }
 
 func (s statsScreen) View(notice noticeState) string {
-	m := model{
-		width:  s.width,
-		height: s.height,
-		notice: notice,
-		stats:  s.stats,
-	}
-	return m.renderStatsView()
-}
-
-func (s statsScreen) Apply(m model) model {
-	m.state = statsView
-	m.stats = s.stats
-	return m
+	return renderStatsView(s.stats, s.width, s.height, notice)
 }
 
 type themeSelectScreen struct {
@@ -167,8 +126,6 @@ type themeSelectScreen struct {
 	height int
 	theme  themeState
 }
-
-func (s themeSelectScreen) State() viewState { return themeSelectView }
 
 func (s themeSelectScreen) Resize(width, height int) screenModel {
 	const maxVisibleItems = 8
@@ -190,7 +147,7 @@ func (s themeSelectScreen) Update(msg tea.Msg) (screenModel, tea.Cmd, screenActi
 		case s.theme.list.SettingFilter() && key.Matches(keyMsg, rootKeys.Enter):
 		case s.theme.list.FilterState() != list.Unfiltered && key.Matches(keyMsg, rootKeys.Escape):
 		case key.Matches(keyMsg, rootKeys.Enter):
-			return s, nil, confirmThemeAction{}
+			return s, nil, confirmThemeAction{theme: s.theme}
 		case key.Matches(keyMsg, rootKeys.Escape):
 			return s, nil, backAction{target: optionsMenuView}
 		}
@@ -208,19 +165,7 @@ func (s themeSelectScreen) Update(msg tea.Msg) (screenModel, tea.Cmd, screenActi
 }
 
 func (s themeSelectScreen) View(notice noticeState) string {
-	m := model{
-		width:  s.width,
-		height: s.height,
-		notice: notice,
-		theme:  s.theme,
-	}
-	return m.themeSelectViewContent()
-}
-
-func (s themeSelectScreen) Apply(m model) model {
-	m.state = themeSelectView
-	m.theme = s.theme
-	return m
+	return themeSelectViewContent(s.width, s.height, s.theme, notice)
 }
 
 type generatingScreen struct {
@@ -228,8 +173,6 @@ type generatingScreen struct {
 	height  int
 	spinner spinner.Model
 }
-
-func (s generatingScreen) State() viewState { return generatingView }
 
 func (s generatingScreen) Resize(width, height int) screenModel {
 	s.width = width
@@ -247,10 +190,4 @@ func (s generatingScreen) View(notice noticeState) string {
 	content := s.spinner.View() + " Generating puzzle..."
 	box := ui.GeneratingFrame().Render(appendNoticeContent(s.width, notice, content))
 	return ui.CenterView(s.width, s.height, box)
-}
-
-func (s generatingScreen) Apply(m model) model {
-	m.state = generatingView
-	m.spinner = s.spinner
-	return m
 }

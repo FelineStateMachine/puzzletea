@@ -1,12 +1,8 @@
 package app
 
 import (
-	"time"
-
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/store"
-	"github.com/FelineStateMachine/puzzletea/theme"
-	"github.com/FelineStateMachine/puzzletea/ui"
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
@@ -21,7 +17,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		next, cmd := m.handleSpawnComplete(m.session.spawnJobID, msg)
 		return next, cmd
 	case exportCompleteMsg:
-		return m.handleExportComplete(msg)
+		next, cmd := m.handleExportComplete(msg)
+		return next, cmd
+	case exportSubmitAction:
+		next, cmd := m.handleExportSubmit()
+		return next, cmd
+	case backAction:
+		return msg.applyToModel(m)
 	case tea.WindowSizeMsg:
 		m = m.handleWindowSize(msg)
 		if m.state != gameView {
@@ -45,8 +47,19 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
+	// Clear stale notices when the user interacts with the export form.
+	if m.state == exportView {
+		switch msg.(type) {
+		case tea.KeyPressMsg, tea.MouseClickMsg:
+			m = m.clearNotice()
+		}
+	}
+
 	nextScreen, screenCmd, action := screen.Update(msg)
-	m = nextScreen.Apply(m)
+	if m.screens == nil {
+		m.screens = make(map[viewState]screenModel)
+	}
+	m.screens[m.state] = nextScreen
 	if action == nil {
 		return m, screenCmd
 	}
@@ -56,11 +69,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) resizeActiveScreen() model {
-	screen := m.activeScreen()
+	screen := m.screens[m.state] // nil map read is safe; returns nil
 	if screen == nil {
 		return m
 	}
-	return screen.Resize(m.width, m.height).Apply(m)
+	m.screens[m.state] = screen.Resize(m.width, m.height)
+	return m
 }
 
 func (m model) handleWindowSize(msg tea.WindowSizeMsg) model {
@@ -116,6 +130,7 @@ func (m model) handleGlobalKey(msg tea.Msg) (model, tea.Cmd, bool) {
 			m.state = returnState
 			if returnState == weeklyView {
 				m = m.refreshWeeklyBrowser()
+				m = m.initScreen(weeklyView)
 			}
 			m.debug.enabled = false
 			return m, nil, true
@@ -162,82 +177,5 @@ func (m model) activeSpawnReturnState() viewState {
 }
 
 func (m model) handleScreenAction(action screenAction) (model, tea.Cmd) {
-	switch action := action.(type) {
-	case openPlayMenuAction:
-		m.nav.playMenu = ui.NewMainMenu(buildPlayMenuItems(time.Now(), m.currentWeeklyMenuIndex()))
-		m.state = playMenuView
-		m = m.clearNotice()
-		return m.resizeActiveScreen(), nil
-	case openStatsAction:
-		return asModel(m.handleStatsEnter())
-	case openOptionsMenuAction:
-		m.nav.optionsMenu = ui.NewMainMenu(optionsMenuItems)
-		m.state = optionsMenuView
-		m = m.clearNotice()
-		return m.resizeActiveScreen(), nil
-	case quitAction:
-		return m, tea.Quit
-	case openGameSelectAction:
-		m.state = gameSelectView
-		m = m.updateCategoryDetailViewport()
-		m = m.clearNotice()
-		return m.resizeActiveScreen(), nil
-	case openContinueAction:
-		m.cont.table, m.cont.games = ui.InitContinueTable(m.store, m.height)
-		m.state = continueView
-		m = m.clearNotice()
-		return m.resizeActiveScreen(), nil
-	case openDailyAction:
-		return asModel(m.handleDailyPuzzle())
-	case openExportAction:
-		return asModel(m.handleExportEnter())
-	case openWeeklyAction:
-		return asModel(m.enterWeeklyView())
-	case openSeedInputAction:
-		return m.enterSeedInputView()
-	case backAction:
-		if m.state == themeSelectView {
-			_ = theme.Apply(m.theme.previous)
-		}
-		m.state = action.target
-		return m.resizeActiveScreen(), nil
-	case gameSelectEnterAction:
-		return asModel(m.handleGameSelectEnter())
-	case modeSelectEnterAction:
-		return asModel(m.handleModeSelectEnter())
-	case continueEnterAction:
-		return asModel(m.handleContinueEnter())
-	case weeklyShiftAction:
-		m = m.moveWeeklyWeek(action.delta)
-		return m, nil
-	case weeklyEnterAction:
-		return asModel(m.handleWeeklyEnter())
-	case helpSelectEnterAction:
-		return asModel(m.handleHelpSelectEnter())
-	case openThemeSelectAction:
-		return asModel(m.handleThemeEnter())
-	case openHelpSelectAction:
-		m.help.selectList = ui.InitList(gameCategoryItems, "How to Play")
-		listWidth, listHeight := helpSelectListSize(m.width, m.height, m.help.selectList)
-		m.help.selectList.SetSize(listWidth, listHeight)
-		m.state = helpSelectView
-		m = m.clearNotice()
-		return m.resizeActiveScreen(), nil
-	case previewThemeAction:
-		_ = theme.Apply(action.name)
-		ui.UpdateThemeListStyles(&m.theme.list)
-		return m, nil
-	case confirmThemeAction:
-		return asModel(m.handleThemeConfirm())
-	case seedConfirmAction:
-		return asModel(m.handleSeedConfirm())
-	case exportSubmitAction:
-		return asModel(m.handleExportSubmit())
-	default:
-		return m, nil
-	}
-}
-
-func asModel(next tea.Model, cmd tea.Cmd) (model, tea.Cmd) {
-	return next.(model), cmd
+	return action.applyToModel(m)
 }

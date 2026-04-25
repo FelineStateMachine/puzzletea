@@ -11,7 +11,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/FelineStateMachine/puzzletea/daily"
 	"github.com/FelineStateMachine/puzzletea/game"
-	"github.com/FelineStateMachine/puzzletea/lightsout"
+	"github.com/FelineStateMachine/puzzletea/games/lightsout"
 	"github.com/FelineStateMachine/puzzletea/registry"
 	sessionflow "github.com/FelineStateMachine/puzzletea/session"
 	"github.com/FelineStateMachine/puzzletea/store"
@@ -208,8 +208,7 @@ func TestHandleSeedConfirmDoesNotResumeStatusWhenImportFails(t *testing.T) {
 		seed:  seedState{input: ti},
 	}
 
-	next, _ := m.handleSeedConfirm()
-	got := next.(model)
+	got, _ := m.handleSeedConfirm()
 	if got.state != seedInputView {
 		t.Fatalf("state = %d, want %d (seedInputView)", got.state, seedInputView)
 	}
@@ -239,20 +238,25 @@ func TestSeedInputSelectorCyclesAndPersistsDefault(t *testing.T) {
 			focus:       seedFocusMode,
 		},
 	}
+	m = m.initScreen(seedInputView)
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyRight})
 	got := next.(model)
 
-	if got.seed.modeIndex != 1 {
-		t.Fatalf("seedModeIndex = %d, want 1", got.seed.modeIndex)
+	si, ok := got.screens[seedInputView].(seedInputScreen)
+	if !ok {
+		t.Fatal("expected seedInputView screen to be cached")
 	}
-	if got.seed.lastModeKey != options[1].key {
-		t.Fatalf("lastSeedModeKey = %q, want %q", got.seed.lastModeKey, options[1].key)
+	if si.seed.modeIndex != 1 {
+		t.Fatalf("seedModeIndex = %d, want 1", si.seed.modeIndex)
+	}
+	if si.seed.lastModeKey != options[1].key {
+		t.Fatalf("lastSeedModeKey = %q, want %q", si.seed.lastModeKey, options[1].key)
 	}
 
 	reopenedModel, _ := (model{
 		state: playMenuView,
-		seed:  seedState{lastModeKey: got.seed.lastModeKey},
+		seed:  seedState{lastModeKey: si.seed.lastModeKey},
 	}).enterSeedInputView()
 
 	if reopenedModel.state != seedInputView {
@@ -283,8 +287,7 @@ func TestHandleSeedConfirmUsesSelectedSpecificMode(t *testing.T) {
 		},
 	}
 
-	next, _ := m.handleSeedConfirm()
-	got := next.(model)
+	got, _ := m.handleSeedConfirm()
 
 	if got.state != generatingView {
 		t.Fatalf("state = %d, want %d (generatingView)", got.state, generatingView)
@@ -340,8 +343,7 @@ func TestHandleDailyPuzzleDoesNotResumeStatusWhenImportFails(t *testing.T) {
 		store: s,
 	}
 
-	next, _ := m.handleDailyPuzzle()
-	got := next.(model)
+	got, _ := m.handleDailyPuzzle()
 	if got.state != playMenuView {
 		t.Fatalf("state = %d, want %d (playMenuView)", got.state, playMenuView)
 	}
@@ -371,6 +373,7 @@ func TestGameSelectEscapeClearsAppliedFilterBeforeLeavingView(t *testing.T) {
 			gameSelectList: l,
 		},
 	}
+	m = m.initScreen(gameSelectView)
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
 	got := next.(model)
@@ -378,8 +381,12 @@ func TestGameSelectEscapeClearsAppliedFilterBeforeLeavingView(t *testing.T) {
 	if got.state != gameSelectView {
 		t.Fatalf("state = %d, want %d (gameSelectView)", got.state, gameSelectView)
 	}
-	if got.nav.gameSelectList.FilterState() != list.Unfiltered {
-		t.Fatalf("filter state = %s, want %s", got.nav.gameSelectList.FilterState(), list.Unfiltered)
+	gs, ok := got.screens[gameSelectView].(gameSelectScreen)
+	if !ok {
+		t.Fatal("expected gameSelectView screen to be cached")
+	}
+	if gs.list.FilterState() != list.Unfiltered {
+		t.Fatalf("filter state = %s, want %s", gs.list.FilterState(), list.Unfiltered)
 	}
 }
 

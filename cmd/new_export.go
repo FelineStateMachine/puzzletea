@@ -8,11 +8,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/FelineStateMachine/puzzletea/builtinprint"
+	"github.com/FelineStateMachine/puzzletea/export/builtinprint"
+	"github.com/FelineStateMachine/puzzletea/export/pack"
+	"github.com/FelineStateMachine/puzzletea/export/pdf"
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/namegen"
-	"github.com/FelineStateMachine/puzzletea/packexport"
-	"github.com/FelineStateMachine/puzzletea/pdfexport"
 	"github.com/FelineStateMachine/puzzletea/registry"
 	"github.com/FelineStateMachine/puzzletea/resolve"
 

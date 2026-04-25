@@ -37,11 +37,12 @@ func (r weeklyRow) tableRow() table.Row {
 	}
 }
 
-func (m model) enterWeeklyView() (tea.Model, tea.Cmd) {
+func (m model) enterWeeklyView() (model, tea.Cmd) {
 	current := weekly.Current(time.Now())
 	m.weekly.cursor = weekly.StartOfWeek(current.Year, current.Week, time.Local)
 	m = m.refreshWeeklyBrowser()
 	m.state = weeklyView
+	m = m.initScreen(weeklyView)
 	return m, nil
 }
 
@@ -70,23 +71,30 @@ func (m model) refreshWeeklyBrowser() model {
 }
 
 func (m model) isCurrentWeeklySelection() bool {
+	return isCurrentWeeklySelection(m.weekly.cursor)
+}
+
+func isCurrentWeeklySelection(cursor time.Time) bool {
 	current := weekly.Current(time.Now())
-	year, weekNumber := m.selectedWeek()
+	year, weekNumber := resolvedWeekCursor(cursor).ISOWeek()
 	return current.Year == year && current.Week == weekNumber
 }
 
-func (m model) selectedWeek() (int, int) {
-	cursor := m.weekly.cursor
-	if cursor.IsZero() {
-		current := weekly.Current(time.Now())
-		cursor = weekly.StartOfWeek(current.Year, current.Week, time.Local)
-	}
-	return cursor.ISOWeek()
+func weeklyPanelTitle(cursor time.Time) string {
+	year, weekNumber := resolvedWeekCursor(cursor).ISOWeek()
+	return "Week " + formatTwoDigits(weekNumber) + "-" + strconv.Itoa(year)
 }
 
-func (m model) weeklyPanelTitle() string {
-	year, weekNumber := m.selectedWeek()
-	return "Week " + formatTwoDigits(weekNumber) + "-" + strconv.Itoa(year)
+func resolvedWeekCursor(cursor time.Time) time.Time {
+	if cursor.IsZero() {
+		current := weekly.Current(time.Now())
+		return weekly.StartOfWeek(current.Year, current.Week, time.Local)
+	}
+	return cursor
+}
+
+func (m model) selectedWeek() (int, int) {
+	return resolvedWeekCursor(m.weekly.cursor).ISOWeek()
 }
 
 func (m model) moveWeeklyWeek(delta int) model {
@@ -106,7 +114,7 @@ func (m model) moveWeeklyWeek(delta int) model {
 	return m.refreshWeeklyBrowser()
 }
 
-func (m model) handleWeeklyEnter() (tea.Model, tea.Cmd) {
+func (m model) handleWeeklyEnter() (model, tea.Cmd) {
 	idx := m.weekly.table.Cursor()
 	if idx < 0 || idx >= len(m.weekly.rows) {
 		return m, nil
@@ -115,7 +123,7 @@ func (m model) handleWeeklyEnter() (tea.Model, tea.Cmd) {
 	return m.openWeeklyRow(m.weekly.rows[idx])
 }
 
-func (m model) openWeeklyRow(row weeklyRow) (tea.Model, tea.Cmd) {
+func (m model) openWeeklyRow(row weeklyRow) (model, tea.Cmd) {
 	info, ok := weekly.ParseName(row.Name)
 	if !ok {
 		return m, nil
@@ -182,12 +190,13 @@ func (m model) advanceSolvedWeekly() (model, tea.Cmd, bool) {
 	m.weekly.cursor = weekly.StartOfWeek(info.Year, info.Week, time.Local)
 	m = m.refreshWeeklyBrowser()
 	m.state = weeklyView
+	m = m.initScreen(weeklyView)
 	if len(m.weekly.rows) == 0 || !m.weekly.rows[0].Playable {
 		return m, nil, true
 	}
 
 	next, cmd := m.openWeeklyRow(m.weekly.rows[0])
-	return next.(model), cmd, true
+	return next, cmd, true
 }
 
 func buildCurrentWeeklyRows(year, weekNumber int, games []store.GameRecord) []weeklyRow {

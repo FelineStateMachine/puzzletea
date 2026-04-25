@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/FelineStateMachine/puzzletea/game"
-	"github.com/FelineStateMachine/puzzletea/lightsout"
+	"github.com/FelineStateMachine/puzzletea/games/lightsout"
 	"github.com/FelineStateMachine/puzzletea/puzzle"
 	"github.com/FelineStateMachine/puzzletea/registry"
 )

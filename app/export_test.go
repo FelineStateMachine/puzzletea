@@ -8,7 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/FelineStateMachine/puzzletea/config"
-	"github.com/FelineStateMachine/puzzletea/packexport"
+	"github.com/FelineStateMachine/puzzletea/export/pack"
 	"github.com/FelineStateMachine/puzzletea/puzzle"
 )
 
@@ -34,23 +34,23 @@ func TestHandleExportEnterLoadsPersistedDefaults(t *testing.T) {
 		height: 30,
 	}
 
-	next, _ := m.handleExportEnter()
-	got := next.(model)
+	got, _ := m.handleExportEnter()
 
+	es, ok := got.screens[exportView].(exportScreen)
+	if !ok {
+		t.Fatal("expected export screen to be initialized")
+	}
 	if got.state != exportView {
 		t.Fatalf("state = %d, want %d", got.state, exportView)
 	}
-	if got.export.values.Title != "Saved Sampler" {
-		t.Fatalf("title = %q, want %q", got.export.values.Title, "Saved Sampler")
+	if es.export.values.Title != "Saved Sampler" {
+		t.Fatalf("title = %q, want %q", es.export.values.Title, "Saved Sampler")
 	}
-	if got.export.values.Volume != "3" {
-		t.Fatalf("volume = %q, want %q", got.export.values.Volume, "3")
+	if es.export.values.Volume != "3" {
+		t.Fatalf("volume = %q, want %q", es.export.values.Volume, "3")
 	}
-	if got.export.cards[findExportCardIndex(got.export.cards, puzzle.CanonicalGameID("Sudoku"))].Buckets[0] != 4 {
+	if es.export.cards[findExportCardIndex(es.export.cards, puzzle.CanonicalGameID("Sudoku"))].Buckets[0] != 4 {
 		t.Fatal("expected persisted count to populate the form")
-	}
-	if !got.export.initialized {
-		t.Fatal("expected export editor to be initialized")
 	}
 }
 
@@ -62,22 +62,21 @@ func TestHandleExportCompleteSuccessShowsSuccessNotice(t *testing.T) {
 		state:  exportRunningView,
 		width:  100,
 		height: 30,
-		export: exportState{
-			jobID:       7,
-			initialized: true,
-			values:      exportValuesFromSpec(packexport.DefaultSpec(tmp)),
-			cards:       buildExportCardsFromSpec(packexport.DefaultSpec(tmp)),
+		screens: map[viewState]screenModel{
+			exportView: exportScreen{
+				jobID:  7,
+				export: exportModel{values: exportValuesFromSpec(packexport.DefaultSpec(tmp)), cards: buildExportCardsFromSpec(packexport.DefaultSpec(tmp))},
+			},
 		},
 	}
 
-	next, _ := m.handleExportComplete(exportCompleteMsg{
+	got, _ := m.handleExportComplete(exportCompleteMsg{
 		jobID: 7,
 		result: packexport.Result{
 			TotalCount:    10,
 			PDFOutputPath: filepath.Join(tmp, "sample.pdf"),
 		},
 	})
-	got := next.(model)
 
 	if got.state != exportView {
 		t.Fatalf("state = %d, want %d", got.state, exportView)
@@ -102,15 +101,15 @@ func TestHandleExportCompleteSuccessIncludesJSONLWhenPresent(t *testing.T) {
 		state:  exportRunningView,
 		width:  100,
 		height: 30,
-		export: exportState{
-			jobID:       8,
-			initialized: true,
-			values:      exportValuesFromSpec(packexport.DefaultSpec(tmp)),
-			cards:       buildExportCardsFromSpec(packexport.DefaultSpec(tmp)),
+		screens: map[viewState]screenModel{
+			exportView: exportScreen{
+				jobID:  8,
+				export: exportModel{values: exportValuesFromSpec(packexport.DefaultSpec(tmp)), cards: buildExportCardsFromSpec(packexport.DefaultSpec(tmp))},
+			},
 		},
 	}
 
-	next, _ := m.handleExportComplete(exportCompleteMsg{
+	got, _ := m.handleExportComplete(exportCompleteMsg{
 		jobID: 8,
 		result: packexport.Result{
 			TotalCount:      10,
@@ -118,7 +117,6 @@ func TestHandleExportCompleteSuccessIncludesJSONLWhenPresent(t *testing.T) {
 			JSONLOutputPath: jsonlPath,
 		},
 	})
-	got := next.(model)
 
 	if !strings.Contains(got.notice.message, jsonlPath) {
 		t.Fatalf("notice message = %q, want jsonl output path", got.notice.message)
@@ -133,19 +131,18 @@ func TestHandleExportCompleteFailureShowsErrorNotice(t *testing.T) {
 		state:  exportRunningView,
 		width:  100,
 		height: 30,
-		export: exportState{
-			jobID:       9,
-			initialized: true,
-			values:      exportValuesFromSpec(packexport.DefaultSpec(tmp)),
-			cards:       buildExportCardsFromSpec(packexport.DefaultSpec(tmp)),
+		screens: map[viewState]screenModel{
+			exportView: exportScreen{
+				jobID:  9,
+				export: exportModel{values: exportValuesFromSpec(packexport.DefaultSpec(tmp)), cards: buildExportCardsFromSpec(packexport.DefaultSpec(tmp))},
+			},
 		},
 	}
 
-	next, _ := m.handleExportComplete(exportCompleteMsg{
+	got, _ := m.handleExportComplete(exportCompleteMsg{
 		jobID: 9,
 		err:   assertiveError("boom"),
 	})
-	got := next.(model)
 
 	if got.notice.level != noticeLevelError {
 		t.Fatalf("notice level = %q, want %q", got.notice.level, noticeLevelError)
@@ -165,11 +162,12 @@ func TestHandleExportSubmitRejectsInvalidVolumeInput(t *testing.T) {
 		state:  exportView,
 		width:  100,
 		height: 30,
-		export: state,
+		screens: map[viewState]screenModel{
+			exportView: exportScreen{export: state, width: 100, height: 30},
+		},
 	}
 
-	next, _ := m.handleExportSubmit()
-	got := next.(model)
+	got, _ := m.handleExportSubmit()
 
 	if got.state != exportView {
 		t.Fatalf("state = %d, want %d", got.state, exportView)
@@ -311,12 +309,15 @@ func TestExportMouseClickOnSummaryButtonSubmits(t *testing.T) {
 		X: contentX + metrics.Width - buttonWidth + 1,
 		Y: contentY + metrics.SettingsHeight,
 	}
-	_, action, handled := state.handleMouseClick(click, screenWidth, screenHeight, contentWidth, contentHeight)
+	cmd, handled := state.handleMouseClick(click, screenWidth, screenHeight, contentWidth, contentHeight)
 	if !handled {
 		t.Fatal("expected export button click to be handled")
 	}
-	if _, ok := action.(exportSubmitAction); !ok {
-		t.Fatalf("action = %T, want exportSubmitAction", action)
+	if state.focus != exportFocusSubmit {
+		t.Fatalf("focus = %v, want exportFocusSubmit after submit button click", state.focus)
+	}
+	if cmd == nil {
+		t.Fatal("expected submit button click to return a non-nil command")
 	}
 }
 
@@ -350,7 +351,7 @@ func TestExportMouseClickFocusesTextFields(t *testing.T) {
 			X: contentX + tt.rect.X + min(tt.rect.W-2, 14),
 			Y: contentY + tt.rect.Y + 1,
 		}
-		_, _, handled := state.handleMouseClick(click, screenWidth, screenHeight, contentWidth, contentHeight)
+		_, handled := state.handleMouseClick(click, screenWidth, screenHeight, contentWidth, contentHeight)
 		if !handled {
 			t.Fatalf("%s click was not handled", tt.name)
 		}
@@ -381,12 +382,12 @@ func TestExportMouseClickRepositionsTextCursor(t *testing.T) {
 		X: contentX + metrics.Settings.Title.X + 20,
 		Y: contentY + metrics.Settings.Title.Y + 1,
 	}
-	_, _, handled := state.handleMouseClick(first, screenWidth, screenHeight, contentWidth, contentHeight)
+	_, handled := state.handleMouseClick(first, screenWidth, screenHeight, contentWidth, contentHeight)
 	if !handled {
 		t.Fatal("expected first title click to be handled")
 	}
 	firstPos := state.titleInput.Position()
-	_, _, handled = state.handleMouseClick(second, screenWidth, screenHeight, contentWidth, contentHeight)
+	_, handled = state.handleMouseClick(second, screenWidth, screenHeight, contentWidth, contentHeight)
 	if !handled {
 		t.Fatal("expected second title click to be handled")
 	}
@@ -410,7 +411,7 @@ func TestExportMouseClickFocusesHeaderTextarea(t *testing.T) {
 		X: contentX + metrics.Settings.Header.X + 18,
 		Y: contentY + metrics.Settings.Header.Y + 4,
 	}
-	_, _, handled := state.handleMouseClick(click, screenWidth, screenHeight, contentWidth, contentHeight)
+	_, handled := state.handleMouseClick(click, screenWidth, screenHeight, contentWidth, contentHeight)
 	if !handled {
 		t.Fatal("expected header click to be handled")
 	}
@@ -439,7 +440,7 @@ func TestExportMouseClickTogglesJSONLImmediately(t *testing.T) {
 		X: contentX + metrics.Settings.JSONL.X + 4,
 		Y: contentY + metrics.Settings.JSONL.Y + 1,
 	}
-	_, _, handled := state.handleMouseClick(click, screenWidth, screenHeight, contentWidth, contentHeight)
+	_, handled := state.handleMouseClick(click, screenWidth, screenHeight, contentWidth, contentHeight)
 	if !handled {
 		t.Fatal("expected JSONL click to be handled")
 	}
@@ -465,7 +466,7 @@ func TestExportMouseClickCyclesLayoutImmediately(t *testing.T) {
 		X: contentX + metrics.Settings.Layout.X + 5,
 		Y: contentY + metrics.Settings.Layout.Y + 1,
 	}
-	_, _, handled := state.handleMouseClick(click, screenWidth, screenHeight, contentWidth, contentHeight)
+	_, handled := state.handleMouseClick(click, screenWidth, screenHeight, contentWidth, contentHeight)
 	if !handled {
 		t.Fatal("expected layout click to be handled")
 	}
@@ -490,7 +491,7 @@ func TestExportMouseClickSelectsCardBucketWithoutChangingCount(t *testing.T) {
 		X: contentX + target.Buckets[1].X + 1,
 		Y: contentY + target.Buckets[1].Y,
 	}
-	_, _, handled := state.handleMouseClick(click, screenWidth, screenHeight, contentWidth, contentHeight)
+	_, handled := state.handleMouseClick(click, screenWidth, screenHeight, contentWidth, contentHeight)
 	if !handled {
 		t.Fatal("expected card bucket click to be handled")
 	}

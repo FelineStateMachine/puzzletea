@@ -67,10 +67,6 @@ func appendNoticeContent(width int, notice noticeState, content string) string {
 	return lipgloss.JoinVertical(lipgloss.Left, content, "", block)
 }
 
-func (m model) renderPanel(title, content, footer string) string {
-	return renderPanelView(m.width, m.height, m.notice, title, content, footer)
-}
-
 func centerContentWithNotice(width, height int, notice noticeState, content string) string {
 	return ui.CenterView(width, height, appendNoticeContent(width, notice, content))
 }

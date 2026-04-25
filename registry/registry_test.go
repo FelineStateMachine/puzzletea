@@ -164,7 +164,7 @@ func importName(path string, name *ast.Ident) string {
 func concreteGameImportPaths(t testing.TB) []string {
 	t.Helper()
 
-	pattern := filepath.Join(repoRoot(t), "*", "gamemode.go")
+	pattern := filepath.Join(repoRoot(t), "games", "*", "gamemode.go")
 	matches, err := filepath.Glob(pattern)
 	if err != nil {
 		t.Fatalf("glob concrete game packages: %v", err)
@@ -173,7 +173,7 @@ func concreteGameImportPaths(t testing.TB) []string {
 	importPaths := make([]string, 0, len(matches))
 	for _, match := range matches {
 		dir := filepath.Base(filepath.Dir(match))
-		importPaths = append(importPaths, "github.com/FelineStateMachine/puzzletea/"+dir)
+		importPaths = append(importPaths, "github.com/FelineStateMachine/puzzletea/games/"+dir)
 	}
 	slices.Sort(importPaths)
 	return importPaths

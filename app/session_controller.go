@@ -46,6 +46,7 @@ func (c sessionController) startSpawn(spawner game.Spawner, request spawnRequest
 	c.model.session.spawn = &request
 	c.model.state = generatingView
 	*c.model = c.model.clearNotice()
+	*c.model = c.model.initScreen(generatingView)
 	return tea.Batch(c.model.spinner.Tick, spawnCmd(spawner, ctx, jobID))
 }
 
@@ -54,6 +55,7 @@ func (c sessionController) startSeededSpawn(spawner game.SeededSpawner, rng *ran
 	c.model.session.spawn = &request
 	c.model.state = generatingView
 	*c.model = c.model.clearNotice()
+	*c.model = c.model.initScreen(generatingView)
 	return tea.Batch(c.model.spinner.Tick, spawnSeededCmd(spawner, rng, ctx, jobID))
 }
 

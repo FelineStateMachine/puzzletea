@@ -92,17 +92,17 @@ func TestGameSelectViewContentSizeIsStableAcrossCategories(t *testing.T) {
 	}
 	m = m.updateCategoryDetailViewport()
 
-	wantWidth := lipgloss.Width(m.gameSelectViewContent())
-	wantHeight := lipgloss.Height(m.gameSelectViewContent())
+	wantWidth := lipgloss.Width(gameSelectViewContent(m.width, m.height, m.nav.gameSelectList, m.nav.categoryDetail, m.notice))
+	wantHeight := lipgloss.Height(gameSelectViewContent(m.width, m.height, m.nav.gameSelectList, m.nav.categoryDetail, m.notice))
 
 	for i := range m.nav.gameSelectList.Items() {
 		m.nav.gameSelectList.Select(i)
 		m = m.updateCategoryDetailViewport()
 
-		if got := lipgloss.Width(m.gameSelectViewContent()); got != wantWidth {
+		if got := lipgloss.Width(gameSelectViewContent(m.width, m.height, m.nav.gameSelectList, m.nav.categoryDetail, m.notice)); got != wantWidth {
 			t.Fatalf("selection %d width = %d, want %d", i, got, wantWidth)
 		}
-		if got := lipgloss.Height(m.gameSelectViewContent()); got != wantHeight {
+		if got := lipgloss.Height(gameSelectViewContent(m.width, m.height, m.nav.gameSelectList, m.nav.categoryDetail, m.notice)); got != wantHeight {
 			t.Fatalf("selection %d height = %d, want %d", i, got, wantHeight)
 		}
 	}

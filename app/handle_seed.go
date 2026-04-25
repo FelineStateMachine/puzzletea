@@ -10,7 +10,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
-func (m model) handleSeedConfirm() (tea.Model, tea.Cmd) {
+func (m model) handleSeedConfirm() (model, tea.Cmd) {
 	seed := sessionflow.NormalizeSeed(m.seed.input.Value())
 	if seed == "" {
 		return m, nil

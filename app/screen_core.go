@@ -1,210 +1,299 @@
 package app
 
-import tea "charm.land/bubbletea/v2"
+import (
+	"time"
 
-type screenAction interface{ isScreenAction() }
+	"github.com/FelineStateMachine/puzzletea/registry"
+	sessionflow "github.com/FelineStateMachine/puzzletea/session"
+	"github.com/FelineStateMachine/puzzletea/store"
+	"github.com/FelineStateMachine/puzzletea/theme"
+	"github.com/FelineStateMachine/puzzletea/ui"
+
+	tea "charm.land/bubbletea/v2"
+)
+
+type screenAction interface {
+	applyToModel(m model) (model, tea.Cmd)
+}
 
 type openPlayMenuAction struct{}
 
-func (openPlayMenuAction) isScreenAction() {}
+func (a openPlayMenuAction) applyToModel(m model) (model, tea.Cmd) {
+	m.nav.playMenu = ui.NewMainMenu(buildPlayMenuItems(time.Now(), m.currentWeeklyMenuIndex()))
+	m.state = playMenuView
+	m = m.clearNotice()
+	return m.initScreen(playMenuView), nil
+}
 
 type openStatsAction struct{}
 
-func (openStatsAction) isScreenAction() {}
+func (a openStatsAction) applyToModel(m model) (model, tea.Cmd) {
+	return m.handleStatsEnter()
+}
 
 type openOptionsMenuAction struct{}
 
-func (openOptionsMenuAction) isScreenAction() {}
+func (a openOptionsMenuAction) applyToModel(m model) (model, tea.Cmd) {
+	m.nav.optionsMenu = ui.NewMainMenu(optionsMenuItems)
+	m.state = optionsMenuView
+	m = m.clearNotice()
+	return m.initScreen(optionsMenuView), nil
+}
 
 type quitAction struct{}
 
-func (quitAction) isScreenAction() {}
+func (a quitAction) applyToModel(m model) (model, tea.Cmd) {
+	return m, tea.Quit
+}
 
 type openGameSelectAction struct{}
 
-func (openGameSelectAction) isScreenAction() {}
+func (a openGameSelectAction) applyToModel(m model) (model, tea.Cmd) {
+	m.state = gameSelectView
+	m = m.updateCategoryDetailViewport()
+	m = m.clearNotice()
+	return m.initScreen(gameSelectView), nil
+}
 
 type openContinueAction struct{}
 
-func (openContinueAction) isScreenAction() {}
+func (a openContinueAction) applyToModel(m model) (model, tea.Cmd) {
+	m.cont.table, m.cont.games = ui.InitContinueTable(m.store, m.height)
+	m.state = continueView
+	m = m.clearNotice()
+	return m.initScreen(continueView), nil
+}
 
 type openDailyAction struct{}
 
-func (openDailyAction) isScreenAction() {}
-
-type openWeeklyAction struct{}
-
-func (openWeeklyAction) isScreenAction() {}
-
-type openSeedInputAction struct{}
-
-func (openSeedInputAction) isScreenAction() {}
+func (a openDailyAction) applyToModel(m model) (model, tea.Cmd) {
+	return m.handleDailyPuzzle()
+}
 
 type openExportAction struct{}
 
-func (openExportAction) isScreenAction() {}
+func (a openExportAction) applyToModel(m model) (model, tea.Cmd) {
+	return m.handleExportEnter()
+}
+
+type openWeeklyAction struct{}
+
+func (a openWeeklyAction) applyToModel(m model) (model, tea.Cmd) {
+	return m.enterWeeklyView()
+}
+
+type openSeedInputAction struct{}
+
+func (a openSeedInputAction) applyToModel(m model) (model, tea.Cmd) {
+	return m.enterSeedInputView()
+}
 
 type backAction struct {
 	target viewState
 }
 
-func (backAction) isScreenAction() {}
-
-type gameSelectEnterAction struct{}
-
-func (gameSelectEnterAction) isScreenAction() {}
-
-type modeSelectEnterAction struct{}
-
-func (modeSelectEnterAction) isScreenAction() {}
-
-type continueEnterAction struct{}
-
-func (continueEnterAction) isScreenAction() {}
-
-type weeklyShiftAction struct {
-	delta int
+func (a backAction) applyToModel(m model) (model, tea.Cmd) {
+	if m.state == themeSelectView {
+		previous := m.theme.previous
+		if ts, ok := m.screens[themeSelectView].(themeSelectScreen); ok {
+			previous = ts.theme.previous
+		}
+		_ = theme.Apply(previous)
+	}
+	m.state = a.target
+	return m.resizeActiveScreen(), nil
 }
 
-func (weeklyShiftAction) isScreenAction() {}
+type gameSelectEnterAction struct {
+	entry registry.Entry
+}
 
-type weeklyEnterAction struct{}
+func (a gameSelectEnterAction) applyToModel(m model) (model, tea.Cmd) {
+	m.nav.selectedCategory = a.entry
+	m.nav.modeSelectList = ui.InitList(buildModeDisplayItems(a.entry), a.entry.Definition.Name+" - Select Mode")
+	m.nav.modeSelectList.SetSize(min(m.width, 64), min(m.height, ui.ListHeight(m.nav.modeSelectList)))
+	m.state = modeSelectView
+	m = m.initScreen(modeSelectView)
+	return m, nil
+}
 
-func (weeklyEnterAction) isScreenAction() {}
+type modeSelectEnterAction struct {
+	entry registry.Entry
+	mode  registry.ModeEntry
+}
 
-type helpSelectEnterAction struct{}
+func (a modeSelectEnterAction) applyToModel(m model) (model, tea.Cmd) {
+	m.nav.selectedCategory = a.entry
+	m.nav.selectedModeTitle = a.mode.Definition.Title
+	cmd := newSessionController(&m).startSpawn(a.mode.Spawner, spawnRequest{
+		source:      spawnSourceNormal,
+		name:        sessionflow.GenerateUniqueName(m.store),
+		gameType:    a.entry.Definition.Name,
+		modeTitle:   a.mode.Definition.Title,
+		run:         store.NormalRunMetadata(),
+		returnState: modeSelectView,
+		exitState:   mainMenuView,
+	})
+	return m, cmd
+}
 
-func (helpSelectEnterAction) isScreenAction() {}
+type continueEnterAction struct {
+	record store.GameRecord
+}
+
+func (a continueEnterAction) applyToModel(m model) (model, tea.Cmd) {
+	m, _ = m.importAndActivateRecord(a.record)
+	return m, nil
+}
+
+type weeklyShiftAction struct {
+	delta  int
+	weekly weeklyState
+}
+
+func (a weeklyShiftAction) applyToModel(m model) (model, tea.Cmd) {
+	m.weekly = a.weekly
+	m = m.moveWeeklyWeek(a.delta)
+	m = m.initScreen(weeklyView)
+	return m, nil
+}
+
+type weeklyEnterAction struct {
+	weekly weeklyState
+}
+
+func (a weeklyEnterAction) applyToModel(m model) (model, tea.Cmd) {
+	m.weekly = a.weekly
+	return m.handleWeeklyEnter()
+}
+
+type helpSelectEnterAction struct {
+	entry registry.Entry
+}
+
+func (a helpSelectEnterAction) applyToModel(m model) (model, tea.Cmd) {
+	m.help.category = a.entry
+	return m.handleHelpSelectEnter()
+}
 
 type openThemeSelectAction struct{}
 
-func (openThemeSelectAction) isScreenAction() {}
+func (a openThemeSelectAction) applyToModel(m model) (model, tea.Cmd) {
+	return m.handleThemeEnter()
+}
 
 type openHelpSelectAction struct{}
 
-func (openHelpSelectAction) isScreenAction() {}
+func (a openHelpSelectAction) applyToModel(m model) (model, tea.Cmd) {
+	m.help.selectList = ui.InitList(gameCategoryItems, "How to Play")
+	m.state = helpSelectView
+	m = m.clearNotice()
+	return m.initScreen(helpSelectView), nil
+}
 
 type previewThemeAction struct {
 	name string
 }
 
-func (previewThemeAction) isScreenAction() {}
+func (a previewThemeAction) applyToModel(m model) (model, tea.Cmd) {
+	_ = theme.Apply(a.name)
+	if ts, ok := m.screens[themeSelectView].(themeSelectScreen); ok {
+		ui.UpdateThemeListStyles(&ts.theme.list)
+		m.screens[themeSelectView] = ts
+	}
+	return m, nil
+}
 
-type confirmThemeAction struct{}
+type confirmThemeAction struct {
+	theme themeState
+}
 
-func (confirmThemeAction) isScreenAction() {}
+func (a confirmThemeAction) applyToModel(m model) (model, tea.Cmd) {
+	m.theme = a.theme
+	return m.handleThemeConfirm()
+}
 
-type seedConfirmAction struct{}
+type seedConfirmAction struct {
+	seed seedState
+}
 
-func (seedConfirmAction) isScreenAction() {}
+func (a seedConfirmAction) applyToModel(m model) (model, tea.Cmd) {
+	m.seed = a.seed
+	return m.handleSeedConfirm()
+}
 
+// exportSubmitAction is a pure tea.Msg emitted by exportSubmitCmd.
+// It is handled in the root Update() and does not implement screenAction.
 type exportSubmitAction struct{}
 
-func (exportSubmitAction) isScreenAction() {}
-
 type screenModel interface {
-	State() viewState
 	Resize(width, height int) screenModel
 	Update(msg tea.Msg) (screenModel, tea.Cmd, screenAction)
 	View(notice noticeState) string
-	Apply(m model) model
+}
+
+type screenFactory func(m model) screenModel
+
+var screenRegistry = map[viewState]screenFactory{
+	mainMenuView: func(m model) screenModel {
+		return mainMenuScreen{width: m.width, height: m.height, menu: m.nav.mainMenu}
+	},
+	playMenuView: func(m model) screenModel {
+		return playMenuScreen{width: m.width, height: m.height, menu: m.nav.playMenu}
+	},
+	optionsMenuView: func(m model) screenModel {
+		return optionsMenuScreen{width: m.width, height: m.height, menu: m.nav.optionsMenu}
+	},
+	seedInputView: func(m model) screenModel {
+		return seedInputScreen{width: m.width, height: m.height, seed: m.seed}
+	},
+	gameSelectView: func(m model) screenModel {
+		return gameSelectScreen{width: m.width, height: m.height, list: m.nav.gameSelectList, detail: m.nav.categoryDetail}
+	},
+	modeSelectView: func(m model) screenModel {
+		return modeSelectScreen{width: m.width, height: m.height, entry: m.nav.selectedCategory, list: m.nav.modeSelectList}
+	},
+	continueView: func(m model) screenModel {
+		return continueScreen{width: m.width, height: m.height, cont: m.cont}
+	},
+	weeklyView: func(m model) screenModel {
+		return weeklyScreen{width: m.width, height: m.height, weekly: m.weekly}
+	},
+	helpSelectView: func(m model) screenModel {
+		return helpSelectScreen{width: m.width, height: m.height, help: m.help}
+	},
+	helpDetailView: func(m model) screenModel {
+		return helpDetailScreen{width: m.width, height: m.height, help: m.help}
+	},
+	statsView: func(m model) screenModel {
+		return statsScreen{width: m.width, height: m.height, stats: m.stats}
+	},
+	themeSelectView: func(m model) screenModel {
+		return themeSelectScreen{width: m.width, height: m.height, theme: m.theme}
+	},
+	generatingView: func(m model) screenModel {
+		return generatingScreen{width: m.width, height: m.height, spinner: m.spinner}
+	},
+	exportRunningView: func(m model) screenModel {
+		return exportRunningScreen{width: m.width, height: m.height, spinner: m.spinner}
+	},
 }
 
 func (m model) activeScreen() screenModel {
-	switch m.state {
-	case mainMenuView:
-		return mainMenuScreen{
-			width:  m.width,
-			height: m.height,
-			menu:   m.nav.mainMenu,
-		}
-	case playMenuView:
-		return playMenuScreen{
-			width:  m.width,
-			height: m.height,
-			menu:   m.nav.playMenu,
-		}
-	case optionsMenuView:
-		return optionsMenuScreen{
-			width:  m.width,
-			height: m.height,
-			menu:   m.nav.optionsMenu,
-		}
-	case seedInputView:
-		return seedInputScreen{
-			width:  m.width,
-			height: m.height,
-			seed:   m.seed,
-		}
-	case gameSelectView:
-		return gameSelectScreen{
-			width:  m.width,
-			height: m.height,
-			list:   m.nav.gameSelectList,
-			detail: m.nav.categoryDetail,
-		}
-	case modeSelectView:
-		return modeSelectScreen{
-			width:  m.width,
-			height: m.height,
-			entry:  m.nav.selectedCategory,
-			list:   m.nav.modeSelectList,
-		}
-	case exportView:
-		return exportScreen{
-			width:  m.width,
-			height: m.height,
-			export: m.export,
-		}
-	case continueView:
-		return continueScreen{
-			width:  m.width,
-			height: m.height,
-			cont:   m.cont,
-		}
-	case weeklyView:
-		return weeklyScreen{
-			width:  m.width,
-			height: m.height,
-			weekly: m.weekly,
-		}
-	case helpSelectView:
-		return helpSelectScreen{
-			width:  m.width,
-			height: m.height,
-			help:   m.help,
-		}
-	case helpDetailView:
-		return helpDetailScreen{
-			width:  m.width,
-			height: m.height,
-			help:   m.help,
-		}
-	case statsView:
-		return statsScreen{
-			width:  m.width,
-			height: m.height,
-			stats:  m.stats,
-		}
-	case themeSelectView:
-		return themeSelectScreen{
-			width:  m.width,
-			height: m.height,
-			theme:  m.theme,
-		}
-	case generatingView:
-		return generatingScreen{
-			width:   m.width,
-			height:  m.height,
-			spinner: m.spinner,
-		}
-	case exportRunningView:
-		return exportRunningScreen{
-			width:   m.width,
-			height:  m.height,
-			spinner: m.spinner,
-		}
-	default:
-		return nil
+	return m.screens[m.state]
+}
+
+// initScreen creates a fresh screen for the given state (using the registry
+// factory) and stores it in m.screens. It also calls Resize so dimensions
+// are set correctly.
+func (m model) initScreen(state viewState) model {
+	factory, ok := screenRegistry[state]
+	if !ok {
+		return m
 	}
+	if m.screens == nil {
+		m.screens = make(map[viewState]screenModel)
+	}
+	m.screens[state] = factory(m).Resize(m.width, m.height)
+	return m
 }

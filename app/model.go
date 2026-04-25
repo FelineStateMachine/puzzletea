@@ -19,7 +19,6 @@ import (
 	"charm.land/bubbles/v2/list"
 	"charm.land/bubbles/v2/spinner"
 	"charm.land/bubbles/v2/table"
-	"charm.land/bubbles/v2/textarea"
 	"charm.land/bubbles/v2/textinput"
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
@@ -146,26 +145,6 @@ type themeState struct {
 	previous string
 }
 
-type exportState struct {
-	initialized    bool
-	focus          exportFocus
-	values         exportFormValues
-	titleInput     textinput.Model
-	headerInput    textarea.Model
-	advertInput    textinput.Model
-	volumeInput    textinput.Model
-	seedInput      textinput.Model
-	pdfPathInput   textinput.Model
-	jsonlPathInput textinput.Model
-	cards          []exportGameCard
-	cardIndex      int
-	bucketIndex    int
-	cardRowOffset  int
-	running        bool
-	jobID          int64
-	cancel         context.CancelFunc
-}
-
 type debugState struct {
 	enabled  bool
 	renderer *glamour.TermRenderer
@@ -206,7 +185,8 @@ type seedModeOption struct {
 }
 
 type model struct {
-	state viewState
+	state   viewState
+	screens map[viewState]screenModel // persistent screen instances
 
 	nav     navigationState
 	cont    continueState
@@ -216,7 +196,6 @@ type model struct {
 	help    helpState
 	stats   statsState
 	theme   themeState
-	export  exportState
 	debug   debugState
 	notice  noticeState
 
@@ -245,8 +224,9 @@ func InitialModel(s *store.Store, cfg *config.Config, configPath string) model {
 	r := initDebugRenderer()
 	l := ui.InitCategoryList(gameCategoryItems, "Select Category")
 	mm := ui.NewMainMenu(mainMenuItems)
-	return model{
+	m := model{
 		state:      mainMenuView,
+		screens:    make(map[viewState]screenModel),
 		debug:      debugState{renderer: r},
 		nav:        navigationState{gameSelectList: l, mainMenu: mm},
 		spinner:    newSpinner(),
@@ -254,6 +234,7 @@ func InitialModel(s *store.Store, cfg *config.Config, configPath string) model {
 		cfg:        cfg,
 		configPath: configPath,
 	}
+	return m.initScreen(mainMenuView)
 }
 
 // InitialModelWithGame creates a model that starts directly in gameView,
@@ -262,8 +243,9 @@ func InitialModelWithGame(s *store.Store, cfg *config.Config, configPath string,
 	r := initDebugRenderer()
 	l := ui.InitCategoryList(gameCategoryItems, "Select Category")
 	mm := ui.NewMainMenu(mainMenuItems)
-	return model{
+	m := model{
 		state:      gameView,
+		screens:    make(map[viewState]screenModel),
 		debug:      debugState{renderer: r},
 		nav:        navigationState{gameSelectList: l, mainMenu: mm},
 		spinner:    newSpinner(),
@@ -277,6 +259,8 @@ func InitialModelWithGame(s *store.Store, cfg *config.Config, configPath string,
 			returnState:     mainMenuView,
 		},
 	}
+	// Pre-cache the main menu screen so back-navigation from game works.
+	return m.initScreen(mainMenuView)
 }
 
 func (m model) Init() tea.Cmd {
