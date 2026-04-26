@@ -8,30 +8,57 @@ import (
 	"math"
 	"math/rand/v2"
 	"strconv"
-	"time"
 
 	"github.com/FelineStateMachine/puzzletea/difficulty"
 	"github.com/FelineStateMachine/puzzletea/game"
 )
 
-var _ game.EloSpawner = NonogramMode{}
+var (
+	_ game.EloSpawner            = NonogramMode{}
+	_ game.CancellableEloSpawner = NonogramMode{}
+)
 
 func (n NonogramMode) SpawnElo(seed string, elo difficulty.Elo) (game.Gamer, difficulty.Report, error) {
+	return n.SpawnEloContext(context.Background(), seed, elo)
+}
+
+func (n NonogramMode) SpawnEloContext(ctx context.Context, seed string, elo difficulty.Elo) (game.Gamer, difficulty.Report, error) {
 	if err := difficulty.ValidateElo(elo); err != nil {
 		return nil, difficulty.Report{}, err
 	}
 
 	mode := nonogramModeForElo(n, elo)
-	hints := GenerateRandomTomographySeeded(mode, nonogramEloRNG(seed, elo))
-	if len(hints.rows) == 0 || len(hints.cols) == 0 {
+	var bestHints Hints
+	var bestReport difficulty.Report
+	haveBest := false
+	for candidate := range difficulty.CandidateCount(elo) {
+		if err := ctx.Err(); err != nil {
+			return nil, difficulty.Report{}, err
+		}
+		candidateSeed := nonogramCandidateSeed(seed, candidate)
+		hints := GenerateRandomTomographySeededFastContext(ctx, mode, nonogramEloRNG(candidateSeed, elo))
+		if len(hints.rows) == 0 || len(hints.cols) == 0 {
+			continue
+		}
+		report := nonogramDifficultyReport(elo, mode, hints)
+		if difficulty.BetterCandidate(report, bestReport, elo, haveBest) {
+			bestHints = hints
+			bestReport = report
+			haveBest = true
+		}
+	}
+	if !haveBest {
+		if err := ctx.Err(); err != nil {
+			return nil, difficulty.Report{}, err
+		}
 		return nil, difficulty.Report{}, errors.New("unable to generate Elo nonogram")
 	}
 
-	gamer, err := New(mode, hints)
+	gamer, err := New(mode, bestHints)
 	if err != nil {
 		return nil, difficulty.Report{}, err
 	}
-	return gamer, nonogramDifficultyReport(elo, mode, hints), nil
+	return gamer, bestReport, nil
 }
 
 func nonogramModeForElo(base NonogramMode, elo difficulty.Elo) NonogramMode {
@@ -50,6 +77,13 @@ func nonogramEloRNG(seed string, elo difficulty.Elo) *rand.Rand {
 		binary.LittleEndian.Uint64(sum[0:8]),
 		binary.LittleEndian.Uint64(sum[8:16]),
 	))
+}
+
+func nonogramCandidateSeed(seed string, candidate int) string {
+	if candidate == 0 {
+		return seed
+	}
+	return seed + "\x00candidate:" + strconv.Itoa(candidate)
 }
 
 func nonogramDifficultyReport(target difficulty.Elo, mode NonogramMode, hints Hints) difficulty.Report {
@@ -85,10 +119,6 @@ func nonogramDifficultyMetrics(mode NonogramMode, hints Hints) difficulty.Metric
 		maxLinePossibilities = max(maxLinePossibilities, possibilities)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(max(mode.Width, mode.Height))*time.Second)
-	solutions := countSolutions(hints, mode.Width, mode.Height, 2, ctx)
-	cancel()
-
 	totalLines := len(hints.rows) + len(hints.cols)
 	totalPossibilities := rowPossibilities + colPossibilities
 	return difficulty.Metrics{
@@ -104,16 +134,17 @@ func nonogramDifficultyMetrics(mode NonogramMode, hints Hints) difficulty.Metric
 		"line_possibilities":     float64(totalPossibilities),
 		"avg_line_possibilities": nonogramRatio(totalPossibilities, totalLines),
 		"max_line_possibilities": float64(maxLinePossibilities),
-		"solutions":              float64(solutions),
 	}
 }
 
 func nonogramActualElo(metrics difficulty.Metrics) difficulty.Elo {
-	score := 0.34*normalizeNonogramMetric(metrics["cells"], 25, 225) +
+	metricScore := 0.34*normalizeNonogramMetric(metrics["cells"], 25, 225) +
 		0.24*normalizeNonogramMetric(metrics["avg_line_possibilities"], 1, 120) +
 		0.18*normalizeNonogramMetric(metrics["max_line_possibilities"], 1, 600) +
 		0.14*(1-normalizeNonogramMetric(metrics["density"], 0.35, 0.72)) +
 		0.10*normalizeNonogramMetric(metrics["avg_runs_per_line"], 1, 5)
+	targetScore := normalizeNonogramMetric(0.66-metrics["target_density"], 0, 0.26)
+	score := 0.70*targetScore + 0.30*metricScore
 
 	return difficulty.ClampElo(difficulty.Elo(math.Round(score * float64(difficulty.SoftCapElo))))
 }

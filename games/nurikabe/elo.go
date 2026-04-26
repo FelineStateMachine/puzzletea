@@ -42,8 +42,8 @@ func (n NurikabeMode) SpawnEloContext(ctx context.Context, seed string, elo diff
 
 func nurikabeModeForElo(base NurikabeMode, elo difficulty.Elo) NurikabeMode {
 	score := difficulty.Score01(elo)
-	clueDensity := 0.28 - score*0.14
-	maxIslandSize := max(1, min(base.Width*base.Height, max(base.Width, base.Height)+int(math.Round(score*4))))
+	clueDensity := 0.28 - score*0.08
+	maxIslandSize := max(1, min(base.Width*base.Height, max(base.Width, base.Height)+int(math.Round(score*5))))
 
 	mode := base
 	mode.ClueDensity = clueDensity
@@ -61,6 +61,7 @@ func nurikabeEloRNG(seed string, elo difficulty.Elo) *rand.Rand {
 
 func scoreNurikabeElo(ctx context.Context, target difficulty.Elo, puzzle Puzzle) difficulty.Report {
 	metrics := nurikabeDifficultyMetrics(puzzle)
+	metrics["target_clue_density"] = puzzleClueDensity(puzzle)
 
 	solutions, stats, err := CountSolutionsContext(ctx, puzzle, 2, 200000)
 	metrics["solution_count"] = float64(solutions)
@@ -130,17 +131,35 @@ func nurikabeDifficultyMetrics(puzzle Puzzle) difficulty.Metrics {
 }
 
 func nurikabeActualElo(metrics difficulty.Metrics) difficulty.Elo {
-	score := 0.25*normalizeNurikabeMetric(metrics["cells"], 25, 144) +
+	metricScore := 0.25*normalizeNurikabeMetric(metrics["cells"], 25, 144) +
 		0.20*normalizeNurikabeMetric(metrics["unknown_count"], 18, 130) +
 		0.20*normalizeNurikabeMetric(math.Log10(metrics["solver_nodes"]+1), 1.2, 5.0) +
 		0.15*normalizeNurikabeMetric(metrics["branches"], 0, 180) +
 		0.10*normalizeNurikabeMetric(metrics["max_depth"], 0, 80) +
 		0.10*normalizeNurikabeMetric(metrics["normalized_spread"], 0.2, 1.8)
+	targetScore := 1 - normalizeNurikabeMetric(metrics["target_clue_density"], 0.20, 0.28)
+	score := 0.35*targetScore + 0.65*metricScore
 
-	if metrics["solution_count"] != 1 {
+	if metrics["solution_count"] != 1 && metrics["solver_limited"] == 0 {
 		score *= 0.85
 	}
 	return difficulty.ClampElo(difficulty.Elo(math.Round(score * float64(difficulty.SoftCapElo))))
+}
+
+func puzzleClueDensity(puzzle Puzzle) float64 {
+	cells := puzzle.Width * puzzle.Height
+	if cells == 0 {
+		return 0
+	}
+	clues := 0
+	for y := range puzzle.Height {
+		for x := range puzzle.Width {
+			if puzzle.Clues[y][x] > 0 {
+				clues++
+			}
+		}
+	}
+	return float64(clues) / float64(cells)
 }
 
 func normalizeNurikabeMetric(value, low, high float64) float64 {

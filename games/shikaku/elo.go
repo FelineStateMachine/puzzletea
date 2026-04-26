@@ -3,6 +3,7 @@ package shikaku
 import (
 	"crypto/sha256"
 	"encoding/binary"
+	"errors"
 	"math"
 	"math/rand/v2"
 	"strconv"
@@ -25,11 +26,30 @@ func (s ShikakuMode) SpawnElo(seed string, elo difficulty.Elo) (game.Gamer, diff
 	}
 
 	mode := shikakuModeForElo(s, elo)
-	puzzle, err := GeneratePuzzleSeeded(mode.Width, mode.Height, mode.MaxRectSize, shikakuEloRNG(seed, elo))
-	if err != nil {
-		return nil, difficulty.Report{}, err
+	var bestPuzzle Puzzle
+	var bestReport difficulty.Report
+	haveBest := false
+	var lastErr error
+	for candidate := range difficulty.CandidateCount(elo) {
+		puzzle, err := GeneratePuzzleSeeded(mode.Width, mode.Height, mode.MaxRectSize, shikakuEloRNG(shikakuCandidateSeed(seed, candidate), elo))
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		report := scoreShikakuElo(elo, mode, puzzle)
+		if difficulty.BetterCandidate(report, bestReport, elo, haveBest) {
+			bestPuzzle = puzzle
+			bestReport = report
+			haveBest = true
+		}
 	}
-	return New(mode, puzzle), scoreShikakuElo(elo, mode, puzzle), nil
+	if !haveBest {
+		if lastErr == nil {
+			lastErr = errors.New("unable to generate Elo shikaku")
+		}
+		return nil, difficulty.Report{}, lastErr
+	}
+	return New(mode, bestPuzzle), bestReport, nil
 }
 
 func shikakuModeForElo(base ShikakuMode, elo difficulty.Elo) ShikakuMode {
@@ -46,6 +66,13 @@ func shikakuEloRNG(seed string, elo difficulty.Elo) *rand.Rand {
 		binary.LittleEndian.Uint64(sum[0:8]),
 		binary.LittleEndian.Uint64(sum[8:16]),
 	))
+}
+
+func shikakuCandidateSeed(seed string, candidate int) string {
+	if candidate == 0 {
+		return seed
+	}
+	return seed + "\x00candidate:" + strconv.Itoa(candidate)
 }
 
 func scoreShikakuElo(target difficulty.Elo, mode ShikakuMode, puzzle Puzzle) difficulty.Report {
@@ -233,12 +260,14 @@ func markShikakuCovered(covered [][]bool, rect Rectangle, value bool) {
 }
 
 func shikakuActualElo(metrics difficulty.Metrics) difficulty.Elo {
-	score := 0.30*normalizeShikakuMetric(metrics["cells"], 25, 144) +
+	metricScore := 0.30*normalizeShikakuMetric(metrics["cells"], 25, 144) +
 		0.20*normalizeShikakuMetric(metrics["average_candidates"], 1.5, 8.0) +
-		0.20*normalizeShikakuMetric(math.Log10(metrics["solver_nodes"]+1), 1.0, 5.0) +
-		0.15*normalizeShikakuMetric(metrics["branches"], 8, 250) +
+		0.20*normalizeShikakuMetric(math.Log10(metrics["solver_nodes"]+1), 1.0, 3.2) +
+		0.15*normalizeShikakuMetric(metrics["branches"], 8, 80) +
 		0.10*normalizeShikakuMetric(metrics["max_rect_size"], 5, 20) +
 		0.05*(1-normalizeShikakuMetric(metrics["clue_density"], 0.18, 0.55))
+	targetScore := normalizeShikakuMetric(metrics["max_rect_size"], 5, 20)
+	score := 0.55*targetScore + 0.45*metricScore
 	if metrics["solution_count"] != 1 {
 		score *= 0.85
 	}

@@ -3,6 +3,7 @@ package fillomino
 import (
 	"crypto/sha256"
 	"encoding/binary"
+	"errors"
 	"math"
 	"math/rand/v2"
 	"strconv"
@@ -19,25 +20,51 @@ func (m Mode) SpawnElo(seed string, elo difficulty.Elo) (game.Gamer, difficulty.
 	}
 
 	mode := fillominoModeForElo(m, elo)
-	puzzle, err := GeneratePuzzleSeeded(mode.Size, mode.Size, mode.MaxRegion, mode.GivenRatio, fillominoEloRNG(seed, elo))
+	var bestPuzzle Puzzle
+	var bestReport difficulty.Report
+	haveBest := false
+	var lastErr error
+	for candidate := range fillominoEloCandidateCount(elo) {
+		puzzle, err := GeneratePuzzleSeeded(mode.Size, mode.Size, mode.MaxRegion, mode.GivenRatio, fillominoEloRNG(fillominoCandidateSeed(seed, candidate), elo))
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		report := fillominoDifficultyReport(elo, mode, puzzle)
+		if difficulty.BetterCandidate(report, bestReport, elo, haveBest) {
+			bestPuzzle = puzzle
+			bestReport = report
+			haveBest = true
+		}
+	}
+	if !haveBest {
+		if lastErr == nil {
+			lastErr = errors.New("unable to generate Elo fillomino")
+		}
+		return nil, difficulty.Report{}, lastErr
+	}
+	g, err := New(mode, bestPuzzle)
 	if err != nil {
 		return nil, difficulty.Report{}, err
 	}
-	g, err := New(mode, puzzle)
-	if err != nil {
-		return nil, difficulty.Report{}, err
-	}
-	return g, fillominoDifficultyReport(elo, mode, puzzle), nil
+	return g, bestReport, nil
 }
 
 func fillominoModeForElo(base Mode, elo difficulty.Elo) Mode {
 	score := difficulty.Score01(elo)
-	maxRegion := 5 + int(math.Round(score*4))
-	givenRatio := 0.70 - score*0.18
+	maxRegion := 5 + int(math.Round(score*3))
+	givenRatio := 0.70 - score*0.14
 	mode := base
 	mode.MaxRegion = min(maxRegion, max(1, mode.Size*mode.Size))
 	mode.GivenRatio = givenRatio
 	return mode
+}
+
+func fillominoEloCandidateCount(elo difficulty.Elo) int {
+	if elo >= 2400 {
+		return 1
+	}
+	return difficulty.CandidateCount(elo)
 }
 
 func fillominoEloRNG(seed string, elo difficulty.Elo) *rand.Rand {
@@ -46,6 +73,13 @@ func fillominoEloRNG(seed string, elo difficulty.Elo) *rand.Rand {
 		binary.LittleEndian.Uint64(sum[0:8]),
 		binary.LittleEndian.Uint64(sum[8:16]),
 	))
+}
+
+func fillominoCandidateSeed(seed string, candidate int) string {
+	if candidate == 0 {
+		return seed
+	}
+	return seed + "\x00candidate:" + strconv.Itoa(candidate)
 }
 
 func fillominoDifficultyReport(target difficulty.Elo, mode Mode, puzzle Puzzle) difficulty.Report {
@@ -93,10 +127,12 @@ func fillominoDifficultyMetrics(mode Mode, puzzle Puzzle, solutions int) difficu
 }
 
 func fillominoActualElo(metrics difficulty.Metrics) difficulty.Elo {
-	score := 0.40*fillominoNormalize(metrics["cells"], 25, 144) +
+	metricScore := 0.40*fillominoNormalize(metrics["cells"], 25, 144) +
 		0.25*(1-fillominoNormalize(metrics["given_ratio"], 0.52, 0.70)) +
 		0.20*fillominoNormalize(metrics["max_region"], 5, 9) +
 		0.15*fillominoNormalize(metrics["unknown_count"], 8, 70)
+	targetScore := 1 - fillominoNormalize(metrics["target_ratio"], 0.56, 0.70)
+	score := 0.75*targetScore + 0.25*metricScore
 	return difficulty.ClampElo(difficulty.Elo(math.Round(score * float64(difficulty.SoftCapElo))))
 }
 

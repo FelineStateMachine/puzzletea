@@ -1,6 +1,7 @@
 package nonogram
 
 import (
+	"context"
 	"reflect"
 	"testing"
 
@@ -21,6 +22,23 @@ func TestSpawnEloRejectsInvalidElo(t *testing.T) {
 		if !reflect.DeepEqual(report, difficulty.Report{}) {
 			t.Fatalf("SpawnElo(%d) report = %#v, want zero report", elo, report)
 		}
+	}
+}
+
+func TestSpawnEloContextCanceled(t *testing.T) {
+	mode := NewMode("Elo", "test", 5, 5, 0.5)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	gamer, report, err := mode.SpawnEloContext(ctx, "seed", 1200)
+	if err == nil {
+		t.Fatal("SpawnEloContext returned nil error for canceled context")
+	}
+	if gamer != nil {
+		t.Fatalf("gamer = %#v, want nil", gamer)
+	}
+	if !reflect.DeepEqual(report, difficulty.Report{}) {
+		t.Fatalf("report = %#v, want zero report", report)
 	}
 }
 
@@ -82,9 +100,9 @@ func TestSpawnEloPopulatesDifficultyReport(t *testing.T) {
 		"density":                0,
 		"target_density":         0,
 		"total_runs":             1,
+		"line_possibilities":     1,
 		"avg_line_possibilities": 1,
 		"max_line_possibilities": 1,
-		"solutions":              1,
 	}
 	for key, min := range requiredMetrics {
 		got, ok := report.Metrics[key]

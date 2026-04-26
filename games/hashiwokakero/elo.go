@@ -3,6 +3,7 @@ package hashiwokakero
 import (
 	"crypto/sha256"
 	"encoding/binary"
+	"errors"
 	"math"
 	"math/rand/v2"
 	"strconv"
@@ -19,16 +20,35 @@ func (h HashiMode) SpawnElo(seed string, elo difficulty.Elo) (game.Gamer, diffic
 	}
 
 	mode := hashiModeForElo(h, elo)
-	puzzle, err := GeneratePuzzleSeeded(mode, hashiEloRNG(seed, elo))
-	if err != nil {
-		return nil, difficulty.Report{}, err
+	var bestPuzzle Puzzle
+	var bestReport difficulty.Report
+	haveBest := false
+	var lastErr error
+	for candidate := range difficulty.CandidateCount(elo) {
+		puzzle, err := GeneratePuzzleSeeded(mode, hashiEloRNG(hashiCandidateSeed(seed, candidate), elo))
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		report := hashiDifficultyReport(elo, mode, puzzle)
+		if difficulty.BetterCandidate(report, bestReport, elo, haveBest) {
+			bestPuzzle = puzzle
+			bestReport = report
+			haveBest = true
+		}
 	}
-	return New(mode, puzzle), hashiDifficultyReport(elo, mode, puzzle), nil
+	if !haveBest {
+		if lastErr == nil {
+			lastErr = errors.New("unable to generate Elo hashi")
+		}
+		return nil, difficulty.Report{}, lastErr
+	}
+	return New(mode, bestPuzzle), bestReport, nil
 }
 
 func hashiModeForElo(base HashiMode, elo difficulty.Elo) HashiMode {
 	score := difficulty.Score01(elo)
-	density := 0.17 + score*0.23
+	density := 0.11 + score*0.29
 	cells := base.Width * base.Height
 	target := int(math.Round(float64(cells) * density))
 	minIslands := max(3, target-2)
@@ -53,6 +73,13 @@ func hashiEloRNG(seed string, elo difficulty.Elo) *rand.Rand {
 		binary.LittleEndian.Uint64(sum[0:8]),
 		binary.LittleEndian.Uint64(sum[8:16]),
 	))
+}
+
+func hashiCandidateSeed(seed string, candidate int) string {
+	if candidate == 0 {
+		return seed
+	}
+	return seed + "\x00candidate:" + strconv.Itoa(candidate)
 }
 
 func hashiDifficultyReport(target difficulty.Elo, mode HashiMode, puzzle Puzzle) difficulty.Report {

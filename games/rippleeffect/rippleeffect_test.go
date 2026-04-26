@@ -1,6 +1,7 @@
 package rippleeffect
 
 import (
+	"context"
 	"fmt"
 	"image"
 	"image/color"
@@ -21,6 +22,23 @@ func sampleCages() []Cage {
 		{ID: 0, Size: 3, Cells: []Cell{{0, 0}, {1, 0}, {2, 0}}},
 		{ID: 1, Size: 3, Cells: []Cell{{0, 1}, {1, 1}, {2, 1}}},
 		{ID: 2, Size: 3, Cells: []Cell{{0, 2}, {1, 2}, {2, 2}}},
+	}
+}
+
+func TestSpawnEloContextCanceled(t *testing.T) {
+	mode := NewMode("Elo", "test", 5, 3, 0.6)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	gamer, report, err := mode.SpawnEloContext(ctx, "seed", 1200)
+	if err == nil {
+		t.Fatal("SpawnEloContext returned nil error for canceled context")
+	}
+	if gamer != nil {
+		t.Fatalf("gamer = %#v, want nil", gamer)
+	}
+	if !reflect.DeepEqual(report, difficulty.Report{}) {
+		t.Fatalf("report = %#v, want zero report", report)
 	}
 }
 

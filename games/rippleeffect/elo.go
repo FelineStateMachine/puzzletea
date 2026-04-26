@@ -1,6 +1,7 @@
 package rippleeffect
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/binary"
 	"math"
@@ -11,8 +12,17 @@ import (
 	"github.com/FelineStateMachine/puzzletea/game"
 )
 
+var _ game.CancellableEloSpawner = Mode{}
+
 func (m Mode) SpawnElo(seed string, elo difficulty.Elo) (game.Gamer, difficulty.Report, error) {
+	return m.SpawnEloContext(context.Background(), seed, elo)
+}
+
+func (m Mode) SpawnEloContext(ctx context.Context, seed string, elo difficulty.Elo) (game.Gamer, difficulty.Report, error) {
 	if err := difficulty.ValidateElo(elo); err != nil {
+		return nil, difficulty.Report{}, err
+	}
+	if err := ctx.Err(); err != nil {
 		return nil, difficulty.Report{}, err
 	}
 
@@ -26,13 +36,14 @@ func (m Mode) SpawnElo(seed string, elo difficulty.Elo) (game.Gamer, difficulty.
 	if err != nil {
 		return nil, difficulty.Report{}, err
 	}
-	return gamer, rippleEffectDifficultyReport(elo, mode, puzzle), nil
+	report := rippleEffectDifficultyReport(ctx, elo, mode, puzzle)
+	return gamer, report, nil
 }
 
 func rippleEffectModeForElo(base Mode, elo difficulty.Elo) Mode {
 	score := difficulty.Score01(elo)
-	maxCage := min(base.Size, 3+int(math.Round(score*2)))
-	givenRatio := 0.69 - score*0.27
+	maxCage := min(base.Size, 3+int(math.Round(score)))
+	givenRatio := 0.69 - score*0.21
 	profile := rippleEffectProfileForElo(score, maxCage)
 
 	mode := base
@@ -95,7 +106,7 @@ func rippleEffectEloRNG(seed string, elo difficulty.Elo) *rand.Rand {
 	))
 }
 
-func rippleEffectDifficultyReport(target difficulty.Elo, mode Mode, puzzle Puzzle) difficulty.Report {
+func rippleEffectDifficultyReport(ctx context.Context, target difficulty.Elo, mode Mode, puzzle Puzzle) difficulty.Report {
 	geo, err := buildGeometry(puzzle.Width, puzzle.Height, puzzle.Cages)
 	if err != nil {
 		return difficulty.Report{
@@ -109,10 +120,13 @@ func rippleEffectDifficultyReport(target difficulty.Elo, mode Mode, puzzle Puzzl
 		}
 	}
 
-	solutions := countSolutions(geo, puzzle.Givens, 2)
+	solutions := countSolutionsContext(ctx, geo, puzzle.Givens, 2)
 	metrics := rippleEffectDifficultyMetrics(mode, puzzle, geo, solutions)
 	confidence := difficulty.ConfidenceHigh
-	if solutions != 1 {
+	if solutions < 0 {
+		confidence = difficulty.ConfidenceLow
+		metrics["solver_limited"] = 1
+	} else if solutions != 1 {
 		confidence = difficulty.ConfidenceLow
 	}
 
@@ -174,12 +188,14 @@ func countFilledCells(g grid) int {
 }
 
 func rippleEffectActualElo(metrics difficulty.Metrics) difficulty.Elo {
-	score := 0.26*rippleEffectNormalize(metrics["cells"], 25, 81) +
+	metricScore := 0.26*rippleEffectNormalize(metrics["cells"], 25, 81) +
 		0.22*rippleEffectNormalize(1-metrics["given_density"], 0.20, 0.65) +
 		0.18*rippleEffectNormalize(metrics["actual_max_cage"], 3, 5) +
 		0.14*rippleEffectNormalize(metrics["avg_cage_size"], 1.5, 4.2) +
 		0.12*rippleEffectNormalize(metrics["empty_count"], 8, 52) +
 		0.08*(1-rippleEffectNormalize(metrics["singleton_cages"], 0, 6))
+	targetScore := rippleEffectNormalize(0.69-metrics["target_givens"], 0, 0.21)
+	score := 0.80*targetScore + 0.20*metricScore
 
 	return difficulty.ClampElo(difficulty.Elo(math.Round(score * float64(difficulty.SoftCapElo))))
 }

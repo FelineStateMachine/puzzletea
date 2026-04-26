@@ -73,8 +73,10 @@ func newCreateState(cfg config.CreateConfig, width int) createState {
 	seedInput.CharLimit = 64
 	seedInput.SetWidth(min(width, 48))
 
+	tree := buildCreateTree(registry.Entries())
+	validLeafIDs := createLeafIDSet(tree)
 	state := createState{
-		tree:      buildCreateTree(registry.Entries()),
+		tree:      tree,
 		checked:   make(map[string]bool),
 		expanded:  make(map[string]bool),
 		eloInput:  eloInput,
@@ -82,6 +84,9 @@ func newCreateState(cfg config.CreateConfig, width int) createState {
 		focus:     createFocusTree,
 	}
 	for _, id := range cfg.SelectedLeafIDs {
+		if !validLeafIDs[id] {
+			continue
+		}
 		state.checked[id] = true
 		state.expandAncestors(id)
 	}
@@ -127,6 +132,10 @@ func (b *createNodeBuilder) addBranch(entry registry.Entry, branchTitle string) 
 	}
 
 	branchID := b.id + "/branch:" + puzzle.NormalizeName(branchTitle)
+	if len(leaves) == 1 {
+		b.branches = append(b.branches, leaves[0])
+		return
+	}
 	b.branches = append(b.branches, createTreeNode{
 		id:       branchID,
 		title:    branchTitle,
@@ -135,6 +144,9 @@ func (b *createNodeBuilder) addBranch(entry registry.Entry, branchTitle string) 
 }
 
 func (b *createNodeBuilder) node() createTreeNode {
+	if len(b.branches) == 1 && b.branches[0].leaf != nil {
+		return b.branches[0]
+	}
 	return createTreeNode{id: b.id, title: b.title, children: b.branches}
 }
 
@@ -196,24 +208,17 @@ func (s createState) selectedLeaves() []createLeaf {
 }
 
 func (s createState) selectedLeafIDs() []string {
-	ids := make([]string, 0, len(s.checked))
-	for id, checked := range s.checked {
-		if checked {
-			ids = append(ids, id)
-		}
+	leaves := s.selectedLeaves()
+	ids := make([]string, 0, len(leaves))
+	for _, leaf := range leaves {
+		ids = append(ids, leaf.id)
 	}
 	sort.Strings(ids)
 	return ids
 }
 
 func (s createState) selectedCount() int {
-	count := 0
-	for _, checked := range s.checked {
-		if checked {
-			count++
-		}
-	}
-	return count
+	return len(s.selectedLeaves())
 }
 
 func (s createState) descendantLeafCounts(node createTreeNode) (selected, total int) {
@@ -314,4 +319,20 @@ func (s createState) resolveLeafVariant(leaf createLeaf, elo difficulty.Elo) (ga
 		return nil, "", fmt.Errorf("%s %s does not support Elo generation", leaf.gameType, leaf.title)
 	}
 	return leaf.variant.Elo, leaf.variant.Definition.Title, nil
+}
+
+func createLeafIDSet(nodes []createTreeNode) map[string]bool {
+	ids := make(map[string]bool)
+	var walk func([]createTreeNode)
+	walk = func(nodes []createTreeNode) {
+		for _, node := range nodes {
+			if node.leaf != nil {
+				ids[node.leaf.id] = true
+				continue
+			}
+			walk(node.children)
+		}
+	}
+	walk(nodes)
+	return ids
 }

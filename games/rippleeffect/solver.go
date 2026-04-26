@@ -1,6 +1,9 @@
 package rippleeffect
 
-import "math"
+import (
+	"context"
+	"math"
+)
 
 type validationResult struct {
 	solved    bool
@@ -78,13 +81,20 @@ func hasConflicts(conflicts [][]bool) bool {
 }
 
 func countSolutions(geo *geometry, givens grid, limit int) int {
-	working := cloneGrid(givens)
-	return searchSolutions(geo, working, limit)
+	return countSolutionsContext(context.Background(), geo, givens, limit)
 }
 
-func searchSolutions(geo *geometry, state grid, limit int) int {
+func countSolutionsContext(ctx context.Context, geo *geometry, givens grid, limit int) int {
+	working := cloneGrid(givens)
+	return searchSolutionsContext(ctx, geo, working, limit)
+}
+
+func searchSolutionsContext(ctx context.Context, geo *geometry, state grid, limit int) int {
 	if limit <= 0 {
 		return 0
+	}
+	if ctx.Err() != nil {
+		return -1
 	}
 
 	cell, candidates, ok := chooseNextCell(geo, state)
@@ -101,7 +111,12 @@ func searchSolutions(geo *geometry, state grid, limit int) int {
 	total := 0
 	for _, value := range candidates {
 		state[cell.y][cell.x] = value
-		total += searchSolutions(geo, state, limit-total)
+		n := searchSolutionsContext(ctx, geo, state, limit-total)
+		if n < 0 {
+			state[cell.y][cell.x] = 0
+			return n
+		}
+		total += n
 		if total >= limit {
 			state[cell.y][cell.x] = 0
 			return total

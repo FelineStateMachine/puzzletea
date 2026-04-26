@@ -25,19 +25,30 @@ func (s SudokuRGBMode) SpawnElo(seed string, elo difficulty.Elo) (game.Gamer, di
 	}
 
 	mode := sudokuRGBModeForElo(s, elo)
-	provided := GenerateProvidedCellsSeeded(mode, sudokuRGBEloRNG(seed, elo))
-	g, err := New(mode, provided)
+	var bestProvided []cell
+	var bestReport difficulty.Report
+	haveBest := false
+	for candidate := range difficulty.CandidateCount(elo) {
+		provided := GenerateProvidedCellsSeeded(mode, sudokuRGBEloRNG(sudokuRGBCandidateSeed(seed, candidate), elo))
+		report := scoreSudokuRGBElo(elo, provided)
+		if difficulty.BetterCandidate(report, bestReport, elo, haveBest) {
+			bestProvided = provided
+			bestReport = report
+			haveBest = true
+		}
+	}
+	g, err := New(mode, bestProvided)
 	if err != nil {
 		return nil, difficulty.Report{}, err
 	}
-	return g, scoreSudokuRGBElo(elo, provided), nil
+	return g, bestReport, nil
 }
 
 func sudokuRGBModeForElo(base SudokuRGBMode, elo difficulty.Elo) SudokuRGBMode {
 	score := difficulty.Score01(elo)
-	provided := 60 - int(math.Round(score*30))
-	if provided < 30 {
-		provided = 30
+	provided := 60 - int(math.Round(score*36))
+	if provided < 24 {
+		provided = 24
 	}
 	mode := base
 	mode.ProvidedCount = provided
@@ -50,6 +61,13 @@ func sudokuRGBEloRNG(seed string, elo difficulty.Elo) *rand.Rand {
 		binary.LittleEndian.Uint64(sum[0:8]),
 		binary.LittleEndian.Uint64(sum[8:16]),
 	))
+}
+
+func sudokuRGBCandidateSeed(seed string, candidate int) string {
+	if candidate == 0 {
+		return seed
+	}
+	return seed + "\x00candidate:" + strconv.Itoa(candidate)
 }
 
 func scoreSudokuRGBElo(target difficulty.Elo, provided []cell) difficulty.Report {
@@ -131,7 +149,7 @@ func countSolutionsRecWithEloStats(g *grid, limit int, state *quotaState, depth 
 }
 
 func sudokuRGBActualElo(metrics difficulty.Metrics) difficulty.Elo {
-	score := 0.55*normalizeSudokuRGBMetric(metrics["unknown_count"], 21, 51) +
+	score := 0.55*normalizeSudokuRGBMetric(metrics["unknown_count"], 21, 57) +
 		0.25*normalizeSudokuRGBMetric(math.Log10(metrics["solver_nodes"]+1), 1.2, 4.0) +
 		0.15*normalizeSudokuRGBMetric(metrics["branches"], 0, 120) +
 		0.05*normalizeSudokuRGBMetric(metrics["max_depth"], 0, 51)

@@ -1,6 +1,7 @@
 package hitori
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/binary"
 	"math"
@@ -11,22 +12,45 @@ import (
 	"github.com/FelineStateMachine/puzzletea/game"
 )
 
+var _ game.CancellableEloSpawner = HitoriMode{}
+
 func (h HitoriMode) SpawnElo(seed string, elo difficulty.Elo) (game.Gamer, difficulty.Report, error) {
+	return h.SpawnEloContext(context.Background(), seed, elo)
+}
+
+func (h HitoriMode) SpawnEloContext(ctx context.Context, seed string, elo difficulty.Elo) (game.Gamer, difficulty.Report, error) {
 	if err := difficulty.ValidateElo(elo); err != nil {
+		return nil, difficulty.Report{}, err
+	}
+	if err := ctx.Err(); err != nil {
 		return nil, difficulty.Report{}, err
 	}
 
 	mode := hitoriModeForElo(h, elo)
-	puzzle, err := GenerateSeeded(mode.Size, mode.BlackRatio, hitoriEloRNG(seed, elo))
-	if err != nil {
-		return nil, difficulty.Report{}, err
+	var puzzle grid
+	var err error
+	if elo >= 2400 {
+		puzzle = generateFastHitoriEloPuzzle(mode, hitoriEloRNG(seed+"\x00fallback", elo))
+	} else {
+		puzzle, err = GenerateSeededContext(ctx, mode.Size, mode.BlackRatio, hitoriEloRNG(seed, elo))
+		if err != nil {
+			if ctx.Err() == nil {
+				return nil, difficulty.Report{}, err
+			}
+			puzzle = generateFastHitoriEloPuzzle(mode, hitoriEloRNG(seed+"\x00fallback", elo))
+		}
 	}
 
 	gamer, err := New(mode, puzzle)
 	if err != nil {
 		return nil, difficulty.Report{}, err
 	}
-	return gamer, hitoriDifficultyReport(elo, mode, puzzle), nil
+	if elo >= 2400 {
+		report := hitoriDifficultyReportWithoutCounting(elo, mode, puzzle)
+		return gamer, report, nil
+	}
+	report := hitoriDifficultyReport(ctx, elo, mode, puzzle)
+	return gamer, report, nil
 }
 
 func hitoriModeForElo(base HitoriMode, elo difficulty.Elo) HitoriMode {
@@ -46,17 +70,45 @@ func hitoriEloRNG(seed string, elo difficulty.Elo) *rand.Rand {
 	))
 }
 
-func hitoriDifficultyReport(target difficulty.Elo, mode HitoriMode, puzzle grid) difficulty.Report {
-	metrics := hitoriDifficultyMetrics(mode, puzzle)
+func generateFastHitoriEloPuzzle(mode HitoriMode, rng *rand.Rand) grid {
+	baseGrid := generateLatinSquareSeeded(mode.Size, rng)
+	mask := generateValidMaskSeeded(mode.Size, mode.BlackRatio, rng)
+	return constructPuzzleSeeded(baseGrid, mask, rng)
+}
+
+func hitoriDifficultyReport(ctx context.Context, target difficulty.Elo, mode HitoriMode, puzzle grid) difficulty.Report {
+	metrics := hitoriDifficultyMetrics(ctx, mode, puzzle)
+	confidence := difficulty.ConfidenceMedium
+	if metrics["solution_count"] < 0 {
+		confidence = difficulty.ConfidenceLow
+	}
 	return difficulty.Report{
 		TargetElo:  target,
 		ActualElo:  hitoriActualElo(metrics),
-		Confidence: difficulty.ConfidenceMedium,
+		Confidence: confidence,
 		Metrics:    metrics,
 	}
 }
 
-func hitoriDifficultyMetrics(mode HitoriMode, puzzle grid) difficulty.Metrics {
+func hitoriDifficultyReportWithoutCounting(target difficulty.Elo, mode HitoriMode, puzzle grid) difficulty.Report {
+	metrics := hitoriDifficultyMetricsWithoutCounting(mode, puzzle)
+	metrics["solution_count"] = -1
+	metrics["solver_limited"] = 1
+	return difficulty.Report{
+		TargetElo:  target,
+		ActualElo:  hitoriActualElo(metrics),
+		Confidence: difficulty.ConfidenceLow,
+		Metrics:    metrics,
+	}
+}
+
+func hitoriDifficultyMetrics(ctx context.Context, mode HitoriMode, puzzle grid) difficulty.Metrics {
+	metrics := hitoriDifficultyMetricsWithoutCounting(mode, puzzle)
+	metrics["solution_count"] = float64(countPuzzleSolutionsContext(ctx, puzzle, len(puzzle), 2))
+	return metrics
+}
+
+func hitoriDifficultyMetricsWithoutCounting(mode HitoriMode, puzzle grid) difficulty.Metrics {
 	size := len(puzzle)
 	cells := size * size
 	duplicateCells, duplicateGroups := hitoriDuplicatePressure(puzzle)
@@ -68,7 +120,6 @@ func hitoriDifficultyMetrics(mode HitoriMode, puzzle grid) difficulty.Metrics {
 		"duplicate_cells":  float64(duplicateCells),
 		"duplicate_groups": float64(duplicateGroups),
 		"duplicate_pct":    hitoriRatio(duplicateCells, cells),
-		"solution_count":   float64(countPuzzleSolutions(puzzle, size, 2)),
 	}
 }
 
@@ -115,10 +166,12 @@ func hitoriDuplicateLinePressure(line []rune) (int, int) {
 }
 
 func hitoriActualElo(metrics difficulty.Metrics) difficulty.Elo {
-	score := 0.50*hitoriNormalize(metrics["size"], 5, 12) +
+	metricScore := 0.50*hitoriNormalize(metrics["size"], 5, 12) +
 		0.28*hitoriNormalize(metrics["duplicate_pct"], 0.20, 1.20) +
-		0.17*hitoriNormalize(metrics["target_black_pct"], 0.28, 0.34) +
+		0.17*(1-hitoriNormalize(metrics["target_black_pct"], 0.27, 0.32)) +
 		0.05*hitoriNormalize(metrics["duplicate_groups"], 4, 36)
+	targetScore := 1 - hitoriNormalize(metrics["target_black_pct"], 0.28, 0.32)
+	score := 0.50*targetScore + 0.50*metricScore
 
 	return difficulty.ClampElo(difficulty.Elo(math.Round(score * float64(difficulty.SoftCapElo))))
 }

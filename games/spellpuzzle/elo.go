@@ -3,6 +3,7 @@ package spellpuzzle
 import (
 	"crypto/sha256"
 	"encoding/binary"
+	"errors"
 	"math"
 	"math/rand/v2"
 	"strconv"
@@ -17,24 +18,42 @@ func (m SpellPuzzleMode) SpawnElo(seed string, elo difficulty.Elo) (game.Gamer, 
 	}
 
 	mode := spellPuzzleModeForElo(m, elo)
-	puzzle, err := GeneratePuzzleSeeded(mode, randForElo(seed, elo))
-	if err != nil {
-		return nil, difficulty.Report{}, err
+	var bestPuzzle GeneratedPuzzle
+	var bestReport difficulty.Report
+	haveBest := false
+	var lastErr error
+	for candidate := range difficulty.CandidateCount(elo) {
+		puzzle, err := GeneratePuzzleSeeded(mode, randForElo(spellPuzzleCandidateSeed(seed, candidate), elo))
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		report := scoreEloPuzzle(elo, puzzle)
+		if difficulty.BetterCandidate(report, bestReport, elo, haveBest) {
+			bestPuzzle = puzzle
+			bestReport = report
+			haveBest = true
+		}
+	}
+	if !haveBest {
+		if lastErr == nil {
+			lastErr = errors.New("unable to generate Elo spell puzzle")
+		}
+		return nil, difficulty.Report{}, lastErr
 	}
 
-	report := scoreEloPuzzle(elo, puzzle)
-	g, err := New(mode, puzzle)
+	g, err := New(mode, bestPuzzle)
 	if err != nil {
 		return nil, difficulty.Report{}, err
 	}
-	return g, report, nil
+	return g, bestReport, nil
 }
 
 func spellPuzzleModeForElo(base SpellPuzzleMode, elo difficulty.Elo) SpellPuzzleMode {
 	score := difficulty.Score01(elo)
-	bankSize := 6 + int(math.Round(score*3))
-	boardWords := 4 + int(math.Round(score*5))
-	minBonusWords := 3 + int(math.Round(score*5))
+	bankSize := 5 + int(math.Floor(score*4))
+	boardWords := 3 + int(math.Floor(score*6))
+	minBonusWords := int(math.Round(score * 8))
 
 	mode := base
 	mode.BankSize = bankSize
@@ -51,11 +70,18 @@ func randForElo(seed string, elo difficulty.Elo) *rand.Rand {
 	))
 }
 
+func spellPuzzleCandidateSeed(seed string, candidate int) string {
+	if candidate == 0 {
+		return seed
+	}
+	return seed + "\x00candidate:" + strconv.Itoa(candidate)
+}
+
 func scoreEloPuzzle(target difficulty.Elo, puzzle GeneratedPuzzle) difficulty.Report {
 	metrics := spellPuzzleMetrics(puzzle)
-	score := normalizedMetric(metrics["bank_size"], 6, 9)*0.20 +
-		normalizedMetric(metrics["board_word_count"], 4, 9)*0.20 +
-		normalizedMetric(metrics["bonus_word_count"], 3, 16)*0.15 +
+	score := normalizedMetric(metrics["bank_size"], 5, 9)*0.20 +
+		normalizedMetric(metrics["board_word_count"], 3, 9)*0.20 +
+		normalizedMetric(metrics["bonus_word_count"], 0, 16)*0.15 +
 		normalizedMetric(metrics["average_word_length"], 3, 9)*0.15 +
 		normalizedMetric(metrics["crossing_count"], 1, 8)*0.15 +
 		normalizedMetric(metrics["allowed_word_count"], 10, 80)*0.15

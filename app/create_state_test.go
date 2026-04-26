@@ -20,8 +20,32 @@ func TestCreateStateStartsCollapsedAndRestoresCheckedLeaves(t *testing.T) {
 	if got := state.eloInput.Value(); got != "1500" {
 		t.Fatalf("elo input = %q, want 1500", got)
 	}
-	if len(state.visibleNodes()) <= len(state.tree) {
-		t.Fatalf("expected restored leaf ancestors to be expanded")
+	for _, item := range state.visibleNodes() {
+		if item.node.leaf != nil && item.node.leaf.id == leafID {
+			return
+		}
+	}
+	t.Fatalf("visible nodes = %#v, want restored top-level leaf %q", state.visibleNodes(), leafID)
+}
+
+func TestCreateStateIgnoresUnknownRestoredLeafIDs(t *testing.T) {
+	const validLeafID = "nonogram/nonogram"
+	state := newCreateState(config.CreateConfig{
+		SelectedLeafIDs: []string{
+			"nonogram/5x5",
+			validLeafID,
+			"stale/game/mode",
+		},
+	}, 80)
+
+	if got := state.selectedCount(); got != 1 {
+		t.Fatalf("selected count = %d, want 1", got)
+	}
+	if got := state.selectedLeafIDs(); len(got) != 1 || got[0] != validLeafID {
+		t.Fatalf("selected leaf IDs = %#v, want [%q]", got, validLeafID)
+	}
+	if len(state.checked) != 1 || !state.checked[validLeafID] {
+		t.Fatalf("checked map = %#v, want only %q", state.checked, validLeafID)
 	}
 }
 
@@ -40,33 +64,39 @@ func TestCreateTreeGroupsTakuzuAndSudokuVariants(t *testing.T) {
 	if !hasCreateChild(takuzu, "Takuzu") || !hasCreateChild(takuzu, "Takuzu+") {
 		t.Fatalf("Takuzu group children = %#v, want Takuzu and Takuzu+", childTitles(takuzu))
 	}
+	for _, child := range takuzu.children {
+		if child.leaf == nil {
+			t.Fatalf("Takuzu child %q = %#v, want leaf", child.title, child)
+		}
+	}
 
 	sudoku := requireCreateNode(t, state.tree, "Sudoku")
 	if !hasCreateChild(sudoku, "Sudoku") || !hasCreateChild(sudoku, "Sudoku RGB") {
 		t.Fatalf("Sudoku group children = %#v, want Sudoku and Sudoku RGB", childTitles(sudoku))
 	}
+	for _, child := range sudoku.children {
+		if child.leaf == nil {
+			t.Fatalf("Sudoku child %q = %#v, want leaf", child.title, child)
+		}
+	}
 }
 
-func TestCreateTreeListsNonogramRuleVariant(t *testing.T) {
+func TestCreateTreePromotesSingleVariantGameToTopLevelLeaf(t *testing.T) {
 	state := newCreateState(config.CreateConfig{}, 80)
 	nonogram := requireCreateNode(t, state.tree, "Nonogram")
 
-	want := []string{"Nonogram"}
-	got := childTitles(nonogram)
-	if len(got) != len(want) {
-		t.Fatalf("Nonogram leaves = %#v, want %#v", got, want)
+	if nonogram.leaf == nil {
+		t.Fatalf("Nonogram node = %#v, want top-level leaf", nonogram)
 	}
-	for i := range want {
-		if got[i] != want[i] {
-			t.Fatalf("Nonogram leaves = %#v, want %#v", got, want)
-		}
+	if len(nonogram.children) != 0 {
+		t.Fatalf("Nonogram children = %#v, want none", childTitles(nonogram))
 	}
 }
 
 func TestCreateResolveLeafVariantUsesSelectedVariant(t *testing.T) {
 	state := newCreateState(config.CreateConfig{}, 80)
 	nonogram := requireCreateNode(t, state.tree, "Nonogram")
-	leaf := requireCreateNode(t, nonogram.children, "Nonogram").leaf
+	leaf := nonogram.leaf
 	if leaf == nil {
 		t.Fatal("Nonogram node is not a leaf")
 	}
@@ -83,11 +113,11 @@ func TestCreateResolveLeafVariantUsesSelectedVariant(t *testing.T) {
 func TestCreateStateDescendantLeafCountsIncludeCollapsedDescendants(t *testing.T) {
 	state := newCreateState(config.CreateConfig{}, 80)
 	nonogram := requireCreateNode(t, state.tree, "Nonogram")
-	state.checked[nonogram.children[0].leaf.id] = true
+	state.checked[nonogram.leaf.id] = true
 
 	selected, total := state.descendantLeafCounts(nonogram)
-	if selected != 1 || total != len(nonogram.children) {
-		t.Fatalf("descendant counts = %d/%d, want 1/%d", selected, total, len(nonogram.children))
+	if selected != 1 || total != 1 {
+		t.Fatalf("descendant counts = %d/%d, want 1/1", selected, total)
 	}
 }
 
@@ -117,7 +147,7 @@ func TestCreateStateToggleDescendantLeavesClearsFullySelectedParent(t *testing.T
 	}
 }
 
-func TestCreateStateToggleDescendantLeavesWorksForNestedVariantBranch(t *testing.T) {
+func TestCreateStateToggleDescendantLeavesWorksForGroupedLeaf(t *testing.T) {
 	state := newCreateState(config.CreateConfig{}, 80)
 	takuzu := requireCreateNode(t, state.tree, "Takuzu")
 	takuzuPlus := requireCreateNode(t, takuzu.children, "Takuzu+")

@@ -1,6 +1,7 @@
 package takuzu
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/binary"
 	"math"
@@ -11,7 +12,10 @@ import (
 	"github.com/FelineStateMachine/puzzletea/game"
 )
 
-var _ game.EloSpawner = TakuzuMode{}
+var (
+	_ game.EloSpawner            = TakuzuMode{}
+	_ game.CancellableEloSpawner = TakuzuMode{}
+)
 
 type takuzuEloCounterStats struct {
 	Nodes    int
@@ -20,7 +24,14 @@ type takuzuEloCounterStats struct {
 }
 
 func (t TakuzuMode) SpawnElo(seed string, elo difficulty.Elo) (game.Gamer, difficulty.Report, error) {
+	return t.SpawnEloContext(context.Background(), seed, elo)
+}
+
+func (t TakuzuMode) SpawnEloContext(ctx context.Context, seed string, elo difficulty.Elo) (game.Gamer, difficulty.Report, error) {
 	if err := difficulty.ValidateElo(elo); err != nil {
+		return nil, difficulty.Report{}, err
+	}
+	if err := ctx.Err(); err != nil {
 		return nil, difficulty.Report{}, err
 	}
 
@@ -33,7 +44,8 @@ func (t TakuzuMode) SpawnElo(seed string, elo difficulty.Elo) (game.Gamer, diffi
 	if err != nil {
 		return nil, difficulty.Report{}, err
 	}
-	return gamer, scoreTakuzuElo(elo, puzzle, provided, mode.Prefilled), nil
+	report := scoreTakuzuElo(ctx, elo, puzzle, provided, mode.Prefilled)
+	return gamer, report, nil
 }
 
 func takuzuModeForElo(base TakuzuMode, elo difficulty.Elo) TakuzuMode {
@@ -52,11 +64,14 @@ func takuzuEloRNG(seed string, elo difficulty.Elo) *rand.Rand {
 	))
 }
 
-func scoreTakuzuElo(target difficulty.Elo, puzzle [][]rune, provided [][]bool, targetPrefilled float64) difficulty.Report {
-	solutions, stats := countTakuzuSolutionsWithEloStats(grid(puzzle).clone(), len(puzzle), 2)
+func scoreTakuzuElo(ctx context.Context, target difficulty.Elo, puzzle [][]rune, provided [][]bool, targetPrefilled float64) difficulty.Report {
+	solutions, stats := countTakuzuSolutionsWithEloStats(ctx, grid(puzzle).clone(), len(puzzle), 2)
 	metrics := takuzuDifficultyMetrics(puzzle, provided, targetPrefilled, solutions, stats)
 	confidence := difficulty.ConfidenceHigh
-	if solutions != 1 {
+	if solutions < 0 {
+		confidence = difficulty.ConfidenceLow
+		metrics["solver_limited"] = 1
+	} else if solutions != 1 {
 		confidence = difficulty.ConfidenceLow
 	}
 
@@ -101,17 +116,18 @@ func takuzuDifficultyMetrics(
 	}
 }
 
-func countTakuzuSolutionsWithEloStats(g grid, size, limit int) (int, takuzuEloCounterStats) {
+func countTakuzuSolutionsWithEloStats(ctx context.Context, g grid, size, limit int) (int, takuzuEloCounterStats) {
 	if limit <= 0 {
 		return 0, takuzuEloCounterStats{}
 	}
 	stats := newLineStats(g, size)
 	var counter takuzuEloCounterStats
-	count := countTakuzuSolutionsRecWithEloStats(g, size, limit, stats, 0, &counter)
+	count := countTakuzuSolutionsRecWithEloStats(ctx, g, size, limit, stats, 0, &counter)
 	return count, counter
 }
 
 func countTakuzuSolutionsRecWithEloStats(
+	ctx context.Context,
 	g grid,
 	size int,
 	limit int,
@@ -119,6 +135,9 @@ func countTakuzuSolutionsRecWithEloStats(
 	depth int,
 	counter *takuzuEloCounterStats,
 ) int {
+	if ctx.Err() != nil {
+		return -1
+	}
 	counter.Nodes++
 	if depth > counter.MaxDepth {
 		counter.MaxDepth = depth
@@ -143,9 +162,13 @@ func countTakuzuSolutionsRecWithEloStats(
 		v := choice.vals[i]
 		g[choice.y][choice.x] = v
 		lineStats.apply(choice.x, choice.y, v, 1)
-		total += countTakuzuSolutionsRecWithEloStats(g, size, limit-total, lineStats, depth+1, counter)
+		n := countTakuzuSolutionsRecWithEloStats(ctx, g, size, limit-total, lineStats, depth+1, counter)
 		lineStats.apply(choice.x, choice.y, v, -1)
 		g[choice.y][choice.x] = emptyCell
+		if n < 0 {
+			return n
+		}
+		total += n
 		if total >= limit {
 			return total
 		}

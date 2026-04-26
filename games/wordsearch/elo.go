@@ -27,16 +27,29 @@ func (w WordSearchMode) SpawnElo(seed string, elo difficulty.Elo) (game.Gamer, d
 	}
 
 	spec := wordSearchSpecForElo(w, elo)
-	rng := wordSearchEloRNG(seed, elo)
-	g, words, stats := generateWordSearchSeededWithStats(
-		spec.width,
-		spec.height,
-		spec.wordCount,
-		spec.minWordLen,
-		spec.maxWordLen,
-		spec.allowedDirs,
-		rng,
-	)
+	var bestGrid grid
+	var bestWords []Word
+	var bestReport difficulty.Report
+	haveBest := false
+	for candidate := range difficulty.CandidateCount(elo) {
+		rng := wordSearchEloRNG(wordSearchCandidateSeed(seed, candidate), elo)
+		g, words, stats := generateWordSearchSeededWithStats(
+			spec.width,
+			spec.height,
+			spec.wordCount,
+			spec.minWordLen,
+			spec.maxWordLen,
+			spec.allowedDirs,
+			rng,
+		)
+		report := wordSearchDifficultyReport(elo, spec, words, stats)
+		if difficulty.BetterCandidate(report, bestReport, elo, haveBest) {
+			bestGrid = g
+			bestWords = words
+			bestReport = report
+			haveBest = true
+		}
+	}
 
 	mode := w
 	mode.Width = spec.width
@@ -46,13 +59,12 @@ func (w WordSearchMode) SpawnElo(seed string, elo difficulty.Elo) (game.Gamer, d
 	mode.MaxWordLen = spec.maxWordLen
 	mode.AllowedDirs = append([]Direction(nil), spec.allowedDirs...)
 
-	gamer, err := New(mode, g, words)
+	gamer, err := New(mode, bestGrid, bestWords)
 	if err != nil {
 		return nil, difficulty.Report{}, err
 	}
 
-	report := wordSearchDifficultyReport(elo, spec, words, stats)
-	return gamer, report, nil
+	return gamer, bestReport, nil
 }
 
 func wordSearchSpecForElo(base WordSearchMode, elo difficulty.Elo) wordSearchEloSpec {
@@ -70,7 +82,7 @@ func wordSearchSpecForElo(base WordSearchMode, elo difficulty.Elo) wordSearchElo
 	if maxLen < minLen {
 		maxLen = minLen
 	}
-	wordCount := 6 + int(math.Round(score*9))
+	wordCount := 5 + int(math.Round(score*13))
 	wordCount = min(wordCount, max(1, base.Width*base.Height/minLen))
 
 	return wordSearchEloSpec{
@@ -91,6 +103,13 @@ func wordSearchEloRNG(seed string, elo difficulty.Elo) *rand.Rand {
 	_, _ = h.Write([]byte(fmt.Sprintf("\x00%d", elo)))
 	s := h.Sum64()
 	return rand.New(rand.NewPCG(s, ^s))
+}
+
+func wordSearchCandidateSeed(seed string, candidate int) string {
+	if candidate == 0 {
+		return seed
+	}
+	return seed + fmt.Sprintf("\x00candidate:%d", candidate)
 }
 
 func wordSearchDifficultyReport(
@@ -144,12 +163,12 @@ func wordSearchDifficultyMetrics(spec wordSearchEloSpec, words []Word, stats pla
 }
 
 func wordSearchActualElo(metrics difficulty.Metrics, stats placementStats) difficulty.Elo {
-	score := 0.20*normalize(metrics["cells"], 100, 400) +
-		0.20*normalize(metrics["placed_words"], 6, 15) +
-		0.20*normalize(metrics["avg_word_length"], 3, 10) +
+	score := 0.16*normalize(metrics["cells"], 100, 400) +
+		0.24*normalize(metrics["placed_words"], 5, 18) +
+		0.22*normalize(metrics["avg_word_length"], 3, 10) +
 		0.15*normalize(metrics["unique_directions"], 3, 8) +
-		0.15*normalize(metrics["density"], 0.10, 0.45) +
-		0.10*normalize(metrics["attempts_per_word"], 1, 20)
+		0.16*normalize(metrics["density"], 0.08, 0.36) +
+		0.07*normalize(metrics["attempts_per_word"], 1, 20)
 
 	score *= stats.SuccessRate()
 	return difficulty.ClampElo(difficulty.Elo(math.Round(score * float64(difficulty.SoftCapElo))))

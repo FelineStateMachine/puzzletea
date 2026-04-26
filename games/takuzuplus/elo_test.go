@@ -1,6 +1,7 @@
 package takuzuplus
 
 import (
+	"context"
 	"reflect"
 	"testing"
 
@@ -25,6 +26,23 @@ func TestSpawnEloRejectsInvalidElo(t *testing.T) {
 		if !reflect.DeepEqual(report, difficulty.Report{}) {
 			t.Fatalf("SpawnElo(%d) report = %#v, want zero report", elo, report)
 		}
+	}
+}
+
+func TestSpawnEloContextCanceled(t *testing.T) {
+	mode := NewMode("Elo", "test", 8, 0.4, modeProfiles[1])
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	gamer, report, err := mode.SpawnEloContext(ctx, "seed", 1200)
+	if err == nil {
+		t.Fatal("SpawnEloContext returned nil error for canceled context")
+	}
+	if gamer != nil {
+		t.Fatalf("gamer = %#v, want nil", gamer)
+	}
+	if !reflect.DeepEqual(report, difficulty.Report{}) {
+		t.Fatalf("report = %#v, want zero report", report)
 	}
 }
 
