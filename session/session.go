@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/FelineStateMachine/puzzletea/difficulty"
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/namegen"
 	"github.com/FelineStateMachine/puzzletea/puzzle"
@@ -12,6 +13,12 @@ import (
 	"github.com/FelineStateMachine/puzzletea/resolve"
 	"github.com/FelineStateMachine/puzzletea/store"
 )
+
+type DifficultyMetadata struct {
+	TargetElo  *difficulty.Elo
+	ActualElo  *difficulty.Elo
+	Confidence difficulty.Confidence
+}
 
 // NormalizeSeed keeps seeded names distinct from real dailies.
 func NormalizeSeed(seed string) string {
@@ -46,6 +53,27 @@ func SeededNameForGame(seed, gameType string) string {
 	)
 }
 
+// SeededNameForCreateLeaf derives the deterministic display name for a seeded
+// puzzle locked to one Create leaf and target Elo.
+func SeededNameForCreateLeaf(seed, gameType, leafID string, elo difficulty.Elo) string {
+	if strings.TrimSpace(leafID) == "" {
+		return SeededNameForGame(seed, gameType)
+	}
+
+	scope := strings.Join([]string{
+		game.NormalizeName(gameType),
+		puzzle.NormalizeName(leafID),
+		strconv.Itoa(int(elo)),
+	}, ":")
+	nameRNG := resolve.RNGFromString("name:" + seed + ":" + scope)
+	return fmt.Sprintf("%s [%s %d] - %s",
+		seed,
+		gameType,
+		elo,
+		namegen.GenerateSeeded(nameRNG),
+	)
+}
+
 // ImportRecord reconstructs a saved game and reapplies the record title.
 func ImportRecord(rec *store.GameRecord) (game.Gamer, error) {
 	if rec == nil {
@@ -68,6 +96,18 @@ func CreateRecord(
 	modeTitle string,
 	run store.RunMetadata,
 ) (*store.GameRecord, error) {
+	return CreateRecordWithDifficulty(s, g, name, gameType, modeTitle, run, DifficultyMetadata{})
+}
+
+func CreateRecordWithDifficulty(
+	s *store.Store,
+	g game.Gamer,
+	name string,
+	gameType string,
+	modeTitle string,
+	run store.RunMetadata,
+	difficultyMeta DifficultyMetadata,
+) (*store.GameRecord, error) {
 	initialState, err := g.GetSave()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get initial save: %w", err)
@@ -77,6 +117,8 @@ func CreateRecord(
 		Name:         name,
 		GameID:       string(puzzle.CanonicalGameID(gameType)),
 		GameType:     gameType,
+		VariantID:    string(puzzle.CanonicalVariantID(modeTitle)),
+		Variant:      modeTitle,
 		ModeID:       string(puzzle.CanonicalModeID(modeTitle)),
 		Mode:         modeTitle,
 		InitialState: string(initialState),
@@ -89,6 +131,15 @@ func CreateRecord(
 		WeekIndex:    run.WeekIndex,
 		SeedText:     run.SeedText,
 	}
+	if difficultyMeta.TargetElo != nil {
+		v := int(*difficultyMeta.TargetElo)
+		rec.TargetDifficultyElo = &v
+	}
+	if difficultyMeta.ActualElo != nil {
+		v := int(*difficultyMeta.ActualElo)
+		rec.ActualDifficultyElo = &v
+	}
+	rec.DifficultyConfidence = string(difficultyMeta.Confidence)
 	if err := s.CreateGame(rec); err != nil {
 		return nil, fmt.Errorf("failed to create game record: %w", err)
 	}

@@ -39,6 +39,11 @@ The puzzle is solved when all three rules hold simultaneously.
 | Hard | 10x10 | Advanced logic chains |
 | Expert | 12x12 | Maximum challenge |
 
+## Elo Difficulty
+
+Named modes are compatibility presets. Use `--difficulty <0..3000>` to target a
+specific Elo difficulty for generated puzzles.
+
 ## Quick Start
 
 ```bash

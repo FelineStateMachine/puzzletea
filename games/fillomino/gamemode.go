@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"math/rand/v2"
 
+	"github.com/FelineStateMachine/puzzletea/difficulty"
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/gameentry"
 	"github.com/FelineStateMachine/puzzletea/puzzle"
@@ -23,6 +24,7 @@ var (
 	_ game.Mode          = Mode{}
 	_ game.Spawner       = Mode{}
 	_ game.SeededSpawner = Mode{}
+	_ game.EloSpawner    = Mode{}
 )
 
 func NewMode(title, description string, size, maxRegion int, givenRatio float64) Mode {
@@ -58,7 +60,20 @@ var Modes = []game.Mode{
 	NewMode("Expert 12x12", "Wide board with long deduction chains.", 12, 9, 0.52),
 }
 
-var ModeDefinitions = gameentry.BuildModeDefs(Modes)
+var ModeDefinitions = fillominoModeDefinitions(Modes)
+
+func fillominoModeDefinitions(modes []game.Mode) []puzzle.ModeDef {
+	defs := gameentry.BuildModeDefs(modes)
+	presets := []difficulty.Elo{300, 700, 1300, 2000, 2600}
+	for i := range defs {
+		if i >= len(presets) {
+			break
+		}
+		elo := presets[i]
+		defs[i].PresetElo = &elo
+	}
+	return defs
+}
 
 var Definition = puzzle.NewDefinition(puzzle.DefinitionSpec{
 	Name:         "Fillomino",

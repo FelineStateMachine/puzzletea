@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/FelineStateMachine/puzzletea/difficulty"
 	"github.com/FelineStateMachine/puzzletea/export/builtinprint"
 	"github.com/FelineStateMachine/puzzletea/export/pdf"
 	"github.com/FelineStateMachine/puzzletea/game"
@@ -24,6 +25,8 @@ var Version = "dev"
 
 var nowFn = time.Now
 
+const PackSpecSchemaV2 = "puzzletea.pack.v2"
+
 const (
 	DefaultTitle       = "PuzzleTea Sampler"
 	DefaultHeader      = "A small mixed pack that highlights a few PuzzleTea puzzle styles."
@@ -32,6 +35,7 @@ const (
 )
 
 type Spec struct {
+	Schema          string                                  `json:"schema,omitempty"`
 	Title           string                                  `json:"title,omitempty"`
 	Header          string                                  `json:"header,omitempty"`
 	Advert          string                                  `json:"advert,omitempty"`
@@ -61,6 +65,7 @@ type ModeCatalog struct {
 	ModeID    puzzle.ModeID
 	ModeTitle string
 	Seeded    bool
+	PresetElo *int
 }
 
 type modeSelection struct {
@@ -71,6 +76,8 @@ type modeSelection struct {
 	count         int
 	spawner       game.Spawner
 	seededSpawner game.SeededSpawner
+	eloSpawner    game.EloSpawner
+	targetElo     *difficulty.Elo
 }
 
 type runPlan struct {
@@ -84,6 +91,7 @@ func DefaultSpec(cwd string) Spec {
 	}
 
 	spec := Spec{
+		Schema:        PackSpecSchemaV2,
 		Title:         DefaultTitle,
 		Header:        DefaultHeader,
 		Advert:        DefaultAdvert,
@@ -93,14 +101,14 @@ func DefaultSpec(cwd string) Spec {
 		Counts:        zeroCounts(),
 	}
 
-	setDefaultCount(spec.Counts, "Sudoku", "Easy", 2)
-	setDefaultCount(spec.Counts, "Word Search", "Easy 10x10", 2)
-	setDefaultCount(spec.Counts, "Hitori", "Easy", 1)
-	setDefaultCount(spec.Counts, "Nonogram", "Standard", 1)
-	setDefaultCount(spec.Counts, "Nurikabe", "Easy", 1)
-	setDefaultCount(spec.Counts, "Takuzu", "Easy", 1)
-	setDefaultCount(spec.Counts, "Shikaku", "Easy 7x7", 1)
-	setDefaultCount(spec.Counts, "Spell Puzzle", "Easy", 1)
+	setDefaultCount(spec.Counts, "Sudoku", "Sudoku", 2)
+	setDefaultCount(spec.Counts, "Word Search", "Word Search", 2)
+	setDefaultCount(spec.Counts, "Hitori", "Hitori", 1)
+	setDefaultCount(spec.Counts, "Nonogram", "Nonogram", 1)
+	setDefaultCount(spec.Counts, "Nurikabe", "Nurikabe", 1)
+	setDefaultCount(spec.Counts, "Takuzu", "Takuzu", 1)
+	setDefaultCount(spec.Counts, "Shikaku", "Shikaku", 1)
+	setDefaultCount(spec.Counts, "Spell Puzzle", "Spell Puzzle", 1)
 
 	return spec
 }
@@ -113,14 +121,16 @@ func ExportCatalog() []GameCatalog {
 			continue
 		}
 
-		gameModes := make([]ModeCatalog, 0, len(entry.Modes))
-		for _, mode := range entry.Modes {
+		gameModes := make([]ModeCatalog, 0, len(entry.Variants))
+		for _, variant := range entry.Variants {
+			elo := int(variant.Definition.DefaultElo)
 			gameModes = append(gameModes, ModeCatalog{
 				GameID:    entry.Definition.ID,
 				GameType:  entry.Definition.Name,
-				ModeID:    mode.Definition.ID,
-				ModeTitle: mode.Definition.Title,
-				Seeded:    mode.Seeded != nil,
+				ModeID:    puzzle.ModeID(variant.Definition.ID),
+				ModeTitle: variant.Definition.Title,
+				Seeded:    variant.Seeded != nil,
+				PresetElo: &elo,
 			})
 		}
 
@@ -271,6 +281,9 @@ func setDefaultCount(counts map[puzzle.GameID]map[puzzle.ModeID]int, gameName, m
 func buildRunPlan(spec Spec) (runPlan, error) {
 	spec = normalizeSpec(spec)
 
+	if spec.Schema != PackSpecSchemaV2 {
+		return runPlan{}, fmt.Errorf("unsupported pack spec schema %q", spec.Schema)
+	}
 	if !strings.EqualFold(filepath.Ext(spec.PDFOutputPath), ".pdf") {
 		return runPlan{}, fmt.Errorf("pdf output path must use a .pdf extension")
 	}
@@ -308,9 +321,13 @@ func buildRunPlan(spec Spec) (runPlan, error) {
 			continue
 		}
 
-		modeByID := make(map[puzzle.ModeID]registry.ModeEntry, len(entry.Modes))
-		for _, mode := range entry.Modes {
-			modeByID[mode.Definition.ID] = mode
+		variantByID := make(map[puzzle.ModeID]registry.VariantEntry, len(entry.Variants))
+		for _, variant := range entry.Variants {
+			variantByID[puzzle.ModeID(variant.Definition.ID)] = variant
+		}
+		legacyByID := make(map[puzzle.ModeID]puzzle.LegacyModeAlias, len(entry.LegacyModes))
+		for _, alias := range entry.LegacyModes {
+			legacyByID[alias.ID] = alias
 		}
 
 		for modeID, count := range modes {
@@ -321,23 +338,25 @@ func buildRunPlan(spec Spec) (runPlan, error) {
 				continue
 			}
 
-			mode, ok := modeByID[modeID]
+			variant, targetElo, ok := exportVariantForModeID(entry, variantByID, legacyByID, modeID)
 			if !ok {
-				return runPlan{}, fmt.Errorf("%s / %s is not a known export mode", entry.Definition.Name, modeID)
+				return runPlan{}, fmt.Errorf("%s / %s is not a known export variant", entry.Definition.Name, modeID)
 			}
-			if strings.TrimSpace(spec.Seed) != "" && mode.Seeded == nil {
-				return runPlan{}, fmt.Errorf("%s / %s does not support seeded export", entry.Definition.Name, mode.Definition.Title)
+			if strings.TrimSpace(spec.Seed) != "" && variant.Seeded == nil {
+				return runPlan{}, fmt.Errorf("%s / %s does not support seeded export", entry.Definition.Name, variant.Definition.Title)
 			}
 
 			total += count
 			selections = append(selections, modeSelection{
 				gameID:        entry.Definition.ID,
 				gameType:      entry.Definition.Name,
-				modeID:        mode.Definition.ID,
-				modeTitle:     mode.Definition.Title,
+				modeID:        puzzle.ModeID(variant.Definition.ID),
+				modeTitle:     variant.Definition.Title,
 				count:         count,
-				spawner:       mode.Spawner,
-				seededSpawner: mode.Seeded,
+				spawner:       variant.Seeded,
+				seededSpawner: variant.Seeded,
+				eloSpawner:    variant.Elo,
+				targetElo:     &targetElo,
 			})
 		}
 	}
@@ -359,7 +378,29 @@ func buildRunPlan(spec Spec) (runPlan, error) {
 	}, nil
 }
 
+func exportVariantForModeID(
+	entry registry.Entry,
+	variantByID map[puzzle.ModeID]registry.VariantEntry,
+	legacyByID map[puzzle.ModeID]puzzle.LegacyModeAlias,
+	modeID puzzle.ModeID,
+) (registry.VariantEntry, difficulty.Elo, bool) {
+	if variant, ok := variantByID[modeID]; ok {
+		return variant, variant.Definition.DefaultElo, true
+	}
+	alias, ok := legacyByID[modeID]
+	if !ok {
+		return registry.VariantEntry{}, 0, false
+	}
+	for _, variant := range entry.Variants {
+		if variant.Definition.ID == alias.TargetVariantID {
+			return variant, alias.PresetElo, true
+		}
+	}
+	return registry.VariantEntry{}, 0, false
+}
+
 func normalizeSpec(spec Spec) Spec {
+	spec.Schema = strings.TrimSpace(spec.Schema)
 	spec.Title = strings.TrimSpace(spec.Title)
 	spec.Header = strings.TrimSpace(spec.Header)
 	spec.Advert = strings.TrimSpace(spec.Advert)
@@ -367,6 +408,9 @@ func normalizeSpec(spec Spec) Spec {
 	spec.PDFOutputPath = strings.TrimSpace(spec.PDFOutputPath)
 	spec.JSONLOutputPath = strings.TrimSpace(spec.JSONLOutputPath)
 
+	if spec.Schema == "" {
+		spec.Schema = PackSpecSchemaV2
+	}
 	if spec.Volume == 0 {
 		spec.Volume = 1
 	}
@@ -405,19 +449,22 @@ func generateRecords(
 	}
 
 	records := make([]pdfexport.JSONLRecord, 0, totalCount)
+	recordIndex := 0
 	for _, selection := range selections {
 		for i := 0; i < selection.count; i++ {
 			if err := ctx.Err(); err != nil {
 				return nil, err
 			}
+			recordIndex++
 
-			saveData, err := spawnSaveData(ctx, selection, rng)
+			eloSeed := scopedPackEloSeed(seed, generatedAt, selection.gameType, selection.modeTitle, recordIndex)
+			generated, err := spawnSaveData(ctx, selection, rng, eloSeed)
 			if err != nil {
 				return nil, fmt.Errorf("generate %s / %s puzzle %d: %w", selection.gameType, selection.modeTitle, i+1, err)
 			}
 
 			records = append(records, pdfexport.JSONLRecord{
-				Schema: pdfexport.ExportSchemaV1,
+				Schema: pdfexport.ExportSchemaV2,
 				Pack: pdfexport.JSONLPackMeta{
 					Generated:     generatedAt.Format(time.RFC3339),
 					Version:       Version,
@@ -427,15 +474,34 @@ func generateRecords(
 					Seed:          seed,
 				},
 				Puzzle: pdfexport.JSONLPuzzle{
-					Index: len(records) + 1,
-					Name:  namegen.GenerateSeeded(nameRNG),
-					Game:  selection.gameType,
-					Mode:  selection.modeTitle,
-					Save:  saveData,
+					Index:                len(records) + 1,
+					Name:                 namegen.GenerateSeeded(nameRNG),
+					Game:                 selection.gameType,
+					Mode:                 selection.modeTitle,
+					TargetDifficultyElo:  intPtrFromReportElo(generated.Report.TargetElo, generated.Report.Confidence),
+					ActualDifficultyElo:  intPtrFromReportElo(generated.Report.ActualElo, generated.Report.Confidence),
+					DifficultyConfidence: string(generated.Report.Confidence),
+					Save:                 generated.SaveData,
 				},
 			})
 		}
 	}
 
 	return records, nil
+}
+
+func intPtrFromReportElo(elo difficulty.Elo, confidence difficulty.Confidence) *int {
+	if confidence == "" {
+		return nil
+	}
+	v := int(elo)
+	return &v
+}
+
+func scopedPackEloSeed(seed string, generatedAt time.Time, gameType, mode string, index int) string {
+	base := strings.TrimSpace(seed)
+	if base == "" {
+		base = generatedAt.Format(time.RFC3339Nano)
+	}
+	return fmt.Sprintf("packexport:%s:%s:%s:%d", base, gameType, mode, index)
 }

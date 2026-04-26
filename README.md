@@ -2,7 +2,7 @@
 
 A terminal-based puzzle game collection built with [Bubble Tea](https://github.com/charmbracelet/bubbletea).
 
-Fifteen puzzle games, multiple difficulty modes, daily and weekly deterministic challenges, XP progression, 365 theme options, and an explicit built-in registry plus metadata catalog for adding new games.
+Fifteen puzzle games, Elo-backed difficulty presets, daily and weekly deterministic challenges, XP progression, 365 theme options, and an explicit built-in registry plus metadata catalog for adding new games.
 
 ![PuzzleTea menu](vhs/menu.gif)
 
@@ -11,10 +11,11 @@ Fifteen puzzle games, multiple difficulty modes, daily and weekly deterministic 
 - **15 puzzle games** -- Fillomino, Netwalk, Nonogram, Nurikabe, Ripple Effect, Shikaku, Sudoku, Sudoku RGB, Spell Puzzle, Word Search, Hashiwokakero, Hitori, Lights Out, Takuzu, Takuzu+
 - **Daily puzzles** -- A unique puzzle generated each day using deterministic seeding. Same date, same puzzle for everyone. Streak tracking rewards consecutive daily completions.
 - **Weekly gauntlet** -- Each ISO calendar week has a shared 99-puzzle ladder. The current week unlocks sequentially from `#01` to `#99`; past weeks can be reviewed from completed saves only.
-- **XP and leveling** -- Per-category levels based on victories. Harder modes yield more XP. Daily puzzles grant 2x XP, and weekly puzzles add slot-based bonus XP.
+- **XP and leveling** -- Per-category levels based on victories. Elo-rated puzzles yield XP from their recorded difficulty. Daily puzzles grant 2x XP, and weekly puzzles add slot-based bonus XP.
 - **Stats dashboard** -- Profile level, daily streak status, weekly completion progress, victory counts, and XP progress bars per category.
 - **365 color themes** -- Live-preview theme picker with WCAG-compliant contrast enforcement. Dark and light themes included.
 - **Mouse support** -- Drag interactions in Nonogram, Nurikabe, Shikaku, Spell Puzzle, and Word Search; click-to-focus in Fillomino, Hashiwokakero, Hitori, Sudoku, Sudoku RGB, Takuzu, and Takuzu+; click-to-rotate in Netwalk; click-to-toggle in Lights Out.
+- **Elo difficulty** -- Puzzle generation can target a `0..3000` Elo difficulty. Named modes remain friendly presets, and generated records store target/actual Elo when available.
 - **Seeded puzzles** -- Share a seed string to generate identical puzzles across sessions and machines.
 - **Save/load persistence** -- Games auto-save to SQLite. Resume any in-progress game by name.
 
@@ -88,11 +89,18 @@ puzzletea
 
 The Play menu includes:
 
-- `Create` for a new puzzle by category and mode
+- `Create` for a new puzzle from a checked pool of games/variants/board sizes, with a target Elo difficulty
 - `Continue` for saved games
 - `Daily` for the shared deterministic daily puzzle
 - `Weekly` for the current or historical weekly gauntlet
-- `Seeded` for a custom deterministic seed
+
+Create replaces the old separate Seeded flow. Check one or more leaf nodes,
+enter an Elo value from `0` to `3000`, and generate one puzzle. If exactly one
+leaf is checked, the seed field is enabled and a nonblank seed resumes the
+matching deterministic save when one already exists. If multiple leaves are
+checked, PuzzleTea picks one checked leaf uniformly at random and disables the
+seed field because the selected game is intentionally random. The Create pool
+and last Elo are saved in `~/.puzzletea/config.json`.
 
 Weekly gauntlets use the ISO week-year format shown in the menu, for example
 `Week 10-2026 # 7`. The `#` value is the currently active weekly challenge for
@@ -115,6 +123,18 @@ puzzletea new hashi "Easy 7x7"
 Mode names are matched case-insensitively after normalizing spaces, hyphens,
 and underscores. Multi-word mode titles usually need quotes.
 
+Target an explicit Elo difficulty for games and modes that support Elo-backed
+generation:
+
+```bash
+puzzletea new sudoku --difficulty 1200
+puzzletea new nonogram classic --difficulty 1800 --with-seed myseed
+```
+
+`--difficulty` accepts integers from `0` through `3000`. When it is present,
+PuzzleTea uses the mode's Elo spawner and records `target_difficulty_elo`,
+`actual_difficulty_elo`, and `difficulty_confidence` in the save metadata.
+
 Resume and manage saved games:
 
 ```bash
@@ -133,6 +153,10 @@ puzzletea new --set-seed myseed
 puzzletea new nonogram epic --with-seed myseed
 ```
 
+For interactive seeded play, use `Create`, check exactly one leaf, and enter the
+seed there. With multiple checked leaves, the Create seed field is intentionally
+disabled.
+
 Export printable puzzle sets to JSONL:
 
 ```bash
@@ -144,6 +168,9 @@ puzzletea new nonogram mini -e 6 -o nonogram-mini-set.jsonl
 
 # Mixed modes within a category (deterministic with --with-seed)
 puzzletea new sudoku --export 10 -o sudoku-mixed.jsonl --with-seed zine-issue-01
+
+# Elo-targeted export
+puzzletea new sudoku --export 10 --difficulty 1500 -o sudoku-1500.jsonl
 ```
 
 Render one or more JSONL packs into a print PDF:
@@ -168,10 +195,14 @@ puzzletea export-pdf nonogram-mini-set.jsonl -o issue-01-duplex.pdf --shuffle-se
 
 Font license note (Atkinson Hyperlegible Next):
 
-- Follow the SIL OFL 1.1 requirements in `pdfexport/fonts/OFL.txt`.
+- Follow the SIL OFL 1.1 requirements in `export/pdf/fonts/AtkinsonHyperlegibleNext-OFL.txt`.
 - Do not sell the font files by themselves.
 - If redistributing fonts with software, include the copyright notice and OFL text.
 - Modified font versions must keep OFL terms, and modified names must respect Reserved Font Name rules.
+
+JSONL exports include Elo metadata when generation produced a difficulty
+report. PDF ordering and difficulty stars prefer actual Elo, then target Elo,
+then legacy mode-order fallback.
 
 `Lights Out` is currently excluded from export because it does not translate cleanly to paper workflows.
 
@@ -225,96 +256,101 @@ Grow numbered regions so each connected region reaches its exact size.
 
 ![Fillomino](vhs/fillomino.gif)
 
-[Game details and controls](fillomino/README.md)
+[Game details and controls](games/fillomino/README.md)
 
 ### Ripple Effect
 Place digits in cages while keeping matching values outside each other’s ripple distance.
 
 ![Ripple Effect](vhs/rippleeffect.gif)
 
-[Game details and controls](rippleeffect/README.md)
+[Game details and controls](games/rippleeffect/README.md)
 
 ### Nonogram
 Fill cells to match row and column hints.
 
 ![Nonogram](vhs/nonogram.gif)
 
-[Game details and controls](nonogram/README.md)
+[Game details and controls](games/nonogram/README.md)
 
 ### Nurikabe
 Build islands from clues while keeping one connected sea.
 
 ![Nurikabe](vhs/nurikabe.gif)
 
-[Game details and controls](nurikabe/README.md)
+[Game details and controls](games/nurikabe/README.md)
 
 ### Shikaku
 Divide the grid into rectangles, where each rectangle contains exactly the number of cells shown in its clue.
 
 ![Shikaku](vhs/shikaku.gif)
 
-[Game details and controls](shikaku/README.md)
+[Game details and controls](games/shikaku/README.md)
 
 ### Sudoku
 Classic 9x9 number placement puzzle.
 
 ![Sudoku](vhs/sudoku.gif)
 
-[Game details and controls](sudoku/README.md)
+[Game details and controls](games/sudoku/README.md)
 
 ### Sudoku RGB
 Fill the grid with three symbols so every row, column, and box contains `{1,1,1,2,2,2,3,3,3}`.
 
 ![Sudoku RGB](vhs/sudokurgb.gif)
 
-[Game details and controls](sudokurgb/README.md)
+[Game details and controls](games/sudokurgb/README.md)
 
 ### Word Search
 Find hidden words in a letter grid.
 
 ![Word Search](vhs/wordsearch.gif)
 
-[Game details and controls](wordsearch/README.md)
+[Game details and controls](games/wordsearch/README.md)
 
 ### Spell Puzzle
 Connect letters from a fixed bank to reveal a crossword and score bonus words.
 
-[Game details and controls](spellpuzzle/README.md)
+[Game details and controls](games/spellpuzzle/README.md)
 
 ### Hashiwokakero
 Connect islands with bridges.
 
 ![Hashiwokakero](vhs/hashiwokakero.gif)
 
-[Game details and controls](hashiwokakero/README.md)
+[Game details and controls](games/hashiwokakero/README.md)
 
 ### Hitori
 Shade cells to eliminate duplicate numbers.
 
 ![Hitori](vhs/hitori.gif)
 
-[Game details and controls](hitori/README.md)
+[Game details and controls](games/hitori/README.md)
 
 ### Lights Out
 Toggle lights to turn all off.
 
 ![Lights Out](vhs/lightsout.gif)
 
-[Game details and controls](lightsout/README.md)
+[Game details and controls](games/lightsout/README.md)
 
 ### Netwalk
 Rotate network tiles until every computer reaches the server in one loop-free tree.
 
 ![Netwalk](vhs/netwalk.gif)
 
-[Game details and controls](netwalk/README.md)
+[Game details and controls](games/netwalk/README.md)
 
 ### Takuzu
 Fill the grid with two symbols following three simple rules.
 
 ![Takuzu](vhs/takuzu.gif)
 
-[Game details and controls](takuzu/README.md)
+[Game details and controls](games/takuzu/README.md)
+
+### Takuzu+
+Fill the grid with two symbols while obeying the normal Takuzu rules plus fixed relation clues.
+
+[Game details and controls](games/takuzuplus/README.md)
 
 ## Building and Testing
 
@@ -358,6 +394,7 @@ Create a directory (e.g., `mypuzzle/`) with these files:
 | `keys.go` | Game-specific `KeyMap` struct |
 | `style.go` | lipgloss styling and rendering helpers |
 | `generator.go` | Puzzle generation logic (if applicable) |
+| `elo.go` | Elo-targeted generation and `difficulty.Report` scoring |
 | `grid.go` | Grid type and serialization (for grid-based games) |
 | `help.md` | Embedded rules/help content wired into the runtime entry |
 | `print_adapter.go` | Optional printable export adapter for JSONL/PDF support |
@@ -365,7 +402,8 @@ Create a directory (e.g., `mypuzzle/`) with these files:
 | `README.md` | Game docs: rules, controls table, modes table, quick start examples |
 
 Use `gameentry.BuildModeDefs(Modes)` and `gameentry.NewEntry(...)` so the
-package exposes both metadata and its validated runtime wiring.
+package exposes both metadata and its validated runtime wiring. If a mode has a
+preset Elo, its runtime mode must implement `game.EloSpawner`.
 
 ### 2. Wire it into the built-in registry
 
@@ -379,6 +417,7 @@ The game package's `Definition` owns:
 - description
 - aliases
 - menu modes
+- preset Elo values for modes
 - daily-eligible modes
 - help content
 - save/import function
@@ -404,6 +443,17 @@ See any existing game package (e.g., `nonogram/`) for the full pattern, and `AGE
 ## License
 
 [MIT](LICENSE)
+
+## Research References
+
+Elo difficulty scoring and game-specific heuristics were informed by public
+puzzle implementations and solver documentation, including Simon Tatham's
+[Portable Puzzle Collection](https://www.chiark.greenend.org.uk/~sgtatham/puzzles/)
+and [source repository](https://git.tartarus.org/?p=simon/puzzles.git),
+[Copris puzzle solvers](https://cspsat.gitlab.io/copris-puzzles/),
+[QQWing Sudoku](https://qqwing.com/), Jaap Scherphuis'
+[Lights Out notes](https://www.jaapsch.net/puzzles/lights.htm), and public
+[Nikoli puzzle rules](https://www.nikoli.co.jp/en/puzzles/).
 
 ## Built With
 

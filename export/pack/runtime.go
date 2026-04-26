@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/FelineStateMachine/puzzletea/difficulty"
 	"github.com/FelineStateMachine/puzzletea/export/pdf"
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/puzzle"
@@ -20,6 +21,11 @@ var writePDFFn = pdfexport.WritePDF
 
 type randState struct {
 	rng *rand.Rand
+}
+
+type generatedSaveData struct {
+	SaveData json.RawMessage
+	Report   difficulty.Report
 }
 
 func newRandState(seed string) *randState {
@@ -33,15 +39,25 @@ func (r *randState) RNG() *rand.Rand {
 	return r.rng
 }
 
-func spawnSaveData(ctx context.Context, selection modeSelection, state *randState) (json.RawMessage, error) {
+func spawnSaveData(ctx context.Context, selection modeSelection, state *randState, eloSeed string) (generatedSaveData, error) {
 	var (
 		puzzleGame game.Gamer
+		report     difficulty.Report
 		err        error
 	)
 
-	if state != nil {
+	if selection.targetElo != nil {
+		if selection.eloSpawner == nil {
+			return generatedSaveData{}, fmt.Errorf("mode does not support Elo difficulty")
+		}
+		if cancellable, ok := selection.eloSpawner.(game.CancellableEloSpawner); ok {
+			puzzleGame, report, err = cancellable.SpawnEloContext(ctx, eloSeed, *selection.targetElo)
+		} else {
+			puzzleGame, report, err = selection.eloSpawner.SpawnElo(eloSeed, *selection.targetElo)
+		}
+	} else if state != nil {
 		if selection.seededSpawner == nil {
-			return nil, fmt.Errorf("mode does not support deterministic spawning")
+			return generatedSaveData{}, fmt.Errorf("mode does not support deterministic spawning")
 		}
 		rng := state.RNG()
 		if cancellable, ok := selection.seededSpawner.(game.CancellableSeededSpawner); ok {
@@ -55,18 +71,21 @@ func spawnSaveData(ctx context.Context, selection modeSelection, state *randStat
 		puzzleGame, err = selection.spawner.Spawn()
 	}
 	if err != nil {
-		return nil, err
+		return generatedSaveData{}, err
 	}
 
 	save, err := puzzleGame.GetSave()
 	if err != nil {
-		return nil, fmt.Errorf("serialize puzzle: %w", err)
+		return generatedSaveData{}, fmt.Errorf("serialize puzzle: %w", err)
 	}
 	if !json.Valid(save) {
-		return nil, fmt.Errorf("save payload is not valid json")
+		return generatedSaveData{}, fmt.Errorf("save payload is not valid json")
 	}
 
-	return append(json.RawMessage(nil), save...), nil
+	return generatedSaveData{
+		SaveData: append(json.RawMessage(nil), save...),
+		Report:   report,
+	}, nil
 }
 
 func WriteJSONL(path string, records []pdfexport.JSONLRecord) error {

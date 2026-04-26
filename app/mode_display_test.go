@@ -21,9 +21,9 @@ func TestModeDisplayTitlesStripUniqueGridSizes(t *testing.T) {
 
 	entry := registry.Entry{
 		Definition: puzzle.Definition{Name: "Example"},
-		Modes: []registry.ModeEntry{
-			{Definition: puzzle.ModeDef{Title: "Mini 5x5", Description: "Mini 5x5 description"}},
-			{Definition: puzzle.ModeDef{Title: "Hard 10x10", Description: "Hard 10x10 description"}},
+		Variants: []registry.VariantEntry{
+			{Definition: puzzle.VariantDef{Title: "Mini 5x5", Description: "Mini 5x5 description"}},
+			{Definition: puzzle.VariantDef{Title: "Hard 10x10", Description: "Hard 10x10 description"}},
 		},
 	}
 
@@ -45,10 +45,10 @@ func TestModeDisplayTitlesKeepDuplicateBaseNames(t *testing.T) {
 
 	entry := registry.Entry{
 		Definition: puzzle.Definition{Name: "Example"},
-		Modes: []registry.ModeEntry{
-			{Definition: puzzle.ModeDef{Title: "Easy 5x5", Description: "Easy 5x5 description"}},
-			{Definition: puzzle.ModeDef{Title: "Easy 10x10", Description: "Easy 10x10 description"}},
-			{Definition: puzzle.ModeDef{Title: "Hard 10x10", Description: "Hard 10x10 description"}},
+		Variants: []registry.VariantEntry{
+			{Definition: puzzle.VariantDef{Title: "Easy 5x5", Description: "Easy 5x5 description"}},
+			{Definition: puzzle.VariantDef{Title: "Easy 10x10", Description: "Easy 10x10 description"}},
+			{Definition: puzzle.VariantDef{Title: "Hard 10x10", Description: "Hard 10x10 description"}},
 		},
 	}
 
@@ -71,8 +71,8 @@ func TestBuildModeDisplayItemsPreservesOriginalMode(t *testing.T) {
 	original := newTestMode("Hard 10x10")
 	entry := registry.Entry{
 		Definition: puzzle.Definition{Name: "Example"},
-		Modes: []registry.ModeEntry{{
-			Definition: puzzle.ModeDef{Title: original.Title(), Description: original.Description()},
+		Variants: []registry.VariantEntry{{
+			Definition: puzzle.VariantDef{Title: original.Title(), Description: original.Description()},
 		}},
 	}
 
@@ -89,9 +89,9 @@ func TestBuildModeDisplayItemsPreservesOriginalMode(t *testing.T) {
 		t.Fatalf("display item Title() = %q, want %q", got, "Hard")
 	}
 
-	mode, ok := unwrapModeDisplayItem(items[0]).(registry.ModeEntry)
+	mode, ok := unwrapModeDisplayItem(items[0]).(registry.VariantEntry)
 	if !ok {
-		t.Fatal("unwrapModeDisplayItem() did not return a registry.ModeEntry")
+		t.Fatal("unwrapModeDisplayItem() did not return a registry.VariantEntry")
 	}
 	if got := mode.Definition.Title; got != "Hard 10x10" {
 		t.Fatalf("unwrapped mode Title() = %q, want %q", got, "Hard 10x10")

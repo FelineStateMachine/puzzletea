@@ -5,6 +5,7 @@ package catalog
 import (
 	"fmt"
 
+	"github.com/FelineStateMachine/puzzletea/difficulty"
 	"github.com/FelineStateMachine/puzzletea/puzzle"
 )
 
@@ -94,6 +95,33 @@ func Validate(definitions []puzzle.Definition) error {
 				return fmt.Errorf("game %q has mode %q with empty id", def.Name, mode.Title)
 			}
 			modeTitles[mode.ID] = struct{}{}
+		}
+		variantIDs := make(map[puzzle.VariantID]struct{}, len(def.Variants))
+		for _, variant := range def.Variants {
+			if variant.ID == "" {
+				return fmt.Errorf("game %q has variant %q with empty id", def.Name, variant.Title)
+			}
+			if err := difficulty.ValidateElo(variant.DefaultElo); err != nil {
+				return fmt.Errorf("game %q variant %q default Elo is invalid: %w", def.Name, variant.Title, err)
+			}
+			if _, exists := variantIDs[variant.ID]; exists {
+				return fmt.Errorf("game %q has duplicate variant %q", def.Name, variant.ID)
+			}
+			variantIDs[variant.ID] = struct{}{}
+		}
+		for _, alias := range def.LegacyModes {
+			if alias.ID == "" {
+				return fmt.Errorf("game %q has legacy mode %q with empty id", def.Name, alias.Title)
+			}
+			if _, ok := variantIDs[alias.TargetVariantID]; !ok {
+				return fmt.Errorf("game %q legacy mode %q targets missing variant %q", def.Name, alias.Title, alias.TargetVariantID)
+			}
+			if err := difficulty.ValidateElo(alias.PresetElo); err != nil {
+				return fmt.Errorf("game %q legacy mode %q preset Elo is invalid: %w", def.Name, alias.Title, err)
+			}
+			if alias.XPWeight < 1 {
+				return fmt.Errorf("game %q legacy mode %q XP weight must be positive", def.Name, alias.Title)
+			}
 		}
 
 		for _, dailyID := range def.DailyModeIDs {

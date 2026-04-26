@@ -5,6 +5,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/FelineStateMachine/puzzletea/difficulty"
 	"github.com/FelineStateMachine/puzzletea/puzzle"
 	"github.com/FelineStateMachine/puzzletea/store"
 )
@@ -20,14 +21,39 @@ type Weights map[ModeKey]int
 func WeightsFromDefinitions(definitions []puzzle.Definition) Weights {
 	weights := make(Weights, 64)
 	for _, def := range definitions {
-		count := len(def.Modes)
-		for i, mode := range def.Modes {
-			xp := int(math.Round(float64(i) / float64(count) * 10))
-			xp = max(xp, 1)
-			weights[ModeKey{GameType: def.Name, Mode: mode.Title}] = xp
+		count := len(def.Variants)
+		if count > 0 {
+			for i, variant := range def.Variants {
+				xp := int(math.Round(float64(i) / float64(count) * 10))
+				xp = max(xp, 1)
+				weights[ModeKey{GameType: def.Name, Mode: variant.Title}] = xp
+			}
+		}
+		for _, alias := range def.LegacyModes {
+			weights[ModeKey{GameType: def.Name, Mode: alias.Title}] = max(alias.XPWeight, 1)
+		}
+		for _, mode := range def.Modes {
+			if _, ok := weights[ModeKey{GameType: def.Name, Mode: mode.Title}]; !ok {
+				weights[ModeKey{GameType: def.Name, Mode: mode.Title}] = legacyModeXPWeight(mode, def.Modes)
+			}
 		}
 	}
 	return weights
+}
+
+func legacyModeXPWeight(mode puzzle.ModeDef, modes []puzzle.ModeDef) int {
+	count := len(modes)
+	if count == 0 {
+		return 1
+	}
+	for i, candidate := range modes {
+		if candidate.ID != mode.ID {
+			continue
+		}
+		xp := int(math.Round(float64(i) / float64(count) * 10))
+		return max(xp, 1)
+	}
+	return 1
 }
 
 // LevelFromXP returns the level for the given total XP.
@@ -56,16 +82,25 @@ func ComputeCategoryXP(weights Weights, gameType string, modeStats []store.ModeS
 		if ms.GameType != gameType {
 			continue
 		}
-		baseXP := weights[ModeKey{ms.GameType, ms.Mode}]
-		if baseXP == 0 {
-			baseXP = 1
-		}
+		baseXP := modeStatXP(weights, ms)
 		normalVictories := ms.Victories - ms.DailyVictories
 		total += normalVictories * baseXP
 		total += ms.DailyVictories * baseXP * 2
 		total += ms.WeeklyBonusXP
 	}
 	return total
+}
+
+func modeStatXP(weights Weights, ms store.ModeStat) int {
+	if ms.DifficultyElo != nil {
+		score := difficulty.Score01(difficulty.Elo(*ms.DifficultyElo))
+		return max(1, int(math.Round(score*10)))
+	}
+	baseXP := weights[ModeKey{ms.GameType, ms.Mode}]
+	if baseXP == 0 {
+		return 1
+	}
+	return baseXP
 }
 
 // ComputeDailyStreak calculates the length of the current daily completion

@@ -37,6 +37,11 @@ connected group.
 | Hard 10x10 | 10x10 | Longer chains |
 | Expert 12x12 | 12x12 | Broad region planning |
 
+## Elo Difficulty
+
+Named modes are compatibility presets. Use `--difficulty <0..3000>` to target a
+specific Elo difficulty for generated puzzles.
+
 ## Quick Start
 
 ```bash

@@ -48,6 +48,11 @@ clue and the clue's value equals the rectangle's area.
 | Hard 10x10 | 10x10 | 15 | Requires careful planning |
 | Expert 12x12 | 12x12 | 20 | Maximum challenge |
 
+## Elo Difficulty
+
+Named modes are compatibility presets. Use `--difficulty <0..3000>` to target a
+specific Elo difficulty for generated puzzles.
+
 ## Quick Start
 
 ```bash

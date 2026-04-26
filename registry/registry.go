@@ -27,8 +27,9 @@ import (
 )
 
 type (
-	ModeEntry = gameentry.ModeEntry
-	Entry     = gameentry.Entry
+	ModeEntry    = gameentry.ModeEntry
+	VariantEntry = gameentry.VariantEntry
+	Entry        = gameentry.Entry
 )
 
 type DailyEntry struct {
@@ -124,23 +125,25 @@ func Import(gameType string, data []byte) (game.Gamer, error) {
 func DailyEntries() []DailyEntry {
 	dailies := index.DailyEntries()
 	result := make([]DailyEntry, 0, len(dailies))
+	seen := make(map[puzzle.GameID]struct{}, len(dailies))
 	for _, daily := range dailies {
+		if _, ok := seen[daily.GameID]; ok {
+			continue
+		}
 		entry, ok := entriesByID[daily.GameID]
 		if !ok {
 			continue
 		}
-		for _, mode := range entry.Modes {
-			if mode.Definition.ID != daily.ModeID || mode.Seeded == nil {
-				continue
-			}
+		if len(entry.Variants) > 0 && entry.Variants[0].Seeded != nil {
+			variant := entry.Variants[0]
+			seen[daily.GameID] = struct{}{}
 			result = append(result, DailyEntry{
-				Spawner:  mode.Seeded,
+				Spawner:  variant.Seeded,
 				GameID:   daily.GameID,
 				GameType: entry.Definition.Name,
-				ModeID:   daily.ModeID,
-				Mode:     mode.Definition.Title,
+				ModeID:   puzzle.ModeID(variant.Definition.ID),
+				Mode:     variant.Definition.Title,
 			})
-			break
 		}
 	}
 	return result

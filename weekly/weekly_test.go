@@ -95,7 +95,7 @@ func TestBonusXP(t *testing.T) {
 	}
 }
 
-func TestEligibleModesIncludeSudokuRGBDailyTiers(t *testing.T) {
+func TestEligibleModesIncludeSudokuRGBVariant(t *testing.T) {
 	found := map[string]bool{}
 	for _, entry := range eligibleModes {
 		if entry.GameType == "Sudoku RGB" {
@@ -103,9 +103,7 @@ func TestEligibleModesIncludeSudokuRGBDailyTiers(t *testing.T) {
 		}
 	}
 
-	for _, mode := range []string{"Easy", "Medium"} {
-		if !found[mode] {
-			t.Fatalf("eligibleModes missing Sudoku RGB %s", mode)
-		}
+	if !found["Sudoku RGB"] {
+		t.Fatalf("eligibleModes missing Sudoku RGB variant")
 	}
 }

@@ -1,14 +1,17 @@
 package rippleeffect
 
 import (
+	"context"
 	"fmt"
 	"image"
 	"image/color"
 	"math/rand/v2"
+	"reflect"
 	"strings"
 	"testing"
 
 	"charm.land/lipgloss/v2"
+	"github.com/FelineStateMachine/puzzletea/difficulty"
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/theme"
 	"github.com/charmbracelet/x/ansi"
@@ -19,6 +22,23 @@ func sampleCages() []Cage {
 		{ID: 0, Size: 3, Cells: []Cell{{0, 0}, {1, 0}, {2, 0}}},
 		{ID: 1, Size: 3, Cells: []Cell{{0, 1}, {1, 1}, {2, 1}}},
 		{ID: 2, Size: 3, Cells: []Cell{{0, 2}, {1, 2}, {2, 2}}},
+	}
+}
+
+func TestSpawnEloContextCanceled(t *testing.T) {
+	mode := NewMode("Elo", "test", 5, 3, 0.6)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	gamer, report, err := mode.SpawnEloContext(ctx, "seed", 1200)
+	if err == nil {
+		t.Fatal("SpawnEloContext returned nil error for canceled context")
+	}
+	if gamer != nil {
+		t.Fatalf("gamer = %#v, want nil", gamer)
+	}
+	if !reflect.DeepEqual(report, difficulty.Report{}) {
+		t.Fatalf("report = %#v, want zero report", report)
 	}
 }
 
@@ -184,6 +204,101 @@ func TestGeneratePuzzleSeeded(t *testing.T) {
 	}
 	if got := countSolutions(geo, a.Givens, 2); got != 1 {
 		t.Fatalf("generated puzzle solutions = %d, want 1", got)
+	}
+}
+
+func TestSpawnEloRejectsInvalidElo(t *testing.T) {
+	mode := Modes[1].(Mode)
+
+	gamer, report, err := mode.SpawnElo("seed", difficulty.SoftCapElo+1)
+	if err == nil {
+		t.Fatal("SpawnElo returned nil error for invalid Elo")
+	}
+	if gamer != nil {
+		t.Fatalf("SpawnElo gamer = %#v, want nil", gamer)
+	}
+	if !reflect.DeepEqual(report, difficulty.Report{}) {
+		t.Fatalf("SpawnElo report = %#v, want zero report", report)
+	}
+}
+
+func TestSpawnEloDeterministicForSameSeedAndElo(t *testing.T) {
+	mode := Modes[1].(Mode)
+
+	gamerA, reportA, err := mode.SpawnElo("same-seed", 1500)
+	if err != nil {
+		t.Fatalf("first SpawnElo returned error: %v", err)
+	}
+	gamerB, reportB, err := mode.SpawnElo("same-seed", 1500)
+	if err != nil {
+		t.Fatalf("second SpawnElo returned error: %v", err)
+	}
+	if !reflect.DeepEqual(reportA, reportB) {
+		t.Fatalf("reports differ for same seed and Elo:\n%#v\n%#v", reportA, reportB)
+	}
+
+	saveA, err := gamerA.GetSave()
+	if err != nil {
+		t.Fatalf("first GetSave returned error: %v", err)
+	}
+	saveB, err := gamerB.GetSave()
+	if err != nil {
+		t.Fatalf("second GetSave returned error: %v", err)
+	}
+	if string(saveA) != string(saveB) {
+		t.Fatalf("saves differ for same seed and Elo:\n%s\n%s", saveA, saveB)
+	}
+}
+
+func TestSpawnEloPopulatesDifficultyReport(t *testing.T) {
+	mode := Modes[1].(Mode)
+
+	gamer, report, err := mode.SpawnElo("report-fields", 1500)
+	if err != nil {
+		t.Fatalf("SpawnElo returned error: %v", err)
+	}
+	if gamer == nil {
+		t.Fatal("SpawnElo returned nil gamer")
+	}
+	if report.TargetElo != 1500 {
+		t.Fatalf("TargetElo = %d, want 1500", report.TargetElo)
+	}
+	if report.ActualElo < difficulty.MinElo || report.ActualElo > difficulty.SoftCapElo {
+		t.Fatalf("ActualElo = %d, want valid Elo", report.ActualElo)
+	}
+	if report.Confidence == "" {
+		t.Fatal("Confidence is empty")
+	}
+
+	required := []string{
+		"width",
+		"height",
+		"cells",
+		"max_cage",
+		"actual_max_cage",
+		"cage_count",
+		"avg_cage_size",
+		"singleton_cages",
+		"given_count",
+		"empty_count",
+		"given_density",
+		"target_givens",
+		"solution_count",
+		"geometry_cages",
+	}
+	for _, key := range required {
+		if _, ok := report.Metrics[key]; !ok {
+			t.Fatalf("metric %q missing from report %#v", key, report.Metrics)
+		}
+	}
+	if report.Metrics["cells"] <= 0 {
+		t.Fatalf("cells = %.2f, want > 0", report.Metrics["cells"])
+	}
+	if report.Metrics["given_density"] <= 0 || report.Metrics["given_density"] > 1 {
+		t.Fatalf("given_density = %.2f, want 0 < density <= 1", report.Metrics["given_density"])
+	}
+	if report.Metrics["solution_count"] != 1 {
+		t.Fatalf("solution_count = %.2f, want 1", report.Metrics["solution_count"])
 	}
 }
 

@@ -18,6 +18,13 @@ type Config struct {
 	Theme  string       `json:"theme,omitempty"`   // theme name; empty = default
 	DBPath string       `json:"db_path,omitempty"` // database path; empty = ~/.puzzletea/history.db
 	Export ExportConfig `json:"export,omitempty"`  // last-used export settings
+	Create CreateConfig `json:"create,omitempty"`  // last-used create settings
+}
+
+// CreateConfig stores the app's last-used Create form values.
+type CreateConfig struct {
+	SelectedLeafIDs []string `json:"selected_leaf_ids,omitempty"`
+	Elo             int      `json:"elo,omitempty"`
 }
 
 // ExportConfig stores the app's last-used export form values.

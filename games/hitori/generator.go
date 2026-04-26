@@ -1,8 +1,10 @@
 package hitori
 
 import (
+	"context"
 	"errors"
 	"math/rand/v2"
+	"sort"
 )
 
 type cellPos struct{ x, y int }
@@ -224,10 +226,7 @@ func constructPuzzleSeeded(baseGrid grid, mask [][]bool, rng *rand.Rand) grid {
 	return puzzle
 }
 
-// refinePuzzleSeeded tries different number assignments for black cells to achieve
-// a unique solution. It iterates through each black cell trying all possible
-// duplicate values, checking if the resulting puzzle has exactly one solution.
-func refinePuzzleSeeded(puzzle grid, mask [][]bool, size int, rng *rand.Rand) (grid, bool) {
+func refinePuzzleSeededContext(ctx context.Context, puzzle grid, mask [][]bool, size int, rng *rand.Rand) (grid, bool) {
 	// Collect black cell positions.
 	var blackCells []cellPos
 	for y := range size {
@@ -239,13 +238,16 @@ func refinePuzzleSeeded(puzzle grid, mask [][]bool, size int, rng *rand.Rand) (g
 	}
 
 	if len(blackCells) == 0 {
-		return puzzle, countPuzzleSolutions(puzzle, size, 2) == 1
+		return puzzle, countPuzzleSolutionsContext(ctx, puzzle, size, 2) == 1
 	}
 
 	// Try to refine each black cell's value to reduce solution count.
 	refined := puzzle.clone()
-	currentCount := countPuzzleSolutions(refined, size, 3)
+	currentCount := countPuzzleSolutionsContext(ctx, refined, size, 3)
 	for _, bc := range blackCells {
+		if ctx.Err() != nil {
+			return refined, false
+		}
 		// Collect candidate numbers for this black cell.
 		candidates := cellCandidates(refined, mask, size, bc.x, bc.y)
 		rankRefinementCandidates(refined, mask, size, bc.x, bc.y, candidates, rng)
@@ -258,7 +260,7 @@ func refinePuzzleSeeded(puzzle grid, mask [][]bool, size int, rng *rand.Rand) (g
 				continue
 			}
 			refined[bc.y][bc.x] = num
-			c := countPuzzleSolutions(refined, size, 3)
+			c := countPuzzleSolutionsContext(ctx, refined, size, 3)
 			if c == 1 {
 				return refined, true
 			}
@@ -275,7 +277,7 @@ func refinePuzzleSeeded(puzzle grid, mask [][]bool, size int, rng *rand.Rand) (g
 		}
 	}
 
-	return refined, countPuzzleSolutions(refined, size, 2) == 1
+	return refined, countPuzzleSolutionsContext(ctx, refined, size, 2) == 1
 }
 
 func rankRefinementCandidates(
@@ -341,6 +343,9 @@ func cellCandidates(puzzle grid, mask [][]bool, size, x, y int) []rune {
 	for num := range seen {
 		result = append(result, num)
 	}
+	sort.Slice(result, func(i, j int) bool {
+		return result[i] < result[j]
+	})
 	return result
 }
 
@@ -354,20 +359,28 @@ const (
 )
 
 func countPuzzleSolutions(puzzle grid, size, limit int) int {
+	return countPuzzleSolutionsContext(context.Background(), puzzle, size, limit)
+}
+
+func countPuzzleSolutionsContext(ctx context.Context, puzzle grid, size, limit int) int {
 	st := make([][]solverState, size)
 	for y := range size {
 		st[y] = make([]solverState, size)
 	}
 	order := rowMajorOrder(size)
-	return solveBT(puzzle, st, order, 0, limit)
+	return solveBTContext(ctx, puzzle, st, order, 0, limit)
 }
 
-func solveBT(
+func solveBTContext(
+	ctx context.Context,
 	puzzle grid,
 	st [][]solverState,
 	order []cellPos,
 	pos, limit int,
 ) int {
+	if ctx.Err() != nil {
+		return -1
+	}
 	size := len(st)
 	if pos == len(order) {
 		marks := stateToMarks(st, size)
@@ -392,8 +405,13 @@ func solveBT(
 
 	if whiteOK {
 		st[y][x] = white
-		count += solveBT(puzzle, st, order, pos+1, limit-count)
+		n := solveBTContext(ctx, puzzle, st, order, pos+1, limit-count)
 		st[y][x] = unknown
+		if n < 0 {
+			order[pos], order[nextIdx] = order[nextIdx], order[pos]
+			return n
+		}
+		count += n
 		if count >= limit {
 			order[pos], order[nextIdx] = order[nextIdx], order[pos]
 			return count
@@ -402,8 +420,13 @@ func solveBT(
 
 	if blackOK {
 		st[y][x] = black
-		count += solveBT(puzzle, st, order, pos+1, limit-count)
+		n := solveBTContext(ctx, puzzle, st, order, pos+1, limit-count)
 		st[y][x] = unknown
+		if n < 0 {
+			order[pos], order[nextIdx] = order[nextIdx], order[pos]
+			return n
+		}
+		count += n
 		if count >= limit {
 			order[pos], order[nextIdx] = order[nextIdx], order[pos]
 			return count
@@ -507,20 +530,27 @@ func Generate(size int, blackRatio float64) (grid, error) {
 }
 
 func GenerateSeeded(size int, blackRatio float64, rng *rand.Rand) (grid, error) {
+	return GenerateSeededContext(context.Background(), size, blackRatio, rng)
+}
+
+func GenerateSeededContext(ctx context.Context, size int, blackRatio float64, rng *rand.Rand) (grid, error) {
 	const maxAttempts = 200
 
 	for range maxAttempts {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		baseGrid := generateLatinSquareSeeded(size, rng)
 		mask := generateValidMaskSeeded(size, blackRatio, rng)
 		puzzle := constructPuzzleSeeded(baseGrid, mask, rng)
 
 		// First try the random construction.
-		if countPuzzleSolutions(puzzle, size, 2) == 1 {
+		if countPuzzleSolutionsContext(ctx, puzzle, size, 2) == 1 {
 			return puzzle, nil
 		}
 
 		// Refine by trying different values for black cells.
-		refined, ok := refinePuzzleSeeded(puzzle, mask, size, rng)
+		refined, ok := refinePuzzleSeededContext(ctx, puzzle, mask, size, rng)
 		if ok {
 			return refined, nil
 		}

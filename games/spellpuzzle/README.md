@@ -28,6 +28,11 @@ as a bonus word instead.
 | Medium | 8 | 8 | 6 |
 | Hard | 9 | 9 | 8 |
 
+## Elo Difficulty
+
+Named modes are compatibility presets. Use `--difficulty <0..3000>` to target a
+specific Elo difficulty for generated puzzles.
+
 ## Quick Start
 
 ```bash

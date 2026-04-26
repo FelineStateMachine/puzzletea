@@ -29,22 +29,27 @@ const (
 )
 
 type GameRecord struct {
-	ID           int64
-	Name         string
-	GameID       string
-	GameType     string
-	ModeID       string
-	Mode         string
-	InitialState string
-	SaveState    string
-	Status       GameStatus
-	RunKind      RunKind
-	RunDate      *time.Time
-	WeekYear     int
-	WeekNumber   int
-	WeekIndex    int
-	SeedText     string
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
-	CompletedAt  *time.Time
+	ID                   int64
+	Name                 string
+	GameID               string
+	GameType             string
+	VariantID            string
+	Variant              string
+	ModeID               string
+	Mode                 string
+	InitialState         string
+	SaveState            string
+	Status               GameStatus
+	RunKind              RunKind
+	RunDate              *time.Time
+	WeekYear             int
+	WeekNumber           int
+	WeekIndex            int
+	SeedText             string
+	TargetDifficultyElo  *int
+	ActualDifficultyElo  *int
+	DifficultyConfidence string
+	CreatedAt            time.Time
+	UpdatedAt            time.Time
+	CompletedAt          *time.Time
 }

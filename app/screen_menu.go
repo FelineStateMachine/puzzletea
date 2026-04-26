@@ -69,15 +69,13 @@ func (s playMenuScreen) Update(msg tea.Msg) (screenModel, tea.Cmd, screenAction)
 	case key.Matches(keyMsg, rootKeys.Enter):
 		switch s.menu.SelectedAction() {
 		case playMenuActionCreate:
-			return s, nil, openGameSelectAction{}
+			return s, nil, openCreateAction{}
 		case playMenuActionContinue:
 			return s, nil, openContinueAction{}
 		case playMenuActionDaily:
 			return s, nil, openDailyAction{}
 		case playMenuActionWeekly:
 			return s, nil, openWeeklyAction{}
-		case playMenuActionSeeded:
-			return s, nil, openSeedInputAction{}
 		}
 	case key.Matches(keyMsg, rootKeys.Escape):
 		return s, nil, backAction{target: mainMenuView}

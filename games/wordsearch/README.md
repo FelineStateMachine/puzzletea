@@ -34,6 +34,11 @@ The puzzle is solved when all words are found.
 | Medium | 15x15 | 10 | 6 | + DownLeft, Left, Up |
 | Hard | 20x20 | 15 | 8 | All 8 directions |
 
+## Elo Difficulty
+
+Named modes are compatibility presets. Use `--difficulty <0..3000>` to target a
+specific Elo difficulty for generated puzzles.
+
 ## Quick Start
 
 ```bash

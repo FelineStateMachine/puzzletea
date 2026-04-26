@@ -18,6 +18,8 @@ CREATE TABLE IF NOT EXISTS games (
     name          TEXT    NOT NULL UNIQUE,
     game_id       TEXT    NOT NULL DEFAULT '',
     game_type     TEXT    NOT NULL,
+    variant_id    TEXT    NOT NULL DEFAULT '',
+    variant       TEXT    NOT NULL DEFAULT '',
     mode_id       TEXT    NOT NULL DEFAULT '',
     mode          TEXT    NOT NULL,
     initial_state TEXT    NOT NULL,
@@ -31,6 +33,9 @@ CREATE TABLE IF NOT EXISTS games (
     week_number   INTEGER,
     week_index    INTEGER,
     seed_text     TEXT,
+    target_difficulty_elo INTEGER,
+    actual_difficulty_elo INTEGER,
+    difficulty_confidence TEXT,
     created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     completed_at  DATETIME
@@ -46,11 +51,11 @@ SELECT
     COUNT(*) FILTER (WHERE run_kind = 'daily')            AS times_daily,
     COUNT(*) FILTER (WHERE status = 'completed'
                        AND run_kind = 'daily')            AS daily_victories,
-    (SELECT mode FROM games g2
+    (SELECT COALESCE(NULLIF(variant, ''), mode) FROM games g2
      WHERE g2.game_type = games.game_type
        AND g2.status = 'completed'
-     GROUP BY mode
-     ORDER BY COUNT(*) DESC, mode ASC
+     GROUP BY COALESCE(NULLIF(variant, ''), mode)
+     ORDER BY COUNT(*) DESC, COALESCE(NULLIF(variant, ''), mode) ASC
      LIMIT 1)                                             AS preferred_mode
 FROM games
 GROUP BY game_type;`
@@ -59,19 +64,23 @@ const createModeStatsViewSQL = `
 CREATE VIEW IF NOT EXISTS mode_stats AS
 SELECT
     game_type,
-    mode,
+    COALESCE(NULLIF(variant, ''), mode)                    AS mode,
     COUNT(*) FILTER (WHERE status = 'completed')          AS victories,
     COUNT(*) FILTER (WHERE status = 'completed'
-                       AND run_kind = 'daily')            AS daily_victories
+                       AND run_kind = 'daily')            AS daily_victories,
+    CAST(ROUND(AVG(COALESCE(actual_difficulty_elo, target_difficulty_elo))
+        FILTER (WHERE status = 'completed'
+                  AND COALESCE(actual_difficulty_elo, target_difficulty_elo) IS NOT NULL)) AS INTEGER) AS difficulty_elo
 FROM games
-GROUP BY game_type, mode;`
+GROUP BY game_type, COALESCE(NULLIF(variant, ''), mode);`
 
 type Store struct {
 	db *sql.DB
 }
 
-const gameSelectColumns = `id, name, game_id, game_type, mode_id, mode, initial_state, save_state,
+const gameSelectColumns = `id, name, game_id, game_type, variant_id, variant, mode_id, mode, initial_state, save_state,
         status, run_kind, run_date, week_year, week_number, week_index, seed_text,
+        target_difficulty_elo, actual_difficulty_elo, difficulty_confidence,
         created_at, updated_at, completed_at`
 
 type rowScanner interface {
@@ -85,11 +94,15 @@ func scanGameRecord(scanner rowScanner) (GameRecord, error) {
 	var weekNumber sql.NullInt64
 	var weekIndex sql.NullInt64
 	var seedText sql.NullString
+	var targetDifficultyElo sql.NullInt64
+	var actualDifficultyElo sql.NullInt64
+	var difficultyConfidence sql.NullString
 	var completedAt sql.NullTime
 	if err := scanner.Scan(
-		&g.ID, &g.Name, &g.GameID, &g.GameType, &g.ModeID, &g.Mode,
+		&g.ID, &g.Name, &g.GameID, &g.GameType, &g.VariantID, &g.Variant, &g.ModeID, &g.Mode,
 		&g.InitialState, &g.SaveState, &g.Status,
 		&g.RunKind, &runDate, &weekYear, &weekNumber, &weekIndex, &seedText,
+		&targetDifficultyElo, &actualDifficultyElo, &difficultyConfidence,
 		&g.CreatedAt, &g.UpdatedAt, &completedAt,
 	); err != nil {
 		return GameRecord{}, err
@@ -109,6 +122,17 @@ func scanGameRecord(scanner rowScanner) (GameRecord, error) {
 	}
 	if seedText.Valid {
 		g.SeedText = seedText.String
+	}
+	if targetDifficultyElo.Valid {
+		v := int(targetDifficultyElo.Int64)
+		g.TargetDifficultyElo = &v
+	}
+	if actualDifficultyElo.Valid {
+		v := int(actualDifficultyElo.Int64)
+		g.ActualDifficultyElo = &v
+	}
+	if difficultyConfidence.Valid {
+		g.DifficultyConfidence = difficultyConfidence.String
 	}
 	if completedAt.Valid {
 		g.CompletedAt = &completedAt.Time
@@ -179,18 +203,26 @@ func (s *Store) CreateGame(rec *GameRecord) error {
 	if rec.ModeID == "" {
 		rec.ModeID = CanonicalModeID(rec.Mode)
 	}
+	if rec.Variant == "" {
+		rec.Variant = rec.Mode
+	}
+	if rec.VariantID == "" {
+		rec.VariantID = CanonicalModeID(rec.Variant)
+	}
 	if rec.RunKind == "" {
 		rec.RunKind = RunKindNormal
 	}
 
 	result, err := s.db.Exec(
 		`INSERT INTO games
-		    (name, game_id, game_type, mode_id, mode, initial_state, save_state, status,
-		     run_kind, run_date, week_year, week_number, week_index, seed_text)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		rec.Name, rec.GameID, rec.GameType, rec.ModeID, rec.Mode,
+		    (name, game_id, game_type, variant_id, variant, mode_id, mode, initial_state, save_state, status,
+		     run_kind, run_date, week_year, week_number, week_index, seed_text,
+		     target_difficulty_elo, actual_difficulty_elo, difficulty_confidence)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		rec.Name, rec.GameID, rec.GameType, rec.VariantID, rec.Variant, rec.ModeID, rec.Mode,
 		rec.InitialState, rec.SaveState, rec.Status, string(rec.RunKind), rec.RunDate,
 		nullableInt(rec.WeekYear), nullableInt(rec.WeekNumber), nullableInt(rec.WeekIndex), nullableString(rec.SeedText),
+		nullableIntPtr(rec.TargetDifficultyElo), nullableIntPtr(rec.ActualDifficultyElo), nullableString(rec.DifficultyConfidence),
 	)
 	if err != nil {
 		return fmt.Errorf("inserting game: %w", err)

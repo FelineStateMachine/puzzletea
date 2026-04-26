@@ -42,6 +42,11 @@ three copies of a value.
 | Expert | 36 | Sparse givens require deeper scanning |
 | Diabolical | 30 | Tightest clue budget in the launch set |
 
+## Elo Difficulty
+
+Named modes are compatibility presets. Use `--difficulty <0..3000>` to target a
+specific Elo difficulty for generated puzzles.
+
 ## Quick Start
 
 ```bash

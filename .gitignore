@@ -38,3 +38,7 @@ dist/
 /plans/
 /.gocache
 /.golangci-cache
+
+# Temp Scripting and Output directories
+/out
+/tmp

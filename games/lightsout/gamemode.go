@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"math/rand/v2"
 
+	"github.com/FelineStateMachine/puzzletea/difficulty"
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/gameentry"
 	"github.com/FelineStateMachine/puzzletea/puzzle"
@@ -21,6 +22,7 @@ var (
 	_ game.Mode          = Mode{}
 	_ game.Spawner       = Mode{}
 	_ game.SeededSpawner = Mode{}
+	_ game.EloSpawner    = Mode{}
 )
 
 func NewMode(title, desc string, w, h int) Mode {
@@ -46,7 +48,20 @@ var Modes = []game.Mode{
 	NewMode("Extreme", "9x9 grid", 9, 9),
 }
 
-var ModeDefinitions = gameentry.BuildModeDefs(Modes)
+var ModeDefinitions = lightsOutModeDefinitions(Modes)
+
+func lightsOutModeDefinitions(modes []game.Mode) []puzzle.ModeDef {
+	defs := gameentry.BuildModeDefs(modes)
+	presets := []difficulty.Elo{0, 1000, 2000, 3000}
+	for i := range defs {
+		if i >= len(presets) {
+			break
+		}
+		elo := presets[i]
+		defs[i].PresetElo = &elo
+	}
+	return defs
+}
 
 var Definition = puzzle.NewDefinition(puzzle.DefinitionSpec{
 	Name:         "Lights Out",

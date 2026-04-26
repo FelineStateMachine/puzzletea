@@ -55,6 +55,11 @@ bridges and all islands are connected.
 | Medium 13x13 | 13x13 | 42-51 | Moderate density |
 | Hard 13x13 | 13x13 | 59-68 | Dense island placement |
 
+## Elo Difficulty
+
+Named modes are compatibility presets. Use `--difficulty <0..3000>` to target a
+specific Elo difficulty for generated puzzles.
+
 ## Quick Start
 
 ```bash

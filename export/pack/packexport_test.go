@@ -39,6 +39,9 @@ func TestRunDeterministicWithFixedSpecAndSeed(t *testing.T) {
 	if string(jsonlA) != string(jsonlB) {
 		t.Fatal("expected identical jsonl output for identical spec and seed")
 	}
+	if !strings.Contains(string(jsonlA), pdfexport.ExportSchemaV2) {
+		t.Fatalf("jsonl schema marker missing %q", pdfexport.ExportSchemaV2)
+	}
 
 	info, err := os.Stat(specA.PDFOutputPath)
 	if err != nil {
@@ -46,6 +49,13 @@ func TestRunDeterministicWithFixedSpecAndSeed(t *testing.T) {
 	}
 	if info.Size() == 0 {
 		t.Fatal("expected non-empty pdf output")
+	}
+}
+
+func TestDefaultSpecUsesPackSchemaV2(t *testing.T) {
+	spec := DefaultSpec(t.TempDir())
+	if spec.Schema != PackSpecSchemaV2 {
+		t.Fatalf("Schema = %q, want %q", spec.Schema, PackSpecSchemaV2)
 	}
 }
 
@@ -106,7 +116,16 @@ func TestValidateSpecRejectsUnknownTargets(t *testing.T) {
 				spec.Counts[puzzle.CanonicalGameID("Sudoku")][puzzle.ModeID("missing-mode")] = 1
 				return spec
 			}(),
-			want: "not a known export mode",
+			want: "not a known export variant",
+		},
+		{
+			name: "unsupported schema",
+			spec: func() Spec {
+				spec := smallTestSpec(dir, "unsupported-schema")
+				spec.Schema = "puzzletea.pack.v1"
+				return spec
+			}(),
+			want: "unsupported pack spec schema",
 		},
 	}
 

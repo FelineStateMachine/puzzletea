@@ -4,6 +4,11 @@ Rotate network tiles until every active connection reaches the server in one loo
 
 ![Netwalk gameplay](../vhs/netwalk.gif)
 
+## Elo Difficulty
+
+Named modes are compatibility presets. Use `--difficulty <0..3000>` to target a
+specific Elo difficulty for generated puzzles.
+
 ## Quick Start
 
 ```bash

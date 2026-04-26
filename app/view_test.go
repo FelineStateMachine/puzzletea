@@ -24,6 +24,23 @@ func TestGameViewRequestsMouseCellMotion(t *testing.T) {
 	}
 }
 
+func TestCreateViewRequestsMouseCellMotion(t *testing.T) {
+	m := model{
+		state:  createView,
+		width:  100,
+		height: 30,
+	}
+	m = m.initScreen(createView)
+
+	v := m.View()
+	if v.MouseMode != tea.MouseModeCellMotion {
+		t.Fatalf("MouseMode = %v, want %v", v.MouseMode, tea.MouseModeCellMotion)
+	}
+	if !v.KeyboardEnhancements.ReportEventTypes {
+		t.Fatal("expected keyboard event type reporting to remain enabled")
+	}
+}
+
 func TestPlayMenuViewIncludesNotice(t *testing.T) {
 	m := model{
 		state:  playMenuView,

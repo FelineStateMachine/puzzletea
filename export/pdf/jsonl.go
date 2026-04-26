@@ -9,9 +9,14 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+
+	"github.com/FelineStateMachine/puzzletea/difficulty"
 )
 
-const ExportSchemaV1 = "puzzletea.export.v1"
+const (
+	ExportSchemaV1 = "puzzletea.export.v1"
+	ExportSchemaV2 = "puzzletea.export.v2"
+)
 
 type JSONLRecord struct {
 	Schema string        `json:"schema"`
@@ -29,11 +34,14 @@ type JSONLPackMeta struct {
 }
 
 type JSONLPuzzle struct {
-	Index int             `json:"index"`
-	Name  string          `json:"name"`
-	Game  string          `json:"game"`
-	Mode  string          `json:"mode"`
-	Save  json.RawMessage `json:"save"`
+	Index                int             `json:"index"`
+	Name                 string          `json:"name"`
+	Game                 string          `json:"game"`
+	Mode                 string          `json:"mode"`
+	TargetDifficultyElo  *int            `json:"target_difficulty_elo,omitempty"`
+	ActualDifficultyElo  *int            `json:"actual_difficulty_elo,omitempty"`
+	DifficultyConfidence string          `json:"difficulty_confidence,omitempty"`
+	Save                 json.RawMessage `json:"save"`
 }
 
 func ParseJSONLFiles(paths []string) ([]PackDocument, error) {
@@ -103,7 +111,7 @@ func parseJSONLScanner(path string, scanner *bufio.Scanner) (PackDocument, error
 		if err := json.Unmarshal([]byte(line), &record); err != nil {
 			return PackDocument{}, fmt.Errorf("%s:%d: decode jsonl record: %w", path, lineNo, err)
 		}
-		if record.Schema != ExportSchemaV1 {
+		if !IsSupportedExportSchema(record.Schema) {
 			return PackDocument{}, fmt.Errorf("%s:%d: unsupported schema %q", path, lineNo, record.Schema)
 		}
 
@@ -117,14 +125,17 @@ func parseJSONLScanner(path string, scanner *bufio.Scanner) (PackDocument, error
 		}
 
 		p := Puzzle{
-			SourcePath:     path,
-			SourceFileName: filepath.Base(path),
-			Category:       category,
-			ModeSelection:  mode,
-			Name:           record.Puzzle.Name,
-			Index:          record.Puzzle.Index,
-			SaveData:       append([]byte(nil), record.Puzzle.Save...),
+			SourcePath:          path,
+			SourceFileName:      filepath.Base(path),
+			Category:            category,
+			ModeSelection:       mode,
+			Name:                record.Puzzle.Name,
+			Index:               record.Puzzle.Index,
+			SaveData:            append([]byte(nil), record.Puzzle.Save...),
+			TargetDifficultyElo: cloneInt(record.Puzzle.TargetDifficultyElo),
+			ActualDifficultyElo: cloneInt(record.Puzzle.ActualDifficultyElo),
 		}
+		annotateJSONLDifficulty(&p, record.Puzzle)
 
 		adapter, ok := LookupPrintAdapter(category)
 		if !ok {
@@ -177,4 +188,50 @@ func parseJSONLScanner(path string, scanner *bufio.Scanner) (PackDocument, error
 	}
 	doc.Puzzles = puzzles
 	return doc, nil
+}
+
+func IsSupportedExportSchema(schema string) bool {
+	switch schema {
+	case ExportSchemaV1, ExportSchemaV2:
+		return true
+	default:
+		return false
+	}
+}
+
+func annotateJSONLDifficulty(p *Puzzle, puzzle JSONLPuzzle) {
+	if puzzle.ActualDifficultyElo != nil {
+		elo := difficulty.Elo(*puzzle.ActualDifficultyElo)
+		p.DifficultyScore = difficulty.Score01(elo)
+		p.DifficultyConfidence = parseDifficultyConfidence(puzzle.DifficultyConfidence)
+		p.DifficultySource = "actual-elo"
+		return
+	}
+	if puzzle.TargetDifficultyElo != nil {
+		elo := difficulty.Elo(*puzzle.TargetDifficultyElo)
+		p.DifficultyScore = difficulty.Score01(elo)
+		p.DifficultyConfidence = parseDifficultyConfidence(puzzle.DifficultyConfidence)
+		p.DifficultySource = "target-elo"
+	}
+}
+
+func parseDifficultyConfidence(raw string) DifficultyConfidence {
+	switch difficulty.Confidence(strings.ToLower(strings.TrimSpace(raw))) {
+	case difficulty.ConfidenceLow:
+		return DifficultyConfidenceLow
+	case difficulty.ConfidenceMedium:
+		return DifficultyConfidenceMedium
+	case difficulty.ConfidenceHigh:
+		return DifficultyConfidenceHigh
+	default:
+		return DifficultyConfidenceMedium
+	}
+}
+
+func cloneInt(value *int) *int {
+	if value == nil {
+		return nil
+	}
+	v := *value
+	return &v
 }

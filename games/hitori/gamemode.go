@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"math/rand/v2"
 
+	"github.com/FelineStateMachine/puzzletea/difficulty"
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/gameentry"
 	"github.com/FelineStateMachine/puzzletea/puzzle"
@@ -22,6 +23,7 @@ var (
 	_ game.Mode          = HitoriMode{}
 	_ game.Spawner       = HitoriMode{}
 	_ game.SeededSpawner = HitoriMode{}
+	_ game.EloSpawner    = HitoriMode{}
 )
 
 func NewMode(title, desc string, size int, blackRatio float64) HitoriMode {
@@ -57,7 +59,23 @@ var Modes = []game.Mode{
 	NewMode("Expert", "12\u00d712 grid, maximum challenge.", 12, 0.28),
 }
 
-var ModeDefinitions = gameentry.BuildModeDefs(Modes)
+var ModeDefinitions = hitoriModeDefinitions(Modes)
+
+func hitoriModeDefinitions(modes []game.Mode) []puzzle.ModeDef {
+	defs := gameentry.BuildModeDefs(modes)
+	presets := []difficulty.Elo{300, 700, 1300, 1800, 2300, 2800}
+	for i, mode := range modes {
+		if i >= len(defs) || i >= len(presets) {
+			break
+		}
+		if _, ok := mode.(game.EloSpawner); !ok {
+			continue
+		}
+		elo := presets[i]
+		defs[i].PresetElo = &elo
+	}
+	return defs
+}
 
 var Definition = puzzle.NewDefinition(puzzle.DefinitionSpec{
 	Name:         "Hitori",

@@ -7,6 +7,7 @@ import (
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
+	"github.com/FelineStateMachine/puzzletea/difficulty"
 	"github.com/FelineStateMachine/puzzletea/puzzle"
 )
 
@@ -59,6 +60,17 @@ type CancellableSeededSpawner interface {
 	SpawnSeededContext(ctx context.Context, rng *rand.Rand) (Gamer, error)
 }
 
+// EloSpawner creates a deterministic game instance from seed text and Elo.
+type EloSpawner interface {
+	SpawnElo(seed string, elo difficulty.Elo) (Gamer, difficulty.Report, error)
+}
+
+// CancellableEloSpawner optionally supports context-aware Elo generation.
+type CancellableEloSpawner interface {
+	EloSpawner
+	SpawnEloContext(ctx context.Context, seed string, elo difficulty.Elo) (Gamer, difficulty.Report, error)
+}
+
 // BaseMode provides the common title/description fields and the three
 // Mode-interface methods so that concrete mode structs can embed it
 // instead of duplicating boilerplate.
@@ -89,8 +101,9 @@ func NormalizeName(s string) string {
 
 // SpawnCompleteMsg is sent when an async Spawn() call finishes.
 type SpawnCompleteMsg struct {
-	Game Gamer
-	Err  error
+	Game   Gamer
+	Report difficulty.Report
+	Err    error
 }
 
 // HelpToggleMsg is sent from the root model to games when the user toggles

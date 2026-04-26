@@ -62,10 +62,17 @@ func GenerateRandomTomography(mode NonogramMode) Hints {
 }
 
 func GenerateRandomTomographySeeded(mode NonogramMode, rng *rand.Rand) Hints {
+	return GenerateRandomTomographySeededContext(context.Background(), mode, rng)
+}
+
+func GenerateRandomTomographySeededContext(ctx context.Context, mode NonogramMode, rng *rand.Rand) Hints {
 	maxDim := max(mode.Width, mode.Height)
 	timeout := time.Duration(maxDim) * time.Second
 
 	for attempt := range maxAttempts {
+		if ctx.Err() != nil {
+			return Hints{}
+		}
 		density := lerp(mode.Density, 0.5, float64(attempt)*0.02)
 		s := generateRandomStateSeeded(mode.Height, mode.Width, density, rng)
 		g := newGrid(s)
@@ -73,10 +80,26 @@ func GenerateRandomTomographySeeded(mode NonogramMode, rng *rand.Rand) Hints {
 		if !isValidPuzzle(hints, mode.Height, mode.Width) {
 			continue
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), timeout)
-		count := countSolutions(hints, mode.Width, mode.Height, 2, ctx)
+		attemptCtx, cancel := context.WithTimeout(ctx, timeout)
+		count := countSolutions(hints, mode.Width, mode.Height, 2, attemptCtx)
 		cancel()
 		if count == 1 {
+			return hints
+		}
+	}
+	return Hints{}
+}
+
+func GenerateRandomTomographySeededFastContext(ctx context.Context, mode NonogramMode, rng *rand.Rand) Hints {
+	for attempt := range maxAttempts {
+		if ctx.Err() != nil {
+			return Hints{}
+		}
+		density := lerp(mode.Density, 0.5, float64(attempt)*0.02)
+		s := generateRandomStateSeeded(mode.Height, mode.Width, density, rng)
+		g := newGrid(s)
+		hints := generateTomography(g)
+		if isValidPuzzle(hints, mode.Height, mode.Width) {
 			return hints
 		}
 	}

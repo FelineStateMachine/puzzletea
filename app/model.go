@@ -44,7 +44,6 @@ const (
 	playMenuActionContinue = "continue"
 	playMenuActionDaily    = "daily"
 	playMenuActionWeekly   = "weekly"
-	playMenuActionSeeded   = "seeded"
 
 	optionsMenuActionTheme  = "theme"
 	optionsMenuActionGuides = "guides"
@@ -68,6 +67,7 @@ const (
 	playMenuView
 	optionsMenuView
 	seedInputView
+	createView
 	gameSelectView
 	modeSelectView
 	exportView
@@ -192,6 +192,7 @@ type model struct {
 	cont    continueState
 	session sessionState
 	seed    seedState
+	create  createState
 	weekly  weeklyState
 	help    helpState
 	stats   statsState
@@ -209,6 +210,8 @@ type model struct {
 	// Config
 	cfg        *config.Config
 	configPath string
+
+	createRandIndex func(int) int
 }
 
 func newSpinner() spinner.Model {
@@ -274,6 +277,5 @@ func buildPlayMenuItems(now time.Time, currentWeeklyIndex int) []ui.MenuItem {
 		{Action: playMenuActionContinue, ItemTitle: "Continue", Desc: "a previously played puzzle"},
 		{Action: playMenuActionDaily, ItemTitle: "Daily", Desc: now.Format("Jan _2 06")},
 		{Action: playMenuActionWeekly, ItemTitle: "Weekly", Desc: "Week " + formatTwoDigits(week) + "-" + strconv.Itoa(year) + " #" + formatWeeklyMenuIndex(currentWeeklyIndex)},
-		{Action: playMenuActionSeeded, ItemTitle: "Seeded", Desc: "enter a specific seed"},
 	}
 }

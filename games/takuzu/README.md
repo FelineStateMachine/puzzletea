@@ -41,6 +41,11 @@ every cell is filled and all three rules are satisfied.
 | Very Hard | 12x12 | ~30% | Deep logic required |
 | Extreme | 14x14 | ~28% | Maximum challenge |
 
+## Elo Difficulty
+
+Named modes are compatibility presets. Use `--difficulty <0..3000>` to target a
+specific Elo difficulty for generated puzzles.
+
 ## Quick Start
 
 ```bash

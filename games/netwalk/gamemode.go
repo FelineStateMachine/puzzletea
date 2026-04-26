@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"math/rand/v2"
 
+	"github.com/FelineStateMachine/puzzletea/difficulty"
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/gameentry"
 	"github.com/FelineStateMachine/puzzletea/puzzle"
@@ -23,6 +24,7 @@ var (
 	_ game.Mode          = NetwalkMode{}
 	_ game.Spawner       = NetwalkMode{}
 	_ game.SeededSpawner = NetwalkMode{}
+	_ game.EloSpawner    = NetwalkMode{}
 )
 
 func NewMode(title, desc string, size int, fillRatio float64, profile generateProfile) NetwalkMode {
@@ -101,7 +103,20 @@ var Modes = []game.Mode{
 	NewMode("Expert 13x13", "Large, crowded network with heavy branching and frequent near-miss tangles.", 13, 0.78, expertProfile),
 }
 
-var ModeDefinitions = gameentry.BuildModeDefs(Modes)
+var ModeDefinitions = netwalkModeDefinitions(Modes)
+
+func netwalkModeDefinitions(modes []game.Mode) []puzzle.ModeDef {
+	defs := gameentry.BuildModeDefs(modes)
+	presets := []difficulty.Elo{400, 900, 1500, 2200, 2800}
+	for i := range defs {
+		if i >= len(presets) {
+			break
+		}
+		elo := presets[i]
+		defs[i].PresetElo = &elo
+	}
+	return defs
+}
 
 var Definition = puzzle.NewDefinition(puzzle.DefinitionSpec{
 	Name:         "Netwalk",

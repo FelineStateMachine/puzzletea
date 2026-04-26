@@ -30,6 +30,11 @@ goal is to turn every light off.
 | Hard | 7x7 | Large grid |
 | Extreme | 9x9 | Maximum size |
 
+## Elo Difficulty
+
+Named modes are compatibility presets. Use `--difficulty <0..3000>` to target a
+specific Elo difficulty for generated puzzles.
+
 ## Quick Start
 
 ```bash

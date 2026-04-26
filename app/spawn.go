@@ -5,6 +5,7 @@ import (
 	"math/rand/v2"
 	"time"
 
+	"github.com/FelineStateMachine/puzzletea/difficulty"
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/store"
 
@@ -16,6 +17,25 @@ const spawnTimeout = 10 * time.Second
 type spawnCompleteMsg struct {
 	jobID  int64
 	result game.SpawnCompleteMsg
+}
+
+func spawnEloCmd(spawner game.EloSpawner, seed string, elo difficulty.Elo, ctx context.Context, jobID int64) tea.Cmd {
+	return func() tea.Msg {
+		var (
+			g      game.Gamer
+			report difficulty.Report
+			err    error
+		)
+		if cancellable, ok := spawner.(game.CancellableEloSpawner); ok {
+			g, report, err = cancellable.SpawnEloContext(ctx, seed, elo)
+		} else {
+			g, report, err = spawner.SpawnElo(seed, elo)
+		}
+		return spawnCompleteMsg{
+			jobID:  jobID,
+			result: game.SpawnCompleteMsg{Game: g, Report: report, Err: err},
+		}
+	}
 }
 
 // spawnCmd returns a tea.Cmd that runs Spawn() off the main goroutine.

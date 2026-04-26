@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/FelineStateMachine/puzzletea/config"
+	"github.com/FelineStateMachine/puzzletea/difficulty"
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/registry"
 	"github.com/FelineStateMachine/puzzletea/resolve"
@@ -15,10 +16,12 @@ import (
 )
 
 var (
-	flagSetSeed  string
-	flagWithSeed string
-	flagExport   int
-	flagOutput   string
+	flagSetSeed       string
+	flagWithSeed      string
+	flagDifficulty    int
+	flagDifficultySet bool
+	flagExport        int
+	flagOutput        string
 )
 
 var newCmd = &cobra.Command{
@@ -29,6 +32,7 @@ var newCmd = &cobra.Command{
 		strings.Join(registry.Names(), "\n  ")),
 	Args: cobra.RangeArgs(0, 2),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		flagDifficultySet = cmd.Flags().Changed("difficulty")
 		if flagOutput != "" || cmd.Flags().Changed("export") {
 			return runNewExport(cmd, args)
 		}
@@ -56,6 +60,7 @@ var newCmd = &cobra.Command{
 func init() {
 	newCmd.Flags().StringVar(&flagSetSeed, "set-seed", "", "seed string for deterministic puzzle selection and generation")
 	newCmd.Flags().StringVar(&flagWithSeed, "with-seed", "", "seed string for deterministic puzzle generation within the selected game/mode")
+	newCmd.Flags().IntVar(&flagDifficulty, "difficulty", -1, "target Elo difficulty for Elo-capable generation (0..3000)")
 	newCmd.Flags().IntVarP(&flagExport, "export", "e", 1, "number of puzzles to export")
 	newCmd.Flags().StringVarP(&flagOutput, "output", "o", "", "write puzzles to a jsonl file (defaults to stdout)")
 }
@@ -68,14 +73,17 @@ func launchNewGame(gameArg, modeArg, seed string, cfg *config.Config) error {
 		return err
 	}
 
-	spawner, modeTitle, err := resolve.Mode(entry, modeArg)
+	selection, err := resolve.VariantEntry(entry, modeArg)
 	if err != nil {
 		return err
 	}
 
-	g, err := spawnFromMode(spawner, seed)
+	targetElo, err := difficultyFlag()
 	if err != nil {
-		return fmt.Errorf("failed to spawn game: %w", err)
+		return err
+	}
+	if targetElo == nil {
+		targetElo = selection.ExplicitElo
 	}
 
 	s, err := openStoreFn(cfg.DBPath)
@@ -85,9 +93,15 @@ func launchNewGame(gameArg, modeArg, seed string, cfg *config.Config) error {
 	defer s.Close()
 
 	name := sessionflow.GenerateUniqueName(s)
+
+	g, report, err := spawnFromVariant(selection.Variant, seed, targetElo, name)
+	if err != nil {
+		return fmt.Errorf("failed to spawn game: %w", err)
+	}
 	g = g.SetTitle(name)
 
-	rec, err := sessionflow.CreateRecord(s, g, name, entry.Definition.Name, modeTitle, store.NormalRunMetadata())
+	meta := difficultyMetadataFromReport(report)
+	rec, err := sessionflow.CreateRecordWithDifficulty(s, g, name, entry.Definition.Name, selection.DisplayTitle, store.NormalRunMetadata(), meta)
 	if err != nil {
 		return err
 	}
@@ -95,16 +109,81 @@ func launchNewGame(gameArg, modeArg, seed string, cfg *config.Config) error {
 	return runGameProgramFn(s, cfg, activeConfigPath(), g, rec.ID, false)
 }
 
-func spawnFromMode(spawner game.Spawner, seed string) (game.Gamer, error) {
-	if seed == "" {
-		return spawner.Spawn()
+func spawnFromVariant(variant registry.VariantEntry, seed string, targetElo *difficulty.Elo, fallbackEloSeed string) (game.Gamer, difficulty.Report, error) {
+	effectiveElo := targetElo
+	if effectiveElo == nil {
+		elo := variant.Definition.DefaultElo
+		effectiveElo = &elo
+	}
+	if variant.Elo == nil {
+		return nil, difficulty.Report{}, fmt.Errorf("variant does not support Elo difficulty")
+	}
+	eloSeed := seed
+	if eloSeed == "" {
+		eloSeed = fallbackEloSeed
+	}
+	g, report, err := variant.Elo.SpawnElo(eloSeed, *effectiveElo)
+	if err != nil {
+		return nil, difficulty.Report{}, err
+	}
+	return g, report, nil
+}
+
+func spawnFromMode(mode registry.ModeEntry, seed string, targetElo *difficulty.Elo, fallbackEloSeed string) (game.Gamer, difficulty.Report, error) {
+	effectiveElo := targetElo
+	if effectiveElo == nil {
+		effectiveElo = mode.Definition.PresetElo
 	}
 
-	seeded, ok := spawner.(game.SeededSpawner)
-	if !ok {
-		return nil, fmt.Errorf("mode does not support deterministic spawning")
+	if effectiveElo != nil {
+		if mode.Elo == nil {
+			return nil, difficulty.Report{}, fmt.Errorf("mode does not support Elo difficulty")
+		}
+		eloSeed := seed
+		if eloSeed == "" {
+			eloSeed = fallbackEloSeed
+		}
+		g, report, err := mode.Elo.SpawnElo(eloSeed, *effectiveElo)
+		if err != nil {
+			return nil, difficulty.Report{}, err
+		}
+		return g, report, nil
 	}
-	return seeded.SpawnSeeded(resolve.RNGFromString(seed))
+
+	if seed == "" {
+		g, err := mode.Spawner.Spawn()
+		return g, difficulty.Report{}, err
+	}
+
+	if mode.Seeded == nil {
+		return nil, difficulty.Report{}, fmt.Errorf("mode does not support deterministic spawning")
+	}
+	g, err := mode.Seeded.SpawnSeeded(resolve.RNGFromString(seed))
+	return g, difficulty.Report{}, err
+}
+
+func difficultyFlag() (*difficulty.Elo, error) {
+	if !flagDifficultySet {
+		return nil, nil
+	}
+	elo := difficulty.Elo(flagDifficulty)
+	if err := difficulty.ValidateElo(elo); err != nil {
+		return nil, err
+	}
+	return &elo, nil
+}
+
+func difficultyMetadataFromReport(report difficulty.Report) sessionflow.DifficultyMetadata {
+	if report.Confidence == "" {
+		return sessionflow.DifficultyMetadata{}
+	}
+	target := report.TargetElo
+	actual := report.ActualElo
+	return sessionflow.DifficultyMetadata{
+		TargetElo:  &target,
+		ActualElo:  &actual,
+		Confidence: report.Confidence,
+	}
 }
 
 // launchSeededGame uses an arbitrary seed string to deterministically select

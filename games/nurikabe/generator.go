@@ -835,9 +835,16 @@ func componentSizeEntropy(sizes []int) float64 {
 	for _, size := range sizes {
 		freq[size]++
 	}
+	keys := make([]int, 0, len(freq))
+	for size := range freq {
+		keys = append(keys, size)
+	}
+	sort.Ints(keys)
+
 	denom := float64(len(sizes))
 	entropy := 0.0
-	for _, count := range freq {
+	for _, size := range keys {
+		count := freq[size]
 		p := float64(count) / denom
 		entropy -= p * math.Log(p)
 	}

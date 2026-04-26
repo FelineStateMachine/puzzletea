@@ -32,6 +32,7 @@ type DifficultyConfidence string
 const (
 	DifficultyConfidenceHigh   DifficultyConfidence = "high"
 	DifficultyConfidenceMedium DifficultyConfidence = "medium"
+	DifficultyConfidenceLow    DifficultyConfidence = "low"
 )
 
 type Puzzle struct {
@@ -47,6 +48,8 @@ type Puzzle struct {
 	DifficultyScore      float64
 	DifficultyConfidence DifficultyConfidence
 	DifficultySource     string
+	TargetDifficultyElo  *int
+	ActualDifficultyElo  *int
 }
 
 type NonogramData struct {

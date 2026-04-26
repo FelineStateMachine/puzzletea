@@ -221,6 +221,45 @@ func TestGetModeStats(t *testing.T) {
 			t.Fatal("expected Sudoku/Easy mode stats")
 		}
 	})
+
+	t.Run("difficulty elo averages completed records", func(t *testing.T) {
+		s := openTestStore(t)
+		first := newTestRecord("elo-a")
+		second := newTestRecord("elo-b")
+		incomplete := newTestRecord("elo-c")
+		for _, rec := range []*GameRecord{first, second, incomplete} {
+			rec.GameType = "Word Search"
+			rec.Mode = "Easy 10x10"
+		}
+		firstActual := 1200
+		secondTarget := 1800
+		incompleteActual := 3000
+		first.ActualDifficultyElo = &firstActual
+		second.TargetDifficultyElo = &secondTarget
+		incomplete.ActualDifficultyElo = &incompleteActual
+
+		for _, rec := range []*GameRecord{first, second, incomplete} {
+			if err := s.CreateGame(rec); err != nil {
+				t.Fatal(err)
+			}
+		}
+		for _, id := range []int64{first.ID, second.ID} {
+			if err := s.UpdateStatus(id, StatusCompleted); err != nil {
+				t.Fatal(err)
+			}
+		}
+
+		stats, err := s.GetModeStats()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(stats) != 1 {
+			t.Fatalf("stats length = %d, want 1", len(stats))
+		}
+		if stats[0].DifficultyElo == nil || *stats[0].DifficultyElo != 1500 {
+			t.Fatalf("DifficultyElo = %v, want 1500", stats[0].DifficultyElo)
+		}
+	})
 }
 
 // --- GetDailyStreakDates (P1) ---

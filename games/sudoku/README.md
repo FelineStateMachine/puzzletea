@@ -34,6 +34,11 @@ in red.
 | Expert | 22 | X-Wing / Y-Wing |
 | Diabolical | 17 | Swordfish / XY-Chains |
 
+## Elo Difficulty
+
+Named modes are compatibility presets. Use `--difficulty <0..3000>` to target a
+specific Elo difficulty for generated puzzles.
+
 ## Quick Start
 
 ```bash
