@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"math/rand/v2"
 
+	"github.com/FelineStateMachine/puzzletea/difficulty"
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/gameentry"
 	"github.com/FelineStateMachine/puzzletea/puzzle"
@@ -22,6 +23,7 @@ var (
 	_ game.Mode          = TakuzuMode{}
 	_ game.Spawner       = TakuzuMode{}
 	_ game.SeededSpawner = TakuzuMode{}
+	_ game.EloSpawner    = TakuzuMode{}
 )
 
 func NewMode(title, desc string, size int, prefilled float64) TakuzuMode {
@@ -54,7 +56,23 @@ var Modes = []game.Mode{
 	NewMode("Extreme", "14×14 grid, ~28% clues. Maximum challenge.", 14, 0.28),
 }
 
-var ModeDefinitions = gameentry.BuildModeDefs(Modes)
+var ModeDefinitions = takuzuModeDefinitions(Modes)
+
+func takuzuModeDefinitions(modes []game.Mode) []puzzle.ModeDef {
+	defs := gameentry.BuildModeDefs(modes)
+	presets := []difficulty.Elo{300, 700, 1100, 1600, 2100, 2500, 2900}
+	for i, mode := range modes {
+		if i >= len(defs) || i >= len(presets) {
+			break
+		}
+		if _, ok := mode.(game.EloSpawner); !ok {
+			continue
+		}
+		elo := presets[i]
+		defs[i].PresetElo = &elo
+	}
+	return defs
+}
 
 var Definition = puzzle.NewDefinition(puzzle.DefinitionSpec{
 	Name:         "Takuzu",

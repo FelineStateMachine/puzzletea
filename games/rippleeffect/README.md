@@ -34,6 +34,11 @@ the cage and ripple rules are satisfied.
 | Hard 8x8 | 8x8 | Longer cages with sparse anchors and wider scans |
 | Expert 9x9 | 9x9 | Winding large cages with global ripple deductions |
 
+## Elo Difficulty
+
+Named modes are compatibility presets. Use `--difficulty <0..3000>` to target a
+specific Elo difficulty for generated puzzles.
+
 ## Quick Start
 
 ```bash

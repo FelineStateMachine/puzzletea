@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"math/rand/v2"
 
+	"github.com/FelineStateMachine/puzzletea/difficulty"
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/gameentry"
 	"github.com/FelineStateMachine/puzzletea/puzzle"
@@ -22,6 +23,7 @@ var (
 	_ game.Mode          = NonogramMode{}
 	_ game.Spawner       = NonogramMode{}
 	_ game.SeededSpawner = NonogramMode{}
+	_ game.EloSpawner    = NonogramMode{}
 )
 
 func NewMode(title, description string, width, height int, density float64) NonogramMode {
@@ -60,7 +62,23 @@ var Modes = []game.Mode{
 	NewMode("Massive", "20x20 grid, ~56% filled. Truly massive puzzle.", 20, 20, 0.56),
 }
 
-var ModeDefinitions = gameentry.BuildModeDefs(Modes)
+var ModeDefinitions = nonogramModeDefinitions(Modes)
+
+func nonogramModeDefinitions(modes []game.Mode) []puzzle.ModeDef {
+	defs := gameentry.BuildModeDefs(modes)
+	presets := []difficulty.Elo{100, 450, 800, 1000, 1300, 1600, 1900, 2200, 2600, 2900}
+	for i, mode := range modes {
+		if i >= len(defs) || i >= len(presets) {
+			break
+		}
+		if _, ok := mode.(game.EloSpawner); !ok {
+			continue
+		}
+		elo := presets[i]
+		defs[i].PresetElo = &elo
+	}
+	return defs
+}
 
 var Definition = puzzle.NewDefinition(puzzle.DefinitionSpec{
 	Name:         "Nonogram",

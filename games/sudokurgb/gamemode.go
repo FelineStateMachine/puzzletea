@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"math/rand/v2"
 
+	"github.com/FelineStateMachine/puzzletea/difficulty"
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/gameentry"
 	"github.com/FelineStateMachine/puzzletea/puzzle"
@@ -21,6 +22,7 @@ var (
 	_ game.Mode          = SudokuRGBMode{}
 	_ game.Spawner       = SudokuRGBMode{}
 	_ game.SeededSpawner = SudokuRGBMode{}
+	_ game.EloSpawner    = SudokuRGBMode{}
 )
 
 func NewMode(title, description string, providedCount int) SudokuRGBMode {
@@ -47,7 +49,20 @@ var Modes = []game.Mode{
 	NewMode("Diabolical", "30 clues. Tightest clue budget in the launch set.", 30),
 }
 
-var ModeDefinitions = gameentry.BuildModeDefs(Modes)
+var ModeDefinitions = sudokuRGBModeDefinitions(Modes)
+
+func sudokuRGBModeDefinitions(modes []game.Mode) []puzzle.ModeDef {
+	defs := gameentry.BuildModeDefs(modes)
+	presets := []difficulty.Elo{0, 600, 1200, 1800, 2400, 3000}
+	for i := range defs {
+		if i >= len(presets) {
+			break
+		}
+		elo := presets[i]
+		defs[i].PresetElo = &elo
+	}
+	return defs
+}
 
 var Definition = puzzle.NewDefinition(puzzle.DefinitionSpec{
 	Name:         "Sudoku RGB",

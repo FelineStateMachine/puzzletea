@@ -4,6 +4,7 @@ import (
 	"context"
 	"math/rand/v2"
 
+	"github.com/FelineStateMachine/puzzletea/difficulty"
 	"github.com/FelineStateMachine/puzzletea/game"
 	sessionflow "github.com/FelineStateMachine/puzzletea/session"
 	"github.com/FelineStateMachine/puzzletea/store"
@@ -48,6 +49,15 @@ func (c sessionController) startSpawn(spawner game.Spawner, request spawnRequest
 	*c.model = c.model.clearNotice()
 	*c.model = c.model.initScreen(generatingView)
 	return tea.Batch(c.model.spinner.Tick, spawnCmd(spawner, ctx, jobID))
+}
+
+func (c sessionController) startEloSpawn(spawner game.EloSpawner, seed string, elo difficulty.Elo, request spawnRequest) tea.Cmd {
+	ctx, jobID := c.beginSpawnContext()
+	c.model.session.spawn = &request
+	c.model.state = generatingView
+	*c.model = c.model.clearNotice()
+	*c.model = c.model.initScreen(generatingView)
+	return tea.Batch(c.model.spinner.Tick, spawnEloCmd(spawner, seed, elo, ctx, jobID))
 }
 
 func (c sessionController) startSeededSpawn(spawner game.SeededSpawner, rng *rand.Rand, request spawnRequest) tea.Cmd {
@@ -95,13 +105,14 @@ func (c sessionController) handleSpawnComplete(jobID int64, msg game.SpawnComple
 	})
 	*c.model = c.model.clearNotice()
 
-	rec, err := sessionflow.CreateRecord(
+	rec, err := sessionflow.CreateRecordWithDifficulty(
 		c.model.store,
 		c.model.session.game,
 		request.name,
 		request.gameType,
 		request.modeTitle,
 		request.run,
+		difficultyMetadataFromSpawnReport(msg.Report),
 	)
 	if err != nil {
 		*c.model = c.model.setErrorf("Started puzzle, but could not create a save record: %v", err)
@@ -109,6 +120,19 @@ func (c sessionController) handleSpawnComplete(jobID int64, msg game.SpawnComple
 		c.model.session.activeGameID = rec.ID
 	}
 	return nil
+}
+
+func difficultyMetadataFromSpawnReport(report difficulty.Report) sessionflow.DifficultyMetadata {
+	if report.Confidence == "" {
+		return sessionflow.DifficultyMetadata{}
+	}
+	target := report.TargetElo
+	actual := report.ActualElo
+	return sessionflow.DifficultyMetadata{
+		TargetElo:  &target,
+		ActualElo:  &actual,
+		Confidence: report.Confidence,
+	}
 }
 
 func (c sessionController) activateGame(g game.Gamer, activeGameID int64, completionSaved bool, options gameOpenOptions) {

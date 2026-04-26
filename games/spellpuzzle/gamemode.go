@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"math/rand/v2"
 
+	"github.com/FelineStateMachine/puzzletea/difficulty"
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/gameentry"
 	"github.com/FelineStateMachine/puzzletea/puzzle"
@@ -23,6 +24,7 @@ var (
 	_ game.Mode          = SpellPuzzleMode{}
 	_ game.Spawner       = SpellPuzzleMode{}
 	_ game.SeededSpawner = SpellPuzzleMode{}
+	_ game.EloSpawner    = SpellPuzzleMode{}
 )
 
 func NewMode(title, description string, bankSize, boardWords, minBonusWords int) SpellPuzzleMode {
@@ -57,7 +59,20 @@ var Modes = []game.Mode{
 	NewMode("Hard", "9 letters, 9 board words, largest launch board.", 9, 9, 8),
 }
 
-var ModeDefinitions = gameentry.BuildModeDefs(Modes)
+var ModeDefinitions = spellPuzzleModeDefinitions(Modes)
+
+func spellPuzzleModeDefinitions(modes []game.Mode) []puzzle.ModeDef {
+	defs := gameentry.BuildModeDefs(modes)
+	presets := []difficulty.Elo{0, 600, 1500, 2400}
+	for i := range defs {
+		if i >= len(presets) {
+			break
+		}
+		elo := presets[i]
+		defs[i].PresetElo = &elo
+	}
+	return defs
+}
 
 var Definition = puzzle.NewDefinition(puzzle.DefinitionSpec{
 	Name:         "Spell Puzzle",

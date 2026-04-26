@@ -3,6 +3,7 @@ package hitori
 import (
 	"errors"
 	"math/rand/v2"
+	"sort"
 )
 
 type cellPos struct{ x, y int }
@@ -341,6 +342,9 @@ func cellCandidates(puzzle grid, mask [][]bool, size, x, y int) []rune {
 	for num := range seen {
 		result = append(result, num)
 	}
+	sort.Slice(result, func(i, j int) bool {
+		return result[i] < result[j]
+	})
 	return result
 }
 

@@ -3,11 +3,13 @@ package netwalk
 import (
 	"math"
 	"math/rand/v2"
+	"reflect"
 	"strings"
 	"testing"
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
+	"github.com/FelineStateMachine/puzzletea/difficulty"
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/charmbracelet/x/ansi"
 )
@@ -95,6 +97,102 @@ func TestGenerateSeededDeterministic(t *testing.T) {
 	}
 	if got, want := encodeRotationRows(a.Tiles, true), encodeRotationRows(b.Tiles, true); got != want {
 		t.Fatalf("initial rotations mismatch\n got %q\nwant %q", got, want)
+	}
+}
+
+func TestSpawnEloRejectsInvalidElo(t *testing.T) {
+	mode := NewMode("Test", "Test mode.", 7, 0.57, easyProfile)
+
+	gamer, report, err := mode.SpawnElo("seed", difficulty.SoftCapElo+1)
+	if err == nil {
+		t.Fatal("SpawnElo returned nil error for invalid Elo")
+	}
+	if gamer != nil {
+		t.Fatalf("SpawnElo gamer = %#v, want nil", gamer)
+	}
+	if !reflect.DeepEqual(report, difficulty.Report{}) {
+		t.Fatalf("SpawnElo report = %#v, want zero report", report)
+	}
+}
+
+func TestSpawnEloDeterministicForSameSeedAndElo(t *testing.T) {
+	mode := NewMode("Test", "Test mode.", 7, 0.57, easyProfile)
+
+	gamerA, reportA, err := mode.SpawnElo("same-seed", 1500)
+	if err != nil {
+		t.Fatalf("first SpawnElo returned error: %v", err)
+	}
+	gamerB, reportB, err := mode.SpawnElo("same-seed", 1500)
+	if err != nil {
+		t.Fatalf("second SpawnElo returned error: %v", err)
+	}
+	if !reflect.DeepEqual(reportA, reportB) {
+		t.Fatalf("reports differ for same seed and Elo:\n%#v\n%#v", reportA, reportB)
+	}
+
+	saveA, err := gamerA.GetSave()
+	if err != nil {
+		t.Fatalf("first GetSave returned error: %v", err)
+	}
+	saveB, err := gamerB.GetSave()
+	if err != nil {
+		t.Fatalf("second GetSave returned error: %v", err)
+	}
+	if string(saveA) != string(saveB) {
+		t.Fatalf("saves differ for same seed and Elo:\n%s\n%s", saveA, saveB)
+	}
+}
+
+func TestSpawnEloPopulatesDifficultyReport(t *testing.T) {
+	mode := NewMode("Test", "Test mode.", 7, 0.57, easyProfile)
+
+	gamer, report, err := mode.SpawnElo("report-fields", 2200)
+	if err != nil {
+		t.Fatalf("SpawnElo returned error: %v", err)
+	}
+	if gamer == nil {
+		t.Fatal("SpawnElo returned nil gamer")
+	}
+	if report.TargetElo != 2200 {
+		t.Fatalf("TargetElo = %d, want 2200", report.TargetElo)
+	}
+	if report.ActualElo < difficulty.MinElo || report.ActualElo > difficulty.SoftCapElo {
+		t.Fatalf("ActualElo = %d, want valid Elo", report.ActualElo)
+	}
+	if report.Confidence == "" {
+		t.Fatal("Confidence is empty")
+	}
+
+	required := []string{
+		"size",
+		"cells",
+		"active_tiles",
+		"density",
+		"target_density",
+		"leaf_tiles",
+		"elbow_tiles",
+		"tee_tiles",
+		"rotation_options",
+		"avg_rotation_options",
+		"initially_rotated_tiles",
+	}
+	for _, key := range required {
+		if _, ok := report.Metrics[key]; !ok {
+			t.Fatalf("metric %q missing from report %#v", key, report.Metrics)
+		}
+	}
+	if report.Metrics["active_tiles"] <= 0 {
+		t.Fatalf("active_tiles = %.2f, want > 0", report.Metrics["active_tiles"])
+	}
+	if report.Metrics["density"] <= 0 || report.Metrics["density"] > 1 {
+		t.Fatalf("density = %.2f, want 0 < density <= 1", report.Metrics["density"])
+	}
+	if report.Metrics["rotation_options"] < report.Metrics["active_tiles"] {
+		t.Fatalf(
+			"rotation_options = %.2f, want >= active_tiles %.2f",
+			report.Metrics["rotation_options"],
+			report.Metrics["active_tiles"],
+		)
 	}
 }
 

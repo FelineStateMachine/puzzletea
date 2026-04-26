@@ -31,6 +31,9 @@ CREATE TABLE IF NOT EXISTS games (
     week_number   INTEGER,
     week_index    INTEGER,
     seed_text     TEXT,
+    target_difficulty_elo INTEGER,
+    actual_difficulty_elo INTEGER,
+    difficulty_confidence TEXT,
     created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     completed_at  DATETIME
@@ -62,7 +65,10 @@ SELECT
     mode,
     COUNT(*) FILTER (WHERE status = 'completed')          AS victories,
     COUNT(*) FILTER (WHERE status = 'completed'
-                       AND run_kind = 'daily')            AS daily_victories
+                       AND run_kind = 'daily')            AS daily_victories,
+    CAST(ROUND(AVG(COALESCE(actual_difficulty_elo, target_difficulty_elo))
+        FILTER (WHERE status = 'completed'
+                  AND COALESCE(actual_difficulty_elo, target_difficulty_elo) IS NOT NULL)) AS INTEGER) AS difficulty_elo
 FROM games
 GROUP BY game_type, mode;`
 
@@ -72,6 +78,7 @@ type Store struct {
 
 const gameSelectColumns = `id, name, game_id, game_type, mode_id, mode, initial_state, save_state,
         status, run_kind, run_date, week_year, week_number, week_index, seed_text,
+        target_difficulty_elo, actual_difficulty_elo, difficulty_confidence,
         created_at, updated_at, completed_at`
 
 type rowScanner interface {
@@ -85,11 +92,15 @@ func scanGameRecord(scanner rowScanner) (GameRecord, error) {
 	var weekNumber sql.NullInt64
 	var weekIndex sql.NullInt64
 	var seedText sql.NullString
+	var targetDifficultyElo sql.NullInt64
+	var actualDifficultyElo sql.NullInt64
+	var difficultyConfidence sql.NullString
 	var completedAt sql.NullTime
 	if err := scanner.Scan(
 		&g.ID, &g.Name, &g.GameID, &g.GameType, &g.ModeID, &g.Mode,
 		&g.InitialState, &g.SaveState, &g.Status,
 		&g.RunKind, &runDate, &weekYear, &weekNumber, &weekIndex, &seedText,
+		&targetDifficultyElo, &actualDifficultyElo, &difficultyConfidence,
 		&g.CreatedAt, &g.UpdatedAt, &completedAt,
 	); err != nil {
 		return GameRecord{}, err
@@ -109,6 +120,17 @@ func scanGameRecord(scanner rowScanner) (GameRecord, error) {
 	}
 	if seedText.Valid {
 		g.SeedText = seedText.String
+	}
+	if targetDifficultyElo.Valid {
+		v := int(targetDifficultyElo.Int64)
+		g.TargetDifficultyElo = &v
+	}
+	if actualDifficultyElo.Valid {
+		v := int(actualDifficultyElo.Int64)
+		g.ActualDifficultyElo = &v
+	}
+	if difficultyConfidence.Valid {
+		g.DifficultyConfidence = difficultyConfidence.String
 	}
 	if completedAt.Valid {
 		g.CompletedAt = &completedAt.Time
@@ -186,11 +208,13 @@ func (s *Store) CreateGame(rec *GameRecord) error {
 	result, err := s.db.Exec(
 		`INSERT INTO games
 		    (name, game_id, game_type, mode_id, mode, initial_state, save_state, status,
-		     run_kind, run_date, week_year, week_number, week_index, seed_text)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		     run_kind, run_date, week_year, week_number, week_index, seed_text,
+		     target_difficulty_elo, actual_difficulty_elo, difficulty_confidence)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		rec.Name, rec.GameID, rec.GameType, rec.ModeID, rec.Mode,
 		rec.InitialState, rec.SaveState, rec.Status, string(rec.RunKind), rec.RunDate,
 		nullableInt(rec.WeekYear), nullableInt(rec.WeekNumber), nullableInt(rec.WeekIndex), nullableString(rec.SeedText),
+		nullableIntPtr(rec.TargetDifficultyElo), nullableIntPtr(rec.ActualDifficultyElo), nullableString(rec.DifficultyConfidence),
 	)
 	if err != nil {
 		return fmt.Errorf("inserting game: %w", err)

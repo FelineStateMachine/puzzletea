@@ -23,6 +23,7 @@ type ModeStat struct {
 	Mode           string
 	Victories      int
 	DailyVictories int
+	DifficultyElo  *int
 	WeeklyBonusXP  int
 }
 
@@ -61,7 +62,7 @@ func (s *Store) GetCategoryStats() ([]CategoryStat, error) {
 // GetModeStats returns per-mode victory counts from the mode_stats view.
 func (s *Store) GetModeStats() ([]ModeStat, error) {
 	rows, err := s.db.Query(
-		`SELECT game_type, mode, victories, daily_victories
+		`SELECT game_type, mode, victories, daily_victories, difficulty_elo
 		 FROM mode_stats`,
 	)
 	if err != nil {
@@ -72,10 +73,16 @@ func (s *Store) GetModeStats() ([]ModeStat, error) {
 	var stats []ModeStat
 	for rows.Next() {
 		var ms ModeStat
+		var difficultyElo sql.NullInt64
 		if err := rows.Scan(
 			&ms.GameType, &ms.Mode, &ms.Victories, &ms.DailyVictories,
+			&difficultyElo,
 		); err != nil {
 			return nil, fmt.Errorf("scanning mode_stats row: %w", err)
+		}
+		if difficultyElo.Valid {
+			v := int(difficultyElo.Int64)
+			ms.DifficultyElo = &v
 		}
 		stats = append(stats, ms)
 	}

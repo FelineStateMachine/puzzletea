@@ -52,6 +52,10 @@ func BuildRenderConfig(options RenderOptions, _ []pdfexport.PackDocument) (pdfex
 func AnnotatePuzzlesForPrint(puzzles []pdfexport.Puzzle, definitions []puzzle.Definition) {
 	lookup := buildModeDifficultyLookup(definitions)
 	for i := range puzzles {
+		if puzzles[i].ActualDifficultyElo != nil || puzzles[i].TargetDifficultyElo != nil {
+			continue
+		}
+
 		mode := normalizeDifficultyToken(puzzles[i].ModeSelection)
 		if mode == "" || strings.Contains(mode, "mixed modes") {
 			puzzles[i].DifficultyScore = 0.5

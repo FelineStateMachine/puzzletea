@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/FelineStateMachine/puzzletea/difficulty"
 	"github.com/FelineStateMachine/puzzletea/export/builtinprint"
 	"github.com/FelineStateMachine/puzzletea/export/pdf"
 	"github.com/FelineStateMachine/puzzletea/game"
@@ -61,6 +62,7 @@ type ModeCatalog struct {
 	ModeID    puzzle.ModeID
 	ModeTitle string
 	Seeded    bool
+	PresetElo *int
 }
 
 type modeSelection struct {
@@ -71,6 +73,8 @@ type modeSelection struct {
 	count         int
 	spawner       game.Spawner
 	seededSpawner game.SeededSpawner
+	eloSpawner    game.EloSpawner
+	targetElo     *difficulty.Elo
 }
 
 type runPlan struct {
@@ -121,6 +125,7 @@ func ExportCatalog() []GameCatalog {
 				ModeID:    mode.Definition.ID,
 				ModeTitle: mode.Definition.Title,
 				Seeded:    mode.Seeded != nil,
+				PresetElo: intPtrFromElo(mode.Definition.PresetElo),
 			})
 		}
 
@@ -338,6 +343,8 @@ func buildRunPlan(spec Spec) (runPlan, error) {
 				count:         count,
 				spawner:       mode.Spawner,
 				seededSpawner: mode.Seeded,
+				eloSpawner:    mode.Elo,
+				targetElo:     cloneElo(mode.Definition.PresetElo),
 			})
 		}
 	}
@@ -405,13 +412,16 @@ func generateRecords(
 	}
 
 	records := make([]pdfexport.JSONLRecord, 0, totalCount)
+	recordIndex := 0
 	for _, selection := range selections {
 		for i := 0; i < selection.count; i++ {
 			if err := ctx.Err(); err != nil {
 				return nil, err
 			}
+			recordIndex++
 
-			saveData, err := spawnSaveData(ctx, selection, rng)
+			eloSeed := scopedPackEloSeed(seed, generatedAt, selection.gameType, selection.modeTitle, recordIndex)
+			generated, err := spawnSaveData(ctx, selection, rng, eloSeed)
 			if err != nil {
 				return nil, fmt.Errorf("generate %s / %s puzzle %d: %w", selection.gameType, selection.modeTitle, i+1, err)
 			}
@@ -427,15 +437,50 @@ func generateRecords(
 					Seed:          seed,
 				},
 				Puzzle: pdfexport.JSONLPuzzle{
-					Index: len(records) + 1,
-					Name:  namegen.GenerateSeeded(nameRNG),
-					Game:  selection.gameType,
-					Mode:  selection.modeTitle,
-					Save:  saveData,
+					Index:                len(records) + 1,
+					Name:                 namegen.GenerateSeeded(nameRNG),
+					Game:                 selection.gameType,
+					Mode:                 selection.modeTitle,
+					TargetDifficultyElo:  intPtrFromReportElo(generated.Report.TargetElo, generated.Report.Confidence),
+					ActualDifficultyElo:  intPtrFromReportElo(generated.Report.ActualElo, generated.Report.Confidence),
+					DifficultyConfidence: string(generated.Report.Confidence),
+					Save:                 generated.SaveData,
 				},
 			})
 		}
 	}
 
 	return records, nil
+}
+
+func intPtrFromElo(elo *difficulty.Elo) *int {
+	if elo == nil {
+		return nil
+	}
+	v := int(*elo)
+	return &v
+}
+
+func cloneElo(elo *difficulty.Elo) *difficulty.Elo {
+	if elo == nil {
+		return nil
+	}
+	v := *elo
+	return &v
+}
+
+func intPtrFromReportElo(elo difficulty.Elo, confidence difficulty.Confidence) *int {
+	if confidence == "" {
+		return nil
+	}
+	v := int(elo)
+	return &v
+}
+
+func scopedPackEloSeed(seed string, generatedAt time.Time, gameType, mode string, index int) string {
+	base := strings.TrimSpace(seed)
+	if base == "" {
+		base = generatedAt.Format(time.RFC3339Nano)
+	}
+	return fmt.Sprintf("packexport:%s:%s:%s:%d", base, gameType, mode, index)
 }

@@ -1,6 +1,10 @@
 package puzzle
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/FelineStateMachine/puzzletea/difficulty"
+)
 
 type GameID string
 
@@ -11,6 +15,7 @@ type ModeDef struct {
 	Title       string
 	Description string
 	Seeded      bool
+	PresetElo   *difficulty.Elo
 }
 
 type ModeSpec struct {
@@ -18,6 +23,7 @@ type ModeSpec struct {
 	Title       string
 	Description string
 	Seeded      bool
+	PresetElo   *difficulty.Elo
 }
 
 type Definition struct {
@@ -48,6 +54,7 @@ func NewModeDef(spec ModeSpec) ModeDef {
 		Title:       spec.Title,
 		Description: spec.Description,
 		Seeded:      spec.Seeded,
+		PresetElo:   cloneElo(spec.PresetElo),
 	}
 }
 
@@ -64,6 +71,14 @@ func NewDefinition(spec DefinitionSpec) Definition {
 		Modes:        append([]ModeDef(nil), spec.Modes...),
 		DailyModeIDs: append([]ModeID(nil), spec.DailyModeIDs...),
 	}
+}
+
+func cloneElo(elo *difficulty.Elo) *difficulty.Elo {
+	if elo == nil {
+		return nil
+	}
+	v := *elo
+	return &v
 }
 
 func SelectModeIDsByIndex(modes []ModeDef, indexes ...int) []ModeID {

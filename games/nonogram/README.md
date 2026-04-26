@@ -42,6 +42,11 @@ correctly satisfied.
 | Epic | 20x20 | ~71% | A epic undertaking |
 | Massive | 20x20 | ~56% | Truly massive puzzle |
 
+## Elo Difficulty
+
+Named modes are compatibility presets. Use `--difficulty <0..3000>` to target a
+specific Elo difficulty for generated puzzles.
+
 ## Quick Start
 
 ```bash

@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/FelineStateMachine/puzzletea/difficulty"
 )
 
 func newTestRNG(seed uint64) *rand.Rand {
@@ -63,6 +64,80 @@ func TestGeneratePuzzleSeededDeterministic(t *testing.T) {
 	for i := range puzzleA.Placements {
 		if puzzleA.Placements[i] != puzzleB.Placements[i] {
 			t.Fatalf("placement[%d] mismatch: %+v vs %+v", i, puzzleA.Placements[i], puzzleB.Placements[i])
+		}
+	}
+}
+
+func TestSpawnEloRejectsInvalidElo(t *testing.T) {
+	mode := NewMode("Easy", "", 7, 6, 4)
+
+	if _, _, err := mode.SpawnElo("seed", difficulty.SoftCapElo+1); err == nil {
+		t.Fatal("SpawnElo returned nil error for invalid Elo")
+	}
+}
+
+func TestSpawnEloDeterministicForSameSeedAndElo(t *testing.T) {
+	mode := NewMode("Easy", "", 7, 6, 4)
+
+	gameA, reportA, err := mode.SpawnElo("same-seed", 1200)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gameB, reportB, err := mode.SpawnElo("same-seed", 1200)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	saveA, err := gameA.GetSave()
+	if err != nil {
+		t.Fatal(err)
+	}
+	saveB, err := gameB.GetSave()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if string(saveA) != string(saveB) {
+		t.Fatalf("SpawnElo saves differ for same seed and Elo:\n%s\n%s", saveA, saveB)
+	}
+	if reportA.ActualElo != reportB.ActualElo {
+		t.Fatalf("ActualElo mismatch: %d vs %d", reportA.ActualElo, reportB.ActualElo)
+	}
+}
+
+func TestSpawnEloReportPopulated(t *testing.T) {
+	mode := NewMode("Easy", "", 7, 6, 4)
+	_, report, err := mode.SpawnElo("report-seed", 1800)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if report.TargetElo != 1800 {
+		t.Fatalf("TargetElo = %d, want 1800", report.TargetElo)
+	}
+	if report.ActualElo == 0 {
+		t.Fatal("ActualElo is zero")
+	}
+	if report.Confidence == "" {
+		t.Fatal("Confidence is empty")
+	}
+	if len(report.Metrics) == 0 {
+		t.Fatal("Metrics is empty")
+	}
+
+	for _, key := range []string{
+		"bank_size",
+		"board_word_count",
+		"bonus_word_count",
+		"allowed_word_count",
+		"average_word_length",
+		"crossing_count",
+		"board_width",
+		"board_height",
+		"occupied_cell_count",
+	} {
+		if _, ok := report.Metrics[key]; !ok {
+			t.Fatalf("report metric %q missing from %+v", key, report.Metrics)
 		}
 	}
 }

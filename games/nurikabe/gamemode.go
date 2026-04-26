@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/rand/v2"
 
+	"github.com/FelineStateMachine/puzzletea/difficulty"
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/gameentry"
 	"github.com/FelineStateMachine/puzzletea/puzzle"
@@ -28,6 +29,7 @@ var (
 	_ game.SeededSpawner            = NurikabeMode{}
 	_ game.CancellableSpawner       = NurikabeMode{}
 	_ game.CancellableSeededSpawner = NurikabeMode{}
+	_ game.EloSpawner               = NurikabeMode{}
 )
 
 func NewMode(title, desc string, width, height int, clueDensity float64, maxIslandSize int) NurikabeMode {
@@ -75,7 +77,23 @@ var Modes = []game.Mode{
 	NewMode("Expert", "12x12 grid, sparse clues and long chains.", 12, 12, 0.14, 12),
 }
 
-var ModeDefinitions = gameentry.BuildModeDefs(Modes)
+var ModeDefinitions = nurikabeModeDefinitions(Modes)
+
+func nurikabeModeDefinitions(modes []game.Mode) []puzzle.ModeDef {
+	defs := gameentry.BuildModeDefs(modes)
+	presets := []difficulty.Elo{300, 800, 1400, 2100, 2700}
+	for i, mode := range modes {
+		if i >= len(defs) || i >= len(presets) {
+			break
+		}
+		if _, ok := mode.(game.EloSpawner); !ok {
+			continue
+		}
+		elo := presets[i]
+		defs[i].PresetElo = &elo
+	}
+	return defs
+}
 
 var Definition = puzzle.NewDefinition(puzzle.DefinitionSpec{
 	Name:         "Nurikabe",

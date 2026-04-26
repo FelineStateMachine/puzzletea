@@ -77,6 +77,32 @@ func TestSaveAndLoadExportConfig(t *testing.T) {
 	}
 }
 
+func TestSaveAndLoadCreateConfig(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.json")
+
+	cfg := &Config{
+		Create: CreateConfig{
+			SelectedLeafIDs: []string{"nonogram/5x5", "takuzu/takuzu/6x6"},
+			Elo:             1400,
+		},
+	}
+	if err := cfg.Save(path); err != nil {
+		t.Fatalf("Save failed: %v", err)
+	}
+
+	loaded, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+	if loaded.Create.Elo != 1400 {
+		t.Fatalf("loaded create Elo = %d, want 1400", loaded.Create.Elo)
+	}
+	if len(loaded.Create.SelectedLeafIDs) != 2 || loaded.Create.SelectedLeafIDs[1] != "takuzu/takuzu/6x6" {
+		t.Fatalf("loaded create leaves = %#v", loaded.Create.SelectedLeafIDs)
+	}
+}
+
 func TestSaveCreatesDirectory(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "nested", "deep", "config.json")

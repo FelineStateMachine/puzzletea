@@ -79,12 +79,12 @@ func TestPlayMenuScreenRoutesByStableAction(t *testing.T) {
 			},
 		},
 		{
-			name: "seeded",
-			item: ui.MenuItem{Action: playMenuActionSeeded, ItemTitle: "Named Seed", Desc: "custom label"},
+			name: "create",
+			item: ui.MenuItem{Action: playMenuActionCreate, ItemTitle: "New", Desc: "custom label"},
 			assert: func(t *testing.T, action screenAction) {
 				t.Helper()
-				if _, ok := action.(openSeedInputAction); !ok {
-					t.Fatalf("action = %T, want %T", action, openSeedInputAction{})
+				if _, ok := action.(openCreateAction); !ok {
+					t.Fatalf("action = %T, want %T", action, openCreateAction{})
 				}
 			},
 		},

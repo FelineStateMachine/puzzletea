@@ -21,23 +21,31 @@ func Normalize(s string) string {
 // Mode finds a mode within a game entry by name. If name is empty,
 // returns the first (default) mode.
 func Mode(entry registry.Entry, name string) (game.Spawner, string, error) {
+	mode, err := ModeEntry(entry, name)
+	if err != nil {
+		return nil, "", err
+	}
+	return mode.Spawner, mode.Definition.Title, nil
+}
+
+func ModeEntry(entry registry.Entry, name string) (registry.ModeEntry, error) {
 	if len(entry.Modes) == 0 {
-		return nil, "", fmt.Errorf("game %q has no available modes", entry.Definition.Name)
+		return registry.ModeEntry{}, fmt.Errorf("game %q has no available modes", entry.Definition.Name)
 	}
 
 	if name == "" {
 		mode := entry.Modes[0]
-		return mode.Spawner, mode.Definition.Title, nil
+		return mode, nil
 	}
 
 	norm := Normalize(name)
 	for _, mode := range entry.Modes {
 		if Normalize(mode.Definition.Title) == norm {
-			return mode.Spawner, mode.Definition.Title, nil
+			return mode, nil
 		}
 	}
 
-	return nil, "", fmt.Errorf("unknown mode %q for %s\n\nAvailable modes:\n  %s",
+	return registry.ModeEntry{}, fmt.Errorf("unknown mode %q for %s\n\nAvailable modes:\n  %s",
 		name, entry.Definition.Name, strings.Join(ModeNames(entry), "\n  "))
 }
 

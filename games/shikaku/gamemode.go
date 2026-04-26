@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"math/rand/v2"
 
+	"github.com/FelineStateMachine/puzzletea/difficulty"
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/gameentry"
 	"github.com/FelineStateMachine/puzzletea/puzzle"
@@ -23,6 +24,7 @@ var (
 	_ game.Mode          = ShikakuMode{}
 	_ game.Spawner       = ShikakuMode{}
 	_ game.SeededSpawner = ShikakuMode{}
+	_ game.EloSpawner    = ShikakuMode{}
 )
 
 func NewMode(title, description string, width, height, maxRectSize int) ShikakuMode {
@@ -58,7 +60,23 @@ var Modes = []game.Mode{
 	NewMode("Expert 12x12", "12x12 grid, maximum challenge.", 12, 12, 20),
 }
 
-var ModeDefinitions = gameentry.BuildModeDefs(Modes)
+var ModeDefinitions = shikakuModeDefinitions(Modes)
+
+func shikakuModeDefinitions(modes []game.Mode) []puzzle.ModeDef {
+	defs := gameentry.BuildModeDefs(modes)
+	presets := []difficulty.Elo{300, 800, 1400, 2100, 2700}
+	for i, mode := range modes {
+		if i >= len(defs) || i >= len(presets) {
+			break
+		}
+		if _, ok := mode.(game.EloSpawner); !ok {
+			continue
+		}
+		elo := presets[i]
+		defs[i].PresetElo = &elo
+	}
+	return defs
+}
 
 var Definition = puzzle.NewDefinition(puzzle.DefinitionSpec{
 	Name:         "Shikaku",

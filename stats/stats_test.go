@@ -55,6 +55,12 @@ func TestComputeCategoryXP(t *testing.T) {
 	if got := ComputeCategoryXP(weights, "Sudoku", modeStats); got != 30 {
 		t.Fatalf("ComputeCategoryXP() = %d, want 30", got)
 	}
+
+	elo := 1500
+	modeStats[0].DifficultyElo = &elo
+	if got := ComputeCategoryXP(weights, "Sudoku", modeStats); got != 51 {
+		t.Fatalf("ComputeCategoryXP() with Elo = %d, want 51", got)
+	}
 }
 
 func TestBuildCardsAndProfile(t *testing.T) {

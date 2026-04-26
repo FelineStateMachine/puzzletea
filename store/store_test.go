@@ -222,6 +222,11 @@ func TestCreateGame(t *testing.T) {
 			Status:       StatusNew,
 			RunKind:      RunKindNormal,
 		}
+		targetElo := 1200
+		actualElo := 1185
+		rec.TargetDifficultyElo = &targetElo
+		rec.ActualDifficultyElo = &actualElo
+		rec.DifficultyConfidence = "high"
 		if err := s.CreateGame(rec); err != nil {
 			t.Fatal(err)
 		}
@@ -247,6 +252,15 @@ func TestCreateGame(t *testing.T) {
 		}
 		if got.SaveState != `{"save":true}` {
 			t.Errorf("SaveState = %q, want %q", got.SaveState, `{"save":true}`)
+		}
+		if got.TargetDifficultyElo == nil || *got.TargetDifficultyElo != targetElo {
+			t.Fatalf("TargetDifficultyElo = %v, want %d", got.TargetDifficultyElo, targetElo)
+		}
+		if got.ActualDifficultyElo == nil || *got.ActualDifficultyElo != actualElo {
+			t.Fatalf("ActualDifficultyElo = %v, want %d", got.ActualDifficultyElo, actualElo)
+		}
+		if got.DifficultyConfidence != "high" {
+			t.Fatalf("DifficultyConfidence = %q, want high", got.DifficultyConfidence)
 		}
 		if got.Status != StatusNew {
 			t.Errorf("Status = %q, want %q", got.Status, StatusNew)

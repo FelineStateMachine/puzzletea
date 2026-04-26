@@ -48,6 +48,20 @@ func TestSeededNameForGameDeterministicAndDistinct(t *testing.T) {
 	}
 }
 
+func TestSeededNameForCreateLeafDeterministicAndDistinctByScope(t *testing.T) {
+	seed := "create-seed"
+	got := SeededNameForCreateLeaf(seed, "Nonogram", "nonogram/5x5", 1200)
+	if want := SeededNameForCreateLeaf(seed, "Nonogram", "nonogram/5x5", 1200); got != want {
+		t.Fatalf("SeededNameForCreateLeaf returned %q then %q", got, want)
+	}
+	if got == SeededNameForCreateLeaf(seed, "Nonogram", "nonogram/10x10", 1200) {
+		t.Fatal("SeededNameForCreateLeaf should differ by leaf")
+	}
+	if got == SeededNameForCreateLeaf(seed, "Nonogram", "nonogram/5x5", 1300) {
+		t.Fatal("SeededNameForCreateLeaf should differ by Elo")
+	}
+}
+
 func TestImportRecordReappliesTitle(t *testing.T) {
 	g, err := lightsout.New(3, 3)
 	if err != nil {

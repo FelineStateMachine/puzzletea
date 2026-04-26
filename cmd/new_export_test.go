@@ -192,17 +192,23 @@ func withExportFlagReset(t *testing.T) {
 
 	prevSetSeed := flagSetSeed
 	prevWithSeed := flagWithSeed
+	prevDifficulty := flagDifficulty
+	prevDifficultySet := flagDifficultySet
 	prevExport := flagExport
 	prevOutput := flagOutput
 
 	flagSetSeed = ""
 	flagWithSeed = ""
+	flagDifficulty = -1
+	flagDifficultySet = false
 	flagExport = 1
 	flagOutput = ""
 
 	t.Cleanup(func() {
 		flagSetSeed = prevSetSeed
 		flagWithSeed = prevWithSeed
+		flagDifficulty = prevDifficulty
+		flagDifficultySet = prevDifficultySet
 		flagExport = prevExport
 		flagOutput = prevOutput
 	})

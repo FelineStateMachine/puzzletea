@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"math/rand/v2"
 
+	"github.com/FelineStateMachine/puzzletea/difficulty"
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/gameentry"
 	"github.com/FelineStateMachine/puzzletea/puzzle"
@@ -24,6 +25,7 @@ var (
 	_ game.Mode          = Mode{}
 	_ game.Spawner       = Mode{}
 	_ game.SeededSpawner = Mode{}
+	_ game.EloSpawner    = Mode{}
 )
 
 func NewMode(title, description string, size, maxCage int, givenRatio float64) Mode {
@@ -129,7 +131,23 @@ var Modes = []game.Mode{
 	),
 }
 
-var ModeDefinitions = gameentry.BuildModeDefs(Modes)
+var ModeDefinitions = rippleEffectModeDefinitions(Modes)
+
+func rippleEffectModeDefinitions(modes []game.Mode) []puzzle.ModeDef {
+	defs := gameentry.BuildModeDefs(modes)
+	presets := []difficulty.Elo{400, 900, 1500, 2200, 2800}
+	for i, mode := range modes {
+		if i >= len(defs) || i >= len(presets) {
+			break
+		}
+		if _, ok := mode.(game.EloSpawner); !ok {
+			continue
+		}
+		elo := presets[i]
+		defs[i].PresetElo = &elo
+	}
+	return defs
+}
 
 var Definition = puzzle.NewDefinition(puzzle.DefinitionSpec{
 	Name:         "Ripple Effect",

@@ -5,6 +5,7 @@ package gameentry
 import (
 	"fmt"
 
+	"github.com/FelineStateMachine/puzzletea/difficulty"
 	"github.com/FelineStateMachine/puzzletea/export/pdf"
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/puzzle"
@@ -14,6 +15,7 @@ type ModeEntry struct {
 	Definition puzzle.ModeDef
 	Spawner    game.Spawner
 	Seeded     game.SeededSpawner
+	Elo        game.EloSpawner
 }
 
 type Entry struct {
@@ -85,12 +87,32 @@ func NewEntry(spec EntrySpec) Entry {
 		if seeded, ok := mode.(game.SeededSpawner); ok {
 			entry.Seeded = seeded
 		}
+		if elo, ok := mode.(game.EloSpawner); ok {
+			entry.Elo = elo
+		}
 		if entry.Definition.Seeded != (entry.Seeded != nil) {
 			panic(fmt.Sprintf(
 				"gameentry: definition %q mode %q seeded flag does not match runtime mode",
 				spec.Definition.Name,
 				modeDef.Title,
 			))
+		}
+		if entry.Definition.PresetElo != nil {
+			if err := difficulty.ValidateElo(*entry.Definition.PresetElo); err != nil {
+				panic(fmt.Sprintf(
+					"gameentry: definition %q mode %q preset Elo is invalid: %v",
+					spec.Definition.Name,
+					modeDef.Title,
+					err,
+				))
+			}
+			if entry.Elo == nil {
+				panic(fmt.Sprintf(
+					"gameentry: definition %q mode %q has preset Elo but runtime mode does not implement game.EloSpawner",
+					spec.Definition.Name,
+					modeDef.Title,
+				))
+			}
 		}
 		entries = append(entries, entry)
 	}

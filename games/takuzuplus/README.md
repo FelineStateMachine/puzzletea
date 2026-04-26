@@ -41,6 +41,11 @@ cell is filled and all four rules are satisfied.
 | Very Hard | 12x12 | ~30% | Sparse givens with tighter clue reading |
 | Extreme | 14x14 | ~28% | Largest board and deepest logic |
 
+## Elo Difficulty
+
+Named modes are compatibility presets. Use `--difficulty <0..3000>` to target a
+specific Elo difficulty for generated puzzles.
+
 ## Quick Start
 
 ```bash

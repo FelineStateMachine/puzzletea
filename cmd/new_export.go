@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/FelineStateMachine/puzzletea/difficulty"
 	"github.com/FelineStateMachine/puzzletea/export/builtinprint"
 	"github.com/FelineStateMachine/puzzletea/export/pack"
 	"github.com/FelineStateMachine/puzzletea/export/pdf"
@@ -23,11 +24,13 @@ var exportNow = time.Now
 
 type exportModeEntry struct {
 	spawner game.Spawner
+	elo     game.EloSpawner
 	mode    string
 }
 
 func runNewExport(cmd *cobra.Command, args []string) error {
 	builtinprint.Register()
+	flagDifficultySet = cmd.Flags().Changed("difficulty")
 
 	if err := validateNewExportFlags(cmd, args); err != nil {
 		return err
@@ -51,8 +54,13 @@ func runNewExport(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	targetElo, err := difficultyFlag()
+	if err != nil {
+		return err
+	}
+
 	generatedAt := exportNow()
-	records, err := buildExportRecords(entry.Definition.Name, modeSelection, entries, flagExport, flagWithSeed, generatedAt)
+	records, err := buildExportRecords(entry.Definition.Name, modeSelection, entries, flagExport, flagWithSeed, targetElo, generatedAt)
 	if err != nil {
 		return err
 	}
@@ -85,17 +93,18 @@ func validateNewExportFlags(_ *cobra.Command, args []string) error {
 
 func collectExportModes(entry registry.Entry, modeArg string) ([]exportModeEntry, string, error) {
 	if modeArg != "" {
-		spawner, modeTitle, err := resolve.Mode(entry, modeArg)
+		mode, err := resolve.ModeEntry(entry, modeArg)
 		if err != nil {
 			return nil, "", err
 		}
-		return []exportModeEntry{{spawner: spawner, mode: modeTitle}}, modeTitle, nil
+		return []exportModeEntry{{spawner: mode.Spawner, elo: mode.Elo, mode: mode.Definition.Title}}, mode.Definition.Title, nil
 	}
 
 	entries := make([]exportModeEntry, 0, len(entry.Modes))
 	for _, mode := range entry.Modes {
 		entries = append(entries, exportModeEntry{
 			spawner: mode.Spawner,
+			elo:     mode.Elo,
 			mode:    mode.Definition.Title,
 		})
 	}
@@ -111,6 +120,7 @@ func buildExportRecords(
 	entries []exportModeEntry,
 	count int,
 	seed string,
+	targetElo *difficulty.Elo,
 	generatedAt time.Time,
 ) ([]pdfexport.JSONLRecord, error) {
 	var rng *rand.Rand
@@ -137,7 +147,8 @@ func buildExportRecords(
 			entry = entries[modeIndex]
 		}
 
-		puzzle, err := spawnExportPuzzle(entry.spawner, rng)
+		eloSeed := scopedExportEloSeed(seed, generatedAt, gameType, entry.mode, i+1)
+		puzzle, report, err := spawnExportPuzzle(entry, rng, eloSeed, targetElo)
 		if err != nil {
 			return nil, fmt.Errorf("generate puzzle %d: %w", i+1, err)
 		}
@@ -161,11 +172,14 @@ func buildExportRecords(
 				Seed:          seed,
 			},
 			Puzzle: pdfexport.JSONLPuzzle{
-				Index: i + 1,
-				Name:  namegen.GenerateSeeded(nameRNG),
-				Game:  gameType,
-				Mode:  entry.mode,
-				Save:  json.RawMessage(save),
+				Index:                i + 1,
+				Name:                 namegen.GenerateSeeded(nameRNG),
+				Game:                 gameType,
+				Mode:                 entry.mode,
+				TargetDifficultyElo:  intPtrFromEloReport(report.TargetElo, report.Confidence),
+				ActualDifficultyElo:  intPtrFromEloReport(report.ActualElo, report.Confidence),
+				DifficultyConfidence: string(report.Confidence),
+				Save:                 json.RawMessage(save),
 			},
 		})
 	}
@@ -173,16 +187,45 @@ func buildExportRecords(
 	return records, nil
 }
 
-func spawnExportPuzzle(spawner game.Spawner, rng *rand.Rand) (game.Gamer, error) {
-	if rng == nil {
-		return spawner.Spawn()
+func scopedExportEloSeed(seed string, generatedAt time.Time, gameType, mode string, index int) string {
+	base := strings.TrimSpace(seed)
+	if base == "" {
+		base = generatedAt.Format(time.RFC3339Nano)
+	}
+	return fmt.Sprintf("export:%s:%s:%s:%d", base, gameType, mode, index)
+}
+
+func spawnExportPuzzle(entry exportModeEntry, rng *rand.Rand, seed string, targetElo *difficulty.Elo) (game.Gamer, difficulty.Report, error) {
+	if targetElo != nil {
+		if entry.elo == nil {
+			return nil, difficulty.Report{}, fmt.Errorf("mode does not support Elo difficulty")
+		}
+		g, report, err := entry.elo.SpawnElo(seed, *targetElo)
+		if err != nil {
+			return nil, difficulty.Report{}, err
+		}
+		return g, report, nil
 	}
 
-	seeded, ok := spawner.(game.SeededSpawner)
-	if !ok {
-		return nil, fmt.Errorf("mode does not support deterministic spawning")
+	if rng == nil {
+		g, err := entry.spawner.Spawn()
+		return g, difficulty.Report{}, err
 	}
-	return seeded.SpawnSeeded(rng)
+
+	seeded, ok := entry.spawner.(game.SeededSpawner)
+	if !ok {
+		return nil, difficulty.Report{}, fmt.Errorf("mode does not support deterministic spawning")
+	}
+	g, err := seeded.SpawnSeeded(rng)
+	return g, difficulty.Report{}, err
+}
+
+func intPtrFromEloReport(elo difficulty.Elo, confidence difficulty.Confidence) *int {
+	if confidence == "" {
+		return nil
+	}
+	v := int(elo)
+	return &v
 }
 
 func writeExportJSONL(cmd *cobra.Command, path string, records []pdfexport.JSONLRecord) error {

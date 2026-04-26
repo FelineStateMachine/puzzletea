@@ -45,6 +45,11 @@ island for completion.
 | Hard | 11x11 | Lower clue density |
 | Expert | 12x12 | Sparse clues and longer chains |
 
+## Elo Difficulty
+
+Named modes are compatibility presets. Use `--difficulty <0..3000>` to target a
+specific Elo difficulty for generated puzzles.
+
 ## Quick Start
 
 ```bash

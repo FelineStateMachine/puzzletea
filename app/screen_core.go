@@ -3,6 +3,7 @@ package app
 import (
 	"time"
 
+	"github.com/FelineStateMachine/puzzletea/config"
 	"github.com/FelineStateMachine/puzzletea/registry"
 	sessionflow "github.com/FelineStateMachine/puzzletea/session"
 	"github.com/FelineStateMachine/puzzletea/store"
@@ -46,13 +47,17 @@ func (a quitAction) applyToModel(m model) (model, tea.Cmd) {
 	return m, tea.Quit
 }
 
-type openGameSelectAction struct{}
+type openCreateAction struct{}
 
-func (a openGameSelectAction) applyToModel(m model) (model, tea.Cmd) {
-	m.state = gameSelectView
-	m = m.updateCategoryDetailViewport()
+func (a openCreateAction) applyToModel(m model) (model, tea.Cmd) {
+	createCfg := config.CreateConfig{}
+	if m.cfg != nil {
+		createCfg = m.cfg.Create
+	}
+	m.create = newCreateState(createCfg, m.width)
+	m.state = createView
 	m = m.clearNotice()
-	return m.initScreen(gameSelectView), nil
+	return m.initScreen(createView), nil
 }
 
 type openContinueAction struct{}
@@ -80,12 +85,6 @@ type openWeeklyAction struct{}
 
 func (a openWeeklyAction) applyToModel(m model) (model, tea.Cmd) {
 	return m.enterWeeklyView()
-}
-
-type openSeedInputAction struct{}
-
-func (a openSeedInputAction) applyToModel(m model) (model, tea.Cmd) {
-	return m.enterSeedInputView()
 }
 
 type backAction struct {
@@ -125,15 +124,21 @@ type modeSelectEnterAction struct {
 func (a modeSelectEnterAction) applyToModel(m model) (model, tea.Cmd) {
 	m.nav.selectedCategory = a.entry
 	m.nav.selectedModeTitle = a.mode.Definition.Title
-	cmd := newSessionController(&m).startSpawn(a.mode.Spawner, spawnRequest{
+	name := sessionflow.GenerateUniqueName(m.store)
+	request := spawnRequest{
 		source:      spawnSourceNormal,
-		name:        sessionflow.GenerateUniqueName(m.store),
+		name:        name,
 		gameType:    a.entry.Definition.Name,
 		modeTitle:   a.mode.Definition.Title,
 		run:         store.NormalRunMetadata(),
 		returnState: modeSelectView,
 		exitState:   mainMenuView,
-	})
+	}
+	if a.mode.Definition.PresetElo != nil && a.mode.Elo != nil {
+		cmd := newSessionController(&m).startEloSpawn(a.mode.Elo, name, *a.mode.Definition.PresetElo, request)
+		return m, cmd
+	}
+	cmd := newSessionController(&m).startSpawn(a.mode.Spawner, request)
 	return m, cmd
 }
 
@@ -246,6 +251,9 @@ var screenRegistry = map[viewState]screenFactory{
 	},
 	seedInputView: func(m model) screenModel {
 		return seedInputScreen{width: m.width, height: m.height, seed: m.seed}
+	},
+	createView: func(m model) screenModel {
+		return createScreen{width: m.width, height: m.height, create: m.create}
 	},
 	gameSelectView: func(m model) screenModel {
 		return gameSelectScreen{width: m.width, height: m.height, list: m.nav.gameSelectList, detail: m.nav.categoryDetail}

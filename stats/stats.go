@@ -5,6 +5,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/FelineStateMachine/puzzletea/difficulty"
 	"github.com/FelineStateMachine/puzzletea/puzzle"
 	"github.com/FelineStateMachine/puzzletea/store"
 )
@@ -56,16 +57,25 @@ func ComputeCategoryXP(weights Weights, gameType string, modeStats []store.ModeS
 		if ms.GameType != gameType {
 			continue
 		}
-		baseXP := weights[ModeKey{ms.GameType, ms.Mode}]
-		if baseXP == 0 {
-			baseXP = 1
-		}
+		baseXP := modeStatXP(weights, ms)
 		normalVictories := ms.Victories - ms.DailyVictories
 		total += normalVictories * baseXP
 		total += ms.DailyVictories * baseXP * 2
 		total += ms.WeeklyBonusXP
 	}
 	return total
+}
+
+func modeStatXP(weights Weights, ms store.ModeStat) int {
+	if ms.DifficultyElo != nil {
+		score := difficulty.Score01(difficulty.Elo(*ms.DifficultyElo))
+		return max(1, int(math.Round(score*10)))
+	}
+	baseXP := weights[ModeKey{ms.GameType, ms.Mode}]
+	if baseXP == 0 {
+		return 1
+	}
+	return baseXP
 }
 
 // ComputeDailyStreak calculates the length of the current daily completion
