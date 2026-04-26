@@ -53,8 +53,8 @@ func TestRunNewExportValidation(t *testing.T) {
 			if err := json.Unmarshal([]byte(line), &record); err != nil {
 				t.Fatalf("line %d is not valid jsonl: %v", i+1, err)
 			}
-			if record.Schema != pdfexport.ExportSchemaV1 {
-				t.Fatalf("line %d schema = %q, want %q", i+1, record.Schema, pdfexport.ExportSchemaV1)
+			if record.Schema != pdfexport.ExportSchemaV2 {
+				t.Fatalf("line %d schema = %q, want %q", i+1, record.Schema, pdfexport.ExportSchemaV2)
 			}
 		}
 	})
@@ -151,7 +151,7 @@ func TestRunNewExportOverwritesOutputFile(t *testing.T) {
 	if string(data) == "old" {
 		t.Fatal("expected output file to be overwritten")
 	}
-	if !strings.Contains(string(data), pdfexport.ExportSchemaV1) {
+	if !strings.Contains(string(data), pdfexport.ExportSchemaV2) {
 		t.Fatal("expected jsonl export schema marker")
 	}
 }

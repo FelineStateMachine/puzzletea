@@ -7,6 +7,7 @@ import (
 	"math/rand/v2"
 	"strings"
 
+	"github.com/FelineStateMachine/puzzletea/difficulty"
 	"github.com/FelineStateMachine/puzzletea/game"
 	"github.com/FelineStateMachine/puzzletea/puzzle"
 	"github.com/FelineStateMachine/puzzletea/registry"
@@ -39,11 +40,91 @@ func ModeEntry(entry registry.Entry, name string) (registry.ModeEntry, error) {
 		name, entry.Definition.Name, strings.Join(ModeNames(entry), "\n  "))
 }
 
+type VariantSelection struct {
+	Variant      registry.VariantEntry
+	ExplicitElo  *difficulty.Elo
+	LegacyAlias  *puzzle.LegacyModeAlias
+	DisplayTitle string
+}
+
+func VariantEntry(entry registry.Entry, name string) (VariantSelection, error) {
+	if len(entry.Variants) == 0 {
+		return VariantSelection{}, fmt.Errorf("game %q has no available variants", entry.Definition.Name)
+	}
+
+	if name == "" {
+		variant := entry.Variants[0]
+		return VariantSelection{
+			Variant:      variant,
+			DisplayTitle: variant.Definition.Title,
+		}, nil
+	}
+
+	norm := Normalize(name)
+	for _, variant := range entry.Variants {
+		if Normalize(variant.Definition.Title) == norm || Normalize(string(variant.Definition.ID)) == norm {
+			return VariantSelection{
+				Variant:      variant,
+				DisplayTitle: variant.Definition.Title,
+			}, nil
+		}
+	}
+
+	for _, alias := range entry.LegacyModes {
+		if legacyAliasMatches(alias, norm) {
+			variant, ok := variantByID(entry, alias.TargetVariantID)
+			if !ok {
+				return VariantSelection{}, fmt.Errorf("legacy mode %q targets missing variant %q", alias.Title, alias.TargetVariantID)
+			}
+			elo := alias.PresetElo
+			aliasCopy := alias
+			return VariantSelection{
+				Variant:      variant,
+				ExplicitElo:  &elo,
+				LegacyAlias:  &aliasCopy,
+				DisplayTitle: variant.Definition.Title,
+			}, nil
+		}
+	}
+
+	return VariantSelection{}, fmt.Errorf("unknown variant or legacy mode %q for %s\n\nAvailable variants:\n  %s",
+		name, entry.Definition.Name, strings.Join(VariantNames(entry), "\n  "))
+}
+
+func legacyAliasMatches(alias puzzle.LegacyModeAlias, norm string) bool {
+	if Normalize(alias.Title) == norm || Normalize(string(alias.ID)) == norm {
+		return true
+	}
+	for _, cliAlias := range alias.CLIAliases {
+		if Normalize(cliAlias) == norm {
+			return true
+		}
+	}
+	return false
+}
+
+func variantByID(entry registry.Entry, id puzzle.VariantID) (registry.VariantEntry, bool) {
+	for _, variant := range entry.Variants {
+		if variant.Definition.ID == id {
+			return variant, true
+		}
+	}
+	return registry.VariantEntry{}, false
+}
+
 // ModeNames returns the display names of all modes in an entry.
 func ModeNames(entry registry.Entry) []string {
 	names := make([]string, 0, len(entry.Modes))
 	for _, mode := range entry.Modes {
 		names = append(names, mode.Definition.Title)
+	}
+	return names
+}
+
+func VariantNames(entry registry.Entry) []string {
+	names := make([]string, 0, len(entry.Variants))
+	for _, variant := range entry.Variants {
+		names = append(names, variant.Definition.Title)
 	}
 	return names
 }
@@ -69,8 +150,8 @@ func seededModeForDefinition(seed string, entry registry.Entry) (seededEntry, bo
 	var bestHash uint64
 	found := false
 
-	for _, mode := range entry.Modes {
-		if mode.Seeded == nil {
+	for _, variant := range entry.Variants {
+		if variant.Seeded == nil {
 			continue
 		}
 		h := fnv.New64a()
@@ -78,14 +159,14 @@ func seededModeForDefinition(seed string, entry registry.Entry) (seededEntry, bo
 		h.Write([]byte{0})
 		h.Write([]byte(entry.Definition.Name))
 		h.Write([]byte{0})
-		h.Write([]byte(mode.Definition.Title))
+		h.Write([]byte(variant.Definition.Title))
 		score := h.Sum64()
 		if !found || score > bestHash {
 			bestHash = score
 			best = seededEntry{
-				spawner:  mode.Seeded,
+				spawner:  variant.Seeded,
 				gameType: entry.Definition.Name,
-				mode:     mode.Definition.Title,
+				mode:     variant.Definition.Title,
 			}
 			found = true
 		}

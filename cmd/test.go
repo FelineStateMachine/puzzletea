@@ -82,7 +82,7 @@ func loadTestRecords(path string) ([]testInputRecord, error) {
 		if err := json.Unmarshal([]byte(line), &record); err != nil {
 			return nil, fmt.Errorf("%s:%d: decode jsonl record: %w", path, lineNo, err)
 		}
-		if record.Schema != pdfexport.ExportSchemaV1 {
+		if !pdfexport.IsSupportedExportSchema(record.Schema) {
 			return nil, fmt.Errorf("%s:%d: unsupported schema %q", path, lineNo, record.Schema)
 		}
 

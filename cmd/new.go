@@ -73,7 +73,7 @@ func launchNewGame(gameArg, modeArg, seed string, cfg *config.Config) error {
 		return err
 	}
 
-	mode, err := resolve.ModeEntry(entry, modeArg)
+	selection, err := resolve.VariantEntry(entry, modeArg)
 	if err != nil {
 		return err
 	}
@@ -81,6 +81,9 @@ func launchNewGame(gameArg, modeArg, seed string, cfg *config.Config) error {
 	targetElo, err := difficultyFlag()
 	if err != nil {
 		return err
+	}
+	if targetElo == nil {
+		targetElo = selection.ExplicitElo
 	}
 
 	s, err := openStoreFn(cfg.DBPath)
@@ -91,19 +94,39 @@ func launchNewGame(gameArg, modeArg, seed string, cfg *config.Config) error {
 
 	name := sessionflow.GenerateUniqueName(s)
 
-	g, report, err := spawnFromMode(mode, seed, targetElo, name)
+	g, report, err := spawnFromVariant(selection.Variant, seed, targetElo, name)
 	if err != nil {
 		return fmt.Errorf("failed to spawn game: %w", err)
 	}
 	g = g.SetTitle(name)
 
 	meta := difficultyMetadataFromReport(report)
-	rec, err := sessionflow.CreateRecordWithDifficulty(s, g, name, entry.Definition.Name, mode.Definition.Title, store.NormalRunMetadata(), meta)
+	rec, err := sessionflow.CreateRecordWithDifficulty(s, g, name, entry.Definition.Name, selection.DisplayTitle, store.NormalRunMetadata(), meta)
 	if err != nil {
 		return err
 	}
 
 	return runGameProgramFn(s, cfg, activeConfigPath(), g, rec.ID, false)
+}
+
+func spawnFromVariant(variant registry.VariantEntry, seed string, targetElo *difficulty.Elo, fallbackEloSeed string) (game.Gamer, difficulty.Report, error) {
+	effectiveElo := targetElo
+	if effectiveElo == nil {
+		elo := variant.Definition.DefaultElo
+		effectiveElo = &elo
+	}
+	if variant.Elo == nil {
+		return nil, difficulty.Report{}, fmt.Errorf("variant does not support Elo difficulty")
+	}
+	eloSeed := seed
+	if eloSeed == "" {
+		eloSeed = fallbackEloSeed
+	}
+	g, report, err := variant.Elo.SpawnElo(eloSeed, *effectiveElo)
+	if err != nil {
+		return nil, difficulty.Report{}, err
+	}
+	return g, report, nil
 }
 
 func spawnFromMode(mode registry.ModeEntry, seed string, targetElo *difficulty.Elo, fallbackEloSeed string) (game.Gamer, difficulty.Report, error) {

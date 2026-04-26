@@ -157,20 +157,15 @@ func createTestState(leaves []createLeaf, elo int) createState {
 func createTestLeaf(id, gameType, modeTitle string) createLeaf {
 	spawner := createTestEloSpawner{}
 	return createLeaf{
-		id:        id,
-		title:     modeTitle,
-		gameType:  gameType,
-		modeTitle: modeTitle,
-		modes: []registry.ModeEntry{{
-			Definition: puzzle.ModeDef{
-				Title:     modeTitle,
-				PresetElo: ptrElo(1200),
+		id:       id,
+		title:    modeTitle,
+		gameType: gameType,
+		variant: registry.VariantEntry{
+			Definition: puzzle.VariantDef{
+				Title:      modeTitle,
+				DefaultElo: 1200,
 			},
 			Elo: spawner,
-		}},
+		},
 	}
-}
-
-func ptrElo(elo difficulty.Elo) *difficulty.Elo {
-	return &elo
 }

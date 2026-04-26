@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-const currentSchemaVersion = 4
+const currentSchemaVersion = 5
 
 type migration struct {
 	version int
@@ -18,6 +18,7 @@ var schemaMigrations = []migration{
 	{version: 2, name: "add game metadata columns", apply: migrateGameMetadata},
 	{version: 3, name: "refresh stats views", apply: refreshStatsViews},
 	{version: 4, name: "add difficulty metadata", apply: migrateDifficultyMetadata},
+	{version: 5, name: "add variant metadata", apply: migrateVariantMetadata},
 }
 
 type gameRowMeta struct {
@@ -137,8 +138,13 @@ func detectSchemaVersion(db *sql.DB) (int, error) {
 			return 2, nil
 		}
 	}
+	for _, column := range []string{"variant_id", "variant"} {
+		if !columns[column] {
+			return 4, nil
+		}
+	}
 
-	return 4, nil
+	return 5, nil
 }
 
 func createGamesSchema(db *sql.DB) error {
@@ -181,12 +187,24 @@ func migrateDifficultyMetadata(db *sql.DB) error {
 	return refreshStatsViews(db)
 }
 
+func migrateVariantMetadata(db *sql.DB) error {
+	if err := ensureVariantColumns(db); err != nil {
+		return err
+	}
+	if err := backfillVariantMetadata(db); err != nil {
+		return err
+	}
+	return refreshStatsViews(db)
+}
+
 func ensureGameColumns(db *sql.DB) error {
 	columns := []struct {
 		name       string
 		definition string
 	}{
 		{name: "game_id", definition: "TEXT NOT NULL DEFAULT ''"},
+		{name: "variant_id", definition: "TEXT NOT NULL DEFAULT ''"},
+		{name: "variant", definition: "TEXT NOT NULL DEFAULT ''"},
 		{name: "mode_id", definition: "TEXT NOT NULL DEFAULT ''"},
 		{name: "run_kind", definition: "TEXT NOT NULL DEFAULT 'normal'"},
 		{name: "run_date", definition: "DATE"},
@@ -194,6 +212,30 @@ func ensureGameColumns(db *sql.DB) error {
 		{name: "week_number", definition: "INTEGER"},
 		{name: "week_index", definition: "INTEGER"},
 		{name: "seed_text", definition: "TEXT"},
+	}
+
+	existing, err := tableColumns(db, "games")
+	if err != nil {
+		return err
+	}
+	for _, column := range columns {
+		if existing[column.name] {
+			continue
+		}
+		if _, err := db.Exec(fmt.Sprintf("ALTER TABLE games ADD COLUMN %s %s", column.name, column.definition)); err != nil {
+			return fmt.Errorf("adding games.%s: %w", column.name, err)
+		}
+	}
+	return nil
+}
+
+func ensureVariantColumns(db *sql.DB) error {
+	columns := []struct {
+		name       string
+		definition string
+	}{
+		{name: "variant_id", definition: "TEXT NOT NULL DEFAULT ''"},
+		{name: "variant", definition: "TEXT NOT NULL DEFAULT ''"},
 	}
 
 	existing, err := tableColumns(db, "games")
@@ -232,6 +274,23 @@ func ensureDifficultyColumns(db *sql.DB) error {
 		if _, err := db.Exec(fmt.Sprintf("ALTER TABLE games ADD COLUMN %s %s", column.name, column.definition)); err != nil {
 			return fmt.Errorf("adding games.%s: %w", column.name, err)
 		}
+	}
+	return nil
+}
+
+func backfillVariantMetadata(db *sql.DB) error {
+	_, err := db.Exec(`
+UPDATE games
+   SET variant = CASE WHEN variant = '' THEN mode ELSE variant END,
+       variant_id = CASE
+           WHEN variant_id != '' THEN variant_id
+           WHEN mode_id != '' THEN mode_id
+           ELSE lower(trim(replace(replace(mode, '-', ' '), '_', ' ')))
+       END
+ WHERE variant = ''
+    OR variant_id = ''`)
+	if err != nil {
+		return fmt.Errorf("backfilling variant metadata: %w", err)
 	}
 	return nil
 }

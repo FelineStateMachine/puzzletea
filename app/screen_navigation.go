@@ -142,7 +142,7 @@ func (s modeSelectScreen) Update(msg tea.Msg) (screenModel, tea.Cmd, screenActio
 		switch {
 		case key.Matches(keyMsg, rootKeys.Enter):
 			item := unwrapModeDisplayItem(s.list.SelectedItem())
-			mode, ok := item.(registry.ModeEntry)
+			mode, ok := item.(registry.VariantEntry)
 			if !ok {
 				return s, nil, nil
 			}
@@ -159,7 +159,7 @@ func (s modeSelectScreen) Update(msg tea.Msg) (screenModel, tea.Cmd, screenActio
 
 func (s modeSelectScreen) View(notice noticeState) string {
 	return renderPanelView(s.width, s.height, notice,
-		s.entry.Definition.Name+" — Select Mode",
+		s.entry.Definition.Name+" - Select Variant",
 		s.list.View(),
 		"↑/↓ navigate • enter select • esc back",
 	)

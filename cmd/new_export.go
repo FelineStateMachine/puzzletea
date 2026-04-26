@@ -23,10 +23,9 @@ import (
 var exportNow = time.Now
 
 type exportModeEntry struct {
-	spawner   game.Spawner
-	elo       game.EloSpawner
-	presetElo *difficulty.Elo
-	mode      string
+	elo        game.EloSpawner
+	defaultElo difficulty.Elo
+	mode       string
 }
 
 func runNewExport(cmd *cobra.Command, args []string) error {
@@ -94,32 +93,34 @@ func validateNewExportFlags(_ *cobra.Command, args []string) error {
 
 func collectExportModes(entry registry.Entry, modeArg string) ([]exportModeEntry, string, error) {
 	if modeArg != "" {
-		mode, err := resolve.ModeEntry(entry, modeArg)
+		selection, err := resolve.VariantEntry(entry, modeArg)
 		if err != nil {
 			return nil, "", err
 		}
+		defaultElo := selection.Variant.Definition.DefaultElo
+		if selection.ExplicitElo != nil {
+			defaultElo = *selection.ExplicitElo
+		}
 		return []exportModeEntry{{
-			spawner:   mode.Spawner,
-			elo:       mode.Elo,
-			presetElo: mode.Definition.PresetElo,
-			mode:      mode.Definition.Title,
-		}}, mode.Definition.Title, nil
+			elo:        selection.Variant.Elo,
+			defaultElo: defaultElo,
+			mode:       selection.Variant.Definition.Title,
+		}}, selection.Variant.Definition.Title, nil
 	}
 
-	entries := make([]exportModeEntry, 0, len(entry.Modes))
-	for _, mode := range entry.Modes {
+	entries := make([]exportModeEntry, 0, len(entry.Variants))
+	for _, variant := range entry.Variants {
 		entries = append(entries, exportModeEntry{
-			spawner:   mode.Spawner,
-			elo:       mode.Elo,
-			presetElo: mode.Definition.PresetElo,
-			mode:      mode.Definition.Title,
+			elo:        variant.Elo,
+			defaultElo: variant.Definition.DefaultElo,
+			mode:       variant.Definition.Title,
 		})
 	}
 	if len(entries) == 0 {
-		return nil, "", fmt.Errorf("game %q has no exportable modes", entry.Definition.Name)
+		return nil, "", fmt.Errorf("game %q has no exportable variants", entry.Definition.Name)
 	}
 
-	return entries, "mixed modes", nil
+	return entries, "mixed variants", nil
 }
 
 func buildExportRecords(
@@ -169,7 +170,7 @@ func buildExportRecords(
 		}
 
 		records = append(records, pdfexport.JSONLRecord{
-			Schema: pdfexport.ExportSchemaV1,
+			Schema: pdfexport.ExportSchemaV2,
 			Pack: pdfexport.JSONLPackMeta{
 				Generated:     generatedAt.Format(time.RFC3339),
 				Version:       Version,
@@ -205,31 +206,19 @@ func scopedExportEloSeed(seed string, generatedAt time.Time, gameType, mode stri
 func spawnExportPuzzle(entry exportModeEntry, rng *rand.Rand, seed string, targetElo *difficulty.Elo) (game.Gamer, difficulty.Report, error) {
 	effectiveElo := targetElo
 	if effectiveElo == nil {
-		effectiveElo = entry.presetElo
+		effectiveElo = &entry.defaultElo
 	}
-
-	if effectiveElo != nil {
-		if entry.elo == nil {
-			return nil, difficulty.Report{}, fmt.Errorf("mode does not support Elo difficulty")
-		}
-		g, report, err := entry.elo.SpawnElo(seed, *effectiveElo)
-		if err != nil {
-			return nil, difficulty.Report{}, err
-		}
-		return g, report, nil
+	if entry.elo == nil {
+		return nil, difficulty.Report{}, fmt.Errorf("variant does not support Elo difficulty")
 	}
-
-	if rng == nil {
-		g, err := entry.spawner.Spawn()
-		return g, difficulty.Report{}, err
+	if rng != nil && strings.TrimSpace(seed) == "" {
+		seed = fmt.Sprintf("export-seeded:%016x:%016x", rng.Uint64(), rng.Uint64())
 	}
-
-	seeded, ok := entry.spawner.(game.SeededSpawner)
-	if !ok {
-		return nil, difficulty.Report{}, fmt.Errorf("mode does not support deterministic spawning")
+	g, report, err := entry.elo.SpawnElo(seed, *effectiveElo)
+	if err != nil {
+		return nil, difficulty.Report{}, err
 	}
-	g, err := seeded.SpawnSeeded(rng)
-	return g, difficulty.Report{}, err
+	return g, report, nil
 }
 
 func intPtrFromEloReport(elo difficulty.Elo, confidence difficulty.Confidence) *int {

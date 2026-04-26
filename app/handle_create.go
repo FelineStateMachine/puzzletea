@@ -22,7 +22,7 @@ func (m model) handleCreateGenerate() (model, tea.Cmd) {
 	}
 
 	leaf := leaves[m.createChoiceIndex(len(leaves))]
-	spawner, modeTitle, err := m.create.resolveLeafMode(leaf, elo)
+	spawner, modeTitle, err := m.create.resolveLeafVariant(leaf, elo)
 	if err != nil {
 		return m.setErrorf("Could not prepare puzzle: %v", err), nil
 	}

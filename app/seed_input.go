@@ -23,18 +23,11 @@ func buildSeedModeOptions(definitions []puzzle.Definition) []seedModeOption {
 			continue
 		}
 
-		for _, mode := range def.Modes {
-			if !mode.Seeded {
-				continue
-			}
-
-			options = append(options, seedModeOption{
-				key:      seedModeKey(def.Name, ""),
-				label:    def.Name,
-				gameType: def.Name,
-			})
-			break
-		}
+		options = append(options, seedModeOption{
+			key:      seedModeKey(def.Name, ""),
+			label:    def.Name,
+			gameType: def.Name,
+		})
 	}
 
 	return options
@@ -48,12 +41,7 @@ func seedModeKey(gameType, modeTitle string) string {
 }
 
 func definitionHasSeededModes(def puzzle.Definition) bool {
-	for _, mode := range def.Modes {
-		if mode.Seeded {
-			return true
-		}
-	}
-	return false
+	return len(def.Variants) > 0
 }
 
 func findSeedModeIndex(options []seedModeOption, key string) int {

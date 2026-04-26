@@ -8,7 +8,7 @@ import (
 )
 
 func TestCreateStateStartsCollapsedAndRestoresCheckedLeaves(t *testing.T) {
-	const leafID = "nonogram/5x5"
+	const leafID = "nonogram/nonogram"
 	state := newCreateState(config.CreateConfig{
 		SelectedLeafIDs: []string{leafID},
 		Elo:             1500,
@@ -47,11 +47,11 @@ func TestCreateTreeGroupsTakuzuAndSudokuVariants(t *testing.T) {
 	}
 }
 
-func TestCreateTreeCollapsesNonogramByBoardSize(t *testing.T) {
+func TestCreateTreeListsNonogramRuleVariant(t *testing.T) {
 	state := newCreateState(config.CreateConfig{}, 80)
 	nonogram := requireCreateNode(t, state.tree, "Nonogram")
 
-	want := []string{"5x5", "10x10", "15x15", "20x20"}
+	want := []string{"Nonogram"}
 	got := childTitles(nonogram)
 	if len(got) != len(want) {
 		t.Fatalf("Nonogram leaves = %#v, want %#v", got, want)
@@ -63,20 +63,20 @@ func TestCreateTreeCollapsesNonogramByBoardSize(t *testing.T) {
 	}
 }
 
-func TestCreateResolveLeafModeUsesNearestPresetElo(t *testing.T) {
+func TestCreateResolveLeafVariantUsesSelectedVariant(t *testing.T) {
 	state := newCreateState(config.CreateConfig{}, 80)
 	nonogram := requireCreateNode(t, state.tree, "Nonogram")
-	leaf := requireCreateNode(t, nonogram.children, "5x5").leaf
+	leaf := requireCreateNode(t, nonogram.children, "Nonogram").leaf
 	if leaf == nil {
-		t.Fatal("5x5 node is not a leaf")
+		t.Fatal("Nonogram node is not a leaf")
 	}
 
-	_, modeTitle, err := state.resolveLeafMode(*leaf, difficulty.Elo(700))
+	_, modeTitle, err := state.resolveLeafVariant(*leaf, difficulty.Elo(700))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if modeTitle != "Teaser" {
-		t.Fatalf("modeTitle = %q, want Teaser", modeTitle)
+	if modeTitle != "Nonogram" {
+		t.Fatalf("modeTitle = %q, want Nonogram", modeTitle)
 	}
 }
 
@@ -93,12 +93,12 @@ func TestCreateStateDescendantLeafCountsIncludeCollapsedDescendants(t *testing.T
 
 func TestCreateStateToggleDescendantLeavesSelectsAllWhenAnyUnchecked(t *testing.T) {
 	state := newCreateState(config.CreateConfig{}, 80)
-	nonogram := requireCreateNode(t, state.tree, "Nonogram")
-	state.checked[nonogram.children[0].leaf.id] = true
+	sudoku := requireCreateNode(t, state.tree, "Sudoku")
+	state.checked[firstDescendantLeafID(t, sudoku.children[0])] = true
 
-	state.toggleDescendantLeaves(nonogram)
+	state.toggleDescendantLeaves(sudoku)
 
-	selected, total := state.descendantLeafCounts(nonogram)
+	selected, total := state.descendantLeafCounts(sudoku)
 	if selected != total || total == 0 {
 		t.Fatalf("descendant counts after select-all = %d/%d, want all selected", selected, total)
 	}
@@ -156,4 +156,18 @@ func childTitles(node createTreeNode) []string {
 		titles = append(titles, child.title)
 	}
 	return titles
+}
+
+func firstDescendantLeafID(t *testing.T, node createTreeNode) string {
+	t.Helper()
+	if node.leaf != nil {
+		return node.leaf.id
+	}
+	for _, child := range node.children {
+		if id := firstDescendantLeafID(t, child); id != "" {
+			return id
+		}
+	}
+	t.Fatalf("node %q has no descendant leaf", node.title)
+	return ""
 }

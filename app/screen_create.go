@@ -553,7 +553,7 @@ func renderCreateTreeLine(state createState, item createVisibleNode, cursor bool
 			marker = "[-] "
 		}
 		count := ""
-		if total > 0 {
+		if total > 1 {
 			count = " " + ui.DimItemStyle().Render(strconv.Itoa(selected)+"/"+strconv.Itoa(total))
 		}
 		return cursorText + prefix + marker + node.title + count

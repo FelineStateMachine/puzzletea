@@ -117,6 +117,8 @@ func CreateRecordWithDifficulty(
 		Name:         name,
 		GameID:       string(puzzle.CanonicalGameID(gameType)),
 		GameType:     gameType,
+		VariantID:    string(puzzle.CanonicalVariantID(modeTitle)),
+		Variant:      modeTitle,
 		ModeID:       string(puzzle.CanonicalModeID(modeTitle)),
 		Mode:         modeTitle,
 		InitialState: string(initialState),

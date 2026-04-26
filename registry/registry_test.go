@@ -63,6 +63,31 @@ func TestEntriesStayAlignedWithDefinitions(t *testing.T) {
 		if got, want := len(entry.Modes), len(def.Modes); got != want {
 			t.Fatalf("%s mode count = %d, want %d", def.Name, got, want)
 		}
+		if got, want := len(entry.Variants), len(def.Variants); got != want {
+			t.Fatalf("%s variant count = %d, want %d", def.Name, got, want)
+		}
+	}
+}
+
+func TestEntriesExposeVariantsAndValidLegacyAliases(t *testing.T) {
+	for _, entry := range Entries() {
+		if len(entry.Variants) == 0 {
+			t.Fatalf("%s has no variants", entry.Definition.Name)
+		}
+
+		variantIDs := make(map[string]struct{}, len(entry.Variants))
+		for _, variant := range entry.Variants {
+			if variant.Elo == nil {
+				t.Fatalf("%s/%s missing Elo spawner", entry.Definition.Name, variant.Definition.Title)
+			}
+			variantIDs[string(variant.Definition.ID)] = struct{}{}
+		}
+
+		for _, alias := range entry.LegacyModes {
+			if _, ok := variantIDs[string(alias.TargetVariantID)]; !ok {
+				t.Fatalf("%s legacy alias %s targets missing variant %s", entry.Definition.Name, alias.Title, alias.TargetVariantID)
+			}
+		}
 	}
 }
 

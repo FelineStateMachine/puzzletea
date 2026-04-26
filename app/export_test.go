@@ -25,7 +25,7 @@ func TestHandleExportEnterLoadsPersistedDefaults(t *testing.T) {
 				PDFOutputPath: filepath.Join(tmp, "saved.pdf"),
 				Counts: map[puzzle.GameID]map[puzzle.ModeID]int{
 					puzzle.CanonicalGameID("Sudoku"): {
-						puzzle.CanonicalModeID("Easy"): 4,
+						puzzle.CanonicalModeID("Sudoku"): 4,
 					},
 				},
 			},

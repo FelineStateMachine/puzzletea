@@ -18,6 +18,40 @@ type ModeDef struct {
 	PresetElo   *difficulty.Elo
 }
 
+type VariantID string
+
+type VariantDef struct {
+	ID          VariantID
+	Title       string
+	Description string
+	DefaultElo  difficulty.Elo
+}
+
+type VariantSpec struct {
+	ID          VariantID
+	Title       string
+	Description string
+	DefaultElo  difficulty.Elo
+}
+
+type LegacyModeAlias struct {
+	ID              ModeID
+	Title           string
+	Description     string
+	TargetVariantID VariantID
+	PresetElo       difficulty.Elo
+	CLIAliases      []string
+}
+
+type LegacyModeAliasSpec struct {
+	ID              ModeID
+	Title           string
+	Description     string
+	TargetVariantID VariantID
+	PresetElo       difficulty.Elo
+	CLIAliases      []string
+}
+
 type ModeSpec struct {
 	ID          ModeID
 	Title       string
@@ -31,6 +65,8 @@ type Definition struct {
 	Name         string
 	Description  string
 	Aliases      []string
+	Variants     []VariantDef
+	LegacyModes  []LegacyModeAlias
 	Modes        []ModeDef
 	DailyModeIDs []ModeID
 }
@@ -40,6 +76,8 @@ type DefinitionSpec struct {
 	Name         string
 	Description  string
 	Aliases      []string
+	Variants     []VariantDef
+	LegacyModes  []LegacyModeAlias
 	Modes        []ModeDef
 	DailyModeIDs []ModeID
 }
@@ -58,6 +96,34 @@ func NewModeDef(spec ModeSpec) ModeDef {
 	}
 }
 
+func NewVariantDef(spec VariantSpec) VariantDef {
+	id := spec.ID
+	if id == "" {
+		id = CanonicalVariantID(spec.Title)
+	}
+	return VariantDef{
+		ID:          id,
+		Title:       spec.Title,
+		Description: spec.Description,
+		DefaultElo:  spec.DefaultElo,
+	}
+}
+
+func NewLegacyModeAlias(spec LegacyModeAliasSpec) LegacyModeAlias {
+	id := spec.ID
+	if id == "" {
+		id = CanonicalModeID(spec.Title)
+	}
+	return LegacyModeAlias{
+		ID:              id,
+		Title:           spec.Title,
+		Description:     spec.Description,
+		TargetVariantID: spec.TargetVariantID,
+		PresetElo:       spec.PresetElo,
+		CLIAliases:      append([]string(nil), spec.CLIAliases...),
+	}
+}
+
 func NewDefinition(spec DefinitionSpec) Definition {
 	id := spec.ID
 	if id == "" {
@@ -68,6 +134,8 @@ func NewDefinition(spec DefinitionSpec) Definition {
 		Name:         spec.Name,
 		Description:  spec.Description,
 		Aliases:      append([]string(nil), spec.Aliases...),
+		Variants:     append([]VariantDef(nil), spec.Variants...),
+		LegacyModes:  append([]LegacyModeAlias(nil), spec.LegacyModes...),
 		Modes:        append([]ModeDef(nil), spec.Modes...),
 		DailyModeIDs: append([]ModeID(nil), spec.DailyModeIDs...),
 	}
@@ -107,9 +175,22 @@ func CanonicalModeID(title string) ModeID {
 	return ModeID(NormalizeName(title))
 }
 
+func CanonicalVariantID(title string) VariantID {
+	return VariantID(NormalizeName(title))
+}
+
 func (d Definition) HasMode(id ModeID) bool {
 	for _, mode := range d.Modes {
 		if mode.ID == id {
+			return true
+		}
+	}
+	return false
+}
+
+func (d Definition) HasVariant(id VariantID) bool {
+	for _, variant := range d.Variants {
+		if variant.ID == id {
 			return true
 		}
 	}

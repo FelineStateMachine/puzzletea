@@ -33,6 +33,8 @@ type GameRecord struct {
 	Name                 string
 	GameID               string
 	GameType             string
+	VariantID            string
+	Variant              string
 	ModeID               string
 	Mode                 string
 	InitialState         string

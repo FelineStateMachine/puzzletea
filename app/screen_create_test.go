@@ -210,33 +210,44 @@ func TestCreateScreenMouseClickTreeParentExpands(t *testing.T) {
 
 func TestCreateScreenRenderedParentRowsIncludeRollupCounts(t *testing.T) {
 	state := newCreateState(config.CreateConfig{}, 80)
+	sudoku := requireCreateNode(t, state.tree, "Sudoku")
+	state.checked[firstDescendantLeafID(t, sudoku.children[0])] = true
+
+	line := renderCreateTreeLine(state, createVisibleNode{node: sudoku}, false)
+	if !strings.Contains(line, "Sudoku") || !strings.Contains(line, "1/2") {
+		t.Fatalf("rendered line = %q, want Sudoku with 1/2 rollup", line)
+	}
+}
+
+func TestCreateScreenRenderedParentRowsHideSingletonRollupCounts(t *testing.T) {
+	state := newCreateState(config.CreateConfig{}, 80)
 	nonogram := requireCreateNode(t, state.tree, "Nonogram")
-	state.checked[nonogram.children[0].leaf.id] = true
+	state.checked[firstDescendantLeafID(t, nonogram)] = true
 
 	line := renderCreateTreeLine(state, createVisibleNode{node: nonogram}, false)
-	if !strings.Contains(line, "Nonogram") || !strings.Contains(line, "1/4") {
-		t.Fatalf("rendered line = %q, want Nonogram with 1/4 rollup", line)
+	if strings.Contains(line, "1/1") {
+		t.Fatalf("rendered line = %q, want singleton parent without rollup count", line)
 	}
 }
 
 func TestCreateScreenRenderedParentRowsSignalSelectionState(t *testing.T) {
 	state := newCreateState(config.CreateConfig{}, 80)
-	nonogram := requireCreateNode(t, state.tree, "Nonogram")
+	sudoku := requireCreateNode(t, state.tree, "Sudoku")
 
-	line := renderCreateTreeLine(state, createVisibleNode{node: nonogram}, false)
-	if !strings.Contains(line, "[ ] Nonogram") {
+	line := renderCreateTreeLine(state, createVisibleNode{node: sudoku}, false)
+	if !strings.Contains(line, "[ ] Sudoku") {
 		t.Fatalf("unchecked parent line = %q, want unchecked marker", line)
 	}
 
-	state.checked[nonogram.children[0].leaf.id] = true
-	line = renderCreateTreeLine(state, createVisibleNode{node: nonogram}, false)
-	if !strings.Contains(line, "[-] Nonogram") {
+	state.checked[firstDescendantLeafID(t, sudoku.children[0])] = true
+	line = renderCreateTreeLine(state, createVisibleNode{node: sudoku}, false)
+	if !strings.Contains(line, "[-] Sudoku") {
 		t.Fatalf("partial parent line = %q, want partial marker", line)
 	}
 
-	state.toggleDescendantLeaves(nonogram)
-	line = renderCreateTreeLine(state, createVisibleNode{node: nonogram}, false)
-	if !strings.Contains(line, "[x] Nonogram") {
+	state.toggleDescendantLeaves(sudoku)
+	line = renderCreateTreeLine(state, createVisibleNode{node: sudoku}, false)
+	if !strings.Contains(line, "[x] Sudoku") {
 		t.Fatalf("selected parent line = %q, want checked marker", line)
 	}
 }

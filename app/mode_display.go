@@ -9,22 +9,22 @@ import (
 )
 
 type modeDisplayItem struct {
-	mode        registry.ModeEntry
+	mode        registry.VariantEntry
 	title       string
 	description string
 	filterValue string
 }
 
-func (i modeDisplayItem) Title() string                { return i.title }
-func (i modeDisplayItem) Description() string          { return i.description }
-func (i modeDisplayItem) FilterValue() string          { return i.filterValue }
-func (i modeDisplayItem) Original() registry.ModeEntry { return i.mode }
+func (i modeDisplayItem) Title() string                   { return i.title }
+func (i modeDisplayItem) Description() string             { return i.description }
+func (i modeDisplayItem) FilterValue() string             { return i.filterValue }
+func (i modeDisplayItem) Original() registry.VariantEntry { return i.mode }
 
 func buildModeDisplayItems(entry registry.Entry) []list.Item {
 	titles := modeDisplayTitles(entry)
-	items := make([]list.Item, 0, len(entry.Modes))
+	items := make([]list.Item, 0, len(entry.Variants))
 
-	for idx, mode := range entry.Modes {
+	for idx, mode := range entry.Variants {
 		displayTitle := titles[idx]
 		filterValue := displayTitle + " " + mode.Definition.Description
 		if displayTitle != mode.Definition.Title {
@@ -43,15 +43,15 @@ func buildModeDisplayItems(entry registry.Entry) []list.Item {
 }
 
 func modeDisplayTitles(entry registry.Entry) []string {
-	counts := make(map[string]int, len(entry.Modes))
-	titles := make([]string, 0, len(entry.Modes))
+	counts := make(map[string]int, len(entry.Variants))
+	titles := make([]string, 0, len(entry.Variants))
 
-	for _, mode := range entry.Modes {
+	for _, mode := range entry.Variants {
 		base, _ := trimGridSizeSuffix(mode.Definition.Title)
 		counts[puzzle.NormalizeName(base)]++
 	}
 
-	for _, mode := range entry.Modes {
+	for _, mode := range entry.Variants {
 		title := mode.Definition.Title
 		base, hadSize := trimGridSizeSuffix(title)
 		if hadSize && counts[puzzle.NormalizeName(base)] == 1 {
@@ -64,7 +64,7 @@ func modeDisplayTitles(entry registry.Entry) []string {
 }
 
 func unwrapModeDisplayItem(item list.Item) any {
-	displayItem, ok := item.(interface{ Original() registry.ModeEntry })
+	displayItem, ok := item.(interface{ Original() registry.VariantEntry })
 	if !ok {
 		return item
 	}

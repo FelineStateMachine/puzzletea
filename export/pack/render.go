@@ -102,8 +102,8 @@ func buildModeDifficultyLookup(definitions []puzzle.Definition) map[string]map[s
 	lookup := make(map[string]map[string]float64, len(definitions))
 	for _, def := range definitions {
 		titles := []string{}
-		for _, mode := range def.Modes {
-			title := strings.TrimSpace(mode.Title)
+		for _, variant := range def.Variants {
+			title := strings.TrimSpace(variant.Title)
 			if title == "" {
 				continue
 			}

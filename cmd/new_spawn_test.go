@@ -83,6 +83,49 @@ func TestSpawnFromModeUsesPresetEloWhenDifficultyOmitted(t *testing.T) {
 	}
 }
 
+func TestSpawnFromVariantUsesDefaultEloWhenDifficultyOmitted(t *testing.T) {
+	defaultElo := difficulty.Elo(1200)
+	spawner := &testEloSpawner{}
+	variant := registry.VariantEntry{
+		Definition: puzzle.VariantDef{Title: "Rule", DefaultElo: defaultElo},
+		Elo:        spawner,
+	}
+
+	_, report, err := spawnFromVariant(variant, "", nil, "generated-name")
+	if err != nil {
+		t.Fatalf("spawnFromVariant returned error: %v", err)
+	}
+	if !spawner.called {
+		t.Fatal("expected SpawnElo to be called")
+	}
+	if spawner.seed != "generated-name" {
+		t.Fatalf("Elo seed = %q, want generated save name", spawner.seed)
+	}
+	if spawner.elo != defaultElo || report.TargetElo != defaultElo || report.Confidence == "" {
+		t.Fatalf("Elo/report = (%d, %#v), want default report", spawner.elo, report)
+	}
+}
+
+func TestSpawnFromVariantExplicitDifficultyOverridesDefault(t *testing.T) {
+	explicit := difficulty.Elo(2200)
+	spawner := &testEloSpawner{}
+	variant := registry.VariantEntry{
+		Definition: puzzle.VariantDef{Title: "Rule", DefaultElo: 800},
+		Elo:        spawner,
+	}
+
+	_, _, err := spawnFromVariant(variant, "user-seed", &explicit, "generated-name")
+	if err != nil {
+		t.Fatalf("spawnFromVariant returned error: %v", err)
+	}
+	if spawner.elo != explicit {
+		t.Fatalf("Elo = %d, want explicit %d", spawner.elo, explicit)
+	}
+	if spawner.seed != "user-seed" {
+		t.Fatalf("seed = %q, want explicit seed", spawner.seed)
+	}
+}
+
 func TestSpawnFromModeExplicitDifficultyOverridesPreset(t *testing.T) {
 	preset := difficulty.Elo(800)
 	explicit := difficulty.Elo(2200)

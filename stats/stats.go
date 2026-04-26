@@ -21,11 +21,18 @@ type Weights map[ModeKey]int
 func WeightsFromDefinitions(definitions []puzzle.Definition) Weights {
 	weights := make(Weights, 64)
 	for _, def := range definitions {
-		count := len(def.Modes)
-		for i, mode := range def.Modes {
-			xp := int(math.Round(float64(i) / float64(count) * 10))
-			xp = max(xp, 1)
-			weights[ModeKey{GameType: def.Name, Mode: mode.Title}] = xp
+		count := len(def.Variants)
+		if count > 0 {
+			for i, variant := range def.Variants {
+				xp := int(math.Round(float64(i) / float64(count) * 10))
+				xp = max(xp, 1)
+				weights[ModeKey{GameType: def.Name, Mode: variant.Title}] = xp
+			}
+		}
+		for _, mode := range def.Modes {
+			if _, ok := weights[ModeKey{GameType: def.Name, Mode: mode.Title}]; !ok {
+				weights[ModeKey{GameType: def.Name, Mode: mode.Title}] = 1
+			}
 		}
 	}
 	return weights

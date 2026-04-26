@@ -13,7 +13,10 @@ import (
 	"github.com/FelineStateMachine/puzzletea/difficulty"
 )
 
-const ExportSchemaV1 = "puzzletea.export.v1"
+const (
+	ExportSchemaV1 = "puzzletea.export.v1"
+	ExportSchemaV2 = "puzzletea.export.v2"
+)
 
 type JSONLRecord struct {
 	Schema string        `json:"schema"`
@@ -108,7 +111,7 @@ func parseJSONLScanner(path string, scanner *bufio.Scanner) (PackDocument, error
 		if err := json.Unmarshal([]byte(line), &record); err != nil {
 			return PackDocument{}, fmt.Errorf("%s:%d: decode jsonl record: %w", path, lineNo, err)
 		}
-		if record.Schema != ExportSchemaV1 {
+		if !IsSupportedExportSchema(record.Schema) {
 			return PackDocument{}, fmt.Errorf("%s:%d: unsupported schema %q", path, lineNo, record.Schema)
 		}
 
@@ -185,6 +188,15 @@ func parseJSONLScanner(path string, scanner *bufio.Scanner) (PackDocument, error
 	}
 	doc.Puzzles = puzzles
 	return doc, nil
+}
+
+func IsSupportedExportSchema(schema string) bool {
+	switch schema {
+	case ExportSchemaV1, ExportSchemaV2:
+		return true
+	default:
+		return false
+	}
 }
 
 func annotateJSONLDifficulty(p *Puzzle, puzzle JSONLPuzzle) {

@@ -2,7 +2,6 @@ package app
 
 import (
 	"fmt"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -17,8 +16,6 @@ import (
 )
 
 const defaultCreateElo = 1200
-
-var boardSizePattern = regexp.MustCompile(`(?i)(\d+)\s*[x×]\s*(\d+)`)
 
 type createState struct {
 	tree      []createTreeNode
@@ -47,11 +44,10 @@ type createTreeNode struct {
 }
 
 type createLeaf struct {
-	id        string
-	title     string
-	gameType  string
-	modeTitle string
-	modes     []registry.ModeEntry
+	id       string
+	title    string
+	gameType string
+	variant  registry.VariantEntry
 }
 
 type createVisibleNode struct {
@@ -154,32 +150,21 @@ func createGrouping(gameType string) (topTitle, branchTitle string) {
 }
 
 func createLeavesForEntry(entry registry.Entry, branchTitle string) []createTreeNode {
-	groups := make(map[string][]registry.ModeEntry)
-	order := make([]string, 0, len(entry.Modes))
-	for _, mode := range entry.Modes {
-		if mode.Elo == nil {
+	nodes := make([]createTreeNode, 0, len(entry.Variants))
+	for _, variant := range entry.Variants {
+		if variant.Elo == nil {
 			continue
 		}
-		title := createLeafTitle(entry.Definition.Name, entry.Definition.Description, mode.Definition.Title, mode.Definition.Description)
-		if _, ok := groups[title]; !ok {
-			order = append(order, title)
-		}
-		groups[title] = append(groups[title], mode)
-	}
-
-	nodes := make([]createTreeNode, 0, len(order))
-	for _, title := range order {
+		title := variant.Definition.Title
 		id := createLeafID(entry.Definition.ID, branchTitle, title)
-		modes := groups[title]
 		nodes = append(nodes, createTreeNode{
 			id:    id,
 			title: title,
 			leaf: &createLeaf{
-				id:        id,
-				title:     title,
-				gameType:  entry.Definition.Name,
-				modeTitle: modes[0].Definition.Title,
-				modes:     modes,
+				id:       id,
+				title:    title,
+				gameType: entry.Definition.Name,
+				variant:  variant,
 			},
 		})
 	}
@@ -193,30 +178,6 @@ func createLeafID(gameID puzzle.GameID, branchTitle, title string) string {
 	}
 	parts = append(parts, puzzle.NormalizeName(title))
 	return strings.Join(parts, "/")
-}
-
-func createLeafTitle(gameType, gameDescription, modeTitle, modeDescription string) string {
-	if size := firstBoardSize(modeTitle); size != "" {
-		return size
-	}
-	if size := firstBoardSize(modeDescription); size != "" {
-		return size
-	}
-	if gameType == "Sudoku RGB" {
-		return "9x9"
-	}
-	if size := firstBoardSize(gameDescription); size != "" {
-		return size
-	}
-	return modeTitle
-}
-
-func firstBoardSize(s string) string {
-	match := boardSizePattern.FindStringSubmatch(s)
-	if len(match) != 3 {
-		return ""
-	}
-	return match[1] + "x" + match[2]
 }
 
 func (s createState) selectedLeaves() []createLeaf {
@@ -348,32 +309,9 @@ func (s *createState) expandAncestors(leafID string) {
 	walk(s.tree, nil)
 }
 
-func (s createState) resolveLeafMode(leaf createLeaf, elo difficulty.Elo) (game.EloSpawner, string, error) {
-	if len(leaf.modes) == 0 {
-		return nil, "", fmt.Errorf("no Elo-capable modes for %s", leaf.title)
-	}
-	best := leaf.modes[0]
-	bestDistance := createPresetDistance(best, elo)
-	for _, mode := range leaf.modes[1:] {
-		distance := createPresetDistance(mode, elo)
-		if distance < bestDistance {
-			best = mode
-			bestDistance = distance
-		}
-	}
-	if best.Elo == nil {
+func (s createState) resolveLeafVariant(leaf createLeaf, elo difficulty.Elo) (game.EloSpawner, string, error) {
+	if leaf.variant.Elo == nil {
 		return nil, "", fmt.Errorf("%s %s does not support Elo generation", leaf.gameType, leaf.title)
 	}
-	return best.Elo, best.Definition.Title, nil
-}
-
-func createPresetDistance(mode registry.ModeEntry, elo difficulty.Elo) int {
-	if mode.Definition.PresetElo == nil {
-		return 0
-	}
-	delta := int(*mode.Definition.PresetElo - elo)
-	if delta < 0 {
-		return -delta
-	}
-	return delta
+	return leaf.variant.Elo, leaf.variant.Definition.Title, nil
 }

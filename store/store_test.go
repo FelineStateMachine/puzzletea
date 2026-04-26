@@ -171,6 +171,12 @@ VALUES (?, ?, ?, ?, ?, ?)`,
 		if got, want := rec.ModeID, "easy"; got != want {
 			t.Fatalf("ModeID = %q, want %q", got, want)
 		}
+		if got, want := rec.VariantID, "easy"; got != want {
+			t.Fatalf("VariantID = %q, want %q", got, want)
+		}
+		if got, want := rec.Variant, "Easy"; got != want {
+			t.Fatalf("Variant = %q, want %q", got, want)
+		}
 		if got, want := rec.RunKind, RunKindDaily; got != want {
 			t.Fatalf("RunKind = %q, want %q", got, want)
 		}
@@ -246,6 +252,12 @@ func TestCreateGame(t *testing.T) {
 		}
 		if got.Mode != "Hard 10x10" {
 			t.Errorf("Mode = %q, want %q", got.Mode, "Hard 10x10")
+		}
+		if got.Variant != "Hard 10x10" {
+			t.Errorf("Variant = %q, want %q", got.Variant, "Hard 10x10")
+		}
+		if got.VariantID != "hard 10x10" {
+			t.Errorf("VariantID = %q, want %q", got.VariantID, "hard 10x10")
 		}
 		if got.InitialState != `{"init":true}` {
 			t.Errorf("InitialState = %q, want %q", got.InitialState, `{"init":true}`)

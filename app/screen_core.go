@@ -109,7 +109,7 @@ type gameSelectEnterAction struct {
 
 func (a gameSelectEnterAction) applyToModel(m model) (model, tea.Cmd) {
 	m.nav.selectedCategory = a.entry
-	m.nav.modeSelectList = ui.InitList(buildModeDisplayItems(a.entry), a.entry.Definition.Name+" - Select Mode")
+	m.nav.modeSelectList = ui.InitList(buildModeDisplayItems(a.entry), a.entry.Definition.Name+" - Select Variant")
 	m.nav.modeSelectList.SetSize(min(m.width, 64), min(m.height, ui.ListHeight(m.nav.modeSelectList)))
 	m.state = modeSelectView
 	m = m.initScreen(modeSelectView)
@@ -118,7 +118,7 @@ func (a gameSelectEnterAction) applyToModel(m model) (model, tea.Cmd) {
 
 type modeSelectEnterAction struct {
 	entry registry.Entry
-	mode  registry.ModeEntry
+	mode  registry.VariantEntry
 }
 
 func (a modeSelectEnterAction) applyToModel(m model) (model, tea.Cmd) {
@@ -134,11 +134,11 @@ func (a modeSelectEnterAction) applyToModel(m model) (model, tea.Cmd) {
 		returnState: modeSelectView,
 		exitState:   mainMenuView,
 	}
-	if a.mode.Definition.PresetElo != nil && a.mode.Elo != nil {
-		cmd := newSessionController(&m).startEloSpawn(a.mode.Elo, name, *a.mode.Definition.PresetElo, request)
+	if a.mode.Elo != nil {
+		cmd := newSessionController(&m).startEloSpawn(a.mode.Elo, name, a.mode.Definition.DefaultElo, request)
 		return m, cmd
 	}
-	cmd := newSessionController(&m).startSpawn(a.mode.Spawner, request)
+	cmd := newSessionController(&m).startSpawn(a.mode.Seeded, request)
 	return m, cmd
 }
 

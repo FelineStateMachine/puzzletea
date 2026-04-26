@@ -94,6 +94,32 @@ func TestModeNames(t *testing.T) {
 	}
 }
 
+func TestVariantEntryResolvesVariantsAndLegacyAliases(t *testing.T) {
+	entry, ok := registry.Resolve("Sudoku")
+	if !ok {
+		t.Fatal("missing sudoku entry")
+	}
+
+	variant, err := VariantEntry(entry, "sudoku")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if variant.Variant.Definition.Title != "Sudoku" || variant.ExplicitElo != nil {
+		t.Fatalf("variant selection = %#v, want Sudoku without explicit Elo", variant)
+	}
+
+	legacy, err := VariantEntry(entry, "easy")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if legacy.Variant.Definition.Title != "Sudoku" {
+		t.Fatalf("legacy variant = %q, want Sudoku", legacy.Variant.Definition.Title)
+	}
+	if legacy.ExplicitElo == nil || *legacy.ExplicitElo != 600 {
+		t.Fatalf("legacy explicit Elo = %v, want 600", legacy.ExplicitElo)
+	}
+}
+
 func TestRNGFromString(t *testing.T) {
 	rng1 := RNGFromString("hello-world")
 	rng2 := RNGFromString("hello-world")
@@ -146,13 +172,12 @@ func TestSeededModeStableOnEntryChange(t *testing.T) {
 	extended := append([]registry.Entry(nil), testEntries...)
 	extended = append(extended, registry.Entry{
 		Definition: puzzle.Definition{
-			ID:    puzzle.CanonicalGameID("Synthetic"),
-			Name:  "Synthetic",
-			Modes: []puzzle.ModeDef{{ID: puzzle.CanonicalModeID("Easy"), Title: "Easy", Seeded: true}},
+			ID:       puzzle.CanonicalGameID("Synthetic"),
+			Name:     "Synthetic",
+			Variants: []puzzle.VariantDef{{ID: puzzle.CanonicalVariantID("Synthetic"), Title: "Synthetic"}},
 		},
-		Modes: []registry.ModeEntry{{
-			Definition: puzzle.ModeDef{ID: puzzle.CanonicalModeID("Easy"), Title: "Easy", Seeded: true},
-			Spawner:    lightsout.Modes[0].(game.Spawner),
+		Variants: []registry.VariantEntry{{
+			Definition: puzzle.VariantDef{ID: puzzle.CanonicalVariantID("Synthetic"), Title: "Synthetic"},
 			Seeded:     lightsout.Modes[0].(game.SeededSpawner),
 		}},
 	})

@@ -120,22 +120,22 @@ func renderCategoryDetailContent(entry registry.Entry, width int) string {
 		Width(width).
 		Render(entry.Definition.Description)
 
-	meta := ui.DimItemStyle().Render(fmt.Sprintf("%d modes available", len(entry.Modes)))
+	meta := ui.DimItemStyle().Render(fmt.Sprintf("%d variants available", len(entry.Variants)))
 	content := lipgloss.JoinVertical(lipgloss.Left,
 		ui.PanelTitle().Render(entry.Definition.Name),
 		meta,
 		"",
 		desc,
 		"",
-		ui.SelectedItemStyle().Render("Modes"),
+		ui.SelectedItemStyle().Render("Variants"),
 		renderModeList(entry, width),
 	)
 	return content
 }
 
 func renderModeList(entry registry.Entry, width int) string {
-	if len(entry.Modes) == 0 {
-		return ui.DimItemStyle().Render("No modes available.")
+	if len(entry.Variants) == 0 {
+		return ui.DimItemStyle().Render("No variants available.")
 	}
 
 	displayTitles := modeDisplayTitles(entry)
