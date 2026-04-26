@@ -26,7 +26,7 @@ func (w WordSearchMode) SpawnElo(seed string, elo difficulty.Elo) (game.Gamer, d
 		return nil, difficulty.Report{}, err
 	}
 
-	spec := wordSearchSpecForElo(elo)
+	spec := wordSearchSpecForElo(w, elo)
 	rng := wordSearchEloRNG(seed, elo)
 	g, words, stats := generateWordSearchSeededWithStats(
 		spec.width,
@@ -55,7 +55,7 @@ func (w WordSearchMode) SpawnElo(seed string, elo difficulty.Elo) (game.Gamer, d
 	return gamer, report, nil
 }
 
-func wordSearchSpecForElo(elo difficulty.Elo) wordSearchEloSpec {
+func wordSearchSpecForElo(base WordSearchMode, elo difficulty.Elo) wordSearchEloSpec {
 	score := difficulty.Score01(elo)
 	dirCount := 3 + int(math.Round(score*5))
 	if dirCount > len(selectionDirections) {
@@ -64,14 +64,19 @@ func wordSearchSpecForElo(elo difficulty.Elo) wordSearchEloSpec {
 
 	minLen := 3 + int(math.Floor(score*3))
 	maxLen := 5 + int(math.Round(score*5))
+	maxAllowedLen := max(base.Width, base.Height)
+	minLen = min(minLen, maxAllowedLen)
+	maxLen = min(maxLen, maxAllowedLen)
 	if maxLen < minLen {
 		maxLen = minLen
 	}
+	wordCount := 6 + int(math.Round(score*9))
+	wordCount = min(wordCount, max(1, base.Width*base.Height/minLen))
 
 	return wordSearchEloSpec{
-		width:       10 + int(math.Round(score*10)),
-		height:      10 + int(math.Round(score*10)),
-		wordCount:   6 + int(math.Round(score*9)),
+		width:       base.Width,
+		height:      base.Height,
+		wordCount:   wordCount,
 		minWordLen:  minLen,
 		maxWordLen:  maxLen,
 		allowedDirs: append([]Direction(nil), selectionDirections[:dirCount]...),

@@ -24,7 +24,7 @@ func (s SudokuRGBMode) SpawnElo(seed string, elo difficulty.Elo) (game.Gamer, di
 		return nil, difficulty.Report{}, err
 	}
 
-	mode := sudokuRGBModeForElo(elo)
+	mode := sudokuRGBModeForElo(s, elo)
 	provided := GenerateProvidedCellsSeeded(mode, sudokuRGBEloRNG(seed, elo))
 	g, err := New(mode, provided)
 	if err != nil {
@@ -33,13 +33,15 @@ func (s SudokuRGBMode) SpawnElo(seed string, elo difficulty.Elo) (game.Gamer, di
 	return g, scoreSudokuRGBElo(elo, provided), nil
 }
 
-func sudokuRGBModeForElo(elo difficulty.Elo) SudokuRGBMode {
+func sudokuRGBModeForElo(base SudokuRGBMode, elo difficulty.Elo) SudokuRGBMode {
 	score := difficulty.Score01(elo)
 	provided := 60 - int(math.Round(score*30))
 	if provided < 30 {
 		provided = 30
 	}
-	return NewMode("Elo "+strconv.Itoa(int(elo)), "Elo-targeted sudoku RGB.", provided)
+	mode := base
+	mode.ProvidedCount = provided
+	return mode
 }
 
 func sudokuRGBEloRNG(seed string, elo difficulty.Elo) *rand.Rand {

@@ -27,7 +27,7 @@ func (n NurikabeMode) SpawnEloContext(ctx context.Context, seed string, elo diff
 		return nil, difficulty.Report{}, err
 	}
 
-	mode := nurikabeModeForElo(elo)
+	mode := nurikabeModeForElo(n, elo)
 	puzzle, err := GenerateSeededWithContext(ctx, mode, nurikabeEloRNG(seed, elo))
 	if err != nil {
 		return nil, difficulty.Report{}, err
@@ -40,20 +40,15 @@ func (n NurikabeMode) SpawnEloContext(ctx context.Context, seed string, elo diff
 	return gamer, scoreNurikabeElo(ctx, elo, puzzle), nil
 }
 
-func nurikabeModeForElo(elo difficulty.Elo) NurikabeMode {
+func nurikabeModeForElo(base NurikabeMode, elo difficulty.Elo) NurikabeMode {
 	score := difficulty.Score01(elo)
-	size := 5 + int(math.Round(score*7))
 	clueDensity := 0.28 - score*0.14
-	maxIslandSize := size + int(math.Round(score*4))
+	maxIslandSize := max(1, min(base.Width*base.Height, max(base.Width, base.Height)+int(math.Round(score*4))))
 
-	return NewMode(
-		"Elo "+strconv.Itoa(int(elo)),
-		"Elo-targeted Nurikabe puzzle.",
-		size,
-		size,
-		clueDensity,
-		maxIslandSize,
-	)
+	mode := base
+	mode.ClueDensity = clueDensity
+	mode.MaxIslandSize = maxIslandSize
+	return mode
 }
 
 func nurikabeEloRNG(seed string, elo difficulty.Elo) *rand.Rand {

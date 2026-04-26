@@ -83,11 +83,6 @@ func launchNewGame(gameArg, modeArg, seed string, cfg *config.Config) error {
 		return err
 	}
 
-	g, report, err := spawnFromMode(mode, seed, targetElo)
-	if err != nil {
-		return fmt.Errorf("failed to spawn game: %w", err)
-	}
-
 	s, err := openStoreFn(cfg.DBPath)
 	if err != nil {
 		return err
@@ -95,6 +90,11 @@ func launchNewGame(gameArg, modeArg, seed string, cfg *config.Config) error {
 	defer s.Close()
 
 	name := sessionflow.GenerateUniqueName(s)
+
+	g, report, err := spawnFromMode(mode, seed, targetElo, name)
+	if err != nil {
+		return fmt.Errorf("failed to spawn game: %w", err)
+	}
 	g = g.SetTitle(name)
 
 	meta := difficultyMetadataFromReport(report)
@@ -106,12 +106,21 @@ func launchNewGame(gameArg, modeArg, seed string, cfg *config.Config) error {
 	return runGameProgramFn(s, cfg, activeConfigPath(), g, rec.ID, false)
 }
 
-func spawnFromMode(mode registry.ModeEntry, seed string, targetElo *difficulty.Elo) (game.Gamer, difficulty.Report, error) {
-	if targetElo != nil {
+func spawnFromMode(mode registry.ModeEntry, seed string, targetElo *difficulty.Elo, fallbackEloSeed string) (game.Gamer, difficulty.Report, error) {
+	effectiveElo := targetElo
+	if effectiveElo == nil {
+		effectiveElo = mode.Definition.PresetElo
+	}
+
+	if effectiveElo != nil {
 		if mode.Elo == nil {
 			return nil, difficulty.Report{}, fmt.Errorf("mode does not support Elo difficulty")
 		}
-		g, report, err := mode.Elo.SpawnElo(seed, *targetElo)
+		eloSeed := seed
+		if eloSeed == "" {
+			eloSeed = fallbackEloSeed
+		}
+		g, report, err := mode.Elo.SpawnElo(eloSeed, *effectiveElo)
 		if err != nil {
 			return nil, difficulty.Report{}, err
 		}

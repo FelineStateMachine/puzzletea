@@ -31,15 +31,9 @@ func (h HitoriMode) SpawnElo(seed string, elo difficulty.Elo) (game.Gamer, diffi
 
 func hitoriModeForElo(base HitoriMode, elo difficulty.Elo) HitoriMode {
 	score := difficulty.Score01(elo)
-	size := 5 + int(math.Round(score*7))
 	blackRatio := 0.32 - score*0.04
 
 	mode := base
-	mode.BaseMode = game.NewBaseMode(
-		"Elo "+strconv.Itoa(int(elo)),
-		"Elo-targeted Hitori puzzle.",
-	)
-	mode.Size = size
 	mode.BlackRatio = blackRatio
 	return mode
 }

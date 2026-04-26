@@ -103,3 +103,19 @@ func TestSpawnEloPopulatesDifficultyReport(t *testing.T) {
 		}
 	}
 }
+
+func TestSpawnEloPreservesSelectedDimensions(t *testing.T) {
+	mode := NewMode("Easy", "3x3 grid", 3, 3)
+	for _, elo := range []difficulty.Elo{100, 2800} {
+		_, report, err := mode.SpawnElo("fixed-size", elo)
+		if err != nil {
+			t.Fatalf("SpawnElo(%d) returned error: %v", elo, err)
+		}
+		if got, want := report.Metrics["width"], 3.0; got != want {
+			t.Fatalf("SpawnElo(%d) width metric = %.0f, want %.0f", elo, got, want)
+		}
+		if got, want := report.Metrics["height"], 3.0; got != want {
+			t.Fatalf("SpawnElo(%d) height metric = %.0f, want %.0f", elo, got, want)
+		}
+	}
+}

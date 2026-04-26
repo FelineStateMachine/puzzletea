@@ -18,7 +18,7 @@ func (m Mode) SpawnElo(seed string, elo difficulty.Elo) (game.Gamer, difficulty.
 		return nil, difficulty.Report{}, err
 	}
 
-	mode := fillominoModeForElo(elo)
+	mode := fillominoModeForElo(m, elo)
 	puzzle, err := GeneratePuzzleSeeded(mode.Size, mode.Size, mode.MaxRegion, mode.GivenRatio, fillominoEloRNG(seed, elo))
 	if err != nil {
 		return nil, difficulty.Report{}, err
@@ -30,12 +30,14 @@ func (m Mode) SpawnElo(seed string, elo difficulty.Elo) (game.Gamer, difficulty.
 	return g, fillominoDifficultyReport(elo, mode, puzzle), nil
 }
 
-func fillominoModeForElo(elo difficulty.Elo) Mode {
+func fillominoModeForElo(base Mode, elo difficulty.Elo) Mode {
 	score := difficulty.Score01(elo)
-	size := 5 + int(math.Round(score*7))
 	maxRegion := 5 + int(math.Round(score*4))
 	givenRatio := 0.70 - score*0.18
-	return NewMode("Elo "+strconv.Itoa(int(elo)), "Elo-targeted Fillomino puzzle.", size, maxRegion, givenRatio)
+	mode := base
+	mode.MaxRegion = min(maxRegion, max(1, mode.Size*mode.Size))
+	mode.GivenRatio = givenRatio
+	return mode
 }
 
 func fillominoEloRNG(seed string, elo difficulty.Elo) *rand.Rand {

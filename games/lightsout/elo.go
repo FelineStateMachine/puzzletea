@@ -23,22 +23,18 @@ func (m Mode) SpawnElo(seed string, elo difficulty.Elo) (game.Gamer, difficulty.
 		return nil, difficulty.Report{}, err
 	}
 
-	spec := lightsOutSpecForElo(elo)
+	spec := lightsOutSpecForMode(m)
 	rng := lightsOutRandForElo(seed, elo)
 	grid, report := generateLightsOutEloGrid(spec, rng, elo)
 
 	mode := m
-	mode.Width = spec.width
-	mode.Height = spec.height
 
 	g := newFromGrid(mode.Width, mode.Height, grid)
 	return g, report, nil
 }
 
-func lightsOutSpecForElo(elo difficulty.Elo) eloSpec {
-	score := difficulty.Score01(elo)
-	size := 3 + 2*int(math.Round(score*3))
-	return eloSpec{width: size, height: size}
+func lightsOutSpecForMode(mode Mode) eloSpec {
+	return eloSpec{width: mode.Width, height: mode.Height}
 }
 
 func lightsOutRandForElo(seed string, elo difficulty.Elo) *rand.Rand {

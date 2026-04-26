@@ -24,7 +24,7 @@ func (s ShikakuMode) SpawnElo(seed string, elo difficulty.Elo) (game.Gamer, diff
 		return nil, difficulty.Report{}, err
 	}
 
-	mode := shikakuModeForElo(elo)
+	mode := shikakuModeForElo(s, elo)
 	puzzle, err := GeneratePuzzleSeeded(mode.Width, mode.Height, mode.MaxRectSize, shikakuEloRNG(seed, elo))
 	if err != nil {
 		return nil, difficulty.Report{}, err
@@ -32,11 +32,12 @@ func (s ShikakuMode) SpawnElo(seed string, elo difficulty.Elo) (game.Gamer, diff
 	return New(mode, puzzle), scoreShikakuElo(elo, mode, puzzle), nil
 }
 
-func shikakuModeForElo(elo difficulty.Elo) ShikakuMode {
+func shikakuModeForElo(base ShikakuMode, elo difficulty.Elo) ShikakuMode {
 	score := difficulty.Score01(elo)
-	size := 5 + int(math.Round(score*7))
 	maxRectSize := 5 + int(math.Round(score*15))
-	return NewMode("Elo "+strconv.Itoa(int(elo)), "Elo-targeted Shikaku puzzle.", size, size, maxRectSize)
+	mode := base
+	mode.MaxRectSize = min(maxRectSize, max(1, mode.Width*mode.Height))
+	return mode
 }
 
 func shikakuEloRNG(seed string, elo difficulty.Elo) *rand.Rand {

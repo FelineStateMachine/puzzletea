@@ -104,6 +104,20 @@ func TestSpawnEloPopulatesDifficultyReport(t *testing.T) {
 	}
 }
 
+func TestSpawnEloPreservesSelectedDimensions(t *testing.T) {
+	mode := NewMode("Easy 7x7", "7x7 grid with 8-10 islands.", 7, 7, 8, 10)
+	_, report, err := mode.SpawnElo("fixed-size", 2800)
+	if err != nil {
+		t.Fatalf("SpawnElo returned error: %v", err)
+	}
+	if got, want := report.Metrics["width"], 7.0; got != want {
+		t.Fatalf("width metric = %.0f, want %.0f", got, want)
+	}
+	if got, want := report.Metrics["height"], 7.0; got != want {
+		t.Fatalf("height metric = %.0f, want %.0f", got, want)
+	}
+}
+
 func TestModeDefinitionsIncludePresetElo(t *testing.T) {
 	if len(ModeDefinitions) != len(Modes) {
 		t.Fatalf("ModeDefinitions length = %d, want %d", len(ModeDefinitions), len(Modes))

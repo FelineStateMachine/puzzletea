@@ -33,34 +33,34 @@ func TestNormalize(t *testing.T) {
 	}
 }
 
-func TestMode(t *testing.T) {
+func TestModeEntry(t *testing.T) {
 	sudokuEntry, ok := registry.Resolve("Sudoku")
 	if !ok {
 		t.Fatal("missing sudoku entry")
 	}
 
 	t.Run("empty name returns default (first) mode", func(t *testing.T) {
-		spawner, title, err := Mode(sudokuEntry, "")
+		mode, err := ModeEntry(sudokuEntry, "")
 		if err != nil {
 			t.Fatal(err)
 		}
-		if spawner == nil || title != "Beginner" {
-			t.Fatalf("default mode = (%v, %q), want Beginner", spawner != nil, title)
+		if mode.Spawner == nil || mode.Definition.Title != "Beginner" {
+			t.Fatalf("default mode = (%v, %q), want Beginner", mode.Spawner != nil, mode.Definition.Title)
 		}
 	})
 
 	t.Run("case insensitive match", func(t *testing.T) {
-		_, title, err := Mode(sudokuEntry, "easy")
+		mode, err := ModeEntry(sudokuEntry, "easy")
 		if err != nil {
 			t.Fatal(err)
 		}
-		if title != "Easy" {
-			t.Fatalf("title = %q, want Easy", title)
+		if mode.Definition.Title != "Easy" {
+			t.Fatalf("title = %q, want Easy", mode.Definition.Title)
 		}
 	})
 
 	t.Run("unknown mode", func(t *testing.T) {
-		_, _, err := Mode(sudokuEntry, "impossible")
+		_, err := ModeEntry(sudokuEntry, "impossible")
 		if err == nil || !strings.Contains(err.Error(), "unknown mode") {
 			t.Fatalf("error = %v, want unknown mode", err)
 		}
@@ -70,7 +70,7 @@ func TestMode(t *testing.T) {
 		emptyEntry := registry.Entry{
 			Definition: puzzle.Definition{Name: "Empty"},
 		}
-		_, _, err := Mode(emptyEntry, "any")
+		_, err := ModeEntry(emptyEntry, "any")
 		if err == nil || !strings.Contains(err.Error(), "no available modes") {
 			t.Fatalf("error = %v, want no available modes", err)
 		}

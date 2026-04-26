@@ -21,7 +21,7 @@ func (n NonogramMode) SpawnElo(seed string, elo difficulty.Elo) (game.Gamer, dif
 		return nil, difficulty.Report{}, err
 	}
 
-	mode := nonogramModeForElo(elo)
+	mode := nonogramModeForElo(n, elo)
 	hints := GenerateRandomTomographySeeded(mode, nonogramEloRNG(seed, elo))
 	if len(hints.rows) == 0 || len(hints.cols) == 0 {
 		return nil, difficulty.Report{}, errors.New("unable to generate Elo nonogram")
@@ -34,25 +34,14 @@ func (n NonogramMode) SpawnElo(seed string, elo difficulty.Elo) (game.Gamer, dif
 	return gamer, nonogramDifficultyReport(elo, mode, hints), nil
 }
 
-func nonogramModeForElo(elo difficulty.Elo) NonogramMode {
+func nonogramModeForElo(base NonogramMode, elo difficulty.Elo) NonogramMode {
 	score := difficulty.Score01(elo)
 
-	size := 5
-	switch {
-	case score >= 0.75:
-		size = 15
-	case score >= 0.35:
-		size = 10
-	}
 	density := 0.66 - score*0.26
 
-	return NewMode(
-		"Elo "+strconv.Itoa(int(elo)),
-		"Elo-targeted Nonogram puzzle.",
-		size,
-		size,
-		density,
-	)
+	mode := base
+	mode.Density = density
+	return mode
 }
 
 func nonogramEloRNG(seed string, elo difficulty.Elo) *rand.Rand {

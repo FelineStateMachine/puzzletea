@@ -18,16 +18,6 @@ func Normalize(s string) string {
 	return puzzle.NormalizeName(s)
 }
 
-// Mode finds a mode within a game entry by name. If name is empty,
-// returns the first (default) mode.
-func Mode(entry registry.Entry, name string) (game.Spawner, string, error) {
-	mode, err := ModeEntry(entry, name)
-	if err != nil {
-		return nil, "", err
-	}
-	return mode.Spawner, mode.Definition.Title, nil
-}
-
 func ModeEntry(entry registry.Entry, name string) (registry.ModeEntry, error) {
 	if len(entry.Modes) == 0 {
 		return registry.ModeEntry{}, fmt.Errorf("game %q has no available modes", entry.Definition.Name)

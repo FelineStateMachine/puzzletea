@@ -16,7 +16,7 @@ func (m NetwalkMode) SpawnElo(seed string, elo difficulty.Elo) (game.Gamer, diff
 		return nil, difficulty.Report{}, err
 	}
 
-	mode := netwalkModeForElo(elo)
+	mode := netwalkModeForElo(m, elo)
 	puzzle, err := GenerateSeededWithDensity(mode.Size, mode.FillRatio, mode.Profile, netwalkEloRNG(seed, elo))
 	if err != nil {
 		return nil, difficulty.Report{}, err
@@ -29,19 +29,15 @@ func (m NetwalkMode) SpawnElo(seed string, elo difficulty.Elo) (game.Gamer, diff
 	return gamer, netwalkDifficultyReport(elo, mode, puzzle), nil
 }
 
-func netwalkModeForElo(elo difficulty.Elo) NetwalkMode {
+func netwalkModeForElo(base NetwalkMode, elo difficulty.Elo) NetwalkMode {
 	score := difficulty.Score01(elo)
-	size := 5 + int(math.Round(score*4))*2
 	fillRatio := 0.50 + score*0.28
 	profile := netwalkProfileForElo(score)
 
-	return NewMode(
-		"Elo "+strconv.Itoa(int(elo)),
-		"Elo-targeted Netwalk puzzle.",
-		size,
-		fillRatio,
-		profile,
-	)
+	mode := base
+	mode.FillRatio = fillRatio
+	mode.Profile = profile
+	return mode
 }
 
 func netwalkProfileForElo(score float64) generateProfile {

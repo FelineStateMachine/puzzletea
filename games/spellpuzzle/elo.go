@@ -11,12 +11,12 @@ import (
 	"github.com/FelineStateMachine/puzzletea/game"
 )
 
-func (SpellPuzzleMode) SpawnElo(seed string, elo difficulty.Elo) (game.Gamer, difficulty.Report, error) {
+func (m SpellPuzzleMode) SpawnElo(seed string, elo difficulty.Elo) (game.Gamer, difficulty.Report, error) {
 	if err := difficulty.ValidateElo(elo); err != nil {
 		return nil, difficulty.Report{}, err
 	}
 
-	mode := spellPuzzleModeForElo(elo)
+	mode := spellPuzzleModeForElo(m, elo)
 	puzzle, err := GeneratePuzzleSeeded(mode, randForElo(seed, elo))
 	if err != nil {
 		return nil, difficulty.Report{}, err
@@ -30,13 +30,17 @@ func (SpellPuzzleMode) SpawnElo(seed string, elo difficulty.Elo) (game.Gamer, di
 	return g, report, nil
 }
 
-func spellPuzzleModeForElo(elo difficulty.Elo) SpellPuzzleMode {
+func spellPuzzleModeForElo(base SpellPuzzleMode, elo difficulty.Elo) SpellPuzzleMode {
 	score := difficulty.Score01(elo)
 	bankSize := 6 + int(math.Round(score*3))
 	boardWords := 4 + int(math.Round(score*5))
 	minBonusWords := 3 + int(math.Round(score*5))
 
-	return NewMode("Elo "+strconv.Itoa(int(elo)), "Elo-targeted spell puzzle.", bankSize, boardWords, minBonusWords)
+	mode := base
+	mode.BankSize = bankSize
+	mode.BoardWordCount = boardWords
+	mode.MinBonusWords = minBonusWords
+	return mode
 }
 
 func randForElo(seed string, elo difficulty.Elo) *rand.Rand {

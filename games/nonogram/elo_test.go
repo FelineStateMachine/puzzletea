@@ -99,3 +99,20 @@ func TestSpawnEloPopulatesDifficultyReport(t *testing.T) {
 		t.Fatalf("density = %v, want <= 1", report.Metrics["density"])
 	}
 }
+
+func TestSpawnEloPreservesSelectedDimensions(t *testing.T) {
+	mode := NewMode("Mini", "5x5 grid, ~65% filled. Quick puzzle, straightforward hints.", 5, 5, 0.65)
+	_, report, err := mode.SpawnElo("fixed-size", 2600)
+	if err != nil {
+		t.Fatalf("SpawnElo returned error: %v", err)
+	}
+	if got, want := report.Metrics["width"], 5.0; got != want {
+		t.Fatalf("width metric = %.0f, want %.0f", got, want)
+	}
+	if got, want := report.Metrics["height"], 5.0; got != want {
+		t.Fatalf("height metric = %.0f, want %.0f", got, want)
+	}
+	if got := report.Metrics["target_density"]; got == 0.65 {
+		t.Fatalf("target_density = %.2f, want Elo-tuned density", got)
+	}
+}

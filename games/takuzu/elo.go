@@ -24,7 +24,7 @@ func (t TakuzuMode) SpawnElo(seed string, elo difficulty.Elo) (game.Gamer, diffi
 		return nil, difficulty.Report{}, err
 	}
 
-	mode := takuzuModeForElo(elo)
+	mode := takuzuModeForElo(t, elo)
 	rng := takuzuEloRNG(seed, elo)
 	complete := GenerateCompleteGridSeeded(mode.Size, rng)
 	puzzle, provided := GeneratePuzzleFromCompleteSeeded(complete, mode.Size, mode.Prefilled, rng)
@@ -36,16 +36,12 @@ func (t TakuzuMode) SpawnElo(seed string, elo difficulty.Elo) (game.Gamer, diffi
 	return gamer, scoreTakuzuElo(elo, puzzle, provided, mode.Prefilled), nil
 }
 
-func takuzuModeForElo(elo difficulty.Elo) TakuzuMode {
+func takuzuModeForElo(base TakuzuMode, elo difficulty.Elo) TakuzuMode {
 	score := difficulty.Score01(elo)
-	size := 6 + 2*int(math.Round(score*4))
 	prefilled := 0.52 - score*0.24
-	return NewMode(
-		"Elo "+strconv.Itoa(int(elo)),
-		"Elo-targeted Takuzu puzzle.",
-		size,
-		prefilled,
-	)
+	mode := base
+	mode.Prefilled = prefilled
+	return mode
 }
 
 func takuzuEloRNG(seed string, elo difficulty.Elo) *rand.Rand {

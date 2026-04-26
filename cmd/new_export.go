@@ -23,9 +23,10 @@ import (
 var exportNow = time.Now
 
 type exportModeEntry struct {
-	spawner game.Spawner
-	elo     game.EloSpawner
-	mode    string
+	spawner   game.Spawner
+	elo       game.EloSpawner
+	presetElo *difficulty.Elo
+	mode      string
 }
 
 func runNewExport(cmd *cobra.Command, args []string) error {
@@ -97,15 +98,21 @@ func collectExportModes(entry registry.Entry, modeArg string) ([]exportModeEntry
 		if err != nil {
 			return nil, "", err
 		}
-		return []exportModeEntry{{spawner: mode.Spawner, elo: mode.Elo, mode: mode.Definition.Title}}, mode.Definition.Title, nil
+		return []exportModeEntry{{
+			spawner:   mode.Spawner,
+			elo:       mode.Elo,
+			presetElo: mode.Definition.PresetElo,
+			mode:      mode.Definition.Title,
+		}}, mode.Definition.Title, nil
 	}
 
 	entries := make([]exportModeEntry, 0, len(entry.Modes))
 	for _, mode := range entry.Modes {
 		entries = append(entries, exportModeEntry{
-			spawner: mode.Spawner,
-			elo:     mode.Elo,
-			mode:    mode.Definition.Title,
+			spawner:   mode.Spawner,
+			elo:       mode.Elo,
+			presetElo: mode.Definition.PresetElo,
+			mode:      mode.Definition.Title,
 		})
 	}
 	if len(entries) == 0 {
@@ -196,11 +203,16 @@ func scopedExportEloSeed(seed string, generatedAt time.Time, gameType, mode stri
 }
 
 func spawnExportPuzzle(entry exportModeEntry, rng *rand.Rand, seed string, targetElo *difficulty.Elo) (game.Gamer, difficulty.Report, error) {
-	if targetElo != nil {
+	effectiveElo := targetElo
+	if effectiveElo == nil {
+		effectiveElo = entry.presetElo
+	}
+
+	if effectiveElo != nil {
 		if entry.elo == nil {
 			return nil, difficulty.Report{}, fmt.Errorf("mode does not support Elo difficulty")
 		}
-		g, report, err := entry.elo.SpawnElo(seed, *targetElo)
+		g, report, err := entry.elo.SpawnElo(seed, *effectiveElo)
 		if err != nil {
 			return nil, difficulty.Report{}, err
 		}

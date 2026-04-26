@@ -16,7 +16,7 @@ func (m Mode) SpawnElo(seed string, elo difficulty.Elo) (game.Gamer, difficulty.
 		return nil, difficulty.Report{}, err
 	}
 
-	mode := rippleEffectModeForElo(elo)
+	mode := rippleEffectModeForElo(m, elo)
 	puzzle, err := mode.generatePuzzleSeeded(rippleEffectEloRNG(seed, elo))
 	if err != nil {
 		return nil, difficulty.Report{}, err
@@ -29,21 +29,17 @@ func (m Mode) SpawnElo(seed string, elo difficulty.Elo) (game.Gamer, difficulty.
 	return gamer, rippleEffectDifficultyReport(elo, mode, puzzle), nil
 }
 
-func rippleEffectModeForElo(elo difficulty.Elo) Mode {
+func rippleEffectModeForElo(base Mode, elo difficulty.Elo) Mode {
 	score := difficulty.Score01(elo)
-	size := 5 + int(math.Round(score*4))
-	maxCage := 3 + int(math.Round(score*2))
+	maxCage := min(base.Size, 3+int(math.Round(score*2)))
 	givenRatio := 0.69 - score*0.27
 	profile := rippleEffectProfileForElo(score, maxCage)
 
-	return NewModeWithProfile(
-		"Elo "+strconv.Itoa(int(elo)),
-		"Elo-targeted Ripple Effect puzzle.",
-		size,
-		maxCage,
-		givenRatio,
-		profile,
-	)
+	mode := base
+	mode.MaxCage = maxCage
+	mode.GivenRatio = givenRatio
+	mode.profile = profile
+	return mode
 }
 
 func rippleEffectProfileForElo(score float64, maxCage int) generationProfile {

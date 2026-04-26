@@ -18,7 +18,7 @@ func (h HashiMode) SpawnElo(seed string, elo difficulty.Elo) (game.Gamer, diffic
 		return nil, difficulty.Report{}, err
 	}
 
-	mode := hashiModeForElo(elo)
+	mode := hashiModeForElo(h, elo)
 	puzzle, err := GeneratePuzzleSeeded(mode, hashiEloRNG(seed, elo))
 	if err != nil {
 		return nil, difficulty.Report{}, err
@@ -26,22 +26,21 @@ func (h HashiMode) SpawnElo(seed string, elo difficulty.Elo) (game.Gamer, diffic
 	return New(mode, puzzle), hashiDifficultyReport(elo, mode, puzzle), nil
 }
 
-func hashiModeForElo(elo difficulty.Elo) HashiMode {
+func hashiModeForElo(base HashiMode, elo difficulty.Elo) HashiMode {
 	score := difficulty.Score01(elo)
-	size := 7 + 2*int(math.Round(score*3))
 	density := 0.17 + score*0.23
-	target := int(math.Round(float64(size*size) * density))
+	cells := base.Width * base.Height
+	target := int(math.Round(float64(cells) * density))
 	minIslands := max(3, target-2)
-	maxIslands := min(size*size, target+2)
+	maxIslands := min(cells, target+2)
+	if minIslands > maxIslands {
+		minIslands = maxIslands
+	}
 
-	return NewMode(
-		"Elo "+strconv.Itoa(int(elo)),
-		"Elo-targeted Hashiwokakero puzzle.",
-		size,
-		size,
-		minIslands,
-		maxIslands,
-	)
+	mode := base
+	mode.MinIslands = minIslands
+	mode.MaxIslands = maxIslands
+	return mode
 }
 
 func hashiEloRNG(seed string, elo difficulty.Elo) *rand.Rand {
