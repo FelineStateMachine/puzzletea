@@ -119,6 +119,9 @@ func Validate(definitions []puzzle.Definition) error {
 			if err := difficulty.ValidateElo(alias.PresetElo); err != nil {
 				return fmt.Errorf("game %q legacy mode %q preset Elo is invalid: %w", def.Name, alias.Title, err)
 			}
+			if alias.XPWeight < 1 {
+				return fmt.Errorf("game %q legacy mode %q XP weight must be positive", def.Name, alias.Title)
+			}
 		}
 
 		for _, dailyID := range def.DailyModeIDs {

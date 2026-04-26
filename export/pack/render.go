@@ -101,27 +101,65 @@ func parseSheetLayout(raw string) (pdfexport.SheetLayout, error) {
 func buildModeDifficultyLookup(definitions []puzzle.Definition) map[string]map[string]float64 {
 	lookup := make(map[string]map[string]float64, len(definitions))
 	for _, def := range definitions {
-		titles := []string{}
+		scores := make(map[string]float64)
+		variantTitles := []string{}
 		for _, variant := range def.Variants {
 			title := strings.TrimSpace(variant.Title)
 			if title == "" {
 				continue
 			}
-			titles = append(titles, title)
+			variantTitles = append(variantTitles, title)
 		}
-		if len(titles) == 0 {
+		addModeOrderScores(scores, variantTitles)
+		addLegacyModeOrderScores(scores, def)
+		if len(scores) == 0 {
 			continue
-		}
-
-		scores := make(map[string]float64, len(titles))
-		if len(titles) == 1 {
-			scores[normalizeDifficultyToken(titles[0])] = 0.5
-		} else {
-			for i, title := range titles {
-				scores[normalizeDifficultyToken(title)] = float64(i) / float64(len(titles)-1)
-			}
 		}
 		lookup[normalizeDifficultyToken(def.Name)] = scores
 	}
 	return lookup
+}
+
+func addLegacyModeOrderScores(scores map[string]float64, def puzzle.Definition) {
+	if len(def.LegacyModes) == 0 {
+		titles := make([]string, 0, len(def.Modes))
+		for _, mode := range def.Modes {
+			title := strings.TrimSpace(mode.Title)
+			if title != "" {
+				titles = append(titles, title)
+			}
+		}
+		addModeOrderScores(scores, titles)
+		return
+	}
+
+	modeIndex := make(map[puzzle.ModeID]int, len(def.Modes))
+	for i, mode := range def.Modes {
+		modeIndex[mode.ID] = i
+	}
+	for _, alias := range def.LegacyModes {
+		title := strings.TrimSpace(alias.Title)
+		if title == "" {
+			continue
+		}
+		i, ok := modeIndex[alias.ID]
+		if !ok || len(def.Modes) <= 1 {
+			scores[normalizeDifficultyToken(title)] = 0.5
+			continue
+		}
+		scores[normalizeDifficultyToken(title)] = float64(i) / float64(len(def.Modes)-1)
+	}
+}
+
+func addModeOrderScores(scores map[string]float64, titles []string) {
+	switch len(titles) {
+	case 0:
+		return
+	case 1:
+		scores[normalizeDifficultyToken(titles[0])] = 0.5
+	default:
+		for i, title := range titles {
+			scores[normalizeDifficultyToken(title)] = float64(i) / float64(len(titles)-1)
+		}
+	}
 }

@@ -3,7 +3,9 @@
 package gameentry
 
 import (
+	"context"
 	"fmt"
+	"math"
 	"math/rand/v2"
 
 	"github.com/FelineStateMachine/puzzletea/difficulty"
@@ -68,7 +70,7 @@ func BuildDefaultVariantDef(title, description string, defaultElo difficulty.Elo
 
 func BuildLegacyModeAliases(modes []puzzle.ModeDef, target puzzle.VariantID) []puzzle.LegacyModeAlias {
 	aliases := make([]puzzle.LegacyModeAlias, 0, len(modes))
-	for _, mode := range modes {
+	for i, mode := range modes {
 		if mode.PresetElo == nil {
 			continue
 		}
@@ -78,9 +80,17 @@ func BuildLegacyModeAliases(modes []puzzle.ModeDef, target puzzle.VariantID) []p
 			Description:     mode.Description,
 			TargetVariantID: target,
 			PresetElo:       *mode.PresetElo,
+			XPWeight:        legacyXPWeight(i, len(modes)),
 		}))
 	}
 	return aliases
+}
+
+func legacyXPWeight(index, count int) int {
+	if count <= 0 {
+		return 1
+	}
+	return max(1, int(math.Round(float64(index)/float64(count)*10)))
 }
 
 func NewEntry(spec EntrySpec) Entry {
@@ -237,10 +247,17 @@ type variantEloSpawner struct {
 }
 
 func (s variantEloSpawner) SpawnElo(seed string, elo difficulty.Elo) (game.Gamer, difficulty.Report, error) {
+	return s.SpawnEloContext(context.Background(), seed, elo)
+}
+
+func (s variantEloSpawner) SpawnEloContext(ctx context.Context, seed string, elo difficulty.Elo) (game.Gamer, difficulty.Report, error) {
 	if err := difficulty.ValidateElo(elo); err != nil {
 		return nil, difficulty.Report{}, err
 	}
 	mode := s.modeForElo(elo)
+	if cancellable, ok := mode.Elo.(game.CancellableEloSpawner); ok {
+		return cancellable.SpawnEloContext(ctx, seed, elo)
+	}
 	return mode.Elo.SpawnElo(seed, elo)
 }
 
@@ -268,10 +285,22 @@ func (s variantSeededSpawner) Spawn() (game.Gamer, error) {
 }
 
 func (s variantSeededSpawner) SpawnSeeded(rng *rand.Rand) (game.Gamer, error) {
+	return s.SpawnSeededContext(context.Background(), rng)
+}
+
+func (s variantSeededSpawner) SpawnSeededContext(ctx context.Context, rng *rand.Rand) (game.Gamer, error) {
 	if rng == nil {
 		return nil, fmt.Errorf("nil RNG")
 	}
 	seed := fmt.Sprintf("variant-seeded:%016x:%016x", rng.Uint64(), rng.Uint64())
-	g, _, err := s.elo.SpawnElo(seed, s.defaultElo)
+	var (
+		g   game.Gamer
+		err error
+	)
+	if cancellable, ok := s.elo.(game.CancellableEloSpawner); ok {
+		g, _, err = cancellable.SpawnEloContext(ctx, seed, s.defaultElo)
+	} else {
+		g, _, err = s.elo.SpawnElo(seed, s.defaultElo)
+	}
 	return g, err
 }

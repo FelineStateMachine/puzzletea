@@ -40,6 +40,7 @@ type LegacyModeAlias struct {
 	Description     string
 	TargetVariantID VariantID
 	PresetElo       difficulty.Elo
+	XPWeight        int
 	CLIAliases      []string
 }
 
@@ -49,6 +50,7 @@ type LegacyModeAliasSpec struct {
 	Description     string
 	TargetVariantID VariantID
 	PresetElo       difficulty.Elo
+	XPWeight        int
 	CLIAliases      []string
 }
 
@@ -114,12 +116,17 @@ func NewLegacyModeAlias(spec LegacyModeAliasSpec) LegacyModeAlias {
 	if id == "" {
 		id = CanonicalModeID(spec.Title)
 	}
+	xpWeight := spec.XPWeight
+	if xpWeight < 1 {
+		xpWeight = 1
+	}
 	return LegacyModeAlias{
 		ID:              id,
 		Title:           spec.Title,
 		Description:     spec.Description,
 		TargetVariantID: spec.TargetVariantID,
 		PresetElo:       spec.PresetElo,
+		XPWeight:        xpWeight,
 		CLIAliases:      append([]string(nil), spec.CLIAliases...),
 	}
 }

@@ -22,6 +22,41 @@ func TestWeightsFromDefinitions(t *testing.T) {
 	}
 }
 
+func TestWeightsFromDefinitionsPreservesLegacyModeWeights(t *testing.T) {
+	weights := WeightsFromDefinitions([]puzzle.Definition{{
+		Name: "Sudoku",
+		Variants: []puzzle.VariantDef{
+			puzzle.NewVariantDef(puzzle.VariantSpec{Title: "Sudoku", DefaultElo: 1200}),
+		},
+		LegacyModes: []puzzle.LegacyModeAlias{
+			puzzle.NewLegacyModeAlias(puzzle.LegacyModeAliasSpec{
+				Title:           "Easy",
+				TargetVariantID: puzzle.CanonicalVariantID("Sudoku"),
+				PresetElo:       600,
+				XPWeight:        1,
+			}),
+			puzzle.NewLegacyModeAlias(puzzle.LegacyModeAliasSpec{
+				Title:           "Hard",
+				TargetVariantID: puzzle.CanonicalVariantID("Sudoku"),
+				PresetElo:       1800,
+				XPWeight:        7,
+			}),
+		},
+		Modes: []puzzle.ModeDef{
+			{ID: puzzle.CanonicalModeID("Easy"), Title: "Easy"},
+			{ID: puzzle.CanonicalModeID("Medium"), Title: "Medium"},
+			{ID: puzzle.CanonicalModeID("Hard"), Title: "Hard"},
+		},
+	}})
+
+	if got, want := weights[ModeKey{GameType: "Sudoku", Mode: "Hard"}], 7; got != want {
+		t.Fatalf("legacy Hard weight = %d, want %d", got, want)
+	}
+	if got, want := weights[ModeKey{GameType: "Sudoku", Mode: "Sudoku"}], 1; got != want {
+		t.Fatalf("variant weight = %d, want %d", got, want)
+	}
+}
+
 func TestLevelFromXPAndXPForLevel(t *testing.T) {
 	if got := LevelFromXP(0); got != 0 {
 		t.Fatalf("LevelFromXP(0) = %d, want 0", got)
