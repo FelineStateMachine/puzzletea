@@ -195,7 +195,7 @@ puzzletea export-pdf nonogram-mini-set.jsonl -o issue-01-duplex.pdf --shuffle-se
 
 Font license note (Atkinson Hyperlegible Next):
 
-- Follow the SIL OFL 1.1 requirements in `pdfexport/fonts/OFL.txt`.
+- Follow the SIL OFL 1.1 requirements in `export/pdf/fonts/AtkinsonHyperlegibleNext-OFL.txt`.
 - Do not sell the font files by themselves.
 - If redistributing fonts with software, include the copyright notice and OFL text.
 - Modified font versions must keep OFL terms, and modified names must respect Reserved Font Name rules.
@@ -256,96 +256,101 @@ Grow numbered regions so each connected region reaches its exact size.
 
 ![Fillomino](vhs/fillomino.gif)
 
-[Game details and controls](fillomino/README.md)
+[Game details and controls](games/fillomino/README.md)
 
 ### Ripple Effect
 Place digits in cages while keeping matching values outside each other’s ripple distance.
 
 ![Ripple Effect](vhs/rippleeffect.gif)
 
-[Game details and controls](rippleeffect/README.md)
+[Game details and controls](games/rippleeffect/README.md)
 
 ### Nonogram
 Fill cells to match row and column hints.
 
 ![Nonogram](vhs/nonogram.gif)
 
-[Game details and controls](nonogram/README.md)
+[Game details and controls](games/nonogram/README.md)
 
 ### Nurikabe
 Build islands from clues while keeping one connected sea.
 
 ![Nurikabe](vhs/nurikabe.gif)
 
-[Game details and controls](nurikabe/README.md)
+[Game details and controls](games/nurikabe/README.md)
 
 ### Shikaku
 Divide the grid into rectangles, where each rectangle contains exactly the number of cells shown in its clue.
 
 ![Shikaku](vhs/shikaku.gif)
 
-[Game details and controls](shikaku/README.md)
+[Game details and controls](games/shikaku/README.md)
 
 ### Sudoku
 Classic 9x9 number placement puzzle.
 
 ![Sudoku](vhs/sudoku.gif)
 
-[Game details and controls](sudoku/README.md)
+[Game details and controls](games/sudoku/README.md)
 
 ### Sudoku RGB
 Fill the grid with three symbols so every row, column, and box contains `{1,1,1,2,2,2,3,3,3}`.
 
 ![Sudoku RGB](vhs/sudokurgb.gif)
 
-[Game details and controls](sudokurgb/README.md)
+[Game details and controls](games/sudokurgb/README.md)
 
 ### Word Search
 Find hidden words in a letter grid.
 
 ![Word Search](vhs/wordsearch.gif)
 
-[Game details and controls](wordsearch/README.md)
+[Game details and controls](games/wordsearch/README.md)
 
 ### Spell Puzzle
 Connect letters from a fixed bank to reveal a crossword and score bonus words.
 
-[Game details and controls](spellpuzzle/README.md)
+[Game details and controls](games/spellpuzzle/README.md)
 
 ### Hashiwokakero
 Connect islands with bridges.
 
 ![Hashiwokakero](vhs/hashiwokakero.gif)
 
-[Game details and controls](hashiwokakero/README.md)
+[Game details and controls](games/hashiwokakero/README.md)
 
 ### Hitori
 Shade cells to eliminate duplicate numbers.
 
 ![Hitori](vhs/hitori.gif)
 
-[Game details and controls](hitori/README.md)
+[Game details and controls](games/hitori/README.md)
 
 ### Lights Out
 Toggle lights to turn all off.
 
 ![Lights Out](vhs/lightsout.gif)
 
-[Game details and controls](lightsout/README.md)
+[Game details and controls](games/lightsout/README.md)
 
 ### Netwalk
 Rotate network tiles until every computer reaches the server in one loop-free tree.
 
 ![Netwalk](vhs/netwalk.gif)
 
-[Game details and controls](netwalk/README.md)
+[Game details and controls](games/netwalk/README.md)
 
 ### Takuzu
 Fill the grid with two symbols following three simple rules.
 
 ![Takuzu](vhs/takuzu.gif)
 
-[Game details and controls](takuzu/README.md)
+[Game details and controls](games/takuzu/README.md)
+
+### Takuzu+
+Fill the grid with two symbols while obeying the normal Takuzu rules plus fixed relation clues.
+
+[Game details and controls](games/takuzuplus/README.md)
 
 ## Building and Testing
 
