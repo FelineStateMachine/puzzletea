@@ -4,9 +4,9 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"os"
 	"path/filepath"
 	"reflect"
-	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -207,9 +207,22 @@ func concreteGameImportPaths(t testing.TB) []string {
 func repoRoot(t testing.TB) string {
 	t.Helper()
 
-	_, path, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime.Caller failed")
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("get working directory: %v", err)
 	}
-	return filepath.Clean(filepath.Join(filepath.Dir(path), ".."))
+
+	for dir := filepath.Clean(wd); ; dir = filepath.Dir(dir) {
+		path := filepath.Join(dir, "go.mod")
+		if _, err := os.Stat(path); err == nil {
+			return dir
+		} else if !os.IsNotExist(err) {
+			t.Fatalf("stat %s: %v", path, err)
+		}
+
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			t.Fatalf("find repo root from %s: go.mod not found", wd)
+		}
+	}
 }
