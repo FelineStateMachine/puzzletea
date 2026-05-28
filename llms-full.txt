@@ -1,0 +1,467 @@
+# PuzzleTea LLM Full Context
+
+This file is intended for language models and agents working on PuzzleTea. It summarizes project goals, subject matter, architecture, Bubble Tea lifecycle patterns, game interface conventions, game/mode metadata, and code-review guidance.
+
+## Identity and subject matter
+
+PuzzleTea is a terminal-based puzzle collection written in Go. It presents logic puzzles in a Bubble Tea TUI and supports CLI entry points for starting, continuing, seeding, exporting, and rendering puzzles. The subject matter is pencil-and-paper style logic puzzles: region growth, grid filling, path/network rotation, word discovery, binary constraints, islands/bridges, and printable puzzle packs.
+
+The project currently advertises 15 puzzle games:
+
+1. Fillomino
+2. Hashiwokakero
+3. Hitori
+4. Lights Out
+5. Netwalk
+6. Nonogram
+7. Nurikabe
+8. Ripple Effect
+9. Shikaku
+10. Spell Puzzle
+11. Sudoku
+12. Sudoku RGB
+13. Takuzu
+14. Takuzu+
+15. Word Search
+
+Major product features include:
+
+- interactive terminal menu and game screens using Bubble Tea
+- deterministic seeded puzzles
+- deterministic daily puzzles
+- ISO-week weekly gauntlets with a 99-puzzle ladder
+- Elo-targeted puzzle generation in the `0..3000` range
+- XP/level/stat tracking
+- SQLite save/load persistence
+- 365 color themes with contrast checks
+- mouse support across games
+- JSONL export and PDF booklet rendering for printable packs
+
+## Source of truth docs and files
+
+- `README.md`: user-facing install, usage, controls, game descriptions, new-game guide, build/test commands, research references.
+- `AGENTS.md`: local contributor instructions. Important: validate changes with `just fmt` and `just lint`; prefer `just test-short`; use full tests only for long generator behavior.
+- `go.mod`: module and dependency versions.
+- `main.go`, `cmd/`: CLI entry points.
+- `game/gamer.go`: core runtime interfaces.
+- `puzzle/puzzle.go`: pure metadata structs and normalization helpers.
+- `gameentry/gameentry.go`: metadata/runtime wiring validation and variant/legacy/Elo composition.
+- `catalog/catalog.go`: pure metadata index.
+- `registry/registry.go`: concrete built-in registry that imports all games.
+- `resolve/resolve.go`: game/mode/variant lookup and deterministic seed selection.
+- `app/`: root Bubble Tea model, screen routing, async spawn/export, session handling, navigation, views.
+- `session/session.go`: save record creation/import, deterministic names, difficulty metadata.
+- `store/`: SQLite persistence and migrations.
+- `stats/`, `weekly/`, `daily/`, `schedule/`: progress and deterministic challenge logic.
+- `theme/`, `ui/`: visual system and reusable widgets.
+- `export/`: JSONL/PDF printable export pipeline.
+- `games/<name>/`: individual puzzle implementations.
+
+## Package map and cohesion boundaries
+
+The intended cohesion boundaries are:
+
+- `catalog`: pure metadata index. It should not import concrete game packages.
+- `registry`: concrete built-in runtime registry. It imports games and exposes lookup/import/help/daily APIs.
+- `gameentry`: builds validated runtime entries from definitions plus modes.
+- `export/pdf`: owns printable PDF rendering.
+- `export/builtinprint`: bootstraps built-in print adapters.
+- `game`: stable interfaces for active games, modes, spawners, and app/game messages.
+- `puzzle`: identifiers, definitions, variants, legacy aliases, and canonical normalization.
+- `resolve`: name/alias/mode/variant resolution and seed-to-game selection.
+- `session`: persistence orchestration around active games and store records.
+- `store`: DB schema, migrations, CRUD, and stats queries.
+- `app`: root TUI orchestration and screen/session lifecycle.
+- `ui`: reusable menu/list/table/panel/style widgets.
+- `theme`: theme definitions, previews, palettes, contrast enforcement.
+- `games/<game>`: all game-specific rules, generators, save/import, keys, mouse, style, model, help, tests, and print adapters.
+
+When adding features, prefer placing code at the boundary that owns the concern. Avoid pushing game-specific logic into `app`, registry-only knowledge into `catalog`, or PDF/rendering concerns into game models except via print adapters.
+
+## Core game interface
+
+`game.Gamer` in `game/gamer.go` is the active game contract. A game model must provide:
+
+- debug/help: `GetDebugInfo()`, `GetFullHelp()`
+- persistence: `GetSave()`, `Reset()`, `SetTitle(string)`
+- completion: `IsSolved()`
+- Bubble Tea lifecycle: `Init() tea.Cmd`, `View() string`, `Update(msg tea.Msg) (Gamer, tea.Cmd)`
+
+The interface deliberately wraps Bubble Tea with project-specific requirements. Active games are not only `tea.Model`s: they must serialize, reset, expose help, and return the project-level `game.Gamer` interface from updates.
+
+Mode/spawner interfaces:
+
+- `Mode`: menu metadata (`Title`, `Description`, `FilterValue`).
+- `Spawner`: creates a random game instance.
+- `SeededSpawner`: deterministic `SpawnSeeded(*rand.Rand)` support.
+- `CancellableSpawner` and `CancellableSeededSpawner`: context-aware generation for long-running work.
+- `EloSpawner`: deterministic `SpawnElo(seed string, elo difficulty.Elo)` with a `difficulty.Report`.
+- `CancellableEloSpawner`: context-aware Elo generation.
+- `BaseMode`: common title/description boilerplate for modes.
+
+Important pattern: if a mode has a preset Elo in metadata, the runtime mode must implement `game.EloSpawner`; `gameentry.NewEntry` validates this.
+
+## Metadata/runtime wiring
+
+`puzzle.Definition` is the pure metadata object for a game:
+
+- `ID`, `Name`, `Description`
+- CLI aliases
+- variants
+- legacy mode aliases
+- modes
+- daily-capable mode IDs
+
+`gameentry.NewEntry` combines `puzzle.Definition` with concrete `game.Mode` values and validates:
+
+- definition mode count matches runtime mode count
+- mode title/description match runtime metadata
+- every runtime mode implements `game.Spawner`
+- seeded flags match actual `SeededSpawner` support
+- preset Elo values are valid and backed by `EloSpawner`
+- variants have Elo-capable modes to delegate to
+
+`registry` keeps a single `all = []Entry{...}` list of built-in games. That registry is the concrete composition root. `catalog.MustBuild` indexes definitions from the registry but remains a pure metadata concept.
+
+## Bubble Tea lifecycle and app routing
+
+Root state lives in `app.model`. Important fields include:
+
+- `state viewState`: current screen enum.
+- `screens map[viewState]screenModel`: persistent screen instances.
+- `nav`, `cont`, `session`, `seed`, `create`, `weekly`, `help`, `stats`, `theme`, `debug`: screen/session state groups.
+- `store`, `cfg`, `configPath`: persistence/config dependencies.
+- `width`, `height`: root content dimensions.
+
+Root lifecycle:
+
+- `InitialModel` prepares menu/list/debug/spinner/store/config state.
+- `InitialModelWithGame` starts directly in `gameView` for CLI shortcuts.
+- `model.Init()` returns `nil` because construction prepares initial state.
+- `model.Update(msg)` handles high-level message routing:
+  1. async spawn/export completion messages
+  2. back actions
+  3. window resize
+  4. global keys
+  5. active game update forwarding
+  6. active non-game screen update and returned screen actions
+- `model.View()` renders alt-screen content via `tea.NewView`.
+
+Global key behavior:
+
+- Quit exits from most screens; in `gameView` it saves as abandoned.
+- Escape during `gameView` saves in-progress and returns to the prior state.
+- Escape during generation/export-running cancels active async work and returns.
+- Ctrl+H toggles full help; while in a game, a `game.HelpToggleMsg` is forwarded into the active game.
+- Ctrl+R resets the active puzzle.
+- Debug toggles a debug overlay.
+
+Async pattern:
+
+- Long-running spawn/export work is represented as a `tea.Cmd`.
+- `spawnCmd`, `spawnSeededCmd`, and `spawnEloCmd` run generation off the main update path and return completion messages.
+- Prefer context-aware cancellable interfaces for generators that can run long.
+- Root session code ignores stale completion through job IDs and cancellation state.
+
+## Persistence and challenge modes
+
+Saves live in SQLite, user-facing path documented as `~/.puzzletea/history.db`.
+
+`session.CreateRecordWithDifficulty` stores:
+
+- game/variant/mode identifiers and display names
+- initial and current save state
+- run kind metadata for normal, daily, weekly, seeded/create flows
+- seed text
+- target and actual Elo difficulty when available
+- difficulty confidence
+
+Deterministic naming:
+
+- `SeededName(seed)` creates a deterministic seed-based display name.
+- `SeededNameForGame(seed, gameType)` scopes deterministic names to a game.
+- `SeededNameForCreateLeaf(seed, gameType, leafID, elo)` scopes names to a Create leaf and target Elo.
+
+Deterministic game selection:
+
+- `resolve.RNGFromString` hashes arbitrary seed text with FNV-64a and PCG.
+- `resolve.SeededMode` uses rendezvous hashing across eligible seeded modes/variants, so adding/removing modes only affects seeds where the changed entry would win.
+- `resolve.SeededModeForGame` restricts seeded selection to one game.
+
+Daily/weekly:
+
+- Daily puzzles use deterministic seeding so the same date yields the same puzzle for everyone.
+- Weekly gauntlets use ISO week-year and a 99-puzzle ladder; current week unlocks sequentially, past weeks are review-only through completed saves.
+
+## Elo difficulty model
+
+PuzzleTea uses `difficulty.Elo` values in the `0..3000` range. Named legacy modes map to preset Elo values. Variant-level generation can target an explicit Elo and delegates to an appropriate legacy mode band, recording target/actual/confidence metadata when available.
+
+Named modes remain friendly user-facing presets, while variants allow a cleaner modern Create/export flow where a user chooses a game/variant and target Elo.
+
+## Built-in games: subject, aliases, modes, Elo, print support
+
+### Fillomino
+
+- ID: `fillomino`
+- Description: grow numbered regions to exact sizes.
+- Aliases: `polyomino`, `regions`
+- Variant: Fillomino, default Elo 1300
+- Modes: Mini 5x5 (300), Easy 6x6 (700), Medium 8x8 (1300), Hard 10x10 (2000), Expert 12x12 (2600)
+- Seeded: yes
+- Printable: yes
+
+### Hashiwokakero
+
+- ID: `hashiwokakero`
+- Description: connect islands with bridges.
+- Aliases: `hashi`, `bridges`
+- Variant: Hashiwokakero, default Elo 1300
+- Modes: Easy 7x7 (250), Medium 7x7 (500), Hard 7x7 (800), Easy 9x9 (700), Medium 9x9 (1100), Hard 9x9 (1500), Easy 11x11 (1300), Medium 11x11 (1700), Hard 11x11 (2100), Easy 13x13 (1900), Medium 13x13 (2400), Hard 13x13 (2900)
+- Seeded: yes
+- Printable: yes
+
+### Hitori
+
+- ID: `hitori`
+- Description: shade cells to eliminate duplicates.
+- Variant: Hitori, default Elo 1800
+- Modes: Mini (300), Easy (700), Medium (1300), Tricky (1800), Hard (2300), Expert (2800)
+- Seeded: yes
+- Printable: yes
+
+### Lights Out
+
+- ID: `lights out`
+- Description: turn the lights off.
+- Alias: `lights`
+- Variant: Lights Out, default Elo 2000
+- Modes: Easy (0), Medium (1000), Hard (2000), Extreme (3000)
+- Seeded: yes
+- Printable: no. README says it is excluded from export because it does not translate cleanly to paper workflows.
+
+### Netwalk
+
+- ID: `netwalk`
+- Description: rotate network tiles until every computer connects to the server.
+- Alias: `network`
+- Variant: Netwalk, default Elo 1500
+- Modes: Mini 5x5 (400), Easy 7x7 (900), Medium 9x9 (1500), Hard 11x11 (2200), Expert 13x13 (2800)
+- Seeded: yes
+- Printable: yes
+
+### Nonogram
+
+- ID: `nonogram`
+- Description: fill cells to match tomographic hints.
+- Variant: Nonogram, default Elo 1600
+- Modes: Mini (100), Pocket (450), Teaser (800), Standard (1000), Classic (1300), Tricky (1600), Large (1900), Grand (2200), Epic (2600), Massive (2900)
+- Seeded: yes
+- Printable: yes
+
+### Nurikabe
+
+- ID: `nurikabe`
+- Description: split the land while keeping one connected sea.
+- Aliases: `islands`, `sea`
+- Variant: Nurikabe, default Elo 1400
+- Modes: Mini (300), Easy (800), Medium (1400), Hard (2100), Expert (2700)
+- Seeded: yes
+- Printable: yes
+
+### Ripple Effect
+
+- ID: `ripple effect`
+- Description: fill cages with sequential numbers without violating ripple distance.
+- Alias: `ripple`
+- Variant: Ripple Effect, default Elo 1500
+- Modes: Mini 5x5 (400), Easy 6x6 (900), Medium 7x7 (1500), Hard 8x8 (2200), Expert 9x9 (2800)
+- Seeded: yes
+- Printable: yes
+
+### Shikaku
+
+- ID: `shikaku`
+- Description: divide the grid into rectangles with set sizes.
+- Alias: `rectangles`
+- Variant: Shikaku, default Elo 1400
+- Modes: Mini 5x5 (300), Easy 7x7 (800), Medium 8x8 (1400), Hard 10x10 (2100), Expert 12x12 (2700)
+- Seeded: yes
+- Printable: yes
+
+### Spell Puzzle
+
+- ID: `spell puzzle`
+- Description: connect letters to fill a crossword with bonus anagrams.
+- Aliases: `spell`, `spellpuzzle`
+- Variant: Spell Puzzle, default Elo 1500
+- Modes: Beginner (0), Easy (600), Medium (1500), Hard (2400)
+- Seeded: yes
+- Printable: yes
+
+### Sudoku
+
+- ID: `sudoku`
+- Description: fill the 9x9 grid following sudoku rules.
+- Variant: Sudoku, default Elo 1800
+- Modes: Beginner (0), Easy (600), Medium (1200), Hard (1800), Expert (2400), Diabolical (3000)
+- Seeded: yes
+- Printable: yes
+
+### Sudoku RGB
+
+- ID: `sudoku rgb`
+- Description: fill a 9x9 board with RGB symbols so each row, column, and 3x3 box contains three each of the three symbols. Inspired by Sudoku Ripeto.
+- Aliases: `rgb sudoku`, `ripeto`, `sudoku ripeto`
+- Variant: Sudoku RGB, default Elo 1800
+- Modes: Beginner (0), Easy (600), Medium (1200), Hard (1800), Expert (2400), Diabolical (3000)
+- Seeded: yes
+- Printable: yes
+
+### Takuzu
+
+- ID: `takuzu`
+- Description: fill a grid with two symbols with no three in a row.
+- Aliases: `binairo`, `binary`
+- Variant: Takuzu, default Elo 1600
+- Modes: Beginner (300), Easy (700), Medium (1100), Tricky (1600), Hard (2100), Very Hard (2500), Extreme (2900)
+- Seeded: yes
+- Printable: yes
+
+### Takuzu+
+
+- ID: `takuzu+`
+- Description: Takuzu with equality/inequality relation clues.
+- Aliases: `takuzu plus`, `binario+`, `binario plus`
+- Variant: Takuzu+, default Elo 1600
+- Modes: Beginner (300), Easy (700), Medium (1100), Tricky (1600), Hard (2100), Very Hard (2500), Extreme (2900)
+- Seeded: yes
+- Printable: yes
+
+### Word Search
+
+- ID: `word search`
+- Description: find hidden words in a letter grid.
+- Aliases: `words`, `wordsearch`, `ws`
+- Variant: Word Search, default Elo 1500
+- Modes: Easy 10x10 (600), Medium 15x15 (1500), Hard 20x20 (2400)
+- Seeded: yes
+- Printable: yes
+
+## Game package pattern
+
+For a new game, follow README's pattern:
+
+- `gamemode.go`: mode structs embedding `game.BaseMode`, package `Modes`, `ModeDefinitions`, package-level `Definition`, and `Entry`.
+- `model.go`: `Model` implementing `game.Gamer`.
+- `export.go`: save struct, `GetSave`, `ImportModel`.
+- `keys.go`: game-specific key bindings.
+- `style.go`: Lip Gloss styling and render helpers.
+- `generator.go`: puzzle generation.
+- `elo.go`: Elo-targeted generation and `difficulty.Report`.
+- `grid.go`: grid type and serialization for grid games.
+- `help.md`: embedded rules/help content.
+- `print_adapter.go`: optional printable export adapter.
+- Tests: table-driven tests, save/load round trips, generator validation.
+- `README.md`: rules, controls, modes, quick start examples.
+
+Wire the game into `registry/registry.go` by importing the package and adding its `Entry` to `all` in alphabetical order.
+
+## CLI and user flows
+
+Important commands from README:
+
+- `puzzletea`: launch interactive menu.
+- `puzzletea new nonogram classic`
+- `puzzletea new sudoku --difficulty 1200`
+- `puzzletea new nonogram classic --difficulty 1800 --with-seed myseed`
+- `puzzletea new --set-seed myseed`
+- `puzzletea list`, `puzzletea list --all`, `puzzletea continue <name>`
+- `puzzletea new <game> <mode> --export <count> -o pack.jsonl`
+- `puzzletea export-pdf pack.jsonl -o issue.pdf --shuffle-seed issue-01 --volume 1 --title "..."`
+- `puzzletea --theme "Catppuccin Mocha"`
+
+Create menu behavior:
+
+- Users check one or more leaf nodes from games/variants/board sizes and enter a target Elo.
+- If exactly one leaf is checked, seed input is enabled and a nonblank seed can resume the matching deterministic save.
+- If multiple leaves are checked, PuzzleTea chooses a checked leaf uniformly at random and disables seed input because the selected game is intentionally random.
+- Create pool and last Elo are persisted in `~/.puzzletea/config.json`.
+
+## Controls and interaction patterns
+
+Global controls:
+
+- Enter: select / advance solved weekly puzzle when applicable.
+- Escape: return/back; from a game, save in-progress and return.
+- Ctrl+R: reset puzzle.
+- Ctrl+H: toggle full help.
+- Ctrl+C: quit; from a game, mark abandoned.
+
+Navigation:
+
+- Arrow keys, WASD, and Vim `hjkl` are broadly supported.
+
+Mouse support:
+
+- Drag: Nonogram, Nurikabe, Shikaku, Spell Puzzle, Word Search.
+- Click-to-focus/cycle: Fillomino, Hashiwokakero, Hitori, Sudoku, Sudoku RGB, Takuzu, Takuzu+.
+- Netwalk: click-to-rotate and right-click lock toggles.
+- Lights Out: click to toggle.
+
+## Code review: architecture assessment
+
+Overall architecture is strong and cohesive for a broad TUI puzzle suite.
+
+Strengths:
+
+- `game.Gamer` cleanly extends Bubble Tea with project-specific save/reset/help/title requirements.
+- `gameentry.NewEntry` is a valuable guardrail: it catches metadata/runtime drift during startup/tests instead of allowing subtle menu/export/daily bugs.
+- `catalog` vs `registry` separation is good: pure metadata stays testable and import-light; concrete game imports stay in one composition root.
+- The variant/legacy mode split keeps old named modes usable while supporting modern Elo-targeted variants.
+- `resolve` centralizes normalization and deterministic seed selection, avoiding scattered string matching.
+- `session` centralizes save record construction and difficulty metadata persistence.
+- `app.Update` has a clear message-routing order: async completions, back/window/global, active game, then screen model.
+- The `screenModel` abstraction is a good decomposition direction for non-game app screens.
+- Game packages are mostly cohesive: each owns its rules, generation, rendering, keys, mouse, save/import, help, and optional print adapter.
+
+Main maintainability risks:
+
+- Root `app.model` remains large and will attract unrelated state if not actively decomposed. Continue pushing screen-specific behavior into screen structs/controllers.
+- `app.Update` is readable now, but new global states should avoid adding many more state-specific branches. Prefer screen actions, controllers, or state-local `Update` methods.
+- Metadata duplication between definitions, runtime modes, README tables, and docs can drift. `gameentry` prevents some runtime drift, but README/LLM docs require periodic regeneration or review.
+- Generator-heavy games need disciplined short-vs-full test boundaries so CI and local agent validation stay fast.
+- Printable export is cross-cutting by nature. Keep game-specific print shape in adapters and shared layout/render decisions in export packages.
+
+Recommended best practices for future changes:
+
+- Keep Update methods pure-ish and message-driven; return commands instead of blocking.
+- Prefer value-style model updates when following existing game patterns.
+- For long generation/export operations, implement cancellation-aware spawners and respect context cancellation.
+- Add save/load round-trip tests when changing a game model's persisted fields.
+- Add registry/catalog tests when changing aliases, mode IDs, daily modes, variants, or legacy modes.
+- Run `just fmt`, `just lint`, and `just test-short` before handing off.
+- Preserve canonical IDs and legacy aliases unless intentionally performing a migration; saves and CLI UX depend on stable normalization.
+
+## Build and validation
+
+Use the `justfile`:
+
+```bash
+just            # build
+just run        # build and run
+just test       # go test ./...
+just test-short # skip slow generator tests
+just lint       # golangci-lint
+just fmt        # gofumpt
+just tidy       # go mod tidy
+just install    # install to GOPATH/bin
+just clean      # remove build artifacts
+just vhs        # generate VHS GIF previews
+```
+
+Repository-specific instruction from `AGENTS.md`: validate every change with `just fmt` and `just lint`; prefer `just test-short`; use full-length tests only for generator behavior.
+
+## Research/reference context
+
+README credits and references public puzzle rules/implementations and solver documentation, including Simon Tatham's Portable Puzzle Collection, Copris puzzle solvers, QQWing Sudoku, Jaap Scherphuis' Lights Out notes, and Nikoli puzzle rules. Treat those as historical/contextual inspiration for puzzle rules, generator heuristics, and Elo scoring approaches, not necessarily as directly vendored code.

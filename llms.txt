@@ -1,0 +1,77 @@
+# PuzzleTea
+
+> Terminal-based puzzle game collection written in Go with Bubble Tea. PuzzleTea includes 15 puzzle games, deterministic daily and weekly challenges, Elo-backed difficulty targeting, SQLite save/load persistence, XP/stat progression, 365 accessible themes, mouse support, and JSONL/PDF printable export workflows.
+
+## Primary docs
+
+- [README](README.md): install, usage, game list, controls, persistence, build/test commands, and new-puzzle guide.
+- [AGENTS](AGENTS.md): contributor validation rules and package ownership map.
+- [Game interface](game/gamer.go): `game.Gamer`, `Mode`, `Spawner`, `SeededSpawner`, `EloSpawner`, cancellation-capable spawners, and Bubble Tea message contracts.
+- [Runtime entry builder](gameentry/gameentry.go): validates metadata/runtime mode cohesion and builds variants, legacy modes, seeded spawners, and Elo spawners.
+- [Registry](registry/registry.go): concrete built-in game composition root.
+- [Catalog](catalog/catalog.go): pure metadata index for definitions, aliases, and daily mode lookup.
+- [Root app model](app/model.go), [Update](app/update.go), [View](app/view.go): Bubble Tea lifecycle, navigation state, screen model routing, async generation, and game session hosting.
+- [Resolve](resolve/resolve.go): game/mode/variant matching, seed normalization, and deterministic seeded game selection.
+- [Session](session/session.go): save record creation, deterministic naming, imports, and difficulty metadata persistence.
+- [Store](store/store.go): SQLite persistence layer.
+- [Stats](stats/stats.go): profile, XP, daily streak, weekly progress, and category cards.
+- [PDF export](export/pdf/): printable pack rendering.
+
+## Project shape
+
+- Module: `github.com/FelineStateMachine/puzzletea`
+- Language/runtime: Go 1.24+
+- TUI: `charm.land/bubbletea/v2`, `bubbles/v2`, `lipgloss/v2`
+- CLI: Cobra
+- Persistence: pure-Go SQLite via `modernc.org/sqlite`
+- Validation commands: `just fmt`, `just lint`, and preferably `just test-short`
+
+## Core architecture for LLMs
+
+PuzzleTea separates pure puzzle metadata from concrete runtime wiring:
+
+1. `puzzle` defines immutable metadata structs (`Definition`, `ModeDef`, `VariantDef`, `LegacyModeAlias`) and canonical name normalization.
+2. Each package under `games/<game>/` owns its model, generator, save/import code, help, keys, rendering helpers, modes, Elo logic, and optional print adapter.
+3. `gameentry.NewEntry` combines a game's metadata with runtime `game.Mode` implementations and panics early if definitions do not match runtime mode titles/descriptions, seeded flags, preset Elo support, or variant wiring.
+4. `registry` imports every built-in game exactly once and exposes lookup/import/help/daily APIs.
+5. `catalog` remains free of concrete game imports and indexes metadata for names, aliases, and daily entries.
+6. `app` is the Bubble Tea root model: it owns navigation/session/config/store/theme/debug state and delegates non-game screens through a smaller `screenModel` abstraction.
+7. Active puzzles implement `game.Gamer`, not plain `tea.Model`: `Update` returns `(game.Gamer, tea.Cmd)` so game packages stay behind the project-specific save/reset/help/title interface while still following Bubble Tea's Elm loop.
+
+## Bubble Tea lifecycle notes
+
+- Root `model.Init()` currently returns `nil`; startup state is prepared in `InitialModel` or `InitialModelWithGame`.
+- Root `model.Update(msg)` first handles async completion messages, back actions, window resizing, global keys, active game forwarding, then screen-specific updates.
+- Game generation and exports run through `tea.Cmd` functions so long-running work does not block the TUI; cancellable spawner interfaces are preferred when generation can take time.
+- Root global keys handle quit, debug overlay, full help, reset, and escape-to-save/back behavior. Active games receive `game.HelpToggleMsg` for full-help state.
+- Root `model.View()` returns a `tea.View` configured for alt-screen rendering.
+
+## Built-in games and modes
+
+- Fillomino: grow numbered regions to exact sizes. Modes: Mini 5x5, Easy 6x6, Medium 8x8, Hard 10x10, Expert 12x12.
+- Hashiwokakero: connect islands with bridges. Modes: Easy/Medium/Hard across 7x7, 9x9, 11x11, 13x13.
+- Hitori: shade cells to eliminate duplicates. Modes: Mini, Easy, Medium, Tricky, Hard, Expert.
+- Lights Out: toggle lights until all are off. Modes: Easy, Medium, Hard, Extreme. Not printable.
+- Netwalk: rotate network tiles so every computer connects to the server. Modes: Mini 5x5, Easy 7x7, Medium 9x9, Hard 11x11, Expert 13x13.
+- Nonogram: fill cells to satisfy row/column hints. Modes: Mini, Pocket, Teaser, Standard, Classic, Tricky, Large, Grand, Epic, Massive.
+- Nurikabe: build clue islands while keeping one connected sea. Modes: Mini, Easy, Medium, Hard, Expert.
+- Ripple Effect: fill cages with sequential numbers while respecting ripple-distance constraints. Modes: Mini 5x5, Easy 6x6, Medium 7x7, Hard 8x8, Expert 9x9.
+- Shikaku: divide the grid into rectangles with clue-sized areas. Modes: Mini 5x5, Easy 7x7, Medium 8x8, Hard 10x10, Expert 12x12.
+- Spell Puzzle: connect letters to fill a crossword and find bonus anagrams. Modes: Beginner, Easy, Medium, Hard.
+- Sudoku: classic 9x9 number-placement puzzle. Modes: Beginner, Easy, Medium, Hard, Expert, Diabolical.
+- Sudoku RGB: Sudoku Ripeto-inspired 9x9 symbol puzzle where each row/column/box contains three each of three symbols. Modes: Beginner, Easy, Medium, Hard, Expert, Diabolical.
+- Takuzu: binary grid with no three equal symbols in a row/column and balanced rows/columns. Modes: Beginner, Easy, Medium, Tricky, Hard, Very Hard, Extreme.
+- Takuzu+: Takuzu plus fixed equality/inequality relation clues. Modes: Beginner, Easy, Medium, Tricky, Hard, Very Hard, Extreme.
+- Word Search: find hidden words in a letter grid. Modes: Easy 10x10, Medium 15x15, Hard 20x20.
+
+## Development guidance
+
+- Keep game-specific rules, rendering, generator, mouse/key handling, save shape, and print adapter inside that game's package.
+- Keep reusable TUI widgets in `ui`, cross-game metadata in `puzzle`/`catalog`, runtime composition in `registry`/`gameentry`, persistence in `store`/`session`, and printable pack/PDF concerns in `export`.
+- New games should follow README's file pattern: `gamemode.go`, `model.go`, `export.go`, `keys.go`, `style.go`, `generator.go`, `elo.go`, `grid.go`, `help.md`, optional `print_adapter.go`, tests, and README.
+- For non-generator validation, use short tests (`just test-short` or Go `-short`). Use full-length tests only for generator behavior.
+- Before committing changes, run `just fmt` and `just lint`.
+
+## Code review summary
+
+The current architecture is cohesive for a large Bubble Tea puzzle collection: the `game.Gamer` interface gives active games a stable project-specific contract, `gameentry` catches metadata/runtime mismatches early, `catalog` avoids importing concrete games, and root `app.Update` cleanly routes global keys, screens, async messages, and active game updates. The main scaling risk is large root app state in `app/model.go`; the existing `screenModel` and session/export controllers are the right direction, so future work should continue moving screen-specific behavior out of the root model rather than adding more branches directly to `Update`.
