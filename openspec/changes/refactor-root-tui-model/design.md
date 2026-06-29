@@ -113,7 +113,17 @@ The refactor should be incremental and behavior-preserving. It is acceptable to 
 
 Rollback is straightforward because there are no data migrations or public API changes: revert the refactor commits if behavior diverges.
 
-## Open Questions
+## Graph Analysis
 
-- Should create/daily/seed/weekly decision logic live in one deterministic-play workflow helper, or remain in their current files while calling improved session APIs?
-- Should export get a small controller in this change, or only enough cleanup to remove export-running special cases from root global key handling?
+A GitNexus knowledge graph analysis of the codebase is in `graph-analysis.md`. It provides concrete symbol locations, call-chain evidence, blast-radius data, and file inventory for this refactor. Key findings:
+
+- **11 symbols** depend on `model` struct directly (MEDIUM risk, contained in `app` + `cmd` packages).
+- **3 wrapper functions** in `spawn.go` exist solely to bridge value-receiver `handleGlobalKey` to pointer-receiver `sessionController` — these can be eliminated by moving key handling into the controller.
+- **`initScreen` has 13 callers** spanning both route transitions and workflow code — highest regression risk.
+- **8 `screenAction` types** already implement the intent-emitter pattern cleanly; no changes needed there.
+- **`export.go` is 1,720 lines** — the largest affected file; warrants its own future refactor, not this one.
+
+## Open Questions (resolved by graph analysis)
+
+- **Should create/daily/seed/weekly decision logic live in one helper?** No — each workflow constructs a different `spawnRequest` with different fields. The session controller already owns spawn mechanics; consolidating decision logic would add a layer without reducing duplication.
+- **Should export get a controller in this change?** No — minimal cleanup only. Extract `exportRunningView` key handling into `app/export.go` as a function. Export's size (1,720 lines) warrants a dedicated refactor.

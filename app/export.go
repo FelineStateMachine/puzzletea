@@ -323,6 +323,21 @@ func (m model) handleExportComplete(msg exportCompleteMsg) (model, tea.Cmd) {
 	return m.setSuccessf("%s", message), nil
 }
 
+// handleExportRunningKey handles global keys while an export is running.
+// All key messages are consumed: escape cancels the export and returns to
+// the export form, quit exits the app, and all other keys are swallowed.
+func (m model) handleExportRunningKey(keyMsg tea.KeyPressMsg) (model, tea.Cmd, bool) {
+	switch {
+	case key.Matches(keyMsg, rootKeys.Escape):
+		m.cancelActiveExport()
+		m.state = exportView
+		return m.resizeActiveScreen(), nil, true
+	case key.Matches(keyMsg, rootKeys.Quit):
+		return m, tea.Quit, true
+	}
+	return m, nil, true
+}
+
 func (m *model) cancelActiveExport() {
 	es, ok := m.screens[exportView].(exportScreen)
 	if !ok {

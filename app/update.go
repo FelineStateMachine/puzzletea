@@ -2,7 +2,6 @@ package app
 
 import (
 	"github.com/FelineStateMachine/puzzletea/game"
-	"github.com/FelineStateMachine/puzzletea/store"
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
@@ -11,11 +10,11 @@ import (
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case spawnCompleteMsg:
-		next, cmd := m.handleSpawnComplete(msg.jobID, msg.result)
-		return next, cmd
+		cmd := newSessionController(&m).handleSpawnComplete(msg.jobID, msg.result)
+		return m, cmd
 	case game.SpawnCompleteMsg:
-		next, cmd := m.handleSpawnComplete(m.session.spawnJobID, msg)
-		return next, cmd
+		cmd := newSessionController(&m).handleSpawnComplete(m.session.spawnJobID, msg)
+		return m, cmd
 	case exportCompleteMsg:
 		next, cmd := m.handleExportComplete(msg)
 		return next, cmd
@@ -68,24 +67,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return next, tea.Batch(screenCmd, actionCmd)
 }
 
-func (m model) resizeActiveScreen() model {
-	screen := m.screens[m.state] // nil map read is safe; returns nil
-	if screen == nil {
-		return m
-	}
-	m.screens[m.state] = screen.Resize(m.width, m.height)
-	return m
-}
-
-func (m model) handleWindowSize(msg tea.WindowSizeMsg) model {
-	m.width = msg.Width
-	m.height = msg.Height
-	if m.state == gameView {
-		return m
-	}
-	return m.resizeActiveScreen()
-}
-
+// handleGlobalKey dispatches key messages to the domain that owns the current
+// state. Pending generation and active game keys are handled by the session
+// controller; pending export keys by the export workflow; normal screen keys
+// by shell-level handling. Non-key messages are never consumed here.
 func (m model) handleGlobalKey(msg tea.Msg) (model, tea.Cmd, bool) {
 	keyMsg, ok := msg.(tea.KeyPressMsg)
 	if !ok {
@@ -93,68 +78,18 @@ func (m model) handleGlobalKey(msg tea.Msg) (model, tea.Cmd, bool) {
 	}
 
 	if m.state == generatingView {
-		switch {
-		case key.Matches(keyMsg, rootKeys.Escape):
-			returnState := m.activeSpawnReturnState()
-			m.cancelActiveSpawn()
-			m.state = returnState
-			return m.resizeActiveScreen(), nil, true
-		case key.Matches(keyMsg, rootKeys.Quit):
-			return m, tea.Quit, true
-		}
-		return m, nil, true
+		return newSessionController(&m).handleGeneratingKey(keyMsg)
 	}
 
 	if m.state == exportRunningView {
-		switch {
-		case key.Matches(keyMsg, rootKeys.Escape):
-			m.cancelActiveExport()
-			m.state = exportView
-			return m.resizeActiveScreen(), nil, true
-		case key.Matches(keyMsg, rootKeys.Quit):
-			return m, tea.Quit, true
-		}
-		return m, nil, true
+		return m.handleExportRunningKey(keyMsg)
 	}
 
 	if m.state == gameView {
-		switch {
-		case key.Matches(keyMsg, rootKeys.Enter):
-			next, cmd, handled := m.advanceSolvedWeekly()
-			if handled {
-				return next, cmd, true
-			}
-		case key.Matches(keyMsg, rootKeys.Escape):
-			returnState := m.session.returnState
-			m = saveCurrentGame(m, store.StatusInProgress)
-			m.state = returnState
-			if returnState == weeklyView {
-				m = m.refreshWeeklyBrowser()
-				m = m.initScreen(weeklyView)
-			}
-			m.debug.enabled = false
-			return m, nil, true
-		case key.Matches(keyMsg, rootKeys.Quit):
-			m = saveCurrentGame(m, store.StatusAbandoned)
-			return m, tea.Quit, true
-		case key.Matches(keyMsg, rootKeys.Debug):
-			m.debug.enabled = !m.debug.enabled
-			return m, nil, true
-		case key.Matches(keyMsg, rootKeys.FullHelp):
-			m.help.showFull = !m.help.showFull
-			if m.session.game != nil {
-				m.session.game, _ = m.session.game.Update(game.HelpToggleMsg{Show: m.help.showFull})
-			}
-			return m, nil, true
-		case key.Matches(keyMsg, rootKeys.ResetGame):
-			if m.session.game != nil {
-				m.session.game = m.session.game.Reset()
-			}
-			return m, nil, true
-		}
-		return m, nil, false
+		return newSessionController(&m).handleGameKey(keyMsg)
 	}
 
+	// Normal screen shell keys.
 	switch {
 	case key.Matches(keyMsg, rootKeys.Quit):
 		return m, tea.Quit, true
@@ -167,13 +102,6 @@ func (m model) handleGlobalKey(msg tea.Msg) (model, tea.Cmd, bool) {
 	default:
 		return m, nil, false
 	}
-}
-
-func (m model) activeSpawnReturnState() viewState {
-	if m.session.spawn == nil {
-		return modeSelectView
-	}
-	return m.session.spawn.returnState
 }
 
 func (m model) handleScreenAction(action screenAction) (model, tea.Cmd) {

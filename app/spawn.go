@@ -7,7 +7,6 @@ import (
 
 	"github.com/FelineStateMachine/puzzletea/difficulty"
 	"github.com/FelineStateMachine/puzzletea/game"
-	"github.com/FelineStateMachine/puzzletea/store"
 
 	tea "charm.land/bubbletea/v2"
 )
@@ -76,19 +75,4 @@ func spawnSeededCmd(spawner game.SeededSpawner, rng *rand.Rand, ctx context.Cont
 			result: game.SpawnCompleteMsg{Game: g, Err: err},
 		}
 	}
-}
-
-func (m *model) cancelActiveSpawn() {
-	newSessionController(m).cancelActiveSpawn()
-}
-
-func (m model) handleSpawnComplete(jobID int64, msg game.SpawnCompleteMsg) (tea.Model, tea.Cmd) {
-	cmd := newSessionController(&m).handleSpawnComplete(jobID, msg)
-	return m, cmd
-}
-
-// saveCurrentGame saves the current game state to the DB if a game is active.
-func saveCurrentGame(m model, status store.GameStatus) model {
-	newSessionController(&m).saveCurrentGame(status)
-	return m
 }

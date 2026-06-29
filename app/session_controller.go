@@ -9,6 +9,7 @@ import (
 	sessionflow "github.com/FelineStateMachine/puzzletea/session"
 	"github.com/FelineStateMachine/puzzletea/store"
 
+	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 )
 
@@ -227,4 +228,73 @@ func (c sessionController) clearActiveGame() {
 	c.model.session.completionSaved = false
 	c.model.session.returnState = mainMenuView
 	c.model.session.weeklyAdvance = nil
+}
+
+// activeSpawnReturnState returns the route to return to when a pending
+// generation is canceled.
+func (c sessionController) activeSpawnReturnState() viewState {
+	if c.model.session.spawn == nil {
+		return modeSelectView
+	}
+	return c.model.session.spawn.returnState
+}
+
+// handleGeneratingKey handles global keys while a puzzle is being generated.
+// All key messages are consumed (handled=true): escape cancels the spawn and
+// returns to the previous route, quit exits the app, and all other keys are
+// swallowed.
+func (c sessionController) handleGeneratingKey(keyMsg tea.KeyPressMsg) (model, tea.Cmd, bool) {
+	switch {
+	case key.Matches(keyMsg, rootKeys.Escape):
+		returnState := c.activeSpawnReturnState()
+		c.cancelActiveSpawn()
+		c.model.state = returnState
+		*c.model = c.model.resizeActiveScreen()
+		return *c.model, nil, true
+	case key.Matches(keyMsg, rootKeys.Quit):
+		return *c.model, tea.Quit, true
+	}
+	return *c.model, nil, true
+}
+
+// handleGameKey handles global keys while a puzzle is active. Escape saves
+// and returns, quit saves as abandoned and exits, plus debug/full-help/reset
+// toggles and weekly advancement on enter.
+func (c sessionController) handleGameKey(keyMsg tea.KeyPressMsg) (model, tea.Cmd, bool) {
+	switch {
+	case key.Matches(keyMsg, rootKeys.Enter):
+		m, cmd, handled := c.model.advanceSolvedWeekly()
+		if handled {
+			return m, cmd, true
+		}
+		return *c.model, nil, false
+	case key.Matches(keyMsg, rootKeys.Escape):
+		returnState := c.model.session.returnState
+		c.saveCurrentGame(store.StatusInProgress)
+		c.model.state = returnState
+		if returnState == weeklyView {
+			*c.model = c.model.refreshWeeklyBrowser()
+			*c.model = c.model.initScreen(weeklyView)
+		}
+		c.model.debug.enabled = false
+		return *c.model, nil, true
+	case key.Matches(keyMsg, rootKeys.Quit):
+		c.saveCurrentGame(store.StatusAbandoned)
+		return *c.model, tea.Quit, true
+	case key.Matches(keyMsg, rootKeys.Debug):
+		c.model.debug.enabled = !c.model.debug.enabled
+		return *c.model, nil, true
+	case key.Matches(keyMsg, rootKeys.FullHelp):
+		c.model.help.showFull = !c.model.help.showFull
+		if c.model.session.game != nil {
+			c.model.session.game, _ = c.model.session.game.Update(game.HelpToggleMsg{Show: c.model.help.showFull})
+		}
+		return *c.model, nil, true
+	case key.Matches(keyMsg, rootKeys.ResetGame):
+		if c.model.session.game != nil {
+			c.model.session.game = c.model.session.game.Reset()
+		}
+		return *c.model, nil, true
+	}
+	return *c.model, nil, false
 }

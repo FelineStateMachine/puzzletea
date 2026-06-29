@@ -12,18 +12,15 @@ func TestHandleSpawnCompleteIgnoresStaleJob(t *testing.T) {
 	m := model{
 		state: generatingView,
 		session: sessionState{
-			generating: true,
-			spawnJobID: 7,
-			spawnCancel: func() {
-				called = true
-			},
+			generating:  true,
+			spawnJobID:  7,
+			spawnCancel: func() { called = true },
 		},
 	}
 
-	next, _ := m.handleSpawnComplete(6, game.SpawnCompleteMsg{Err: nil})
-	got := next.(model)
+	newSessionController(&m).handleSpawnComplete(6, game.SpawnCompleteMsg{Err: nil})
 
-	if !got.session.generating {
+	if !m.session.generating {
 		t.Fatal("expected stale completion to be ignored")
 	}
 	if called {
@@ -36,11 +33,9 @@ func TestGeneratingEscapeCancelsActiveSpawn(t *testing.T) {
 	m := model{
 		state: generatingView,
 		session: sessionState{
-			generating: true,
-			spawnJobID: 3,
-			spawnCancel: func() {
-				called = true
-			},
+			generating:  true,
+			spawnJobID:  3,
+			spawnCancel: func() { called = true },
 			spawn: &spawnRequest{
 				source:      spawnSourceSeed,
 				returnState: playMenuView,
@@ -77,13 +72,12 @@ func TestHandleSpawnCompleteSurfacingErrors(t *testing.T) {
 		},
 	}
 
-	next, _ := m.handleSpawnComplete(9, game.SpawnCompleteMsg{Err: assertiveError("boom")})
-	got := next.(model)
+	newSessionController(&m).handleSpawnComplete(9, game.SpawnCompleteMsg{Err: assertiveError("boom")})
 
-	if got.state != playMenuView {
-		t.Fatalf("state = %d, want %d", got.state, playMenuView)
+	if m.state != playMenuView {
+		t.Fatalf("state = %d, want %d", m.state, playMenuView)
 	}
-	if got.notice.message == "" {
+	if m.notice.message == "" {
 		t.Fatal("expected spawn error notice to be populated")
 	}
 }

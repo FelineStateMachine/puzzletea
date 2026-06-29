@@ -288,20 +288,23 @@ var screenRegistry = map[viewState]screenFactory{
 }
 
 func (m model) activeScreen() screenModel {
-	return m.screens[m.state]
+	return newRouteManager(&m).activeScreen()
 }
 
 // initScreen creates a fresh screen for the given state (using the registry
 // factory) and stores it in m.screens. It also calls Resize so dimensions
 // are set correctly.
 func (m model) initScreen(state viewState) model {
-	factory, ok := screenRegistry[state]
-	if !ok {
-		return m
-	}
-	if m.screens == nil {
-		m.screens = make(map[viewState]screenModel)
-	}
-	m.screens[state] = factory(m).Resize(m.width, m.height)
+	newRouteManager(&m).initScreen(state)
+	return m
+}
+
+func (m model) resizeActiveScreen() model {
+	newRouteManager(&m).resizeActiveScreen()
+	return m
+}
+
+func (m model) handleWindowSize(msg tea.WindowSizeMsg) model {
+	newRouteManager(&m).handleWindowSize(msg)
 	return m
 }

@@ -186,7 +186,7 @@ func (m model) advanceSolvedWeekly() (model, tea.Cmd, bool) {
 	}
 
 	info := *m.session.weeklyAdvance
-	m = m.persistCompletionIfSolved()
+	newSessionController(&m).persistCompletionIfSolved()
 	m.weekly.cursor = weekly.StartOfWeek(info.Year, info.Week, time.Local)
 	m = m.refreshWeeklyBrowser()
 	m.state = weeklyView
